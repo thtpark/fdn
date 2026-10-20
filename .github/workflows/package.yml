@@ -1,0 +1,41 @@
+name: Package merged release
+
+on:
+  pull_request:
+    branches: [release]
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release'
+    name: Package / ${{ matrix.target.os }}-${{ matrix.target.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - {os: linux, arch: amd64}
+          - {os: linux, arch: arm64}
+          - {os: darwin, arch: arm64}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build twice and package the exact merged source
+        env:
+          TARGET_OS: ${{ matrix.target.os }}
+          TARGET_ARCH: ${{ matrix.target.arch }}
+        run: go run ./tools/package
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fdn-${{ matrix.target.os }}-${{ matrix.target.arch }}
+          path: dist/${{ matrix.target.os }}-${{ matrix.target.arch }}/
+          if-no-files-found: error
+          retention-days: 30
