@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -164,6 +166,20 @@ printf '%s\n' 'State and identities are preserved. Initialize as fdn, then expli
 			check.Stdout, check.Stderr = os.Stdout, os.Stderr
 			if err := check.Run(); err != nil {
 				return err
+			}
+			extract := filepath.Join(stage, "extract-"+role)
+			check = exec.Command("dpkg-deb", "--extract", filepath.Join(out, filename), extract)
+			check.Stdout, check.Stderr = os.Stdout, os.Stderr
+			if err := check.Run(); err != nil {
+				return err
+			}
+			extractedNotices, err := distribution.SHA256(filepath.Join(extract, "usr", "share", "doc", pkg, "copyright"))
+			if err != nil {
+				return err
+			}
+			expectedNotices := sha256.Sum256(notices)
+			if extractedNotices != hex.EncodeToString(expectedNotices[:]) {
+				return domain.Fail(domain.Internal, "Debian extraction did not preserve required license notices")
 			}
 			artifacts = append(artifacts, filename)
 		}
