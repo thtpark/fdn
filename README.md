@@ -437,7 +437,9 @@ user-service registration commands; provider processes do not inherit them.
   a native archive, metadata, third-party notices, and `SHA256SUMS`; Linux also
   produces separate Foundation and Agent Debian packages. Foundation's Debian
   package provisions only its dedicated service account; it does not bootstrap
-  or start an unconfigured service.
+  or start an unconfigured service. Debian payloads include deterministic parent
+  directory entries and pass unprivileged `dpkg-deb --extract` verification,
+  including the installed license notices, before upload.
 * Artifacts inherit repository access. No GitHub Release, signing, notarization,
   attestation, or deployment is silently performed. Local tests create tiny
   synthetic archive fixtures, **not release packages**. Real packaging is

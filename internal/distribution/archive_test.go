@@ -5,6 +5,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -48,6 +51,84 @@ func TestDeterministicArchivesAndDebianLayout(t *testing.T) {
 	data := deb.Bytes()
 	if !bytes.HasPrefix(data, []byte("!<arch>\n")) || !bytes.Contains(data, []byte("debian-binary/")) || !bytes.Contains(data, []byte("control.tar.gz/")) || !bytes.Contains(data, []byte("data.tar.gz/")) {
 		t.Fatal("invalid Debian ar members")
+	}
+}
+
+func TestDebianPayloadExtractsIntoAnEmptyRoot(t *testing.T) {
+	entries := []Entry{
+		{Name: "usr/bin/agent-cli", Data: []byte("native binary"), Mode: 0755},
+		{Name: "usr/share/doc/fdn-agent/copyright", Data: []byte("license notices"), Mode: 0644},
+	}
+	var archive bytes.Buffer
+	if err := Debian(&archive, []Entry{{Name: "control", Data: []byte("Package: fdn-agent\n"), Mode: 0644}}, entries, 123); err != nil {
+		t.Fatal(err)
+	}
+	data := archive.Bytes()[8:]
+	var payload []byte
+	for len(data) != 0 {
+		if len(data) < 60 {
+			t.Fatal("truncated Debian member header")
+		}
+		name := strings.TrimSuffix(strings.TrimSpace(string(data[:16])), "/")
+		size, err := strconv.Atoi(strings.TrimSpace(string(data[48:58])))
+		if err != nil || size < 0 || len(data) < 60+size {
+			t.Fatal("invalid Debian member length", err)
+		}
+		if name == "data.tar.gz" {
+			payload = data[60 : 60+size]
+		}
+		data = data[60+size+size%2:]
+	}
+	gz, err := gzip.NewReader(bytes.NewReader(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gz.Close()
+	root := t.TempDir()
+	reader := tar.NewReader(gz)
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		target := filepath.Join(root, filepath.FromSlash(header.Name))
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if header.Mode != 0755 || header.Uid != 0 || header.Gid != 0 || header.ModTime.Unix() != 123 {
+				t.Fatal("noncanonical directory metadata", header)
+			}
+			if err := os.Mkdir(target, os.FileMode(header.Mode)); err != nil {
+				t.Fatal("parent directories were not emitted before their children", err)
+			}
+		case tar.TypeReg:
+			content, err := io.ReadAll(reader)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(target, content, os.FileMode(header.Mode)); err != nil {
+				t.Fatal("payload cannot install into an empty root", err)
+			}
+		default:
+			t.Fatal("unexpected payload entry type")
+		}
+	}
+	for _, entry := range entries {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(entry.Name)))
+		if err != nil || !bytes.Equal(content, entry.Data) {
+			t.Fatal("extracted payload differs", entry.Name, err)
+		}
+	}
+	for _, invalid := range [][]Entry{
+		{{Name: "usr", Data: []byte("not a directory")}, {Name: "usr/bin/tool"}},
+		{{Name: "../escape"}},
+		{{Name: "same"}, {Name: "same"}},
+	} {
+		if err := Debian(io.Discard, nil, invalid, 0); err == nil {
+			t.Fatal("invalid Debian payload accepted")
+		}
 	}
 }
 

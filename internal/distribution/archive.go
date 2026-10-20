@@ -20,10 +20,11 @@ import (
 )
 
 type Entry struct {
-	Name string
-	Path string
-	Data []byte
-	Mode int64
+	Name      string
+	Path      string
+	Data      []byte
+	Mode      int64
+	Directory bool
 }
 
 func TarGzip(w io.Writer, entries []Entry, epoch int64) (err error) {
@@ -41,6 +42,9 @@ func TarGzip(w io.Writer, entries []Entry, epoch int64) (err error) {
 			return domain.Fail(domain.Invalid, "archive entry name must be unique, relative, and canonical")
 		}
 		seen[entry.Name] = true
+		if entry.Directory && (entry.Path != "" || len(entry.Data) != 0) {
+			return domain.Fail(domain.Invalid, "archive directory entries cannot contain file data")
+		}
 		var reader io.Reader = bytes.NewReader(entry.Data)
 		size := int64(len(entry.Data))
 		var file *os.File
@@ -64,6 +68,10 @@ func TarGzip(w io.Writer, entries []Entry, epoch int64) (err error) {
 			size, reader = info.Size(), file
 		}
 		header := &tar.Header{Name: entry.Name, Mode: entry.Mode, Size: size, ModTime: time.Unix(epoch, 0), Typeflag: tar.TypeReg, Format: tar.FormatUSTAR}
+		if entry.Directory {
+			header.Name += "/"
+			header.Typeflag = tar.TypeDir
+		}
 		headerErr := archive.WriteHeader(header)
 		var copyErr error
 		if headerErr == nil {
@@ -81,6 +89,10 @@ func TarGzip(w io.Writer, entries []Entry, epoch int64) (err error) {
 }
 
 func Debian(w io.Writer, control, data []Entry, epoch int64) error {
+	data, err := withParentDirectories(data)
+	if err != nil {
+		return err
+	}
 	var controlBytes, dataBytes bytes.Buffer
 	if err := TarGzip(&controlBytes, control, epoch); err != nil {
 		return err
@@ -112,6 +124,33 @@ func Debian(w io.Writer, control, data []Entry, epoch int64) error {
 		}
 	}
 	return nil
+}
+
+func withParentDirectories(entries []Entry) ([]Entry, error) {
+	result := slices.Clone(entries)
+	kinds := map[string]bool{}
+	for _, entry := range entries {
+		if entry.Name == "" || entry.Name == "." || path.Clean(entry.Name) != entry.Name || strings.HasPrefix(entry.Name, "/") || strings.HasPrefix(entry.Name, "../") {
+			return nil, domain.Fail(domain.Invalid, "Debian payload paths must be relative and canonical")
+		}
+		if _, exists := kinds[entry.Name]; exists {
+			return nil, domain.Fail(domain.Invalid, "duplicate Debian payload entry")
+		}
+		kinds[entry.Name] = entry.Directory
+	}
+	for _, entry := range entries {
+		for parent := path.Dir(entry.Name); parent != "."; parent = path.Dir(parent) {
+			if directory, exists := kinds[parent]; exists {
+				if !directory {
+					return nil, domain.Fail(domain.Invalid, "Debian payload file conflicts with a required parent directory")
+				}
+				continue
+			}
+			kinds[parent] = true
+			result = append(result, Entry{Name: parent, Mode: 0755, Directory: true})
+		}
+	}
+	return result, nil
 }
 
 func SHA256(path string) (string, error) {
