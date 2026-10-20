@@ -6,6 +6,7 @@ import (
 	"io"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -47,12 +48,29 @@ func TestNativeServiceContractsWithoutHostChanges(t *testing.T) {
 	}
 	options.OS = runtime.GOOS
 	options.Binary = "/opt/fdn/agent-service"
+	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1001")
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/1001/bus")
+	t.Setenv("FDN_DEPLOYMENT_SECRET", "must-not-be-inherited")
 	record := &recorder{}
 	if err := Install(context.Background(), options, record); err != nil {
 		t.Fatal(err)
 	}
 	if len(record.calls) == 0 {
 		t.Fatal("manager not invoked")
+	}
+	for _, call := range record.calls {
+		for _, variable := range call.Env {
+			if strings.HasPrefix(variable, "FDN_DEPLOYMENT_SECRET=") {
+				t.Fatal("service manager inherited an unrelated secret")
+			}
+		}
+		if runtime.GOOS == "linux" {
+			for _, required := range []string{"XDG_RUNTIME_DIR=/run/user/1001", "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus"} {
+				if !slices.Contains(call.Env, required) {
+					t.Fatal("user service manager lost its bus environment", required)
+				}
+			}
+		}
 	}
 	options.User = "root\nExecStart=bad"
 	if _, err := Render(options); err == nil {

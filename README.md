@@ -417,6 +417,10 @@ requires OS administrator execution. Options are in
 [platform.Options](internal/platform/service.go). The account/configuration must
 already exist. Normal service startup does not provision root accounts or
 change SSH/firewall/desktop policy. Use one registration per worker computer.
+On Linux, invoke agent service registration as the dedicated account with its
+active user manager (`XDG_RUNTIME_DIR` and, where set,
+`DBUS_SESSION_BUS_ADDRESS`). These two bus variables are passed only to the
+user-service registration commands; provider processes do not inherit them.
 
 ## GitHub Actions and packaging
 
