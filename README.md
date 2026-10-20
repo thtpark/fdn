@@ -421,6 +421,8 @@ On Linux, invoke agent service registration as the dedicated account with its
 active user manager (`XDG_RUNTIME_DIR` and, where set,
 `DBUS_SESSION_BUS_ADDRESS`). These two bus variables are passed only to the
 user-service registration commands; provider processes do not inherit them.
+Linux unit tests also invoke `systemd-analyze verify` when available, without
+registering or starting a service, to check the rendered unit syntax.
 
 ## GitHub Actions and packaging
 
