@@ -136,7 +136,15 @@ func Install(ctx context.Context, o Options, runner process.Runner) (err error) 
 	}
 	for _, command := range definition.Commands {
 		output := process.NewBuffer(8192)
-		if err := runner.Run(ctx, process.Spec{Path: command[0], Args: command[1:], Env: process.Environment(), Stdout: output, Stderr: output}); err != nil {
+		environment := process.Environment()
+		if o.OS == "linux" && o.Role == "agent" {
+			for _, name := range []string{"XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"} {
+				if value := os.Getenv(name); value != "" {
+					environment = append(environment, name+"="+value)
+				}
+			}
+		}
+		if err := runner.Run(ctx, process.Spec{Path: command[0], Args: command[1:], Env: environment, Stdout: output, Stderr: output}); err != nil {
 			return fmt.Errorf("native service registration failed at %s: %w", command[0], err)
 		}
 		if _, err := output.Bytes(); err != nil {
