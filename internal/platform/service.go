@@ -57,7 +57,7 @@ func Render(o Options) (Definition, error) {
 		content += "ExecStart=" + strconv.Quote(o.Binary) + " --config " + strconv.Quote(o.ConfigFile) + " serve\n" +
 			"Restart=on-failure\nRestartSec=5\nTimeoutStopSec=15\nKillMode=control-group\nUMask=0077\nNoNewPrivileges=true\n" +
 			"Environment=" + strconv.Quote("PATH="+filepath.Join(o.Home, ".local", "bin")+":/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin") + "\n" +
-			"WorkingDirectory=" + strconv.Quote(o.StateDir) + "\n\n[Install]\n"
+			"WorkingDirectory=" + strings.ReplaceAll(o.StateDir, "%", "%%") + "\n\n[Install]\n"
 		commands := [][]string{{"systemctl", "daemon-reload"}, {"systemctl", "enable", "--now", filepath.Base(o.Definition)}}
 		if o.Role == "agent" {
 			content += "WantedBy=default.target\n"
