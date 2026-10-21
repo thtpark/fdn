@@ -48,13 +48,21 @@ CREATE TABLE audit (sequence INTEGER PRIMARY KEY AUTOINCREMENT, actor_id TEXT NO
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `
 
+const autonomousSchema = `
+UPDATE agents SET data = json_set(data, '$.revision', 1, '$.mode',
+ CASE WHEN json_extract(data, '$.founder') = 1 THEN 'manual' ELSE 'ai' END);
+CREATE TABLE assistance_grants (id TEXT PRIMARY KEY, data BLOB NOT NULL,
+ requester_id TEXT NOT NULL REFERENCES agents(id), target_id TEXT NOT NULL REFERENCES agents(id), active INTEGER NOT NULL);
+CREATE INDEX assistance_parties ON assistance_grants(requester_id,target_id,active,id);
+`
+
 type Store struct {
 	db  *sql.DB
 	now func() time.Time
 }
 
 func Open(ctx context.Context, path string) (*Store, error) {
-	db, err := database.Open(ctx, path, []string{schema})
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema})
 	if err != nil {
 		return nil, err
 	}

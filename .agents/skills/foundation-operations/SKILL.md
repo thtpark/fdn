@@ -19,8 +19,11 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    provider version and local evidence. Service startup/registration accepted
    does not prove final health. A singleton conflict is an owner to inspect,
    never a lock file to remove.
-4. Pause only within scope with `mode set manual`; it cancels/joins automatic
-   inference but does not revoke identity or fake remote completion. Inspect
+4. Only an authenticated Founder request may pause/resume a non-Founder agent:
+   use `agent mode AGENT --input FILE` with explicit mode/reason. The autonomous
+   target mirrors the request and cancels/joins inference; it never waits for a
+   local person or self-sets manual. Delegates may be AI agents, not humans.
+   Founder can use `mode set` for its own mode only. Inspect
    pending reports/session fences before OS stop/restart. Do not reboot active
    work just to make a diagnostic pass.
 5. Reconcile lost acknowledgements with the same operation and original input.
@@ -50,6 +53,9 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 11. On suspected exposure, preserve redacted evidence and obtain current
      authority for revocation/rotation. Founder can revoke agents; parties can
      close/revoke sessions. Previously downloaded material cannot be recalled.
+     Persistent assistance grants survive closed/expired sessions and restarts;
+     Founder revokes the grant itself to remove future access. Reconnection
+     under a still-valid grant never requires repeated authorization.
 
 Read `guide show CAPACITY.md` before a scale claim. Existing evidence is 1,000
 tasks/24 concurrent writers, not 1,000 agents. Do not add infrastructure, weaken

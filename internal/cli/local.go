@@ -2,11 +2,13 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"path/filepath"
 	"runtime"
 	"slices"
 
+	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/local"
@@ -15,6 +17,7 @@ import (
 	"github.com/thtpark/fdn/internal/provider"
 	"github.com/thtpark/fdn/internal/remote"
 	"github.com/thtpark/fdn/internal/secure"
+	"github.com/thtpark/fdn/internal/work"
 )
 
 func (a *app) localCommand(ctx context.Context, r *resources, group string, args []string) (any, error) {
@@ -96,20 +99,27 @@ func (a *app) localCommand(ctx context.Context, r *resources, group string, args
 			if err := requireArgs(args, 2); err != nil {
 				return nil, err
 			}
-			lock, err := secure.Acquire(a.configFile + ".lock")
+			me, err := api.Call[domain.Agent](ctx, r.client, "GET", "/v1/me", nil)
 			if err != nil {
 				return nil, err
 			}
-			defer lock.Close()
-			c, err := config.LoadWorker(a.configFile)
+			if !me.Founder {
+				return nil, domain.Fail(domain.Denied, "only Founder may request manual/ai mode; ask Founder to use agent mode AGENT")
+			}
+			req := domain.ModeRequest{Mode: args[1], Reason: "Founder explicitly changed its own automation mode"}
+			if err := a.metadata(&req.Command); err != nil {
+				return nil, err
+			}
+			data, err := a.write(ctx, r, api.Path("agents", me.ID, "mode"), req, "/v1/me")
 			if err != nil {
 				return nil, err
 			}
-			c.Mode = args[1]
-			if err := c.Validate(); err != nil {
+			var updated domain.Agent
+			if err := json.Unmarshal(data, &updated); err != nil {
 				return nil, err
 			}
-			return map[string]string{"mode": c.Mode}, config.Write(a.configFile, c)
+			c, err := work.ReconcileMode(ctx, r.state, r.config, a.configFile, updated)
+			return map[string]string{"mode": c.Mode}, err
 		}
 	case "preferences":
 		if args[0] == "show" {

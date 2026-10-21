@@ -62,6 +62,17 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 			timer.Reset(time.Second)
 			continue
 		}
+		me, modeErr := api.Call[domain.Agent](ctx, e.Client, "GET", "/v1/me", nil)
+		if modeErr == nil {
+			c, modeErr = e.applyMode(ctx, c, me)
+		}
+		if modeErr != nil {
+			if ctx.Err() == nil {
+				e.recordProblem(context.WithoutCancel(ctx), "mode-control-problem", modeErr)
+			}
+			timer.Reset(time.Duration(c.PollSeconds) * time.Second)
+			continue
+		}
 		if c.Mode == "ai" && c.AutomaticProviderUpdates && e.Now().Sub(lastUpdate) > time.Hour {
 			lastUpdate = e.Now()
 			if manager, ok := e.Executor.(*provider.Manager); ok {
@@ -82,7 +93,12 @@ func (e *Engine) watch(ctx context.Context, wake chan<- struct{}) {
 	defer ticker.Stop()
 	var cursor string
 	lastHeartbeat := time.Time{}
-	lastMode := e.Config.Mode
+	initialConfig, err := e.currentConfig()
+	if err != nil {
+		e.recordProblem(ctx, "watch-problem", err)
+		return
+	}
+	lastMode := initialConfig.Mode
 	if _, err := e.State.Get(ctx, "daemon-watch-cursor", &cursor); err != nil {
 		e.recordProblem(ctx, "watch-problem", err)
 		return
@@ -122,6 +138,27 @@ func (e *Engine) watch(ctx context.Context, wake chan<- struct{}) {
 				continue
 			}
 			if len(page.Items) > 0 {
+				modeChanged := false
+				for _, event := range page.Items {
+					if event.Topic == "agent-mode" && event.SourceID == e.Client.Credential.AgentID {
+						modeChanged = true
+					}
+				}
+				if modeChanged {
+					me, err := api.Call[domain.Agent](ctx, e.Client, "GET", "/v1/me", nil)
+					if err == nil {
+						c, loadErr := e.currentConfig()
+						if loadErr != nil {
+							err = loadErr
+						} else {
+							_, err = e.applyMode(ctx, c, me)
+						}
+					}
+					if err != nil {
+						e.recordProblem(ctx, "mode-control-problem", err)
+						continue
+					}
+				}
 				if err := e.State.Put(ctx, "pending-wake", page.Items[len(page.Items)-1].Sequence); err != nil {
 					e.recordProblem(ctx, "watch-problem", err)
 					continue

@@ -460,7 +460,7 @@ func TestNativeCancellationAndCrashRecovery(t *testing.T) {
 	agent := l.startAgent(t)
 	started := filepath.Join(l.workspace, "started")
 	waitFor(t, 12*time.Second, func() bool { _, err := os.Stat(started); return err == nil }, "owned provider process")
-	l.cli(t, l.worker, []string{"mode", "set", "manual"}, nil)
+	l.cli(t, l.founder, []string{"agent", "mode", l.worker.agent.ID, "--input", "-"}, domain.ModeRequest{Mode: "manual", Reason: "Founder requests bounded test maintenance"})
 	waitFor(t, 6*time.Second, func() bool {
 		current := l.task(t, task.ID)
 		return current.ActiveRun == nil && current.Status == domain.Paused
@@ -474,7 +474,7 @@ func TestNativeCancellationAndCrashRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	crashTask := l.approved(t, "crash")
-	l.cli(t, l.worker, []string{"mode", "set", "ai"}, nil)
+	l.cli(t, l.founder, []string{"agent", "mode", l.worker.agent.ID, "--input", "-"}, domain.ModeRequest{Mode: "ai", Reason: "Founder explicitly resumes worker"})
 	agent = l.startAgent(t)
 	waitFor(t, 12*time.Second, func() bool { _, err := os.Stat(started); return err == nil }, "crash fixture process")
 	pidBytes, err := os.ReadFile(started)
