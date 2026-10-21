@@ -251,13 +251,8 @@ func TestConsentRelayTransfersBytesAndClosesOnWithdrawal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	task := h.ready(t)
-	session, err := api.Call[domain.Session](ctx, h.founder, "POST", "/v1/sessions", domain.SessionRequest{Command: command(), TargetID: h.workerAgent.ID, ProjectID: task.ProjectID, TaskID: task.ID, Mode: "vnc", Purpose: "terminal", Reason: "view consenting test endpoint", ExpiresAt: time.Now().Unix() + 90})
-	if err != nil {
-		t.Fatal(err)
-	}
-	change := domain.SessionChange{Command: command(), Action: "consent"}
-	change.ExpectedRevision = session.Revision
-	session, err = api.Call[domain.Session](ctx, h.worker, "POST", api.Path("sessions", session.ID), change)
+	grant := grantFor(t, h, h.founderAgent.ID, h.workerAgent.ID, "vnc", "terminal", task.ProjectID)
+	session, err := api.Call[domain.Session](ctx, h.founder, "POST", "/v1/sessions", domain.SessionRequest{Command: command(), GrantID: grant.ID, TargetID: h.workerAgent.ID, ProjectID: task.ProjectID, TaskID: task.ID, Mode: "vnc", Purpose: "terminal", Reason: "view authorized test endpoint", ExpiresAt: time.Now().Unix() + 90})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +262,7 @@ func TestConsentRelayTransfersBytesAndClosesOnWithdrawal(t *testing.T) {
 		conn.CloseNow()
 		t.Fatal("consent alone opened a route")
 	}
-	change = domain.SessionChange{Command: command(), Action: "open"}
+	change := domain.SessionChange{Command: command(), Action: "open"}
 	change.ExpectedRevision = session.Revision
 	session, err = api.Call[domain.Session](ctx, h.founder, "POST", api.Path("sessions", session.ID), change)
 	if err != nil {
@@ -298,9 +293,9 @@ func TestConsentRelayTransfersBytesAndClosesOnWithdrawal(t *testing.T) {
 	if err != nil || string(bytes) != "reply" {
 		t.Fatal(string(bytes), err)
 	}
-	change = domain.SessionChange{Command: command(), Action: "revoke"}
-	change.ExpectedRevision = session.Revision
-	if _, err := api.Call[domain.Session](ctx, h.worker, "POST", api.Path("sessions", session.ID), change); err != nil {
+	revoke := domain.AssistanceRevoke{Command: command(), Reason: "Founder withdraws the persistent grant"}
+	revoke.ExpectedRevision = grant.Revision
+	if _, err := api.Call[domain.AssistanceGrant](ctx, h.founder, "POST", api.Path("assistance", grant.ID, "revoke"), revoke); err != nil {
 		t.Fatal(err)
 	}
 	_, _, err = requester.Read(ctx)

@@ -71,7 +71,9 @@ func TestOfflineCLIUsesPrivatePersistentState(t *testing.T) {
 	call([]string{"config", "init", "--state", filepath.Join(root, "state")}, nil)
 	call([]string{"config", "show"}, nil)
 	call([]string{"config", "set", "--input", "-"}, map[string]any{"poll_seconds": 2, "automatic_provider_updates": false})
-	call([]string{"mode", "set", "manual"}, nil)
+	if envelope, code := invoke(t, "agent", append(append([]string{}, base...), "mode", "set", "manual"), nil); code != 6 || envelope.OK {
+		t.Fatal("offline local command changed protected automation mode")
+	}
 	call([]string{"mode", "show"}, nil)
 	call([]string{"preferences", "set", "--input", "-"}, map[string]string{"provider": "copilot", "model": "fixture-model"})
 	call([]string{"preferences", "show"}, nil)

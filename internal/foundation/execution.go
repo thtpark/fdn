@@ -30,6 +30,9 @@ func (s *Store) retryReady(ctx context.Context, tx *sql.Tx, p domain.Project, t 
 
 func (s *Store) Claim(ctx context.Context, actor, id string, req domain.ClaimRequest) (domain.Run, error) {
 	return mutate(ctx, s, actor, "task.claim:"+id, req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.Run, error) {
+		if !a.Founder && a.Mode != "ai" {
+			return domain.Run{}, domain.Fail(domain.Prerequisite, "Founder paused this agent; a new claim requires Founder-authorized resumption")
+		}
 		t, err := get[domain.Task](ctx, tx, "tasks", id)
 		if err != nil {
 			return domain.Run{}, err

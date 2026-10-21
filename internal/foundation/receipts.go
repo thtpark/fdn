@@ -36,6 +36,8 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "messages", ID: v.ID}
 	case domain.Session:
 		ref = storedResult{Kind: "sessions", ID: v.ID}
+	case domain.AssistanceGrant:
+		ref = storedResult{Kind: "assistance_grants", ID: v.ID}
 	case domain.ReportOutcome:
 		ref = storedResult{Kind: "report", ID: v.Run.ID, TaskID: v.Task.ID, Accepted: v.Accepted, Stale: v.Stale}
 	case domain.Attention, map[string]bool:
@@ -75,6 +77,8 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, data []byte) (T, error
 		value, err = get[domain.Message](ctx, tx, ref.Kind, ref.ID)
 	case "sessions":
 		value, err = get[domain.Session](ctx, tx, ref.Kind, ref.ID)
+	case "assistance_grants":
+		value, err = get[domain.AssistanceGrant](ctx, tx, ref.Kind, ref.ID)
 	case "value":
 		err = json.Unmarshal(ref.Value, &zero)
 		return zero, err

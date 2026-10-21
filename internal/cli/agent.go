@@ -31,7 +31,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 	if group == "service" && len(tail) > 0 && tail[0] != "status" {
 		return a.nativeService(ctx, tail, "agent")
 	}
-	localOnly := slices.Contains([]string{"config", "mode", "knowledge", "inventory", "workspace", "provider", "preferences", "service"}, group) ||
+	localOnly := slices.Contains([]string{"config", "knowledge", "inventory", "workspace", "provider", "preferences", "service"}, group) ||
+		(group == "mode" && len(tail) > 0 && tail[0] == "show") ||
 		(group == "work" && len(tail) > 0 && tail[0] == "status")
 	r, err := a.load(ctx, !localOnly)
 	if err != nil {
@@ -83,6 +84,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.messageCommand(ctx, r, tail)
 	case "session":
 		return a.sessionCommand(ctx, r, tail)
+	case "assistance":
+		return a.assistanceCommand(ctx, r, tail)
 	case "watch":
 		return a.watchCommand(ctx, r, tail)
 	default:
@@ -106,6 +109,26 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 			return nil, err
 		}
 		return api.Call[[]domain.Agent](ctx, r.client, "GET", "/v1/agents", nil)
+	}
+	if args[0] == "show" {
+		if err := requireArgs(args, 2); err != nil {
+			return nil, err
+		}
+		return api.Call[domain.Agent](ctx, r.client, "GET", api.Path("agents", args[1]), nil)
+	}
+	if args[0] == "mode" {
+		id, tail, err := idArgs(args[1:])
+		if err != nil {
+			return nil, err
+		}
+		var req domain.ModeRequest
+		if err := a.input(tail, &req); err != nil {
+			return nil, err
+		}
+		if err := a.metadata(&req.Command); err != nil {
+			return nil, err
+		}
+		return a.write(ctx, r, api.Path("agents", id, "mode"), req, api.Path("agents", id))
 	}
 	if args[0] == "revoke" {
 		if err := requireArgs(args, 2); err != nil {

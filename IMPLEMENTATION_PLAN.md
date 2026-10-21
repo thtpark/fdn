@@ -7,6 +7,10 @@ approvals, run models, or publish sensitive data.
 ## Product and architecture decisions
 
 - One native worker computer/identity/service and one active work slot.
+- Every non-Founder is autonomous/unattended; only Founder coordinates human
+  needs and explicitly pauses/resumes global mode. Delegates may be AI agents.
+- Persistent scoped Founder-issued assistance authorization survives restarts
+  and live-connection expiry; targets need no human or repeated consent.
 - One authoritative TLS API and embedded SQLite service; agents never write the
   server database directly. Service-controlled policy applies to every client.
 - Loopback listeners plus pinned SSH and TLS for remote machines.

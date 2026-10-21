@@ -29,7 +29,7 @@ func (e *echoEndpoint) Open(_ context.Context, _ domain.Session, _ config.Worker
 	return left, nil
 }
 
-func TestTargetSessionSupervisorSharesWorkSlotAndRequiresBothActions(t *testing.T) {
+func TestAutonomousTargetUsesRetainedGrantAndExplicitOpenWithoutLocalConsent(t *testing.T) {
 	h := newHarness(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -54,7 +54,8 @@ func TestTargetSessionSupervisorSharesWorkSlotAndRequiresBothActions(t *testing.
 		}
 	}()
 	task := h.ready(t)
-	session, err := api.Call[domain.Session](ctx, h.founder, "POST", "/v1/sessions", domain.SessionRequest{Command: command(), TargetID: h.workerAgent.ID, ProjectID: task.ProjectID, Mode: "vnc", Purpose: "terminal", Reason: "recorded endpoint adapter", ExpiresAt: time.Now().Unix() + 90})
+	grant := grantFor(t, h, h.founderAgent.ID, h.workerAgent.ID, "vnc", "terminal", task.ProjectID)
+	session, err := api.Call[domain.Session](ctx, h.founder, "POST", "/v1/sessions", domain.SessionRequest{Command: command(), GrantID: grant.ID, TargetID: h.workerAgent.ID, ProjectID: task.ProjectID, Mode: "vnc", Purpose: "terminal", Reason: "recorded endpoint adapter", ExpiresAt: time.Now().Unix() + 90})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,17 +63,10 @@ func TestTargetSessionSupervisorSharesWorkSlotAndRequiresBothActions(t *testing.
 	if endpoint.opened.Load() != 0 {
 		t.Fatal("request launched endpoint")
 	}
-	change := domain.SessionChange{Command: command(), Action: "consent"}
-	change.ExpectedRevision = session.Revision
-	session, err = api.Call[domain.Session](ctx, h.worker, "POST", api.Path("sessions", session.ID), change)
-	if err != nil {
-		t.Fatal(err)
+	if session.State != "consented" {
+		t.Fatal("retained authorization did not eliminate repeated local consent")
 	}
-	time.Sleep(550 * time.Millisecond)
-	if endpoint.opened.Load() != 0 {
-		t.Fatal("consent alone launched endpoint")
-	}
-	change = domain.SessionChange{Command: command(), Action: "open"}
+	change := domain.SessionChange{Command: command(), Action: "open"}
 	change.ExpectedRevision = session.Revision
 	session, err = api.Call[domain.Session](ctx, h.founder, "POST", api.Path("sessions", session.ID), change)
 	if err != nil {

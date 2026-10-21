@@ -30,8 +30,9 @@ Read `guide show DEPLOYMENT.md`, `guide show COMMANDS.md` and, for authority,
    blindly issue another invitation, remove a pending record, or duplicate the
    enrolled computer to get past a conflict.
 7. Verify `doctor`, `status`, and the actual `agent list` ID/role/active/sponsor.
-   Founder bootstrap defaults to manual; regular enrollment keeps its configured
-   mode/default ai. Never reset an existing mode during reconnect.
+   Founder bootstrap defaults to manual; regular enrollment starts in ai under
+   server authority. Only Founder may explicitly pause/resume a regular agent.
+   Never invent a mode decision from a local operator or display name.
 8. Remove consumed transfer copies only after success; keep credentials in
    owner-only local files. Never return invitation contents/private keys/tokens
    to an AI or raw output report.

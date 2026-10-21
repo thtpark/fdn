@@ -60,13 +60,18 @@ type Command struct {
 }
 
 type Agent struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Founder   bool   `json:"founder"`
-	Active    bool   `json:"active"`
-	SponsorID string `json:"sponsor_id,omitempty"`
-	CreatedAt int64  `json:"created_at"`
-	LastSeen  int64  `json:"last_seen"`
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Founder         bool   `json:"founder"`
+	Active          bool   `json:"active"`
+	SponsorID       string `json:"sponsor_id,omitempty"`
+	CreatedAt       int64  `json:"created_at"`
+	LastSeen        int64  `json:"last_seen"`
+	Revision        int64  `json:"revision"`
+	Mode            string `json:"mode"`
+	ModeRequestedBy string `json:"mode_requested_by,omitempty"`
+	ModeReason      string `json:"mode_reason,omitempty"`
+	ModeChangedAt   int64  `json:"mode_changed_at,omitempty"`
 }
 
 type Invitation struct {
@@ -281,6 +286,23 @@ type Session struct {
 	ExpiresAt     int64  `json:"expires_at"`
 	Revision      int64  `json:"revision"`
 	CreatedAt     int64  `json:"created_at"`
+	GrantID       string `json:"grant_id,omitempty"`
+}
+
+type AssistanceGrant struct {
+	ID          string `json:"id"`
+	RequesterID string `json:"requester_id"`
+	TargetID    string `json:"target_id"`
+	ProjectID   string `json:"project_id,omitempty"`
+	Mode        string `json:"mode"`
+	Purpose     string `json:"purpose"`
+	Provider    string `json:"provider,omitempty"`
+	Active      bool   `json:"active"`
+	Revision    int64  `json:"revision"`
+	CreatedBy   string `json:"created_by"`
+	CreatedAt   int64  `json:"created_at"`
+	UpdatedAt   int64  `json:"updated_at"`
+	Reason      string `json:"reason"`
 }
 
 type History struct {

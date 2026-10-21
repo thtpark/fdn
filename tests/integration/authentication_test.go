@@ -121,8 +121,8 @@ func TestMissingAuthenticationReachesFounderBeforeOnboardingWithoutInference(t *
 				message.Urgent || message.ID != request.Deliveries[0].MessageID {
 				t.Fatal("authentication handoff is not protected/attributed", message)
 			}
-			for _, expected := range []string{request.ID, h.workerAgent.ID, name, "mode set manual",
-				"provider login --provider " + name, "No timed expiry", "consent", "spending"} {
+			for _, expected := range []string{request.ID, h.workerAgent.ID, name, "agent mode",
+				"assistance open GRANT --provider " + name, "No timed expiry", "autonomous", "delegate may be an AI", "spending"} {
 				if !strings.Contains(message.Body, expected) {
 					t.Fatal("request omitted an actionable boundary/reference", expected, message.Body)
 				}
@@ -349,18 +349,22 @@ func TestProtectedAuthenticationMessageNeverBecomesAnAutomaticAIReply(t *testing
 	}
 }
 
-func TestManualModeDoesNotStartAutomaticAuthenticationHandoffs(t *testing.T) {
+func TestFounderPauseCannotBeBypassedByManualWorkRun(t *testing.T) {
 	h := newHarness(t)
 	x := &authenticationExecutor{authentication: "login-required"}
 	engine := authenticationEngine(t, h, x)
-	engine.Config.Mode = "manual"
+	mode := domain.ModeRequest{Command: command(), Mode: "manual", Reason: "Founder explicitly pauses worker"}
+	mode.ExpectedRevision = h.workerAgent.Revision
+	if _, err := api.Call[domain.Agent](context.Background(), h.founder, "POST", api.Path("agents", h.workerAgent.ID, "mode"), mode); err != nil {
+		t.Fatal(err)
+	}
 	status, err := engine.Step(context.Background(), false)
 	if err != nil || status.State != "manual" || len(status.AuthenticationRequests) != 0 || len(x.checks) != 0 {
 		t.Fatal("manual mode started automatic provider activity", status, err)
 	}
 	status, err = engine.Step(context.Background(), true)
-	if err == nil || domain.AsFault(err).Code != domain.Prerequisite || len(status.AuthenticationRequests) != 1 ||
-		len(authenticationInbox(t, h.founder)) != 1 || x.invocations != 0 || engine.Config.Mode != "manual" {
-		t.Fatal("explicit manual controller could not request sign-in without changing mode/inference", status, err)
+	if err == nil || domain.AsFault(err).Code != domain.Prerequisite || len(status.AuthenticationRequests) != 0 ||
+		len(authenticationInbox(t, h.founder)) != 0 || x.invocations != 0 || engine.Config.Mode != "manual" {
+		t.Fatal("manual entrypoint bypassed Founder pause", status, err)
 	}
 }

@@ -30,33 +30,37 @@ model and authorized inference.
    absolute-path success alone does not prove shell usability. Repair an older
    install with `provider link`, then reconnect or add `.local/bin` to the
    current PATH. Do not globally reinstall packages to mask this omission.
-3. Login can unlock an ai-mode worker's initial review or automatic work. Resolve
-   spending authorization and an approved manual hold before protected sign-in
-   where needed; record prior mode for separately authorized restoration.
+3. All non-Founder targets are autonomous and unattended. Founder is the only
+   human-help coordination point; delegates may be AI agents. They can coordinate
+   authorized automated steps but must escalate human-only actions to Founder.
+   Login may unlock automatic inference: only Founder may explicitly request a
+   pause/resume through `agent mode AGENT --input FILE`, with mode/reason.
+   Targets/delegates cannot self-set manual or resume a Founder pause.
 4. Credentials stay in the dedicated account. Never read/copy another account's
    provider auth, ask for a token/device code/password in chat, capture the UI,
    or publish a private login URL/transcript.
-5. A person may explicitly run `provider login --provider NAME` in their own
-   visible terminal, without `--json`/`--non-interactive`. Captured/structured
-   execution is not a human terminal; do not work around the prerequisite.
-6. Remote assistance requires current Founder/project-delegate scope, target
-   per-session consent, an explicit requester-open action and an actual 60-900
-   second expiry. Use `session request --input FILE` with authentication purpose
-   and supported provider. Send a non-secret `message send --input FILE`
-   handoff with source/session/project IDs, exact action, UTC deadline/time
-   remaining and pending state; protected kind authentication/session must set
-   response_requested=false.
-7. The target uses `session change SESSION --input FILE` action consent/deny.
-   The requester chooses when to use `session open SESSION` in their own human
-   terminal. Request, delivery, acknowledgement and ordinary replies are not
-   consent. Do not open terminals/screens on the human's behalf.
+5. Never wait for a human at the target to run login or record consent. Founder
+   can issue `assistance grant --input FILE` once, scoped to the requester/target,
+   mode, purpose authentication and optional provider/project. The requester can
+   be a delegate agent without inheriting human/credential/task/mode authority.
+6. Reuse that persistent revocable grant with `assistance open GRANT --provider
+   NAME`. The target prepares the explicitly opened bounded session unattended.
+   The grant survives disconnects/restarts until revoked; another live connection
+   is not another authorization decision. Current scope/identity/project
+   authority and revocation are always rechecked.
+7. The protected credential UI must be operated through Founder's human-help
+   channel, never exposed to a model, including a delegate AI. Native terminal
+   attachment refuses JSON/captured UI. Send non-secret references/actions and
+   live-session UTC expiry through messaging; protected kind authentication/
+   session has response_requested=false. A message is not a grant or open action.
 8. Tmux authentication starts the selected login command. VNC needs an existing,
    authenticated, verified loopback backend and trusted viewer; it does not
    install/unlock a desktop or transfer the requester's application identity.
    Never automate keystrokes through arbitrary consent/login prompts.
-9. Expired/revoked sessions need fresh scoped consent; preserve old evidence
-   rather than extending expiry or replaying stale actions. Confirm cleanup/
-   closure and retain unproven session fences for exact stopped-process recovery.
+9. Expired/closed live sessions can reconnect under the same active grant without
+   reapproval. Revoked grants cannot reopen; Founder must explicitly issue a new
+   authorization if appropriate. Do not extend a stale session or replay old open
+   actions. Confirm cleanup and preserve unproven fences for exact recovery.
 10. After the human completes login, recheck provider status without inference.
     A finished login command and Codex credentials-present-unverified do not
     prove live vendor usability. Respect task-required provider/model; unknown
