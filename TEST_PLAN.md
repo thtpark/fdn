@@ -24,6 +24,26 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Documented test cases
+
+The [test-case catalog](tests/e2e/SCENARIOS.md#test-case-catalog) records the
+requested delegated-workflow scenario and its directly related regressions, with
+stable IDs, preconditions, actions, expected results, executable test names and
+run commands:
+
+| Case family | Documented coverage |
+| --- | --- |
+| `WF-001` / `WF-002` | Founder sign-in handoff, both provider-role swaps, four clarification rounds, exact approval, one PR, delegate review, rework, merge, done, and feedback receipts |
+| `VF-001`–`VF-018` | Verification authority/fences, competing claims, shared slots, invalid reports, revocation, pause/resume, cancellation, replay and recovery |
+| `POL-001` / `POL-002` | Named/independent approvers and structured provider-decision validation |
+| `FX-001`–`FX-007` | Deterministic provider plans and isolated Git/Git-host fixture contracts |
+| `LIVE-001` | Separately opted-in real GitHub boundary check; excluded/skipped by default, not a passed live qualification |
+
+This is a concrete catalog for the workflow introduced here, not an exhaustive
+inventory of every test function in the repository. Other suite coverage remains
+summarized below. New scenarios should add an explicit catalog entry alongside
+their tests; planned/unimplemented cases must not be described as covered.
+
 ## Change-to-test map
 
 | Change | Minimum related cases |
