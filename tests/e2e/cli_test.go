@@ -29,7 +29,7 @@ import (
 var binaries string
 
 func TestMain(m *testing.M) {
-	root, err := os.MkdirTemp("", "fdn-e2e-binaries-")
+	root, err := makeFixtureRoot()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -232,7 +232,7 @@ func (l *lab) change(t *testing.T, w *worker, id string, req domain.TaskChange) 
 
 func newLab(t *testing.T, provider string) *lab {
 	t.Helper()
-	root := filepath.Join(t.TempDir(), "private")
+	root := fixtureRoot(t)
 	l := &lab{root: root, serverConfig: filepath.Join(root, "foundation-config", "server.json")}
 	state := filepath.Join(root, "foundation")
 	bootstrap := filepath.Join(root, "transfer", "bootstrap.json")

@@ -71,9 +71,14 @@ of a future need.
 6. Verify the smallest suite, then all required suites. Record what was actually
    exercised and what remains unqualified.
 
-The controller owns run admission and reports. A provider adapter supplies
-structured observations/results; it does not receive authority to accept its own
-work or start another AI worker. All providers must prove non-prompting local
+The controller owns execution/verification admission and reports. A provider
+adapter supplies structured observations/results; it does not receive authority
+to accept its own work or start another AI worker. Independent delegated review
+uses the same durable coding journal/claim/report/outbox path, its own local
+provider/workspace, and current server-bound result/discussion/project fences.
+New scenarios should extend deterministic test-provider plans and isolated Git/
+Git-host fixtures rather than add task-title, provider or repository branches
+to production policy. All providers must prove non-prompting local
 approval behavior before enabling coding; text calls must remain tool-disabled.
 
 ## Schema and compatibility changes

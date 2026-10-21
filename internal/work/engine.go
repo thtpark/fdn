@@ -337,6 +337,23 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 			return status, nil
 		}
 	}
+	reviews, err := e.verificationCandidates(ctx, me)
+	if err != nil {
+		return status, err
+	}
+	for _, task := range reviews {
+		if err := e.verify(ctx, c, me, task, manual); err != nil {
+			fault := domain.AsFault(err)
+			if slices.Contains([]domain.Code{domain.Prerequisite, domain.Conflict, domain.NotFound, domain.Denied}, fault.Code) {
+				status.Blockers = append(status.Blockers, Blocker{TaskID: task.ID, Code: fault.Code, Reason: fault.Message})
+				continue
+			}
+			status.TaskID = task.ID
+			return status, err
+		}
+		status.State, status.TaskID = "verification", task.ID
+		return status, nil
+	}
 	if acted, err := e.attention(ctx, c, manual); err != nil {
 		return status, err
 	} else if acted {
@@ -444,6 +461,10 @@ func (e *Engine) selected(ctx context.Context, c config.Worker, task *domain.Tas
 	if task != nil && task.Model != "" {
 		model = task.Model
 	}
+	return e.selectProvider(ctx, c, name, model, task)
+}
+
+func (e *Engine) selectProvider(ctx context.Context, c config.Worker, name, model string, task *domain.Task) (provider.Health, string, error) {
 	health, err := e.Executor.Check(ctx, name)
 	if err != nil {
 		return health, model, err
@@ -584,23 +605,27 @@ func (e *Engine) workspace(ctx context.Context, c config.Worker, task domain.Tas
 		binding, err := e.State.Workspace(ctx, task.WorkspaceRef)
 		return task, binding, err
 	}
-	if !c.AllowWorkspaceTools {
-		return task, local.Binding{}, domain.Fail(domain.Prerequisite, "bind an owned workspace with explicit local tool permission")
-	}
-	path := filepath.Join(c.WorkspaceRoot, task.ProjectID)
-	if err := secure.Dir(path); err != nil {
-		return task, local.Binding{}, err
-	}
-	forbidden := []string{filepath.Dir(c.CredentialFile), filepath.Dir(c.CAFile)}
-	if e.ConfigPath != "" {
-		forbidden = append(forbidden, filepath.Dir(e.ConfigPath))
-	}
-	binding, err := e.State.BindWorkspace(ctx, path, true, c.InvocationTimeoutSeconds, forbidden)
+	binding, err := e.projectWorkspace(ctx, c, task.ProjectID)
 	if err != nil {
 		return task, binding, err
 	}
 	task, err = e.taskChange(ctx, task, domain.NewID("op"), "workspace", "worker prepared an owned reusable local workspace", func(r *domain.TaskChange) { r.WorkspaceRef = binding.Ref })
 	return task, binding, err
+}
+
+func (e *Engine) projectWorkspace(ctx context.Context, c config.Worker, projectID string) (local.Binding, error) {
+	if !c.AllowWorkspaceTools {
+		return local.Binding{}, domain.Fail(domain.Prerequisite, "automatic project workspaces require explicit allow_workspace_tools permission")
+	}
+	path := filepath.Join(c.WorkspaceRoot, projectID)
+	if err := secure.Dir(path); err != nil {
+		return local.Binding{}, err
+	}
+	forbidden := []string{filepath.Dir(c.CredentialFile), filepath.Dir(c.CAFile)}
+	if e.ConfigPath != "" {
+		forbidden = append(forbidden, filepath.Dir(e.ConfigPath))
+	}
+	return e.State.BindWorkspace(ctx, path, true, c.InvocationTimeoutSeconds, forbidden)
 }
 
 func (e *Engine) recordProblem(ctx context.Context, key string, err error) {

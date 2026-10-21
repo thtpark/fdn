@@ -91,7 +91,14 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, data []byte) (T, error
 		if runErr != nil {
 			return zero, runErr
 		}
-		stale := ref.Stale || task.SpecGeneration != run.SpecGeneration
+		reportedSpec := run.SpecGeneration
+		if run.Kind == domain.VerificationRun && run.Decision == "rework" && !ref.Stale && run.State == "completed" {
+			reportedSpec++
+		}
+		stale := ref.Stale || task.SpecGeneration != reportedSpec
+		if run.Kind == domain.VerificationRun {
+			stale = stale || task.ResultGeneration != run.ResultGeneration
+		}
 		value = domain.ReportOutcome{Accepted: ref.Accepted && !stale, Stale: stale, Task: task, Run: run}
 	default:
 		return zero, domain.Fail(domain.Internal, "unknown operation receipt")

@@ -36,7 +36,7 @@ approvals, run models, or publish sensitive data.
 | 2 | Bootstrap/invitations, identity/grants/revocation, heartbeat, native service/tunnel adapters, encrypted backup/restore | Real local TLS/SSH, recording OS adapters, native deployment/reboot checks reported separately |
 | 3 | Projects/tasks, approval/verification, histories/revert, discussions/mentions/watch, local knowledge/inventory/workspaces | Raw API policy/races and offline persistence |
 | 4 | Codex/Copilot adapters/install/update, protected authentication, private messages, consented tmux/VNC relays | Synthetic inference; real local streams; no implicit live-provider/desktop certification |
-| 5 | Onboarding, separate scope/acceptance review, actual-answer refinement, signoff, serial execution, pause/retry/recovery/outbox, idle research | Native binary fixtures and crash/lost-ack/restart fences; completed != accepted |
+| 5 | Onboarding, separate scope/acceptance review, actual-answer refinement, signoff, serial execution and independent delegated verification/rework, pause/retry/recovery/outbox, idle research | Native binary and isolated Git/PR fixtures, exact-result authority, crash/lost-ack/restart fences; completed != accepted; no live vendor/GitHub qualification |
 | Operational continuity | Six portable skills, full development/operating guide, offline binary access, package/home discovery and explicit prompt context | Current-source guide/catalog/install/prompt checks; preserve user data and modes |
 
 The first usable vertical slice is installation, fresh Founder and worker

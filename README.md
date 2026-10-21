@@ -357,8 +357,19 @@ actual requested replies are incorporated into task text. No unanswered-task
 busy loop or fabricated approval occurs. Current signoff is requested from
 eligible authorities; delivery is not approval.
 
-Coding calls explicitly preapprove local tools; text-only review/selection/
-responses do not receive coding tools. These settings are not an OS sandbox,
+Eligible independent project delegates also select completed results for a
+separate tool-enabled verification phase. They use their own provider/model and
+private authorized project workspace, share serial admission, and report exact
+spec/result/discussion/epoch-bound decisions. Review feedback becomes a task
+comment; in-scope rework returns todo with fresh recorded delegate readiness.
+The assignee preflights the feedback and updates the same PR. When merging is
+part of the approved criteria, the reviewer must confirm the current reviewed
+head, checks and successful merge before acceptance produces done. Uncertain
+reviews retain completed evidence with an explicit verification blocker, never
+a blind tool retry. See [SCHEMA.md](SCHEMA.md) for the claim/report contract.
+
+Coding execution/verification calls explicitly preapprove local tools; text-only
+preparation/selection/responses do not receive coding tools. These settings are not an OS sandbox,
 permission to spend/contract, or consent to another computer. The shared
 [prompt](internal/work/prompt.txt) keeps financial/legal decisions, private
 material, checkpoints, and authority boundaries explicit.

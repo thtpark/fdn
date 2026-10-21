@@ -56,7 +56,12 @@ guide includes this file, all skills, and the development references.
   into task text, then obtain signoff on the exact changed specification.
 - A reply, acknowledgement, delivered message, session consent, or silence is
   never task approval. `completed` awaits verification; only an authorized,
-  current verifier may produce `done`. Named approvers narrow existing authority;
+  current verifier may produce `done`. Independent delegates review with their
+  own provider/workspace under the same fenced slot; structured review feedback
+  is recorded transactionally. In-scope rework needs fresh recorded delegate
+  readiness, and required PR merges must be confirmed before acceptance. An
+  uncertain review never automatically reruns external tools.
+  Named approvers narrow existing authority;
   they do not acquire it. Independence means a different registered actor.
 - Stop active operations before pausing/switching tasks. Preserve checkpoints,
   run/spec references, journals, pending reports, and uncertainty. Reconcile a
