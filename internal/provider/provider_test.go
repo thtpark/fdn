@@ -97,6 +97,30 @@ func TestAdaptersPinPermissionsStdinAndPrivateOutput(t *testing.T) {
 	}
 }
 
+func TestNativeProviderCommandsKeepManagedUpdateAuthority(t *testing.T) {
+	for _, input := range [][]string{nil, {"login"}, {"--version"}, {"--no-auto-update", "login"}} {
+		output, err := NativeArguments("copilot", input)
+		if err != nil || len(output) == 0 || !slices.Contains(output, "--no-auto-update") {
+			t.Fatal("native command enabled the vendor self-updater", input, output, err)
+		}
+		if slices.Contains(input, "--no-auto-update") && !slices.Equal(input, output) {
+			t.Fatal("duplicated an existing update guard")
+		}
+	}
+	if _, err := NativeArguments("copilot", []string{"update"}); err == nil {
+		t.Fatal("bypassed managed integrity/signature verification")
+	}
+	input := []string{"login"}
+	output, err := NativeArguments("codex", input)
+	if err != nil || !slices.Equal(output, input) {
+		t.Fatal("changed unrelated native arguments", err)
+	}
+	output[0] = "changed"
+	if input[0] != "login" {
+		t.Fatal("mutated caller arguments")
+	}
+}
+
 func TestProviderHealthAndReplyValidation(t *testing.T) {
 	c := config.DefaultWorker(filepath.Join(t.TempDir(), "state"))
 	c.ProviderPaths = map[string]string{"codex": "/fixture/codex"}

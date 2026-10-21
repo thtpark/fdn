@@ -71,6 +71,10 @@ func (a *app) executeProvider(ctx context.Context, r *resources, args []string) 
 		return nil, domain.Fail(domain.Invalid, "provider exec preserves native terminal output; use provider status for structured checks")
 	}
 	arguments := flags.Args()
+	nativeArguments, err := provider.NativeArguments(*name, arguments)
+	if err != nil {
+		return nil, err
+	}
 	path, err := provider.New(r.config).Resolve(*name)
 	if err != nil {
 		return nil, err
@@ -79,7 +83,7 @@ func (a *app) executeProvider(ctx context.Context, r *resources, args []string) 
 	if err != nil {
 		return nil, err
 	}
-	spec := process.Spec{Path: path, Args: arguments, Dir: directory, Env: process.Environment(), Stdin: a.in, Stdout: a.out, Stderr: a.diagnostic}
+	spec := process.Spec{Path: path, Args: nativeArguments, Dir: directory, Env: process.Environment(), Stdin: a.in, Stdout: a.out, Stderr: a.diagnostic}
 	probe := len(arguments) == 1 && slices.Contains([]string{"--version", "--help", "-h", "help"}, arguments[0])
 	if !probe {
 		input, output, diagnostic, terminalErr := a.humanTerminal()

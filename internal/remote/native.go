@@ -49,7 +49,11 @@ func (Native) Open(ctx context.Context, s domain.Session, c config.Worker) (io.R
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, path, "login")
+		native, err := provider.NativeArguments(s.Provider, []string{"login"})
+		if err != nil {
+			return nil, err
+		}
+		args = append(append(args, path), native...)
 	}
 	cmd := exec.Command("tmux", args...)
 	cmd.Env = process.Environment("TERM=xterm-256color")
