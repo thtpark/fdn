@@ -81,7 +81,11 @@ func (a *app) providerCommand(ctx context.Context, r *resources, args []string) 
 		if err != nil {
 			return nil, err
 		}
-		err = (process.Native{}).Run(ctx, process.Spec{Path: path, Args: []string{"login"}, Dir: r.config.StateDir, Env: process.Environment(), Stdin: input, Stdout: output, Stderr: diagnostic, Terminal: input})
+		arguments, err := provider.NativeArguments(*name, []string{"login"})
+		if err != nil {
+			return nil, err
+		}
+		err = (process.Native{}).Run(ctx, process.Spec{Path: path, Args: arguments, Dir: r.config.StateDir, Env: process.Environment(), Stdin: input, Stdout: output, Stderr: diagnostic, Terminal: input})
 		return map[string]bool{"login_command_finished": err == nil, "authentication_validated": false}, err
 	default:
 		return nil, domain.Fail(domain.Invalid, "unknown provider command")
