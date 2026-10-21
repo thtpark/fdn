@@ -221,6 +221,24 @@ authentication could unlock automatic inference, arrange an authorized manual
 hold first and preserve the prior mode for separately authorized resumption.
 Never copy another account's provider credentials or capture login output.
 
+Missing authentication is not only a local log entry. Before a selected
+provider invocation (including initial capability review), the controller
+durably requests sign-in from the active Founder and any relevant task-project
+delegates. The protected private message contains the target/provider/request
+references, supported human-terminal commands and explicit consent/spending
+boundaries; it has no timed expiry and names invalidating state/authority
+changes. It does not need a model, create a session, assume target consent,
+change mode or perform login.
+
+Read the request from Founder's `message inbox` or `message show MESSAGE` using
+Founder's own identity, including when Founder is manual. Agent1's `work status`
+shows `authentication_requests`, delivery/message references and any unresolved
+delivery failure. The same episode/proposal replays after reconnect or a lost
+acknowledgement instead of spamming new requests. Unknown provider status stays
+an explicit diagnostic, not a guessed sign-in request. Acknowledgement is not
+authentication; a successful readiness observation resolves the local episode
+without editing the recipient's old message receipt.
+
 Protected remote handoff: request a project-scoped tmux/VNC session, send the
 non-secret action/IDs/UTC expiry through Foundation messaging, obtain target
 consent, and let the requester explicitly use `session open SESSION`. An ordinary

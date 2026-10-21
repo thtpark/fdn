@@ -12,6 +12,14 @@ model and authorized inference.
 1. Resolve the worker's actual account/HOME/configuration/identity and mode.
    Inspect `provider status --provider NAME`, `preferences show`, `work status`
    and session state. These probes do not authorize paid inference.
+   A controller observing explicit login-required/rejected status automatically
+   sends a durable protected request to the active Founder and current relevant
+   project delegates, before onboarding if needed and without AI inference.
+   Read `work status` authentication_requests and the recipient's `message
+   inbox`/`message show MESSAGE`; pending delivery is not sent/approved.
+   Reuse the existing episode/message operation after uncertainty instead of
+   repeating notices. A reply/receipt never proves sign-in; unknown provider
+   status does not justify fabricating a login request.
 2. Missing provider: obtain approval for the native Node/npm prerequisite and
    exact provider version, then `provider install --provider NAME --version
    EXACT`; explicit `provider update --provider NAME` chooses latest. Keep

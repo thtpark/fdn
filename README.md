@@ -325,6 +325,15 @@ For direct login, run `provider login` in a human-only terminal. It refuses
 structured/non-interactive/captured terminal output. A completed login command
 does not itself claim verified vendor authentication.
 
+The controller deterministically sends missing-authentication requests to the
+active Founder and relevant task-project delegates, including before its first
+capability review. No AI login/model call is needed. Founder can use
+`agent-cli message inbox` in manual mode to read the protected request.
+`work status` exposes durable request/delivery/message references and pending
+delivery errors. Unchanged blockers, polling, restart, lost acknowledgements or
+receipt acknowledgement do not spam new requests or prove authentication.
+The handoff never changes mode, signs in, or opens/consents to a remote session.
+
 ```sh
 agent-cli preferences set --input preferences.json
 agent-cli mode set ai
