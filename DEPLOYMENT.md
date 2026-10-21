@@ -211,6 +211,8 @@ reinstallation or another account's credentials to fix a PATH omission.
 Launchers resolve the active version on each call; interactive native sessions
 share the local slot and require the human's terminal. Version/help probes are
 non-inference checks.
+Copilot's self-updater stays disabled in native and remote login launches; all
+version changes use Foundation's verified provider install/update path.
 
 Before sign-in, inspect mode/current work and spending authority. Authenticate
 only in an explicitly human-operated terminal (`provider login`, without JSON or

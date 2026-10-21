@@ -226,6 +226,22 @@ func (m *Manager) Check(ctx context.Context, name string) (Health, error) {
 	return health, domain.Fail(domain.Unavailable, "provider authentication status could not be determined")
 }
 
+func NativeArguments(name string, arguments []string) ([]string, error) {
+	if !domain.ValidProvider(name) {
+		return nil, domain.Fail(domain.Invalid, "unsupported provider adapter")
+	}
+	if name != "copilot" {
+		return slices.Clone(arguments), nil
+	}
+	if len(arguments) != 0 && arguments[0] == "update" {
+		return nil, domain.Fail(domain.Prerequisite, "use agent-cli provider update --provider copilot so integrity/signature checks and active-version selection are preserved")
+	}
+	if slices.Contains(arguments, "--no-auto-update") {
+		return slices.Clone(arguments), nil
+	}
+	return append([]string{"--no-auto-update"}, arguments...), nil
+}
+
 func Arguments(name, workspace, output, model string, coding bool) ([]string, error) {
 	if !domain.ValidProvider(name) {
 		return nil, domain.Fail(domain.Invalid, "unsupported provider adapter")

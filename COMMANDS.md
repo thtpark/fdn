@@ -278,7 +278,10 @@ provider commands are explicit human sessions, share admission with automatic
 work/login, and refuse pending invocation/maintenance/session fences. They do not
 claim or approve a Foundation task, change mode, or imply spending permission.
 They keep native provider argument/permission behavior; controller coding
-approval flags remain separate. Native sessions have no default 60-second
+approval flags remain separate. Copilot's vendor self-updater is disabled for
+shell/login/remote-login launches; use `provider update --provider copilot`
+instead of bare `copilot update` to preserve managed integrity checks.
+Native sessions have no default 60-second
 command cap; an explicitly supplied global `--timeout` still applies.
 
 Mode `ai` enables serial automatic preparation/execution/replies when all gates
