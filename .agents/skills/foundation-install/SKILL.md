@@ -29,6 +29,10 @@ commands.
    before replacement. Retain exact mode, identity, credentials, provider homes,
    knowledge, bindings, journals, outbox and session fences. No manual database
    edits or hidden `--force`/upgrade command exists.
+   Non-Founder targets are unattended. Only Founder may explicitly request a
+   global mode pause/resumption; delegates and target-local commands cannot.
+   Deploy the server migration before new workers and preserve unexplained
+   legacy pauses for explicit Founder reconciliation, never silent resumption.
 7. As the actual account, run `guide install`. It must preserve unrelated HOME
    instructions/skills; a collision is an actionable conflict, not permission to
    overwrite them. Worker initialization/startup also installs its guide.

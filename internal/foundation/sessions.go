@@ -16,6 +16,17 @@ func (s *Store) sessionAuthority(ctx context.Context, q queryer, session domain.
 	if _, err := s.actor(ctx, q, session.TargetID); err != nil {
 		return err
 	}
+	if session.GrantID != "" {
+		grant, err := get[domain.AssistanceGrant](ctx, q, "assistance_grants", session.GrantID)
+		if err != nil {
+			return err
+		}
+		if grant.RequesterID != session.RequesterID || grant.TargetID != session.TargetID || grant.ProjectID != session.ProjectID ||
+			grant.Mode != session.Mode || grant.Purpose != session.Purpose || (grant.Provider != "" && grant.Provider != session.Provider) {
+			return domain.Fail(domain.Denied, "session is outside its persistent assistance authorization")
+		}
+		return s.grantAuthority(ctx, q, grant)
+	}
 	project, err := get[domain.Project](ctx, q, "projects", session.ProjectID)
 	if err != nil {
 		return err
@@ -44,6 +55,14 @@ func (s *Store) RequestSession(ctx context.Context, actor string, req domain.Ses
 		session := domain.Session{ID: domain.NewID("session"), RequesterID: a.ID, TargetID: req.TargetID,
 			ProjectID: req.ProjectID, TaskID: req.TaskID, Mode: req.Mode, Purpose: req.Purpose,
 			Provider: req.Provider, Reason: req.Reason, State: "requested", ExpiresAt: req.ExpiresAt, Revision: 1, CreatedAt: s.timestamp()}
+		session.GrantID = req.GrantID
+		target, err := s.actor(ctx, tx, req.TargetID)
+		if err != nil {
+			return session, err
+		}
+		if !target.Founder && req.GrantID == "" {
+			return session, domain.Fail(domain.Prerequisite, "autonomous targets require a persistent Founder-issued assistance grant, not a local human consent step")
+		}
 		if err := s.sessionAuthority(ctx, tx, session); err != nil {
 			return session, err
 		}
@@ -73,6 +92,9 @@ func (s *Store) RequestSession(ctx context.Context, actor string, req domain.Ses
 			if task.ProjectID != req.ProjectID || task.AssigneeID != req.TargetID {
 				return session, domain.Fail(domain.Denied, "task must relate this project and target worker")
 			}
+		}
+		if session.GrantID != "" {
+			session.State = "consented"
 		}
 		return session, s.saveSession(ctx, tx, session, a.ID, "request")
 	})

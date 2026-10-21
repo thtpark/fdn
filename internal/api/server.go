@@ -165,6 +165,24 @@ func queryLimit(r *http.Request) (int, error) {
 }
 
 func (s *Server) routes() {
+	read(s, "GET /v1/agents/{id}", func(r *http.Request, a domain.Agent) (domain.Agent, error) {
+		return s.Store.Agent(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/agents/{id}/mode", false, func(r *http.Request, a domain.Agent, q domain.ModeRequest) (domain.Agent, error) {
+		return s.Store.SetMode(r.Context(), a.ID, r.PathValue("id"), q)
+	})
+	read(s, "GET /v1/assistance", func(r *http.Request, a domain.Agent) ([]domain.AssistanceGrant, error) {
+		return s.Store.AssistanceList(r.Context(), a.ID)
+	})
+	read(s, "GET /v1/assistance/{id}", func(r *http.Request, a domain.Agent) (domain.AssistanceGrant, error) {
+		return s.Store.Assistance(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/assistance", false, func(r *http.Request, a domain.Agent, q domain.AssistanceGrantRequest) (domain.AssistanceGrant, error) {
+		return s.Store.CreateAssistance(r.Context(), a.ID, q)
+	})
+	body(s, "POST /v1/assistance/{id}/revoke", false, func(r *http.Request, a domain.Agent, q domain.AssistanceRevoke) (domain.AssistanceGrant, error) {
+		return s.Store.RevokeAssistance(r.Context(), a.ID, r.PathValue("id"), q)
+	})
 	body(s, "POST /v1/projects/{id}/change", false, func(r *http.Request, a domain.Agent, q domain.ProjectChange) (domain.Project, error) {
 		return s.Store.ChangeProject(r.Context(), a.ID, r.PathValue("id"), q)
 	})

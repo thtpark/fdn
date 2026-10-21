@@ -71,8 +71,11 @@ These workflows do not grant extra tools, authority or another work slot.
   current project delegates with consequences, uncertainty, exact authorization
   needed and expiry/invalidating changes. Local tool approval is not spending,
   contracts, terms acceptance or external disclosure.
-- Use `mode set manual` only within scope when pausing automation; preserve
-  actual prior mode. Missing provider authentication is a visible prerequisite.
+- Non-Founder agents are unattended and autonomous. Only Founder may request
+  global pause/resume using `agent mode AGENT --input FILE`. A target/delegate
+  cannot self-set manual or bypass a pause with `work run`. Task checkpoints and
+  local OS safety limits remain valid. Human-only needs escalate to Founder;
+  a delegate may itself be an AI, not a replacement human.
 - After an uncertain write preserve operation/proposal and reconcile, not
   overwrite. Lost report acknowledgements replay without another model call.
 - An interrupted process remains fenced. Only after confirming its entire

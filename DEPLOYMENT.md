@@ -189,6 +189,21 @@ Configure/approve each independently. Set an explicit local workspace grant
 with `workspace bind --path OWNED_DIR --allow-tools`, or authorize generated
 owned project directories through `--allow-workspace-tools`.
 
+All non-Founder workers are unattended: no workflow may wait for a person at
+the target. Only an authenticated Founder request may pause/resume their global
+mode. From Founder use `agent mode AGENT --input FILE` with mode and reason;
+the worker mirrors the server decision and handles cancellation automatically.
+Targets and delegates cannot self-set manual or bypass it with manual work.
+`mode set ai|manual` is now Founder-only for its own mode, not a local worker
+override. Real OS emergency stops remain OS actions, not a fabricated mode grant.
+
+Upgrade Foundation before these workers: server SQLite migration 2 adds mode
+attribution and persistent assistance grants while preserving identities,
+credential hashes, tasks and operations. Existing Founder defaults to manual,
+regular agents to ai. A legacy local manual configuration without a Founder
+decision is blocked rather than silently resumed; Founder explicitly reconciles
+it. Old servers without authoritative mode metadata cannot run a new worker.
+
 ## Providers and protected handoffs
 
 Install exact approved versions or explicitly update through the CLI. Managed
@@ -214,12 +229,14 @@ non-inference checks.
 Copilot's self-updater stays disabled in native and remote login launches; all
 version changes use Foundation's verified provider install/update path.
 
-Before sign-in, inspect mode/current work and spending authority. Authenticate
-only in an explicitly human-operated terminal (`provider login`, without JSON or
-non-interactive flags), or through an authorized target-consented session. If
-authentication could unlock automatic inference, arrange an authorized manual
-hold first and preserve the prior mode for separately authorized resumption.
-Never copy another account's provider credentials or capture login output.
+Before sign-in, inspect mode/current work and spending authority. Founder is the
+human-help coordinator; never expect a local human at a non-Founder worker.
+Delegates may be AI agents and can arrange authorized automated steps, but must
+route human-only credential/consent actions to Founder. If authentication could
+unlock unapproved inference, Founder explicitly requests manual mode on the
+target and later explicitly resumes it. No delegate or target changes mode.
+Protected credential UI/input/output remains human-only through the authorized
+requester's visible session; never copy credentials or capture login output.
 
 Missing authentication is not only a local log entry. Before a selected
 provider invocation (including initial capability review), the controller
@@ -239,11 +256,27 @@ an explicit diagnostic, not a guessed sign-in request. Acknowledgement is not
 authentication; a successful readiness observation resolves the local episode
 without editing the recipient's old message receipt.
 
-Protected remote handoff: request a project-scoped tmux/VNC session, send the
-non-secret action/IDs/UTC expiry through Foundation messaging, obtain target
-consent, and let the requester explicitly use `session open SESSION`. An ordinary
-reply is not consent. VNC needs a verified authenticated existing loopback
-backend and trusted `vncviewer`; it does not unlock/install a desktop.
+Founder authorizes assistance once with `assistance grant --input FILE`. Scope
+is the exact requester/target, tmux/VNC, authentication/terminal purpose, optional
+provider, and optional project. Explicit computer-local grants work before a
+project exists; project-scoped grants additionally require current project
+authority. The requester may be an AI delegate, not a presumed human.
+
+The grant has no timed expiry and is not consumed by a session. It persists
+across restarts/disconnects until Founder revokes it. Reuse
+`assistance open GRANT --provider codex` on the authorized requester's computer
+without reauthorization; the unattended target prepares the granted session.
+Only the protected UI itself requires Founder-coordinated human participation.
+Opening is a launch action, not another consent/authorization decision.
+
+Live connections remain bounded to 60-900 seconds, close on expiry/revocation,
+and recheck active identities, scope and current project authority. Restart
+closes routes, not the grant. Closing a connection does not revoke future access;
+`assistance revoke GRANT --input FILE` does. Broad terminal access needs its own
+explicit purpose grant; authentication permission is not a shell grant. Existing
+no-grant per-session consent is retained only for Founder targets.
+VNC still needs a verified authenticated loopback backend and trusted viewer;
+granting access does not install/unlock a desktop. Messages are never grants.
 
 ## Upgrade and rollback
 
@@ -253,7 +286,8 @@ backend and trusted `vncviewer`; it does not unlock/install a desktop.
    backup/recovery point. Resolve active operations before replacing binaries.
 3. Stop/join the native worker/service; preserve configuration, credentials,
    providers, private knowledge, workspaces, bindings, guides and outbox. A mode
-   change is not implied; if approved for maintenance, record/reapply it exactly.
+   change is not implied; only Founder explicitly requests any maintenance
+   pause/resumption, and the worker applies that authoritative decision.
 4. Install the new verified package/bundle. Do not overwrite immutable releases
    with different content or reset HOME/state. Refresh the operator's guide and
    let worker startup refresh its own discoverable guide.

@@ -46,6 +46,13 @@ milestone. Repetitive parents are recognized but cannot be executed.
 
 ## Architecture and boundaries
 
+Non-Founder agents are fully unattended and autonomous. Only Founder is the
+human-help coordination point; delegates may themselves be AI agents. Regular
+agents run in `ai` unless an authenticated Founder explicitly pauses them.
+Persistent, scoped assistance authorization is issued once by Founder and
+reused until revoked; a target never needs a local human to prepare a granted
+connection. Live connection expiry/restart does not erase that authorization.
+
 * `fdn-service` is the only SQLite writer exposed to computers. Its TLS API owns
   enrollment, roles, task authority, transaction boundaries, and run fences.
   Clients cannot bypass authorization with database writes or bulk endpoints.
@@ -336,7 +343,8 @@ The handoff never changes mode, signs in, or opens/consents to a remote session.
 
 ```sh
 agent-cli preferences set --input preferences.json
-agent-cli mode set ai
+# Founder explicitly resumes a target using {"mode":"ai","reason":"..."}:
+agent-cli agent mode AGENT --input mode.json
 agent-service --config "$HOME/.config/fdn/agent.json" serve
 # Or perform one bounded manual controller step:
 agent-cli work run
@@ -355,7 +363,9 @@ permission to spend/contract, or consent to another computer. The shared
 [prompt](internal/work/prompt.txt) keeps financial/legal decisions, private
 material, checkpoints, and authority boundaries explicit.
 
-`manual` stops automatic inference/execution while retaining reconciliation.
+Only Founder can request `manual`/`ai` for a non-Founder agent. `manual` stops
+automatic inference/execution while retaining reconciliation; it is not a
+local-human operating model, and a delegate/target cannot bypass the pause.
 Already-running approved work may continue during a connection outage; new
 unclaimed work cannot start offline. Reports retain a stable operation ID and
 are replayed without invoking the provider again.
@@ -380,10 +390,13 @@ response-requested messages; protected authentication/session notices never
 become model prompts. Urgent messages get the next free slot, not a second
 worker or a kill of in-flight work.
 
-Sessions require current Founder/project-delegate authority, a target's exact
-per-session consent, a separate explicit requester open action, and expiry
-within 60-900 seconds. Revocation/expiry closes real relay streams; server
-restart retires consent. Interactive sessions share the local worker lock.
+Founder issues a persistent assistance grant for an exact requester/target,
+mode/purpose and optional provider/project scope. All non-Founder targets use
+this unattended flow; delegates may be agents. Reconnect with the same grant
+without reauthorization. The grant survives server restart/disconnects until
+revoked; bounded live connections last 60-900 seconds, revalidate current
+authority and close on revocation. Server restart retires live routes, not the
+grant. Interactive sessions share the local worker lock.
 Authentication through tmux launches the selected provider's login command.
 VNC uses an existing authenticated loopback backend explicitly configured with
 `vnc_address` and `vnc_verified`; the requester needs a trusted `vncviewer`
@@ -391,9 +404,9 @@ VNC uses an existing authenticated loopback backend explicitly configured with
 unlock, credential import, or external VNC listener is created.
 
 ```sh
-agent-cli session request --input request.json
-agent-cli session change SESSION --input consent.json
-agent-cli session open SESSION  # Explicit human terminal only
+agent-cli assistance grant --input grant.json  # Founder authorizes once
+agent-cli assistance open GRANT --provider codex  # Explicit requester launch
+agent-cli assistance open GRANT --provider codex  # Later reconnect, no reapproval
 ```
 
 Terminal attachment uses Ctrl-] to close the local connection.
@@ -417,6 +430,7 @@ it does not scan networks or publish addresses/identifiers.
 | --- | --- |
 | Setup | `config init/show/set`, `connect`, `status`, `doctor`, `mode show/set`, `preferences show/set` |
 | Identity/projects | `agent list/revoke`, `invitation create`, `project create/list/show/change/delegate/authorize` |
+| Founder control / retained access | `agent show/mode`, `assistance grant/list/show/revoke/open` |
 | Tasks | `task create/list/show/change/history/runs` |
 | Collaboration | `comment add/edit`, `worklog add`, `discussion list`, `mention list/acknowledge`, `watch [--once]` |
 | Private communication | `message send/show/inbox/receipt`, `session request/list/show/change/open` |

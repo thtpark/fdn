@@ -18,6 +18,28 @@ type AgentRequest struct {
 	Name string `json:"name,omitempty"`
 }
 
+type ModeRequest struct {
+	Command
+	Mode   string `json:"mode"`
+	Reason string `json:"reason"`
+}
+
+type AssistanceGrantRequest struct {
+	Command
+	RequesterID string `json:"requester_id"`
+	TargetID    string `json:"target_id"`
+	ProjectID   string `json:"project_id,omitempty"`
+	Mode        string `json:"mode"`
+	Purpose     string `json:"purpose"`
+	Provider    string `json:"provider,omitempty"`
+	Reason      string `json:"reason"`
+}
+
+type AssistanceRevoke struct {
+	Command
+	Reason string `json:"reason"`
+}
+
 type ProjectRequest struct {
 	Command
 	Name        string `json:"name"`
@@ -115,6 +137,7 @@ type SessionRequest struct {
 	Provider  string `json:"provider,omitempty"`
 	Reason    string `json:"reason"`
 	ExpiresAt int64  `json:"expires_at"`
+	GrantID   string `json:"grant_id,omitempty"`
 }
 
 type SessionChange struct {

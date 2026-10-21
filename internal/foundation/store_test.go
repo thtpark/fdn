@@ -382,21 +382,17 @@ func TestPrivateMessagesSessionConsentAndExpiry(t *testing.T) {
 	_, err = f.s.Message(ctx, f.other.ID, message.ID)
 	assertCode(t, err, domain.Denied)
 	task := f.ready(t)
-	session, err := f.s.RequestSession(ctx, f.founder.ID, domain.SessionRequest{Command: op(), TargetID: f.worker.ID, ProjectID: task.ProjectID, TaskID: task.ID, Mode: "tmux", Purpose: "terminal", Reason: "help", ExpiresAt: f.now.Unix() + 90})
+	grant, err := f.s.CreateAssistance(ctx, f.founder.ID, domain.AssistanceGrantRequest{Command: op(), RequesterID: f.founder.ID, TargetID: f.worker.ID, ProjectID: task.ProjectID, Mode: "tmux", Purpose: "terminal", Reason: "authorize once for this requester/target"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := f.s.RequestSession(ctx, f.founder.ID, domain.SessionRequest{Command: op(), GrantID: grant.ID, TargetID: f.worker.ID, ProjectID: task.ProjectID, TaskID: task.ID, Mode: "tmux", Purpose: "terminal", Reason: "help", ExpiresAt: f.now.Unix() + 90})
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = f.s.SessionAccess(ctx, f.worker.ID, session.ID, "target")
 	assertCode(t, err, domain.Prerequisite)
-	change := domain.SessionChange{Command: op(), Action: "consent"}
-	change.ExpectedRevision = session.Revision
-	session, err = f.s.ChangeSession(ctx, f.worker.ID, session.ID, change)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = f.s.SessionAccess(ctx, f.worker.ID, session.ID, "target")
-	assertCode(t, err, domain.Prerequisite)
-	change = domain.SessionChange{Command: op(), Action: "open"}
+	change := domain.SessionChange{Command: op(), Action: "open"}
 	change.ExpectedRevision = session.Revision
 	session, err = f.s.ChangeSession(ctx, f.founder.ID, session.ID, change)
 	if err != nil {

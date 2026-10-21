@@ -406,12 +406,15 @@ func (a *app) connect(ctx context.Context, args []string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if agent.Mode != "ai" && agent.Mode != "manual" {
+		return nil, domain.Fail(domain.Prerequisite, "upgrade Foundation to authoritative automation control before completing enrollment")
+	}
 	pending.Credential.AgentID = agent.ID
 	if err := privateExact(c.CredentialFile, pending.Credential); err != nil {
 		return nil, err
 	}
-	if agent.Founder {
-		c.Mode = "manual"
+	if c.Mode != agent.Mode {
+		c.Mode = agent.Mode
 		if err := config.Write(a.configFile, c); err != nil {
 			return nil, err
 		}

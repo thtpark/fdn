@@ -85,8 +85,8 @@ over another user's files. It never enrolls/authenticates or enables work.
 | `agent-cli connect` | `--invitation-file FILE --name NAME`; pinned SSH/TLS, private generated credential, recover exact pending enrollment |
 | `agent-cli status` | Authenticated identity plus local daemon/work/pending/fence state |
 | `agent-cli doctor` | Read-only configuration, TLS/API authentication and service version |
-| `agent-cli mode show` | Current configured `ai`/`manual` |
-| `agent-cli mode set` | `ai` or `manual`; sole automatic-work switch |
+| `agent-cli mode show` | Offline local mirror of authoritative `ai`/`manual`; work status includes the last Founder control reference |
+| `agent-cli mode set` | `ai` or `manual`; authenticated Founder changes its own mode only; non-Founder callers are denied |
 | `agent-cli preferences show` | Preferred provider/model |
 | `agent-cli preferences set` | `--input FILE`, optional `provider`/`model`; provider change clears old model |
 | `agent-cli service plan` | `--input OPTIONS`; render native worker definition |
@@ -114,6 +114,8 @@ unimplemented `agent-cli service stop` command.
 | Command | Arguments/input |
 | --- | --- |
 | `agent-cli agent list` | Active identity checks; shared agent registry |
+| `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision and Founder request attribution |
+| `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself |
 | `agent-cli invitation create` | `--output PRIVATE_FILE [--ttl 900]`; Founder/current delegate, protected one-time output |
 | `agent-cli project list` | Shared registry |
@@ -194,7 +196,31 @@ mentions do not confer authority. Cursors are actor/query-bound; pages are
 limited to 1-200. Watch delivery is at least once; inspect sequence/cursor rather
 than assuming exactly-once processing.
 
-## Private messages and human-only sessions
+## Persistent assistance and protected sessions
+
+Every non-Founder target is unattended. Founder issues authorization once;
+delegates may be AI agents, not substitute humans. All new sessions to a
+non-Founder target require a matching persistent assistance grant.
+
+| Command | Arguments/input |
+| --- | --- |
+| `agent-cli assistance grant` | `--input FILE`: requester_id, target_id, mode tmux/vnc, purpose authentication/terminal, optional provider/project_id, reason; Founder-only issuance |
+| `agent-cli assistance list` | Up to 200 active grants visible to the parties or Founder |
+| `agent-cli assistance show` | `GRANT`; immutable scope, active state, revision and issuance attribution |
+| `agent-cli assistance revoke` | `GRANT --input FILE`: reason/current revision; Founder-only, closes live access on recheck |
+| `agent-cli assistance open` | `GRANT [--provider NAME --ttl 60..900]`; explicit requester launch in a protected terminal under retained authorization |
+
+Grants have no timed expiry and survive process restarts/disconnects until
+revoked; closing/expiring a live session does not consume the grant. Global
+grants are explicit Founder authority for that requester/target only, including
+bootstrap sign-in before any project exists. Project-scoped grants additionally
+require the requester's current project authority. A blank provider restriction
+covers supported authentication providers; it is not arbitrary terminal access.
+Only Founder issues/revokes grants; assistance never grants mode/task/spending
+authority. The target daemon prepares the bounded connection unattended after
+explicit requester open. A reconnect uses the same grant without reapproval.
+Delegates can coordinate with typed APIs; protected credential UI/input/output
+must never enter an AI context.
 
 | Command | Arguments/input |
 | --- | --- |
@@ -202,7 +228,7 @@ than assuming exactly-once processing.
 | `agent-cli message show` | `MESSAGE`; sender/recipient only |
 | `agent-cli message inbox` | `[--cursor CURSOR --limit N --urgent]`; recipient's pending messages |
 | `agent-cli message receipt` | `MESSAGE --input FILE`: state handled/deferred/stale, or pending only from deferred |
-| `agent-cli session request` | `--input FILE`: target_id, project_id, optional task_id, mode, purpose, provider, reason, expires_at |
+| `agent-cli session request` | `--input FILE`: grant_id, target_id, matching project_id/scope, optional task_id, mode, purpose, provider, reason, expires_at |
 | `agent-cli session list` | Current party's unexpired pending/consented/active sessions |
 | `agent-cli session show` | `SESSION`; party-only redacted state |
 | `agent-cli session change` | `SESSION --input FILE`: action consent/deny/open/active/revoke/close under exact party/current revision rules |
@@ -213,8 +239,10 @@ defaults to direct. Kinds authentication/session cannot request automatic
 responses. A protected handoff body contains references/actions/expiry, never a
 token, code, private authentication URL, transcript or screenshot.
 
-Sessions need current project authority and target consent plus explicit
-requester open. Mode is tmux/vnc; purpose terminal/authentication. Authentication
+Autonomous targets need a current matching Founder-issued grant, not a local
+human consent decision, plus explicit requester open. Founder targets may still
+use the existing requested/consent flow when no grant is supplied. Mode is
+tmux/vnc; purpose terminal/authentication. Authentication
 requires codex/copilot. Set `expires_at` to an actual UTC Unix deadline 60-900
 seconds ahead; never reuse a stale example deadline. For task-scoped sessions,
 the task must connect project and target assignee.
@@ -277,6 +305,10 @@ successful provider readiness observation resolves the local episode; a new
 confirmed sign-out can create a fresh request. The immutable old inbox message
 remains recipient-owned evidence; inspect current status before acting.
 Unknown/outage/protocol failures do not manufacture a login request.
+Founder must be an active notification recipient for human-help escalation;
+an AI delegate cannot replace that requirement. Older-format unresolved notices
+are superseded once with a new immutable message describing autonomous/persistent
+assistance, never silently rewritten under an old operation ID.
 
 Preferred provider/model apply unless the task requires its own selection.
 Missing/unsupported provider/model never silently falls back. Current Codex
@@ -304,7 +336,12 @@ Native sessions have no default 60-second
 command cap; an explicitly supplied global `--timeout` still applies.
 
 Mode `ai` enables serial automatic preparation/execution/replies when all gates
-permit; `manual` cancels/joins automatic inference while retaining reconciliation.
+permit. Only an explicit authenticated Founder request may place a non-Founder
+agent in `manual` or resume it; delegates and local target CLI calls cannot.
+Workers mirror those requests, cancel/join automatic inference on pause, and
+retain reconciliation. A legacy unexplained local manual pause is not silently
+resumed; Founder must explicitly decide. Paused non-Founder agents cannot bypass
+the pause with `work run`. Founder may use its own manual human entry point.
 No separate work-loop switch exists. Provider tool approval is local, not root,
 task readiness, spending or consent. New unknown-side-effect attempts require
 current exact retry authority; recovery is not permission to rerun.

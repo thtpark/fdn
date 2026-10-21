@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"slices"
+	"sync"
 	"time"
 
 	guidance "github.com/thtpark/fdn"
@@ -57,6 +58,7 @@ type Status struct {
 	Blockers               []Blocker               `json:"blockers"`
 	UpdatedAt              int64                   `json:"updated_at"`
 	AuthenticationRequests []AuthenticationRequest `json:"authentication_requests"`
+	ModeControl            *ModeControl            `json:"mode_control,omitempty"`
 }
 
 type Launch struct {
@@ -81,6 +83,7 @@ type Engine struct {
 	Executor   provider.Executor
 	Log        *slog.Logger
 	Now        func() time.Time
+	configMu   sync.RWMutex
 }
 
 func New(c config.Worker, path string, client *api.Client, state *local.State, executor provider.Executor) *Engine {
@@ -91,6 +94,8 @@ func (e *Engine) currentConfig() (config.Worker, error) {
 	if e.ConfigPath != "" {
 		return config.LoadWorker(e.ConfigPath)
 	}
+	e.configMu.RLock()
+	defer e.configMu.RUnlock()
 	return e.Config, e.Config.Validate()
 }
 
@@ -105,6 +110,12 @@ func (e *Engine) Status(ctx context.Context) (Status, error) {
 		return status, err
 	}
 	status.Mode = c.Mode
+	var control ModeControl
+	if found, err := e.State.Get(ctx, "automation-control", &control); err != nil {
+		return status, err
+	} else if found {
+		status.ModeControl = &control
+	}
 	items, err := e.State.Outbox(ctx)
 	if err != nil {
 		return status, err
@@ -155,6 +166,12 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		} else {
 			status.AuthenticationRequests = requests
 		}
+		var control ModeControl
+		if found, readErr := e.State.Get(saveCtx, "automation-control", &control); readErr != nil {
+			err = errors.Join(err, readErr)
+		} else if found {
+			status.ModeControl = &control
+		}
 		if err != nil {
 			status.State = "blocked"
 			fault := domain.AsFault(err)
@@ -198,16 +215,24 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 	if sessionFence.Active {
 		return status, domain.Fail(domain.Prerequisite, "an interrupted interactive session requires explicit stopped-process recovery")
 	}
-	if !manual && c.Mode == "manual" {
-		status.State = "manual"
-		return status, nil
-	}
 	me, err := api.Call[domain.Agent](ctx, e.Client, http.MethodGet, "/v1/me", nil)
 	if err != nil {
 		return status, err
 	}
 	if me.ID != e.Client.Credential.AgentID {
 		return status, domain.Fail(domain.Denied, "configured identity does not match Foundation authentication")
+	}
+	c, err = e.applyMode(ctx, c, me)
+	if err != nil {
+		return status, err
+	}
+	status.Mode = c.Mode
+	if c.Mode == "manual" && (!manual || !me.Founder) {
+		status.State = "manual"
+		if manual && !me.Founder {
+			return status, domain.Fail(domain.Prerequisite, "Founder paused this agent; only Founder may authorize resumption")
+		}
+		return status, nil
 	}
 	owned, err := api.Call[[]domain.Task](ctx, e.Client, http.MethodGet, "/v1/ownership", nil)
 	if err != nil {

@@ -91,6 +91,10 @@ func (s *Store) Enroll(ctx context.Context, req domain.EnrollRequest) (domain.Ag
 			return domain.Agent{}, domain.Fail(domain.Conflict, "credential is already bound to an agent")
 		}
 		agent := domain.Agent{ID: domain.NewID("agent"), Name: req.Name, Founder: inv.Founder, Active: true, SponsorID: inv.SponsorID, CreatedAt: s.timestamp(), LastSeen: s.timestamp()}
+		agent.Revision, agent.Mode = 1, "ai"
+		if agent.Founder {
+			agent.Mode = "manual"
+		}
 		data, err := encode(agent)
 		if err != nil {
 			return agent, err
@@ -208,6 +212,7 @@ func (s *Store) Revoke(ctx context.Context, actor, target string, req domain.Age
 			return agent, domain.Fail(domain.Denied, "Founder cannot be revoked")
 		}
 		agent.Active = false
+		agent.Revision++
 		data, err := encode(agent)
 		if err != nil {
 			return agent, err

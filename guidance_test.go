@@ -71,7 +71,7 @@ func TestGuideCatalogSkillsLinksAndCurrentCommands(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for binary, entries := range map[string][]string{"agent-cli": cli.AgentCommands, "fdn-service": cli.FoundationCommands, "agent-service": cli.ServiceCommands} {
+	for binary, entries := range map[string][]string{"agent-cli": append(append([]string{}, cli.AgentCommands...), cli.AutonomyCommands...), "fdn-service": cli.FoundationCommands, "agent-service": cli.ServiceCommands} {
 		for _, entry := range append(append([]string{}, entries...), cli.GuideCommands...) {
 			if !bytes.Contains(commands, []byte("`"+binary+" "+entry)) {
 				t.Fatal("implemented CLI leaf is missing from standalone command documentation", binary, entry)

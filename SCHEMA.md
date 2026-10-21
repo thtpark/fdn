@@ -4,6 +4,9 @@ Current API and application schema version: **1**. This document describes the
 Go implementation, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
+Server SQLite migration version is now **2**; local-worker SQLite remains
+version 1. Additive API/DTO fields retain API contract 1. Deploy the server first;
+new workers require its authoritative mode metadata.
 
 ## Persistence and transaction boundaries
 
@@ -23,7 +26,7 @@ are checked. Default private directory/file permissions are 0700/0600.
 
 | Table | Contract |
 | --- | --- |
-| `agents` | Immutable identity, display name, Founder flag, active state, sponsor, timestamps; indexed credential hash, never plaintext credential |
+| `agents` | Immutable identity, display name, Founder flag, active state, sponsor, timestamps, mode/revision and Founder mode-request attribution; indexed credential hash, never plaintext credential |
 | `invitations` | Founder/bootstrap or sponsor-bound one-time invitation, expiry, used-by reference; indexed token hash |
 | `projects` | Name/description, owner, service-maintained delegate list, revision, authority/context epoch, archive state |
 | `project_creators` | Specific Founder-issued one-use project-creation authorization |
@@ -33,6 +36,7 @@ are checked. Default private directory/file permissions are 0700/0600.
 | `attention` | Recipient/entry/body-generation receipt: pending, handled, deferred or stale |
 | `messages` | Immutable private payload, recipient disposition/revision, urgency and declared origin/kind |
 | `sessions` | Private requester/target/project scope, mode/purpose, explicit-open flag, consent state, expiry/revision |
+| `assistance_grants` | Persistent requester/target, mode/purpose/provider/project scope; Founder issuance/revocation, active/revision/attribution; no connection-lifetime coupling |
 | `histories` | Latest three snapshots per mutable source, global sequence, authenticated actor, action, reason, time |
 | `events` | Shared change sequence and topic/source/task/project references; no private message payloads |
 | `operations` | Actor + operation ID, exact request fingerprint, bounded result reference/receipt |
@@ -102,6 +106,8 @@ epochs fence semantic decisions independently of a revision.
 | Read shared projects/tasks/discussion/history | Any active enrolled agent |
 | Invite globally | Founder or a current delegate of an active project |
 | Revoke an agent | Founder; Founder itself cannot be revoked |
+| Pause/resume global agent mode | Founder only, including its own mode; delegates/targets cannot override |
+| Issue/revoke persistent assistance | Founder only; scope is explicit and the requester may be an agent |
 | Create a project | Founder, or specific creation authorization consumed by creation |
 | Grant a delegate | Founder |
 | Revoke a project delegate / change project context | Founder or that project's current delegate |
@@ -111,7 +117,7 @@ epochs fence semantic decisions independently of a revision.
 | Set workspace, record understanding/blockers, claim/report | Current assigned worker, with operation-specific fences |
 | Edit comment/worklog | Its creator only, including when requester is Founder |
 | Read private messages/sessions | Their parties through the private API |
-| Open remote access | Current project authority + target per-session consent + explicit requester open |
+| Open remote access | Matching active Founder-issued assistance grant + current party/project authority + explicit requester open; targets are unattended. No-grant consent is only for Founder targets |
 
 `required_actors` is an eligible-approver allowlist, not a quorum or grant.
 `independent_readiness`/`independent_verification` exclude the assignee. Project
@@ -186,10 +192,30 @@ private; origin labels are provenance, not human attestation. Protected
 authentication/session notices cannot request automatic AI replies. Urgency gets
 the next free slot, not a second worker.
 
+Non-Founder agents operate autonomously in ai unless an explicit authenticated
+Founder request sets manual. Mode changes are versioned and attributed; workers
+mirror them without local operator input, and direct new claims are rejected
+while paused. A target's local mode setter/manual launch cannot bypass Founder.
+Founder alone may use its own manual operating path. Emergency OS stops and task
+checkpoints are not mode authorization. Legacy unexplained manual state is never
+silently resumed.
+
+Assistance grants persist in their own table, independent of live sessions.
+Founder authorizes an exact requester/target, mode/purpose, optional provider and
+project once; no timed expiry or consumption on disconnect. Project-bound
+grants require current project authority; computer-local grants confer only
+their explicit assistance scope, not task, mode, project or spending privileges.
+Grant holders may be AI delegates and are never proof of human presence.
+Inactive/revoked parties, changed scope/project authority or Founder revocation
+deny new access and close existing streams on recheck.
+
 Session states are requested, consented, active and retired
 (denied/revoked/closed/expired/failed as applicable). Consent is valid for 60-900
-seconds, cannot substitute for explicit requester open, and does not survive a
-server relay restart. Expiry/revocation closes streams. A terminal/desktop can
+seconds for a live connection, cannot substitute for explicit requester open,
+and does not survive a server relay restart. A retained grant supplies target
+authorization unattended and survives that restart; reconnect uses it without
+reapproval. Expiry/revocation closes streams, not the retained permission unless
+the grant itself was revoked. A terminal/desktop can
 expose other account material; project scope is not screen-level isolation.
 
 Future files, diaries, shared skills/ideas and recurring children remain in

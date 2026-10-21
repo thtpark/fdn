@@ -49,6 +49,7 @@ var AgentCommands = []string{
 var FoundationCommands = []string{"init", "serve", "doctor", "bootstrap", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install"}
 var ServiceCommands = []string{"serve", "status"}
 var GuideCommands = []string{"guide list", "guide show", "guide install"}
+var AutonomyCommands = []string{"agent show", "agent mode", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open"}
 
 func RunAgent(ctx context.Context, args []string, in io.Reader, out, diagnostic io.Writer) int {
 	return run(ctx, "agent", args, in, out, diagnostic)
@@ -121,10 +122,10 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "HOME unavailable; specify --config"), homeErr))
 	}
 	longRunning := tail[0] == "serve" || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
-	if len(tail) > 1 && tail[0] == "provider" && tail[1] == "exec" {
+	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open")) {
 		longRunning = true
-		flags.Visit(func(flag *flag.Flag) {
-			if flag.Name == "timeout" {
+		flags.Visit(func(option *flag.Flag) {
+			if option.Name == "timeout" {
 				longRunning = false
 			}
 		})
@@ -183,7 +184,7 @@ func commands(role string) []string {
 	case "service":
 		entries = ServiceCommands
 	default:
-		entries = AgentCommands
+		entries = append(append([]string{}, AgentCommands...), AutonomyCommands...)
 	}
 	return append(append([]string{}, entries...), GuideCommands...)
 }

@@ -37,7 +37,7 @@ func TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference(t *testing.T
 			messages := inbox()
 			if len(messages) != 1 || messages[0].Kind != "authentication" || messages[0].Origin != "service" ||
 				messages[0].ResponseRequest || messages[0].SenderID != l.worker.agent.ID ||
-				!strings.Contains(messages[0].Body, "provider login --provider "+name) {
+				!strings.Contains(messages[0].Body, "assistance open GRANT --provider "+name) {
 				t.Fatal("native missing-login request is not protected/actionable", messages)
 			}
 			status := must[struct {
