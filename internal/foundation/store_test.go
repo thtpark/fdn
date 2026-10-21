@@ -177,9 +177,8 @@ func TestEnrollmentAuthorityAndRevocation(t *testing.T) {
 		t.Fatal(err)
 	}
 	token := domain.NewToken()
-	if _, err := f.s.Invite(ctx, f.worker.ID, domain.InvitationRequest{Command: op(), TokenHash: domain.Hash(token), ExpiresAt: f.now.Unix() + 300}); err != nil {
-		t.Fatal(err)
-	}
+	_, err = f.s.Invite(ctx, f.worker.ID, domain.InvitationRequest{Command: op(), TokenHash: domain.Hash(token), ExpiresAt: f.now.Unix() + 300})
+	assertCode(t, err, domain.Denied)
 	g = domain.GrantRequest{Command: op(), AgentID: f.worker.ID, Revoke: true}
 	g.ExpectedRevision = project.Revision
 	if _, err := f.s.Delegate(ctx, f.founder.ID, project.ID, g); err != nil {

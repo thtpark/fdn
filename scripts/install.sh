@@ -57,11 +57,11 @@ archive=$1
 tar -tzf "$archive" > "$stage/archive-paths"
 awk '
   seen[$0]++ || $0 ~ /(^|\/)\.\.?($|\/)/ || $0 ~ /\/\// {exit 1}
-  $0 == "THIRD_PARTY_NOTICES" || $0 == "bin/agent-cli" || $0 == "bin/agent-service" || $0 == "bin/fdn-service" {next}
+  $0 == "THIRD_PARTY_NOTICES" || $0 == "bin/agent-cli" || $0 == "bin/agent-service" || $0 == "bin/agent-identity" || $0 == "bin/fdn-service" {next}
   $0 == "guide/MANIFEST.json" || $0 ~ /^guide\/([a-zA-Z0-9._-]+\/)*[a-zA-Z0-9._-]+\.md$/ {next}
   {exit 1}
 ' "$stage/archive-paths" || { printf '%s\n' 'Unexpected archive paths or duplicate entries.' >&2; exit 4; }
-for required in THIRD_PARTY_NOTICES bin/agent-cli bin/agent-service bin/fdn-service guide/MANIFEST.json guide/AGENTS.md guide/README.md guide/DEVELOPMENT.md guide/DEPLOYMENT.md guide/COMMANDS.md guide/SCHEMA.md guide/TEST_PLAN.md guide/IMPLEMENTATION_PLAN.md guide/CAPACITY.md guide/MIGRATION.md; do
+for required in THIRD_PARTY_NOTICES bin/agent-cli bin/agent-service bin/agent-identity bin/fdn-service guide/MANIFEST.json guide/AGENTS.md guide/README.md guide/DEVELOPMENT.md guide/DEPLOYMENT.md guide/COMMANDS.md guide/SCHEMA.md guide/TEST_PLAN.md guide/IMPLEMENTATION_PLAN.md guide/CAPACITY.md guide/MIGRATION.md; do
   grep -Fxq "$required" "$stage/archive-paths" || { printf '%s\n' 'Incomplete binaries or operating guide.' >&2; exit 4; }
 done
 for skill in foundation-install foundation-enroll foundation-provider-auth foundation-work foundation-operations foundation-develop; do
@@ -77,7 +77,7 @@ if [ -e "$release" ]; then
 else
   mkdir "$stage/unpacked"
   tar -xzf "$archive" -C "$stage/unpacked"
-  chmod 0755 "$stage/unpacked" "$stage/unpacked/bin" "$stage/unpacked/bin/agent-cli" "$stage/unpacked/bin/agent-service" "$stage/unpacked/bin/fdn-service"
+  chmod 0755 "$stage/unpacked" "$stage/unpacked/bin" "$stage/unpacked/bin/agent-cli" "$stage/unpacked/bin/agent-service" "$stage/unpacked/bin/agent-identity" "$stage/unpacked/bin/fdn-service"
   find "$stage/unpacked/guide" -type d -exec chmod 0755 {} +
   find "$stage/unpacked/guide" -type f -exec chmod 0644 {} +
   printf '%s\n' "$trusted" > "$stage/unpacked/manifest.sha256"
@@ -87,7 +87,7 @@ else
   mv "$install_stage" "$release"
   install_stage=
 fi
-for binary in agent-cli agent-service fdn-service; do
+for binary in agent-cli agent-service agent-identity fdn-service; do
   destination="$prefix/bin/$binary"
   if [ -e "$destination" ] || [ -L "$destination" ]; then
     [ -L "$destination" ] && [ "$(readlink "$destination")" = "$prefix/lib/fdn/current/bin/$binary" ] || {
@@ -95,7 +95,7 @@ for binary in agent-cli agent-service fdn-service; do
     }
   fi
 done
-for binary in agent-cli agent-service fdn-service; do
+for binary in agent-cli agent-service agent-identity fdn-service; do
   destination="$prefix/bin/$binary"
   if [ ! -L "$destination" ]; then ln -s "$prefix/lib/fdn/current/bin/$binary" "$destination"; fi
 done

@@ -3,23 +3,19 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
 	guidance "github.com/thtpark/fdn"
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/local"
-	"github.com/thtpark/fdn/internal/process"
 	"github.com/thtpark/fdn/internal/provider"
 	"github.com/thtpark/fdn/internal/remote"
 	"github.com/thtpark/fdn/internal/secure"
-	"github.com/thtpark/fdn/internal/transport"
 	"github.com/thtpark/fdn/internal/work"
 )
 
@@ -27,18 +23,16 @@ type resources struct {
 	config config.Worker
 	state  *local.State
 	client *api.Client
-	tunnel *transport.Tunnel
 }
 
 func (r *resources) close() error {
 	if r.client != nil {
 		r.client.Close()
 	}
-	var tunnelErr error
-	if r.tunnel != nil {
-		tunnelErr = r.tunnel.Close()
+	if r.state != nil {
+		return r.state.Close()
 	}
-	return errors.Join(r.state.Close(), tunnelErr)
+	return nil
 }
 
 func (a *app) load(ctx context.Context, network bool) (*resources, error) {
@@ -65,29 +59,25 @@ func (a *app) load(ctx context.Context, network bool) (*resources, error) {
 		}
 		return nil, err
 	}
-	if credential.AgentID == "" || len(credential.Token) != 43 {
+	if credential.AgentID == "" || credential.Token != "" {
 		state.Close()
-		return nil, domain.Fail(domain.Prerequisite, "enrollment is incomplete; resume connect with its original invitation")
+		return nil, domain.Fail(domain.Prerequisite, "legacy credentials cannot authenticate; migrate through Founder-approved key enrollment and connect to the local identity service")
 	}
-	client, err := api.NewClient(c.URL, c.CAFile, c.ServerName, credential)
+	client, err := api.NewLocalClient(c)
 	if err != nil {
 		state.Close()
 		return nil, err
 	}
+	client.Credential = credential
 	r.client = client
-	if c.SSH != nil {
-		if err := client.Request(ctx, "GET", "/healthz", nil, new(any)); err != nil {
-			tunnel, startErr := transport.Start(ctx, *c.SSH, process.Native{})
-			if startErr != nil {
-				r.close()
-				return nil, startErr
-			}
-			r.tunnel = tunnel
-			if err := client.Request(ctx, "GET", "/healthz", nil, new(any)); err != nil {
-				r.close()
-				return nil, err
-			}
-		}
+	me, err := api.Call[domain.Agent](ctx, client, "GET", "/v1/me", nil)
+	if err != nil {
+		r.close()
+		return nil, err
+	}
+	if me.ID != credential.AgentID {
+		r.close()
+		return nil, domain.Fail(domain.Denied, "local identity service does not match the enrolled worker; never borrow another identity")
 	}
 	if err := state.BindIdentity(ctx, credential.AgentID); err != nil {
 		r.close()
@@ -117,25 +107,13 @@ func (a *app) service(ctx context.Context, args []string) (value any, err error)
 	if args[0] != "serve" {
 		return nil, domain.Fail(domain.Invalid, "unknown agent-service command")
 	}
-	c, err := config.LoadWorker(a.configFile)
+	r, err := a.load(ctx, true)
 	if err != nil {
 		return nil, err
 	}
-	var credential config.Credential
-	if err := config.Read(c.CredentialFile, &credential); err != nil {
-		return nil, err
-	}
-	if credential.AgentID == "" || len(credential.Token) != 43 {
-		return nil, domain.Fail(domain.Prerequisite, "complete enrollment before starting Agent Service")
-	}
-	state, err := local.Open(ctx, c.StateDir)
-	if err != nil {
-		return nil, err
-	}
-	defer state.Close()
-	if err := state.BindIdentity(ctx, credential.AgentID); err != nil {
-		return nil, err
-	}
+	defer r.close()
+	c, state, client := r.config, r.state, r.client
+	credential := client.Credential
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
@@ -146,24 +124,11 @@ func (a *app) service(ctx context.Context, args []string) (value any, err error)
 	if _, err := a.linkProviders(); err != nil {
 		return nil, err
 	}
-	client, err := api.NewClient(c.URL, c.CAFile, c.ServerName, credential)
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
 	engine := work.New(c, a.configFile, client, state, provider.New(c))
 	engine.Log = slog.New(slog.NewJSONHandler(a.diagnostic, nil))
 	sessions := &remote.Manager{Client: client, State: state, Config: c, Opener: remote.Native{}, Log: engine.Log}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	var tunnelDone chan error
-	if c.SSH != nil {
-		tunnelDone = make(chan error, 1)
-		go func() {
-			tunnelDone <- transport.Maintain(ctx, *c.SSH, process.Native{}, func(problem error) { engine.Log.Warn("SSH tunnel reconnecting", "code", domain.AsFault(problem).Code) })
-		}()
-		defer func() { cancel(); err = errors.Join(err, <-tunnelDone) }()
-	}
 	a.emit(map[string]any{"state": "starting", "agent_id": credential.AgentID, "mode": c.Mode}, nil)
 	err = engine.Serve(ctx, sessions)
 	return map[string]string{"state": "stopped"}, err
@@ -278,6 +243,7 @@ func (a *app) initWorker(args []string) (any, error) {
 	state := fs.String("state", "", "private worker state")
 	url := fs.String("url", "https://localhost:8443", "Foundation TLS URL")
 	ca := fs.String("ca-file", "", "trusted public CA file")
+	identitySocket := fs.String("identity-socket", "", "protected socket of this agent's separate identity service")
 	providerName := fs.String("provider", "codex", "preferred provider")
 	workspace := fs.String("workspace-root", "", "owned workspace parent")
 	allow := fs.Bool("allow-workspace-tools", false, "explicitly authorize tools in generated owned workspaces")
@@ -302,6 +268,12 @@ func (a *app) initWorker(args []string) (any, error) {
 	}
 	c := config.DefaultWorker(root)
 	c.URL, c.Provider, c.AllowWorkspaceTools = *url, *providerName, *allow
+	if *identitySocket != "" {
+		c.IdentitySocket, err = filepath.Abs(*identitySocket)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if *ca != "" {
 		c.CAFile, err = filepath.Abs(*ca)
 		if err != nil {
@@ -332,124 +304,4 @@ func (a *app) initWorker(args []string) (any, error) {
 		return nil, err
 	}
 	return map[string]any{"config": a.configFile, "mode": c.Mode, "enrolled": false, "guidance": guide}, nil
-}
-
-type enrollment struct {
-	Request    domain.EnrollRequest `json:"request"`
-	Credential config.Credential    `json:"credential"`
-}
-
-func (a *app) connect(ctx context.Context, args []string) (any, error) {
-	fs := flag.NewFlagSet("connect", flag.ContinueOnError)
-	invitation := fs.String("invitation-file", "", "private bootstrap/invitation file")
-	name := fs.String("name", "", "agent display name")
-	if err := parse(fs, args); err != nil {
-		return nil, err
-	}
-	if *invitation == "" || *name == "" {
-		return nil, domain.Fail(domain.Invalid, "--invitation-file and --name are required")
-	}
-	c, err := config.LoadWorker(a.configFile)
-	if err != nil {
-		return nil, err
-	}
-	lock, err := secure.Acquire(filepath.Join(c.StateDir, "work.lock"))
-	if err != nil {
-		return nil, err
-	}
-	defer lock.Close()
-	var bundle config.InvitationBundle
-	if err := config.Read(*invitation, &bundle); err != nil {
-		return nil, err
-	}
-	pendingPath := filepath.Join(c.StateDir, "enrollment.json")
-	var pending enrollment
-	err = config.Read(pendingPath, &pending)
-	if os.IsNotExist(err) {
-		var existing config.Credential
-		if err := config.Read(c.CredentialFile, &existing); err == nil {
-			return nil, domain.Fail(domain.Conflict, "credentials already exist; do not enroll a duplicate identity")
-		} else if !os.IsNotExist(err) {
-			return nil, err
-		}
-		token := domain.NewToken()
-		pending = enrollment{Request: domain.EnrollRequest{Command: domain.Command{OperationID: a.operation}, InvitationToken: bundle.Token, Name: *name, CredentialHash: domain.Hash(token)}, Credential: config.Credential{Token: token}}
-		if err := config.Write(pendingPath, pending); err != nil {
-			return nil, err
-		}
-	} else if err != nil {
-		return nil, err
-	}
-	if pending.Request.InvitationToken != bundle.Token || pending.Request.Name != *name {
-		return nil, domain.Fail(domain.Conflict, "resume enrollment with the exact retained invitation and name")
-	}
-	if a.explicitOperation && a.operation != pending.Request.OperationID {
-		return nil, domain.Fail(domain.Conflict, "resume enrollment with its retained original operation ID")
-	}
-	a.operation = pending.Request.OperationID
-	client, err := api.NewClient(c.URL, c.CAFile, c.ServerName, config.Credential{})
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
-	var tunnel *transport.Tunnel
-	if c.SSH != nil {
-		if err := client.Request(ctx, "GET", "/healthz", nil, new(any)); err != nil {
-			tunnel, err = transport.Start(ctx, *c.SSH, process.Native{})
-			if err != nil {
-				return nil, err
-			}
-			defer tunnel.Close()
-		}
-	}
-	agent, err := api.Call[domain.Agent](ctx, client, "POST", "/v1/enroll", pending.Request)
-	if err != nil {
-		return nil, err
-	}
-	if agent.Mode != "ai" && agent.Mode != "manual" {
-		return nil, domain.Fail(domain.Prerequisite, "upgrade Foundation to authoritative automation control before completing enrollment")
-	}
-	pending.Credential.AgentID = agent.ID
-	if err := privateExact(c.CredentialFile, pending.Credential); err != nil {
-		return nil, err
-	}
-	if c.Mode != agent.Mode {
-		c.Mode = agent.Mode
-		if err := config.Write(a.configFile, c); err != nil {
-			return nil, err
-		}
-	}
-	if err := os.Remove(pendingPath); err != nil {
-		return nil, err
-	}
-	return agent, nil
-}
-
-func (a *app) invite(ctx context.Context, r *resources, args []string) (any, error) {
-	fs := flag.NewFlagSet("invitation create", flag.ContinueOnError)
-	output := fs.String("output", "", "private invitation output")
-	ttl := fs.Int("ttl", 900, "expiry seconds")
-	if err := parse(fs, args); err != nil {
-		return nil, err
-	}
-	if *output == "" || *ttl < 60 || *ttl > 86400 {
-		return nil, domain.Fail(domain.Invalid, "--output and --ttl within 60-86400 seconds are required")
-	}
-	var bundle config.InvitationBundle
-	err := config.Read(*output, &bundle)
-	if os.IsNotExist(err) {
-		bundle = config.InvitationBundle{Token: domain.NewToken(), OperationID: a.operation, ExpiresAt: time.Now().Unix() + int64(*ttl)}
-		if err := config.Write(*output, bundle); err != nil {
-			return nil, err
-		}
-	} else if err != nil {
-		return nil, err
-	}
-	if a.explicitOperation && a.operation != bundle.OperationID {
-		return nil, domain.Fail(domain.Conflict, "invitation file is bound to a different operation")
-	}
-	a.operation = bundle.OperationID
-	req := domain.InvitationRequest{Command: domain.Command{OperationID: bundle.OperationID}, TokenHash: domain.Hash(bundle.Token), ExpiresAt: bundle.ExpiresAt}
-	inv, err := a.write(ctx, r, "/v1/invitations", req, "")
-	return map[string]any{"invitation": inv, "secret_file": *output, "expires_at": bundle.ExpiresAt}, err
 }

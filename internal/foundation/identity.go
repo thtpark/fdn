@@ -72,7 +72,7 @@ func (s *Store) Enroll(ctx context.Context, req domain.EnrollRequest) (domain.Ag
 			return domain.Agent{}, domain.Fail(domain.Denied, "invitation has expired or was already used")
 		}
 		if inv.SponsorID != "" {
-			sponsor, err := s.actor(ctx, tx, inv.SponsorID)
+			sponsor, err := activeIdentitySubject(ctx, tx, inv.SponsorID)
 			if err != nil {
 				return domain.Agent{}, domain.Fail(domain.Denied, "invitation sponsor is no longer authorized")
 			}
@@ -114,24 +114,8 @@ func (s *Store) Enroll(ctx context.Context, req domain.EnrollRequest) (domain.Ag
 	})
 }
 
-func (s *Store) canInvite(ctx context.Context, q queryer, actor domain.Agent) (bool, error) {
-	if actor.Founder {
-		return true, nil
-	}
-	rows, err := q.QueryContext(ctx, "SELECT data FROM projects")
-	if err != nil {
-		return false, err
-	}
-	projects, err := scanJSON[domain.Project](rows)
-	if err != nil {
-		return false, err
-	}
-	for _, project := range projects {
-		if !project.Archived && slices.Contains(project.Delegates, actor.ID) {
-			return true, nil
-		}
-	}
-	return false, nil
+func (s *Store) canInvite(_ context.Context, _ queryer, actor domain.Agent) (bool, error) {
+	return actor.Active && !actor.Banned && actor.Founder, nil
 }
 
 func (s *Store) Invite(ctx context.Context, actor string, req domain.InvitationRequest) (domain.Invitation, error) {
@@ -141,7 +125,7 @@ func (s *Store) Invite(ctx context.Context, actor string, req domain.InvitationR
 			return domain.Invitation{}, err
 		}
 		if !ok {
-			return domain.Invitation{}, domain.Fail(domain.Denied, "only Founder or a current project delegate may invite")
+			return domain.Invitation{}, domain.Fail(domain.Denied, "only active Founder may invite")
 		}
 		if !domain.ValidHash(req.TokenHash) || req.ExpiresAt <= s.timestamp() || req.ExpiresAt > s.timestamp()+86400 {
 			return domain.Invitation{}, domain.Fail(domain.Invalid, "invitation needs a token hash and expiry within 24 hours")
@@ -220,22 +204,11 @@ func (s *Store) Revoke(ctx context.Context, actor, target string, req domain.Age
 		if _, err := tx.ExecContext(ctx, "UPDATE agents SET data = ?, active = 0 WHERE id = ?", data, target); err != nil {
 			return agent, err
 		}
-		rows, err := tx.QueryContext(ctx, "SELECT data FROM tasks WHERE assignee_id = ? OR json_extract(data, '$.readiness.actor_id') = ? OR json_extract(data, '$.retry_approval.actor_id') = ? OR json_extract(data, '$.active_run.agent_id') = ?", target, target, target, target)
-		if err != nil {
+		if err := revokeIdentity(ctx, tx, target); err != nil {
 			return agent, err
 		}
-		tasks, err := scanJSON[domain.Task](rows)
-		if err != nil {
+		if err := s.stopIdentityWork(ctx, tx, target, a.ID, "agent-revoked"); err != nil {
 			return agent, err
-		}
-		for _, task := range tasks {
-			if task.ActiveRun != nil {
-				task.ActiveRun.StopRequested = true
-			}
-			task.Readiness, task.RetryApproval = nil, nil
-			if err := s.saveTask(ctx, tx, &task, a.ID, "agent-revoked"); err != nil {
-				return agent, err
-			}
 		}
 		return agent, s.event(ctx, tx, "agent", target, "", "")
 	})
@@ -282,7 +255,7 @@ func (s *Store) GrantCreation(ctx context.Context, actor string, req domain.Gran
 		if !a.Founder {
 			return nil, domain.Fail(domain.Denied, "only Founder grants project creation")
 		}
-		if _, err := s.actor(ctx, tx, req.AgentID); err != nil {
+		if _, err := activeIdentitySubject(ctx, tx, req.AgentID); err != nil {
 			return nil, err
 		}
 		var err error
@@ -311,7 +284,7 @@ func (s *Store) Delegate(ctx context.Context, actor, projectID string, req domai
 		if err := expect(p.Revision, req.ExpectedRevision); err != nil {
 			return p, err
 		}
-		if _, err := s.actor(ctx, tx, req.AgentID); err != nil {
+		if _, err := activeIdentitySubject(ctx, tx, req.AgentID); err != nil {
 			return p, err
 		}
 		if req.Revoke {

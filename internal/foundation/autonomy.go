@@ -19,7 +19,7 @@ func (s *Store) SetMode(ctx context.Context, actor, id string, req domain.ModeRe
 		if !a.Founder {
 			return domain.Agent{}, domain.Fail(domain.Denied, "only Founder may explicitly pause or resume an agent; delegates cannot change automation mode")
 		}
-		target, err := s.actor(ctx, tx, id)
+		target, err := activeIdentitySubject(ctx, tx, id)
 		if err != nil {
 			return target, err
 		}

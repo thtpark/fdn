@@ -49,7 +49,10 @@ func newHarness(t *testing.T) *harness {
 	if err := bundle.Write(root); err != nil {
 		t.Fatal(err)
 	}
-	service, err := api.New(store, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	// This adapter preserves business-policy coverage, not the production identity boundary.
+	service, err := api.NewAuthenticated(store, slog.New(slog.NewTextHandler(io.Discard, nil)), func(r *http.Request) (domain.Agent, error) {
+		return store.Authenticate(r.Context(), strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +82,7 @@ func newHarness(t *testing.T) *harness {
 	h.founder, h.founderAgent = h.enroll(t, "Founder", bootstrap)
 	for _, name := range []string{"worker", "other"} {
 		token := domain.NewToken()
-		if _, err := api.Call[domain.Invitation](ctx, h.founder, "POST", "/v1/invitations", domain.InvitationRequest{Command: command(), TokenHash: domain.Hash(token), ExpiresAt: time.Now().Unix() + 600}); err != nil {
+		if _, err := store.Invite(ctx, h.founderAgent.ID, domain.InvitationRequest{Command: command(), TokenHash: domain.Hash(token), ExpiresAt: time.Now().Unix() + 600}); err != nil {
 			t.Fatal(err)
 		}
 		client, agent := h.enroll(t, name, token)
@@ -99,7 +102,7 @@ func (h *harness) enroll(t *testing.T, name, invitation string) (*api.Client, do
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent, err := api.Call[domain.Agent](context.Background(), c, "POST", "/v1/enroll", domain.EnrollRequest{Command: command(), Name: name, InvitationToken: invitation, CredentialHash: domain.Hash(token)})
+	agent, err := h.store.Enroll(context.Background(), domain.EnrollRequest{Command: command(), Name: name, InvitationToken: invitation, CredentialHash: domain.Hash(token)})
 	if err != nil {
 		t.Fatal(err)
 	}

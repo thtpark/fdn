@@ -220,7 +220,7 @@ func Restore(ctx context.Context, input, identityFile, destination string) (err 
 	if err := config.Read(filepath.Join(stage, "manifest.json"), &manifest); err != nil {
 		return err
 	}
-	if manifest.Schema != domain.SchemaVersion || len(manifest.Files) != len(filenames) {
+	if manifest.Schema < 1 || manifest.Schema > domain.SchemaVersion || len(manifest.Files) != len(filenames) {
 		return domain.Fail(domain.Prerequisite, "incompatible backup schema")
 	}
 	for _, name := range filenames {
@@ -248,11 +248,12 @@ func Restore(ctx context.Context, input, identityFile, destination string) (err 
 	}
 	checkErr := store.Check(ctx)
 	retireErr := store.RetireSessions(ctx)
+	quarantineErr := store.QuarantineRestoredIdentities(ctx)
 	closeErr := store.Close()
-	if err := errors.Join(checkErr, retireErr, closeErr); err != nil {
+	if err := errors.Join(checkErr, retireErr, quarantineErr, closeErr); err != nil {
 		return err
 	}
-	c := config.Server{StateDir: destination, Listen: "127.0.0.1:8443", CertFile: filepath.Join(destination, "server.pem"), KeyFile: filepath.Join(destination, "server-key.pem")}
+	c := config.Server{StateDir: destination, CertFile: filepath.Join(destination, "server.pem"), KeyFile: filepath.Join(destination, "server-key.pem"), IngressSocket: "/run/fdn/ingress/api.sock", JoinSocket: "/run/fdn/ingress/join.sock", IngressGroup: -1, AccountSocket: "/run/fdn/accounts.sock"}
 	if err := config.Write(filepath.Join(stage, "server.json"), c); err != nil {
 		return err
 	}

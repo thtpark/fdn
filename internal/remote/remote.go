@@ -22,11 +22,20 @@ import (
 
 func Dial(ctx context.Context, client *api.Client, sessionID, side string) (net.Conn, error) {
 	url := "wss" + strings.TrimPrefix(client.BaseURL, "https") + api.Path("sessions", sessionID, "relay", side)
-	header := http.Header{"Authorization": []string{"Bearer " + client.Credential.Token}}
+	if client.Local {
+		url = "ws" + strings.TrimPrefix(client.BaseURL, "http") + api.Path("sessions", sessionID, "relay", side)
+	}
+	header := make(http.Header)
+	if !client.Local && client.Credential.Token != "" {
+		header.Set("Authorization", "Bearer "+client.Credential.Token)
+	}
 	conn, response, err := websocket.Dial(ctx, url, &websocket.DialOptions{HTTPClient: client.HTTP, HTTPHeader: header, CompressionMode: websocket.CompressionDisabled})
 	if err != nil {
 		if response != nil && response.Body != nil {
 			response.Body.Close()
+		}
+		if response != nil && (response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden) {
+			return nil, domain.Fail(domain.Denied, "relay identity or current assistance authority was denied")
 		}
 		return nil, domain.Fail(domain.Unavailable, "consented relay connection failed; recheck current identity, consent, open action, and expiry")
 	}

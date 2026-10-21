@@ -19,10 +19,14 @@ import (
 )
 
 type Server struct {
-	StateDir string `json:"state_dir"`
-	Listen   string `json:"listen"`
-	CertFile string `json:"cert_file"`
-	KeyFile  string `json:"key_file"`
+	StateDir      string `json:"state_dir"`
+	Listen        string `json:"listen,omitempty"`
+	CertFile      string `json:"cert_file"`
+	KeyFile       string `json:"key_file"`
+	IngressSocket string `json:"ingress_socket,omitempty"`
+	JoinSocket    string `json:"join_socket,omitempty"`
+	IngressGroup  int    `json:"ingress_group,omitempty"`
+	AccountSocket string `json:"account_socket,omitempty"`
 }
 
 type SSH struct {
@@ -41,6 +45,7 @@ type Worker struct {
 	CAFile                   string            `json:"ca_file"`
 	ServerName               string            `json:"server_name,omitempty"`
 	CredentialFile           string            `json:"credential_file"`
+	IdentitySocket           string            `json:"identity_socket,omitempty"`
 	Mode                     string            `json:"mode"`
 	Provider                 string            `json:"provider"`
 	Model                    string            `json:"model,omitempty"`
@@ -58,7 +63,7 @@ type Worker struct {
 
 type Credential struct {
 	AgentID string `json:"agent_id"`
-	Token   string `json:"token"`
+	Token   string `json:"token,omitempty"`
 }
 
 type InvitationBundle struct {
@@ -112,12 +117,21 @@ func (c Server) Validate() error {
 	if !filepath.IsAbs(c.StateDir) || !filepath.IsAbs(c.CertFile) || !filepath.IsAbs(c.KeyFile) {
 		return domain.Fail(domain.Invalid, "server paths must be absolute")
 	}
+	if c.IngressSocket != "" || c.JoinSocket != "" {
+		if c.Listen != "" || !filepath.IsAbs(c.IngressSocket) || !filepath.IsAbs(c.JoinSocket) || c.IngressSocket == c.JoinSocket || c.IngressGroup < -1 || (c.AccountSocket != "" && !filepath.IsAbs(c.AccountSocket)) {
+			return domain.Fail(domain.Invalid, "secure Foundation uses distinct absolute Unix sockets, not a TCP listener")
+		}
+		return nil
+	}
 	return Loopback(c.Listen)
 }
 
 func (c Worker) Validate() error {
 	if !filepath.IsAbs(c.StateDir) || !filepath.IsAbs(c.CredentialFile) || !filepath.IsAbs(c.CAFile) || !filepath.IsAbs(c.WorkspaceRoot) {
 		return domain.Fail(domain.Invalid, "worker paths must be absolute")
+	}
+	if c.IdentitySocket != "" && !filepath.IsAbs(c.IdentitySocket) {
+		return domain.Fail(domain.Invalid, "identity socket must be an absolute path")
 	}
 	if c.Mode != "ai" && c.Mode != "manual" {
 		return domain.Fail(domain.Invalid, "mode must be ai or manual")

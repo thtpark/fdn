@@ -25,9 +25,7 @@ func TestNativeDelegatedPullRequestWorkflow(t *testing.T) {
 	for _, providers := range []struct{ worker, delegate string }{{"codex", "copilot"}, {"copilot", "codex"}} {
 		t.Run(providers.worker+"-worker", func(t *testing.T) {
 			l := newLab(t, providers.worker)
-			invitation := filepath.Join(l.root, "transfer", "delegate-invitation.json")
-			l.cli(t, l.founder, []string{"invitation", "create", "--output", invitation}, nil)
-			delegate := l.newWorker(t, "delegate", providers.delegate, invitation, filepath.Join(l.root, "foundation"))
+			delegate := l.newWorker(t, "delegate", providers.delegate)
 			if err := json.Unmarshal(l.cli(t, l.founder, []string{"project", "delegate", l.project.ID, "--input", "-"}, domain.GrantRequest{AgentID: delegate.agent.ID}), &l.project); err != nil {
 				t.Fatal(err)
 			}
@@ -205,7 +203,7 @@ func TestNativeDelegatedPullRequestWorkflow(t *testing.T) {
 				t.Fatal("idle/restart duplicated PR, review, or merge side effects")
 			}
 			assertScenarioResults(t, l, delegate, github, approved, final, workerTrace, delegateTrace, answerIDs)
-			tokens := []string{workerToken, delegateToken, l.worker.client.Credential.Token, delegate.client.Credential.Token, l.founder.client.Credential.Token}
+			tokens := []string{workerToken, delegateToken, l.worker.fixtureToken, delegate.fixtureToken, l.founder.fixtureToken}
 			assertPrivateScenarioJournals(t, l.worker, workerNote, delegateNote, tokens)
 			assertPrivateScenarioJournals(t, delegate, delegateNote, workerNote, tokens)
 			assertSharedScenarioPrivacy(t, l, final, delegate, append(tokens, workerNote, delegateNote, l.root)...)

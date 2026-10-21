@@ -12,8 +12,8 @@ import (
 	"unicode/utf8"
 )
 
-const SchemaVersion = 1
-const APIVersion = 1
+const SchemaVersion = 2
+const APIVersion = 2
 const MaxBody = 1 << 20
 const HistoryLimit = 3
 
@@ -65,6 +65,8 @@ type Agent struct {
 	Name            string `json:"name"`
 	Founder         bool   `json:"founder"`
 	Active          bool   `json:"active"`
+	Banned          bool   `json:"banned,omitempty"`
+	BanReason       string `json:"ban_reason,omitempty"`
 	SponsorID       string `json:"sponsor_id,omitempty"`
 	CreatedAt       int64  `json:"created_at"`
 	LastSeen        int64  `json:"last_seen"`

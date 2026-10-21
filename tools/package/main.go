@@ -23,6 +23,9 @@ import (
 	"github.com/thtpark/fdn/internal/platform"
 )
 
+var nativeBinaries = []string{"agent-cli", "agent-service", "agent-identity", "fdn-service"}
+var workerBinaries = []string{"agent-cli", "agent-service", "agent-identity"}
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, domain.AsFault(err).Message)
@@ -84,7 +87,7 @@ func run() error {
 		return err
 	}
 	defer os.RemoveAll(stage)
-	names := []string{"agent-cli", "agent-service", "fdn-service"}
+	names := nativeBinaries
 	ldflags := "-s -w -buildid= -X github.com/thtpark/fdn/internal/domain.Version=" + version + " -X github.com/thtpark/fdn/internal/domain.Commit=" + commit
 	for _, name := range names {
 		for _, pass := range []string{"first", "second"} {
@@ -121,9 +124,7 @@ func run() error {
 		return err
 	}
 	native = append(native, guideEntries...)
-	for _, name := range names {
-		native = append(native, distribution.Entry{Name: "bin/" + name, Path: filepath.Join(stage, "first", name), Mode: 0755})
-	}
+	native = append(native, binaryEntries(filepath.Join(stage, "first"), "bin", names)...)
 	artifacts := []string{}
 	archiveName := "fdn-" + version + "-" + target + ".tar.gz"
 	if err := write(filepath.Join(out, archiveName), func(w io.Writer) error { return distribution.TarGzip(w, native, epoch) }); err != nil {
@@ -144,7 +145,7 @@ func run() error {
 			controlEntries := []distribution.Entry{{Name: "control", Data: []byte(control), Mode: 0644}}
 			if role == "foundation" {
 				data = append(data, distribution.Entry{Name: "usr/bin/fdn-service", Path: filepath.Join(stage, "first", "fdn-service"), Mode: 0755})
-				unit, err := platform.Render(platform.Options{OS: "linux", Role: "foundation", Binary: "/usr/bin/fdn-service", ConfigFile: "/var/lib/fdn/server.json", StateDir: "/var/lib/fdn", Home: "/var/lib/fdn", User: "fdn", Definition: "/lib/systemd/system/fdn-foundation.service"})
+				unit, err := foundationUnit()
 				if err != nil {
 					return err
 				}
@@ -165,12 +166,11 @@ else
 fi
 if command -v systemctl >/dev/null; then systemctl daemon-reload; fi
 runuser -u fdn -- env HOME=/var/lib/fdn /usr/bin/fdn-service guide install --home /var/lib/fdn
-printf '%s\n' 'State and identities are preserved. Initialize as fdn, then explicitly enable/start fdn-foundation.service.'
+printf '%s\n' 'State and identities are preserved. Follow DEPLOYMENT.md for signed Founder setup, isolated accounts/ingress, and explicit service startup.'
 `
 				controlEntries = append(controlEntries, distribution.Entry{Name: "postinst", Data: []byte(postinst), Mode: 0755})
 			} else {
-				data = append(data, distribution.Entry{Name: "usr/bin/agent-service", Path: filepath.Join(stage, "first", "agent-service"), Mode: 0755},
-					distribution.Entry{Name: "usr/bin/agent-cli", Path: filepath.Join(stage, "first", "agent-cli"), Mode: 0755})
+				data = append(data, binaryEntries(filepath.Join(stage, "first"), "usr/bin", workerBinaries)...)
 			}
 			filename := pkg + "_" + version + "_" + arch + ".deb"
 			if err := write(filepath.Join(out, filename), func(w io.Writer) error { return distribution.Debian(w, controlEntries, data, epoch) }); err != nil {
@@ -205,11 +205,20 @@ printf '%s\n' 'State and identities are preserved. Initialize as fdn, then expli
 					return domain.Fail(domain.Internal, "Debian extraction did not preserve the complete version-matched guide")
 				}
 			}
+			for _, entry := range data {
+				if entry.Path == "" {
+					continue
+				}
+				installed := filepath.Join(extract, filepath.FromSlash(entry.Name))
+				if err := verifyBinary(entry.Path, installed); err != nil {
+					return err
+				}
+			}
 			artifacts = append(artifacts, filename)
 		}
 	}
 	metadata := map[string]any{"format_version": 1, "version": version, "commit": commit, "platform": target, "source_date_epoch": epoch,
-		"go_version": runtime.Version(), "reproducible_binary_builds": true, "signed": false, "attested": false, "artifacts": artifacts}
+		"go_version": runtime.Version(), "reproducible_binary_builds": true, "binaries": names, "signed": false, "attested": false, "artifacts": artifacts}
 	catalog, err := guidance.Catalog()
 	if err != nil {
 		return err
@@ -246,6 +255,45 @@ printf '%s\n' 'State and identities are preserved. Initialize as fdn, then expli
 		}
 		_, writeErr := fmt.Fprintf(file, "### %s\n\nCommit: `%s`\n\nSHA256SUMS SHA-256: `%s`\n\nUnsigned/unattested; obtain this digest through a trusted channel before installation.\n", target, commit, digest)
 		return errors.Join(writeErr, file.Close())
+	}
+	return nil
+}
+
+func foundationUnit() (platform.Definition, error) {
+	return platform.Render(platform.Options{
+		OS: "linux", Role: "foundation", Binary: "/usr/bin/fdn-service",
+		ConfigFile: "/var/lib/fdn/server.json", StateDir: "/var/lib/fdn", Home: "/var/lib/fdn",
+		User: "fdn", IngressGroup: "fdn_ingress", IngressDirs: []string{"/run/fdn-ingress"},
+		Definition: "/lib/systemd/system/fdn-foundation.service",
+	})
+}
+
+func binaryEntries(directory, prefix string, names []string) []distribution.Entry {
+	entries := make([]distribution.Entry, 0, len(names))
+	for _, name := range names {
+		entries = append(entries, distribution.Entry{Name: prefix + "/" + name, Path: filepath.Join(directory, name), Mode: 0755})
+	}
+	return entries
+}
+
+func verifyBinary(source, installed string) error {
+	info, err := os.Lstat(installed)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() || info.Mode().Perm() != 0755 {
+		return domain.Fail(domain.Internal, "Debian extraction did not preserve a regular executable binary")
+	}
+	expected, err := distribution.SHA256(source)
+	if err != nil {
+		return err
+	}
+	actual, err := distribution.SHA256(installed)
+	if err != nil {
+		return err
+	}
+	if actual != expected {
+		return domain.Fail(domain.Internal, "Debian extraction did not preserve binary contents")
 	}
 	return nil
 }

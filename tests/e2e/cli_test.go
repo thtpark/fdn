@@ -34,6 +34,11 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	if err := os.Setenv("TMPDIR", root); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.RemoveAll(root)
+		os.Exit(1)
+	}
 	binaries = root
 	build := exec.Command("go", "build", "-trimpath", "-o", root,
 		"github.com/thtpark/fdn/cmd/fdn-service", "github.com/thtpark/fdn/cmd/agent-service", "github.com/thtpark/fdn/cmd/agent-cli", "github.com/thtpark/fdn/tests/fixtureprovider")
@@ -197,15 +202,16 @@ func must[T any](t *testing.T, name string, args []string, input any) T {
 }
 
 type worker struct {
-	configFile string
-	config     config.Worker
-	agent      domain.Agent
-	client     *api.Client
+	configFile   string
+	config       config.Worker
+	agent        domain.Agent
+	client       *api.Client
+	fixtureToken string
 }
 type lab struct {
 	root         string
 	url          string
-	server       *child
+	fixture      *workflowAPI
 	serverConfig string
 	founder      *worker
 	worker       *worker
@@ -235,27 +241,20 @@ func newLab(t *testing.T, provider string) *lab {
 	root := fixtureRoot(t)
 	l := &lab{root: root, serverConfig: filepath.Join(root, "foundation-config", "server.json")}
 	state := filepath.Join(root, "foundation")
-	bootstrap := filepath.Join(root, "transfer", "bootstrap.json")
-	initArgs := []string{"--config", l.serverConfig, "init", "--state", state, "--listen", "127.0.0.1:0", "--bootstrap-file", bootstrap}
-	must[any](t, "fdn-service", initArgs, nil)
-	must[any](t, "fdn-service", initArgs, nil)
-	server, startup := start(t, "fdn-service", "--config", l.serverConfig, "serve")
-	l.server = server
-	var address struct {
-		Address string `json:"address"`
-	}
-	if err := json.Unmarshal(startup.Data, &address); err != nil {
+	l.fixture = newWorkflowAPI(t, state)
+	l.url = l.fixture.server.URL
+	if err := config.Write(l.serverConfig, config.Server{StateDir: state,
+		CertFile: filepath.Join(state, "server.pem"), KeyFile: filepath.Join(state, "server-key.pem"),
+		IngressSocket: filepath.Join(root, "api", "api.sock"), JoinSocket: filepath.Join(root, "join", "join.sock"), IngressGroup: 4100,
+		AccountSocket: filepath.Join(root, "accounts", "helper.sock")}); err != nil {
 		t.Fatal(err)
 	}
-	l.url = "https://" + address.Address
-	l.founder = l.newWorker(t, "founder", provider, bootstrap, state)
+	l.founder = l.newWorker(t, "founder", provider)
 	mode := must[map[string]string](t, "agent-cli", []string{"--config", l.founder.configFile, "mode", "show"}, nil)
 	if mode["mode"] != "manual" {
 		t.Fatal("Founder bootstrap did not default to manual")
 	}
-	invitation := filepath.Join(root, "transfer", "worker-invitation.json")
-	l.cli(t, l.founder, []string{"invitation", "create", "--output", invitation}, nil)
-	l.worker = l.newWorker(t, "worker", provider, invitation, state)
+	l.worker = l.newWorker(t, "worker", provider)
 	raw := l.cli(t, l.founder, []string{"project", "create", "--input", "-"}, domain.ProjectRequest{Name: "native e2e"})
 	if err := json.Unmarshal(raw, &l.project); err != nil {
 		t.Fatal(err)
@@ -271,16 +270,26 @@ func newLab(t *testing.T, provider string) *lab {
 	return l
 }
 
-func (l *lab) newWorker(t *testing.T, name, providerName, invitation, foundationState string) *worker {
+func (l *lab) newWorker(t *testing.T, name, providerName string) *worker {
 	t.Helper()
 	w := &worker{configFile: filepath.Join(l.root, name, "config", "agent.json")}
+	founderID := ""
+	if l.founder != nil {
+		founderID = l.founder.agent.ID
+	}
+	w.agent, w.fixtureToken = l.fixture.seed(t, founderID, name)
+	socket := filepath.Join(l.root, name, "identity.sock")
+	l.fixture.localProxy(t, socket, w.agent, w.fixtureToken)
 	state := filepath.Join(l.root, name, "state")
-	args := []string{"--config", w.configFile, "config", "init", "--state", state, "--url", l.url, "--ca-file", filepath.Join(foundationState, "ca.pem"),
+	args := []string{"--config", w.configFile, "config", "init", "--state", state, "--identity-socket", socket,
 		"--provider", providerName, "--workspace-root", filepath.Join(l.root, "workspaces", name), "--allow-workspace-tools"}
 	must[any](t, "agent-cli", args, nil)
 	l.cli(t, w, []string{"config", "set", "--input", "-"}, map[string]any{"poll_seconds": 1, "invocation_timeout_seconds": 30, "automatic_provider_updates": false,
 		"provider_paths": map[string]string{"codex": filepath.Join(binaries, "fixtureprovider"), "copilot": filepath.Join(binaries, "fixtureprovider")}})
-	w.agent = must[domain.Agent](t, "agent-cli", []string{"--config", w.configFile, "connect", "--invitation-file", invitation, "--name", name}, nil)
+	connected := must[domain.Agent](t, "agent-cli", []string{"--config", w.configFile, "connect"}, nil)
+	if connected.ID != w.agent.ID {
+		t.Fatal("local identity attach changed the seeded actor")
+	}
 	l.cli(t, w, []string{"preferences", "set", "--input", "-"}, map[string]string{"provider": providerName, "model": "fixture-model"})
 	var err error
 	w.config, err = config.LoadWorker(w.configFile)
@@ -291,10 +300,14 @@ func (l *lab) newWorker(t *testing.T, name, providerName, invitation, foundation
 	if err := config.Read(w.config.CredentialFile, &credential); err != nil {
 		t.Fatal(err)
 	}
-	w.client, err = api.NewClient(l.url, w.config.CAFile, "", credential)
+	if credential.AgentID != w.agent.ID || credential.Token != "" {
+		t.Fatal("worker credential must contain only its local identity binding")
+	}
+	w.client, err = api.NewLocalClient(w.config)
 	if err != nil {
 		t.Fatal(err)
 	}
+	w.client.Credential = credential
 	t.Cleanup(w.client.Close)
 	return w
 }
@@ -403,7 +416,7 @@ func TestNativeBinariesPhaseOneThroughFive(t *testing.T) {
 				if journal.Kind == "onboarding" {
 					reviews++
 				}
-				if strings.Contains(string(journal.Context), l.worker.client.Credential.Token) {
+				if strings.Contains(string(journal.Context), l.worker.fixtureToken) {
 					t.Fatal("credential entered model context")
 				}
 				prompt, err := os.ReadFile(filepath.Join(l.worker.config.StateDir, "invocations", journal.ID, "prompt.txt"))

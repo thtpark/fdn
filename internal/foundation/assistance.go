@@ -11,18 +11,18 @@ func (s *Store) grantAuthority(ctx context.Context, q queryer, grant domain.Assi
 	if !grant.Active {
 		return domain.Fail(domain.Denied, "assistance grant was revoked")
 	}
-	issuer, err := s.actor(ctx, q, grant.CreatedBy)
+	issuer, err := activeIdentitySubject(ctx, q, grant.CreatedBy)
 	if err != nil {
 		return err
 	}
 	if !issuer.Founder {
 		return domain.Fail(domain.Denied, "assistance grant has no current Founder authorization")
 	}
-	requester, err := s.actor(ctx, q, grant.RequesterID)
+	requester, err := activeIdentitySubject(ctx, q, grant.RequesterID)
 	if err != nil {
 		return err
 	}
-	if _, err := s.actor(ctx, q, grant.TargetID); err != nil {
+	if _, err := activeIdentitySubject(ctx, q, grant.TargetID); err != nil {
 		return err
 	}
 	if grant.ProjectID != "" {

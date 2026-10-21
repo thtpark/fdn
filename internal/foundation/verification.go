@@ -36,7 +36,7 @@ func (s *Store) reportVerification(ctx context.Context, tx *sql.Tx, a domain.Age
 		if !eligibleApprover(a, p, t, false) {
 			return outcome, domain.Fail(domain.Denied, "rework approval requires current readiness authority and policy")
 		}
-		if _, err := s.actor(ctx, tx, t.AssigneeID); err != nil {
+		if _, err := activeIdentitySubject(ctx, tx, t.AssigneeID); err != nil {
 			var fault *domain.Fault
 			if !errors.As(err, &fault) || (fault.Code != domain.Denied && fault.Code != domain.NotFound) {
 				return outcome, err

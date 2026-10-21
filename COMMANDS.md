@@ -44,7 +44,9 @@ completion. There is no force/skip-approval flag.
 
 ## Offline guide
 
-Available in every binary without configuration, enrollment or network:
+Available in `agent-cli`, `fdn-service` and `agent-service` without
+configuration, enrollment or network. The separate `agent-identity` binary has
+its own offline `--help`; it does not expose `guide` commands:
 
 - `agent-cli guide list`, `fdn-service guide list`, `agent-service guide list`
 - `agent-cli guide show PATH`, `fdn-service guide show PATH`, `agent-service guide show PATH`
@@ -62,14 +64,16 @@ over another user's files. It never enrolls/authenticates or enables work.
 
 | Command | Required leaf arguments / effect |
 | --- | --- |
-| `fdn-service init` | `--state DIR --bootstrap-file FILE [--listen 127.0.0.1:8443]`; private fresh/recoverable initialization, never reset |
-| `fdn-service serve` | Native unprivileged TLS service; one local server lock |
+| `fdn-service init` | `--state ABS --founder-request PUBLIC --ingress-socket ABS --join-socket ABS --ingress-group GID --account-socket ABS`; signed Founder preparation, private recoverable initialization, no TCP/bearer bootstrap |
+| `fdn-service serve` | Unprivileged inner-TLS API/join Unix listeners plus private root-local maintenance; one server lock |
 | `fdn-service doctor` | Read-only SQLite integrity/TLS pair/configuration checks |
-| `fdn-service bootstrap` | `--output FILE [--ttl 900]`; replacement bootstrap only before Founder enrollment, TTL 60-86400 |
+| `fdn-service accounts serve` | `--input ROOT_CONFIG`; narrow root Linux Unix account provisioner, only the pinned server UID may call |
+| `fdn-service gateway` | `--input ROOT_CONFIG`; forced SSH raw stdio selector, accepts only `SSH_ORIGINAL_COMMAND=fdn-api` or `fdn-join`; no arbitrary commands, PTY or forwarding |
+| `fdn-service recover-founder` | `--input NEW_PUBLIC --reason REASON`; root-only private Unix maintenance; fresh keys for the sole existing legacy/restored/banned Founder retaining ID/history, no target/rotate flag and never an agent gateway/API route |
 | `fdn-service tls-renew` | Stop server first; replace leaf/key under existing CA, resume an interrupted exact pair |
 | `fdn-service backup-key` | `--output FILE`; create private age identity and return public recipient |
 | `fdn-service backup` | `--output FILE --recipient age1...`; encrypted consistent SQLite/trust snapshot |
-| `fdn-service restore` | `--input FILE --identity-file FILE --destination NEW_DIR`; verify complete archive, never overwrite |
+| `fdn-service restore` | `--input FILE --identity-file FILE --destination NEW_DIR`; verify complete archive, manifest schema 1/2 and supported SQL migration; quarantine all restored identity/owner/key epochs before publication, never overwrite or revive old credentials |
 | `fdn-service service plan` | `--input OPTIONS`; render native Foundation definition without registering |
 | `fdn-service service install` | `--input OPTIONS --apply`; explicit OS-administrator registration/start |
 | `agent-service serve` | Native enrolled worker, guidance installation, one daemon, private state/tunnels/controller/session supervision |
@@ -79,10 +83,10 @@ over another user's files. It never enrolls/authenticates or enables work.
 
 | Command | Arguments / scope |
 | --- | --- |
-| `agent-cli config init` | `[--state DIR --url HTTPS_ORIGIN --ca-file FILE --provider codex|copilot --workspace-root DIR --allow-workspace-tools]`; refuses existing configuration; installs own-account guidance |
-| `agent-cli config show` | Non-secret configuration; never credential contents |
+| `agent-cli config init` | `--identity-socket ABS [--state DIR --provider codex|copilot --workspace-root DIR --allow-workspace-tools]`; runner setup only, refuses existing configuration and installs own-account guidance |
+| `agent-cli config show` | Non-secret runner configuration; never credential contents |
 | `agent-cli config set` | `--input FILE`; documented patch below; credentials/identity are not editable |
-| `agent-cli connect` | `--invitation-file FILE --name NAME`; pinned SSH/TLS, private generated credential, recover exact pending enrollment |
+| `agent-cli connect` | `[--migrate]`; attach the already activated local private identity proxy, check the matching agent and retain only public AgentID; migration needs prior Founder binding |
 | `agent-cli status` | Authenticated identity plus local daemon/work/pending/fence state |
 | `agent-cli doctor` | Read-only configuration, TLS/API authentication and service version |
 | `agent-cli mode show` | Offline local mirror of authoritative `ai`/`manual`; work status includes the last Founder control reference |
@@ -99,15 +103,89 @@ Configuration patches accept only `poll_seconds` (1-3600),
 `vnc_address`, `vnc_verified`, and `ssh`. Provider paths are absolute and only
 name codex/copilot. Transport/provider-path changes require service restart.
 
-`ssh` has host/user/port, absolute identity/known-hosts files, local port and
-remote port. URLs/listeners remain loopback HTTPS; use an individually pinned
-OpenSSH tunnel for a remote Foundation. See [DEPLOYMENT.md](DEPLOYMENT.md).
+Runner transport comes from `identity_socket`, not editable bearer credentials
+or copied SSH keys. Legacy URL/CA/SSH configuration is not a v2 runtime fallback.
+The protected identity service derives its pinned SSH account/host and TLS trust
+from the approved public profile; its SSH commands select only Unix API/join
+stdio targets, never local/remote TCP port forwarding.
+See [DEPLOYMENT.md](DEPLOYMENT.md).
 
-Native `OPTIONS` fields: `os` (linux/darwin), `role` (foundation/agent), absolute
+### Protected identity service (different UID)
+
+| Command | Arguments / boundary |
+| --- | --- |
+| `agent-identity prepare` | Global `--config PRIVATE_CONFIG`, then `--name NAME --output PUBLIC_FILE`; retain private software SSH/authentication keypairs and export a signed public-only request; exact retry reuses the request |
+| `agent-identity connect` | Global `--config PRIVATE_CONFIG`, then `--profile APPROVED_PUBLIC_PROFILE`; validate/store the provisioned public profile against this account's prepared keys |
+| `agent-identity serve` | Global `--config PRIVATE_CONFIG`; maintain pinned SSH, activation, device-authenticated owner control and peer-checked local runner proxy |
+| `agent-identity service plan` | `--input OPTIONS`; read-only two-account/native-definition plan, no configuration, enrollment or root execution required |
+| `agent-identity service install` | `--input OPTIONS --apply`; explicit native root registration of the identity daemon and distinct runner service, never account creation/adoption |
+| `agent-identity service status` | `--input OPTIONS`; native root inspection of that exact two-service installation, no `--apply` |
+
+The three `service` leaves take an integrity-protected options **file**, not stdin
+or `--config`. Their `OPTIONS` is `platform.IdentityServiceOptions`, distinct
+from the single-role options below:
+
+- Selection: `os` (`linux`/`darwin`), `name`.
+- Accounts: `identity_user`, `identity_uid`, `identity_gid`, `worker_user`,
+  `worker_uid`, `worker_gid`; distinct non-root users and distinct positive
+  UID/GID pairs, with primary group names matching their account names.
+- Absolute paths: `identity_binary`, `worker_binary`, `identity_config`,
+  `worker_config`, `state_dir`, `worker_state_dir`, `identity_home`, `worker_home`,
+  `socket_dir`, `identity_definition`, `worker_definition`.
+
+Preprovision exact accounts/HOMEs/groups, managed comment/RealName markers
+`fdn-identity=NAME` and `fdn-runner=NAME`, a no-login identity shell, and one-way
+identity membership in the worker group. The runner cannot join identity/root
+groups. Missing/mismatched accounts fail as prerequisite/conflict, not adoption
+or a same-UID fallback. Both 0600 configurations must already exist under their
+own private 0700 HOMEs; the runner's socket binding and all plan paths must agree.
+Paired binaries must be immutable `agent-identity`/`agent-service` in the same
+binary directory. Native definition paths and manager details are in
+[DEPLOYMENT.md](DEPLOYMENT.md#native-identity-and-runner-services).
+
+`agent-identity --help` is offline. There is no identity `config init` leaf:
+authorized native setup supplies an identity-owned 0600 configuration, separate
+0700 key state, explicit runner UID/GID and an absolute socket in a separate
+identity-owned 0710 runner-group IPC directory. Private `prepare`/`connect`/`serve`
+execution rejects root and an identity UID equal to the runner UID. Stop the
+identity service before offline `prepare`/`connect`. Its proxy does not export
+private keys, signing operations, owner control or certificates to providers.
+The public profile contains `identity`, `url`, `ca`, `ssh_host`, `ssh_port` and
+`known_hosts`; approve its integrity even though its contents are not secret.
+
+There is **no `--rotate` flag**. For explicit fresh-key recovery, stop the
+service, preserve its old private StateDir and **all runner state/journals**,
+then choose a new empty identity-owned 0700 StateDir inside the **same identity
+HOME**. Keep the private config file path/IPC and all runner paths stable;
+update only the intended `state_dir` binding in that config and service OPTIONS.
+Run private `prepare` in the new state, obtain Founder/root recovery, connect
+its newly approved public profile and restart the named native services. Normal
+prepare retry/reconnect/restart reuses the retained identity, never auto-rotates
+keys. See [DEPLOYMENT.md](DEPLOYMENT.md#diagnose-identity-state-and-recover).
+
+### Existing single-role native service options
+
+The `fdn-service service` and `agent-cli service` commands retain their separate
+`platform.Options` contract; do not pass paired identity-service options here.
+Fields: `os` (linux/darwin), `role` (foundation/agent), absolute
 `binary`, `config_file`, `state_dir`, `home`, `definition`, and dedicated `user`.
+Native Linux Foundation installation also requires `ingress_group` (the approved
+ingress-only group name) and `ingress_dirs` (the one/two actual API/join parent
+directories). They render `SupplementaryGroups` and the additional
+`ReadWritePaths` needed by `ProtectSystem=strict`; init/serve require actual
+current supplementary membership, distinct from the primary database group.
 User-service registration needs the correct Linux user manager/bus environment.
 Native manager stop/restart/uninstall is an explicit OS operation, not an
 unimplemented `agent-cli service stop` command.
+
+### Retired bearer enrollment paths
+
+`agent-cli invitation create` and `fdn-service bootstrap` are not supported
+enrollment paths and cannot issue bearer enrollment material. Legacy
+`connect --invitation-file` / `connect --name`, and server initialization with
+`--listen` / `--bootstrap-file`, cannot establish a v2 identity. Use signed
+public-key registration and the protected local proxy, not compatibility flags
+or an older server/client fallback.
 
 ## Identity and projects
 
@@ -116,8 +194,10 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent list` | Active identity checks; shared agent registry |
 | `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision and Founder request attribution |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
-| `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself |
-| `agent-cli invitation create` | `--output PRIVATE_FILE [--ttl 900]`; Founder/current delegate, protected one-time output |
+| `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban still includes Founder |
+| `agent-cli agent register` | `--input SIGNED_PUBLIC [--existing-agent AGENT] [--output PUBLIC_PROFILE]`; Founder-only new registration or explicit binding of the designated original existing non-Founder |
+| `agent-cli agent recover` | `AGENT --input NEW_SIGNED_PUBLIC --reason REASON [--output PUBLIC_PROFILE]`; Founder-only non-Founder recovery with fresh keypairs/generation, not task-run recovery |
+| `agent-cli agent identity` | Current caller's public identity/account/key-generation/owner state; no private material |
 | `agent-cli project list` | Shared registry |
 | `agent-cli project show` | `PROJECT` |
 | `agent-cli project create` | `--input FILE`: `name`, `description`; consumes specific creation grant for non-Founder |
@@ -363,14 +443,36 @@ current exact retry authority; recovery is not permission to rerun.
 
 ## API map for development
 
-The API uses the same envelope and typed inputs, always over TLS. `/healthz`
-reports compatibility without agent credentials; `/v1/enroll` redeems a protected
-one-time token. Other `/v1` endpoints use Bearer authentication.
+API/schema contract version is **2**, server SQLite migration **3**, local
+SQLite **1**. The API uses the same envelope/typed inputs over pinned SSH stdio
+and inner TLS on Unix ingress. `/healthz` reports compatibility on that transport;
+it is not a public TCP enrollment service. No bearer enrollment or invitation
+redemption exists in the runtime.
 
-Families: `/me`, `/agents`, `/invitations`, `/heartbeat`, `/projects`,
+The join channel exposes `/v1/identity/challenge` and `/v1/identity/activate` for
+fresh approved-key proof, then device-certificate-authenticated WebSocket
+`/v1/identity/owner`. That owner control channel proves an ephemeral owner key
+and issues an owner certificate. Ordinary API requires current owner mTLS plus
+agreement with the kernel peer UID and instance/agent/key/owner generations;
+request headers and JSON cannot supply a different principal.
+
+Ordinary families: `/me`, `/agents`, `/heartbeat`, `/identity/register`,
+`/identity/status`, `/identity/AGENT/recover`, `/projects`,
 `/project-creation-grants`, `/tasks`, `/entries`, `/attention`, `/events`,
-`/ownership`, `/messages`, `/sessions`. Entity changes use dedicated POST
-suffixes; claims/reports are controller operations, not generic CLI write
-escapes. Relay routes recheck party/side, authority, consent/open and expiry.
-The exact route/DTO definitions are `internal/api/server.go` and
-`internal/domain/commands.go`; [SCHEMA.md](SCHEMA.md) describes all invariants.
+`/ownership`, `/messages`, `/sessions`. Registration/recovery is Founder-only;
+Founder recovery is root-only private Unix maintenance, never one of these
+agent routes. Entity changes use dedicated POST suffixes; claims/reports are
+controller operations, not generic CLI write escapes. Relays recheck current
+identity/owner, party/side, scope, consent/open and expiry.
+
+Only different live owner keys with valid possession proofs and a fresh
+incumbent WebSocket ping cause the **entire identity** ban, original and
+contender including Founder. Ordinary CLI traffic attaches the local proxy;
+crash/reconnect, key collision and unproved attempts do not ban. Ban closes API
+and streams. Recovery needs fresh keypairs and explicit generation/epoch
+transition; it never approves resuming uncertain work. Software/RAM clones and
+sequential use remain possible; no hardware signing or attestation is claimed.
+
+Exact routes/DTOs are in `internal/api/server.go`, `internal/api/identity.go`,
+`internal/domain/commands.go` and `internal/domain/identity.go`;
+[SCHEMA.md](SCHEMA.md) describes their invariants and qualification limits.

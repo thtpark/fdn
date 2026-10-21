@@ -66,10 +66,7 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		}
 		return map[string]any{"configuration": "valid", "tls_and_authentication": "verified", "service": health, "agent_id": me.ID}, nil
 	case "invitation":
-		if len(tail) == 0 || tail[0] != "create" {
-			return nil, domain.Fail(domain.Invalid, "expected invitation create")
-		}
-		return a.invite(ctx, r, tail[1:])
+		return nil, domain.Fail(domain.Prerequisite, "bearer invitations are retired; Founder must register the target's public identity")
 	case "agent":
 		return a.agentCommand(ctx, r, tail)
 	case "project":
@@ -102,7 +99,10 @@ func requireArgs(args []string, count int) error {
 
 func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "agent requires list or revoke")
+		return nil, domain.Fail(domain.Invalid, "agent requires list, show, register, recover, identity or revoke")
+	}
+	if args[0] == "register" || args[0] == "recover" || args[0] == "identity" {
+		return a.identityCommand(ctx, r, args)
 	}
 	if args[0] == "list" {
 		if err := requireArgs(args, 1); err != nil {

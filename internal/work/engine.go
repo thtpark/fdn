@@ -184,7 +184,7 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	}
 	defer func() { err = errors.Join(err, slot.Close()) }()
-	if e.Client.Credential.AgentID == "" || len(e.Client.Credential.Token) != 43 {
+	if e.Client.Credential.AgentID == "" {
 		return status, domain.Fail(domain.Prerequisite, "enroll this worker before starting work")
 	}
 	if err := e.State.BindIdentity(ctx, e.Client.Credential.AgentID); err != nil {

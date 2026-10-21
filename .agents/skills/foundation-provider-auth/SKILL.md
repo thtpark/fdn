@@ -36,9 +36,13 @@ model and authorized inference.
    Login may unlock automatic inference: only Founder may explicitly request a
    pause/resume through `agent mode AGENT --input FILE`, with mode/reason.
    Targets/delegates cannot self-set manual or resume a Founder pause.
-4. Credentials stay in the dedicated account. Never read/copy another account's
-   provider auth, ask for a token/device code/password in chat, capture the UI,
-   or publish a private login URL/transcript.
+4. Provider credentials stay in the runner's dedicated account. Foundation
+   SSH/authentication keys and device/owner certificates stay in the distinct
+   protected identity-service account; providers use only its local Unix proxy.
+   Provider sign-in is not signed Foundation registration, identity recovery or
+   authority to share an SSH account. Never read/copy another account's provider
+   auth or identity state, ask for a token/device code/password in chat, capture
+   the UI, or publish a private login URL/transcript.
 5. Never wait for a human at the target to run login or record consent. Founder
    can issue `assistance grant --input FILE` once, scoped to the requester/target,
    mode, purpose authentication and optional provider/project. The requester can

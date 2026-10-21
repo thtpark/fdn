@@ -19,14 +19,16 @@ import (
 )
 
 type Options struct {
-	OS         string `json:"os"`
-	Role       string `json:"role"`
-	Binary     string `json:"binary"`
-	ConfigFile string `json:"config_file"`
-	StateDir   string `json:"state_dir"`
-	Home       string `json:"home"`
-	User       string `json:"user"`
-	Definition string `json:"definition"`
+	OS           string   `json:"os"`
+	Role         string   `json:"role"`
+	Binary       string   `json:"binary"`
+	ConfigFile   string   `json:"config_file"`
+	StateDir     string   `json:"state_dir"`
+	Home         string   `json:"home"`
+	User         string   `json:"user"`
+	IngressGroup string   `json:"ingress_group,omitempty"`
+	IngressDirs  []string `json:"ingress_dirs,omitempty"`
+	Definition   string   `json:"definition"`
 }
 
 type Definition struct {
@@ -38,6 +40,10 @@ type Definition struct {
 var username = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 
 func Render(o Options) (Definition, error) {
+	return renderService(o, serviceAccountUID)
+}
+
+func renderService(o Options, lookup serviceUIDLookup) (Definition, error) {
 	if o.Role != "agent" && o.Role != "foundation" {
 		return Definition{}, domain.Fail(domain.Invalid, "service role must be agent or foundation")
 	}
@@ -49,10 +55,43 @@ func Render(o Options) (Definition, error) {
 	if !username.MatchString(o.User) {
 		return Definition{}, domain.Fail(domain.Invalid, "invalid dedicated service account")
 	}
+	if o.Role == "foundation" {
+		if o.User == "root" {
+			return Definition{}, domain.Fail(domain.Denied, "Foundation API must use a dedicated unprivileged service account")
+		}
+		uid, found, err := lookup(o.User)
+		if err != nil {
+			return Definition{}, err
+		}
+		if found && uid == 0 {
+			return Definition{}, domain.Fail(domain.Denied, "Foundation API cannot use a root-UID account alias")
+		}
+	}
+	if o.IngressGroup != "" && (o.Role != "foundation" || o.OS != "linux" || !username.MatchString(o.IngressGroup) || o.IngressGroup == "root" || o.IngressGroup == o.User) {
+		return Definition{}, domain.Fail(domain.Invalid, "ingress group must be a distinct Foundation-only Linux supplementary group")
+	}
+	if len(o.IngressDirs) > 2 || len(o.IngressDirs) > 0 && (o.Role != "foundation" || o.OS != "linux" || o.IngressGroup == "") || o.IngressGroup != "" && len(o.IngressDirs) == 0 {
+		return Definition{}, domain.Fail(domain.Invalid, "Foundation ingress needs its explicit supplementary group and one or two writable socket directories")
+	}
+	seenIngress := map[string]bool{}
+	for _, directory := range o.IngressDirs {
+		if !filepath.IsAbs(directory) || filepath.Clean(directory) != directory || directory == "/" || strings.ContainsAny(directory, "\x00\r\n%") || seenIngress[directory] {
+			return Definition{}, domain.Fail(domain.Invalid, "ingress directories must be distinct canonical native paths")
+		}
+		seenIngress[directory] = true
+	}
 	if o.OS == "linux" {
 		content := "[Unit]\nDescription=Foundation " + o.Role + "\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\n"
 		if o.Role == "foundation" {
-			content += "User=" + o.User + "\nGroup=" + o.User + "\nProtectSystem=strict\nProtectHome=true\nReadWritePaths=" + strconv.Quote(o.StateDir) + "\n"
+			content += "User=" + o.User + "\nGroup=" + o.User + "\n"
+			if o.IngressGroup != "" {
+				content += "SupplementaryGroups=" + o.IngressGroup + "\n"
+			}
+			content += "ProtectSystem=strict\nProtectHome=true\nReadWritePaths=" + strconv.Quote(o.StateDir)
+			for _, directory := range o.IngressDirs {
+				content += " " + strconv.Quote(directory)
+			}
+			content += "\n"
 		}
 		content += "ExecStart=" + strconv.Quote(o.Binary) + " --config " + strconv.Quote(o.ConfigFile) + " serve\n" +
 			"Restart=on-failure\nRestartSec=5\nTimeoutStopSec=15\nKillMode=control-group\nUMask=0077\nNoNewPrivileges=true\n" +
@@ -96,7 +135,24 @@ func Install(ctx context.Context, o Options, runner process.Runner) (err error) 
 	if o.Role == "foundation" && os.Geteuid() != 0 {
 		return domain.Fail(domain.Denied, "system service registration requires explicit OS administrator execution")
 	}
-	definition, err := Render(o)
+	if o.Role == "foundation" && (o.IngressGroup == "" || len(o.IngressDirs) == 0) {
+		return domain.Fail(domain.Prerequisite, "native Foundation installation requires its ingress-only supplementary group and writable socket directories prepared by the root account helper")
+	}
+	lookup := serviceAccountUID
+	if o.Role == "foundation" && o.OS == "linux" {
+		if runner == nil {
+			return domain.Fail(domain.Prerequisite, "native Foundation registration requires an explicit OS runner")
+		}
+		system := &nativeAccountSystem{runner: runner}
+		lookup = func(name string) (uint32, bool, error) {
+			account, found, err := system.LookupUser(ctx, name)
+			if err == nil && !found {
+				err = domain.Fail(domain.Prerequisite, "prepare the dedicated unprivileged server account before registration")
+			}
+			return account.UID, found, err
+		}
+	}
+	definition, err := renderService(o, lookup)
 	if err != nil {
 		return err
 	}

@@ -21,6 +21,7 @@ type Client struct {
 	BaseURL    string
 	Credential config.Credential
 	HTTP       *http.Client
+	Local      bool
 }
 
 func NewClient(base, caFile, serverName string, credential config.Credential) (*Client, error) {
@@ -49,7 +50,7 @@ func Path(parts ...string) string {
 }
 
 func (c *Client) Request(ctx context.Context, method, path string, input, output any) error {
-	if !strings.HasPrefix(path, "/v1/") && path != "/healthz" {
+	if !strings.HasPrefix(path, "/v1/") && path != "/healthz" && !(c.Local && strings.HasPrefix(path, "/local/")) {
 		return domain.Fail(domain.Invalid, "API path must be relative")
 	}
 	if strings.Contains(path, "://") || strings.HasPrefix(path, "//") {
