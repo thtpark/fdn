@@ -120,6 +120,10 @@ RAM, or use a full clone sequentially without proving simultaneous owners.
 
 ### Accounts, keys and registration
 
+- Registration advances from `pending` to `provisioned` to `active`. An exact
+  retry after native account binding but before activation reconciles the same
+  provisioned account/key/generation; it must not create another identity or
+  reject a retained successful binding. Active identities are not reprovisioned.
 - Every agent, including Founder, receives a unique Foundation-host SSH user and
   UID. Durable account/key reservations prevent another identity reusing them.
   The unprivileged server delegates only fixed managed-account operations to a

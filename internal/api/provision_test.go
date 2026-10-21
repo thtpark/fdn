@@ -64,6 +64,12 @@ func TestProvisioningRejectsRetiredIntentAndSkipsActiveOrBannedIdentity(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
+	if bound.State != "provisioned" {
+		t.Fatalf("unexpected native binding state: %s", bound.State)
+	}
+	if current, err := service.provisionIdentity(ctx, registered); err != nil || current.State != "provisioned" || current.AgentID != bound.AgentID || current.UID != bound.UID || calls != 2 {
+		t.Fatal("lost-response retry rejected the retained provisioned identity", current, err)
+	}
 	challenge, err := store.ChallengeIdentity(ctx, bound.UID)
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +86,7 @@ func TestProvisioningRejectsRetiredIntentAndSkipsActiveOrBannedIdentity(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if current, err := service.provisionIdentity(ctx, registered); err != nil || current.State != "active" || calls != 1 {
+	if current, err := service.provisionIdentity(ctx, registered); err != nil || current.State != "active" || calls != 2 {
 		t.Fatal("registration replay reprovisioned an active identity", current, err)
 	}
 	if err := store.BanIdentity(ctx, active.AgentID, "fixture explicit security hold"); err != nil {
@@ -90,7 +96,7 @@ func TestProvisioningRejectsRetiredIntentAndSkipsActiveOrBannedIdentity(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.provisionIdentity(ctx, banned); err == nil || calls != 1 {
+	if _, err := service.provisionIdentity(ctx, banned); err == nil || calls != 2 {
 		t.Fatal("banned identity reached OS provisioner")
 	}
 }
