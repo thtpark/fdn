@@ -5,13 +5,11 @@ import (
 	"flag"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/process"
 	"github.com/thtpark/fdn/internal/provider"
-	"github.com/thtpark/fdn/internal/secure"
 	"golang.org/x/term"
 )
 
@@ -28,6 +26,15 @@ func (a *app) humanTerminal() (*os.File, *os.File, *os.File, error) {
 func (a *app) providerCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
 		return nil, domain.Fail(domain.Invalid, "provider command required")
+	}
+	if args[0] == "exec" {
+		return a.executeProvider(ctx, r, args[1:])
+	}
+	if args[0] == "link" {
+		if err := requireArgs(args, 1); err != nil {
+			return nil, err
+		}
+		return a.linkProviders()
 	}
 	fs := flag.NewFlagSet("provider", flag.ContinueOnError)
 	name := fs.String("provider", r.config.Provider, "codex or copilot")
@@ -54,29 +61,27 @@ func (a *app) providerCommand(ctx context.Context, r *resources, args []string) 
 		if selected == "" {
 			return nil, domain.Fail(domain.Invalid, "install requires --version; update explicitly selects latest")
 		}
-		return manager.Install(ctx, *name, selected)
+		installed, err := manager.Install(ctx, *name, selected)
+		if err != nil {
+			return nil, err
+		}
+		_, err = a.linkProviders()
+		return installed, err
 	case "login":
 		input, output, diagnostic, err := a.humanTerminal()
 		if err != nil {
 			return nil, err
 		}
-		slot, err := secure.Acquire(filepath.Join(r.config.StateDir, "work.lock"))
+		slot, err := terminalAdmission(ctx, r)
 		if err != nil {
 			return nil, err
 		}
 		defer slot.Close()
-		journals, err := r.state.Journals(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-		if len(journals) != 0 {
-			return nil, domain.Fail(domain.Prerequisite, "reconcile interrupted invocations before provider authentication")
-		}
 		path, err := manager.Resolve(*name)
 		if err != nil {
 			return nil, err
 		}
-		err = (process.Native{}).Run(ctx, process.Spec{Path: path, Args: []string{"login"}, Dir: r.config.StateDir, Env: process.Environment(), Stdin: input, Stdout: output, Stderr: diagnostic})
+		err = (process.Native{}).Run(ctx, process.Spec{Path: path, Args: []string{"login"}, Dir: r.config.StateDir, Env: process.Environment(), Stdin: input, Stdout: output, Stderr: diagnostic, Terminal: input})
 		return map[string]bool{"login_command_finished": err == nil, "authentication_validated": false}, err
 	default:
 		return nil, domain.Fail(domain.Invalid, "unknown provider command")

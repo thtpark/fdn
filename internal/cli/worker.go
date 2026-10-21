@@ -143,6 +143,9 @@ func (a *app) service(ctx context.Context, args []string) (value any, err error)
 	if _, err := guidance.Install(home); err != nil {
 		return nil, err
 	}
+	if _, err := a.linkProviders(); err != nil {
+		return nil, err
+	}
 	client, err := api.NewClient(c.URL, c.CAFile, c.ServerName, credential)
 	if err != nil {
 		return nil, err
