@@ -36,6 +36,10 @@ func (e *Engine) execute(ctx context.Context, c config.Worker, task domain.Task,
 	if err != nil {
 		return err
 	}
+	prompt, err := invocationPrompt(j.Context)
+	if err != nil {
+		return err
+	}
 	j.State, j.WorkspaceRef, j.Token = "claim-prepared", binding.Ref, domain.NewToken()
 	j.Claim = &domain.ClaimRequest{Command: domain.Command{OperationID: j.ID + ".claim", ExpectedRevision: task.Revision}, SpecGeneration: task.SpecGeneration, TokenHash: domain.Hash(j.Token), Provider: health.Provider, Model: model}
 	if err := e.State.SaveJournal(ctx, j); err != nil {
@@ -66,7 +70,7 @@ func (e *Engine) execute(ctx context.Context, c config.Worker, task domain.Task,
 	go e.guardMode(runCtx, cancel, manual, binding.Ref)
 	go e.guardTask(runCtx, cancel, task, run.ID)
 	reply, invokeErr := e.Executor.Invoke(runCtx, provider.Invocation{ID: j.ID, Provider: j.Provider, Path: health.Path, Model: model,
-		Prompt: Prompt + "\nFDN_CONTEXT_JSON\n" + string(j.Context), Workspace: binding.Path, Coding: true,
+		Prompt: prompt, Workspace: binding.Path, Coding: true,
 		Timeout: time.Duration(min(binding.TimeoutSeconds, c.InvocationTimeoutSeconds)) * time.Second,
 		Started: func(pid int) error { j.PID = pid; return e.State.SaveJournal(runCtx, j) }})
 	if invokeErr == nil {

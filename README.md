@@ -1,10 +1,34 @@
 # Foundation in Go
 
-A fresh implementation of Foundation through **Phase 5**, with an authoritative
-SQLite-backed service, a native worker daemon, and one structured CLI for people
-and coding agents. The previous Rust/CouchDB repository is a reference, not a
-runtime dependency. Existing Rust configuration, credentials, and databases are
-**not imported or overwritten**.
+A self-contained Go implementation of Foundation through **Phase 5**, with an
+authoritative SQLite-backed service, a native worker daemon, and one structured
+CLI for people and coding agents. Development and operation need no companion
+checkout. Existing legacy configuration, credentials, and databases are **not
+imported or overwritten**.
+
+## Documentation and operational skills
+
+Start with [AGENTS.md](AGENTS.md). The portable
+[operational skills](.agents/skills/) cover installation, enrollment, protected
+provider authentication, task work, recovery and development.
+
+| Reference | Purpose |
+| --- | --- |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Code map, extension seams, compatibility and contribution workflow |
+| [COMMANDS.md](COMMANDS.md) | Every implemented CLI leaf, typed inputs, authority and output contracts |
+| [SCHEMA.md](SCHEMA.md) | SQLite/local state, ownership, generations, approval and recovery invariants |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Native install/enroll/auth, discovery, upgrades, backup/restore and TLS |
+| [TEST_PLAN.md](TEST_PLAN.md) | Independent local suites, exact regression expectations and evidence limits |
+| [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Delivered phases, preserved product goals and remaining work |
+| [CAPACITY.md](CAPACITY.md) | Current load evidence and the unqualified 1,000-agent target |
+| [MIGRATION.md](MIGRATION.md) | Design continuity, deliberate changes and no automatic legacy import |
+
+These references and skills are embedded in binaries and included in every
+release format. `agent-cli guide list/show/install` works offline without
+configuration/enrollment; Foundation-only hosts use `fdn-service guide`.
+Worker initialization/startup safely installs the account's guide/discovery links
+without overwriting unrelated instructions or skills. The shared controller also
+supplies bounded guidance explicitly when provider discovery is disabled.
 
 ## What is implemented
 
@@ -380,6 +404,7 @@ it does not scan networks or publish addresses/identifiers.
 | Local state | `knowledge put/list/show/history`, `inventory refresh/show`, `workspace bind/list/enable/disable` |
 | Providers/work | `provider status/install/update/login`, `work prompt/status/run/recover` |
 | Native manager | `service plan/install/status`; installation requires explicit `--apply` |
+| Offline guide (all binaries) | `guide list/show/install` |
 
 Discussion/comment edits require the creator's current revision; there is no
 task/comment/worklog deletion API. List pages are bounded to 1-200 records.
@@ -436,7 +461,8 @@ registering or starting a service, to check the rendered unit syntax.
   The packaging program independently checks that same event/commit contract.
 * Targets are Linux amd64/arm64 and macOS arm64 (`darwin-arm64`).
   Each job compares two independent trimmed, CGO-free binary builds, produces
-  a native archive, metadata, third-party notices, and `SHA256SUMS`; Linux also
+  a native archive, metadata, third-party notices, a complete version-matched
+  operational/development guide with all six skills, and `SHA256SUMS`; Linux also
   produces separate Foundation and Agent Debian packages. Foundation's Debian
   package provisions only its dedicated service account; it does not bootstrap
   or start an unconfigured service. Debian payloads include deterministic parent

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	guidance "github.com/thtpark/fdn"
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
@@ -133,6 +134,13 @@ func (a *app) service(ctx context.Context, args []string) (value any, err error)
 	}
 	defer state.Close()
 	if err := state.BindIdentity(ctx, credential.AgentID); err != nil {
+		return nil, err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := guidance.Install(home); err != nil {
 		return nil, err
 	}
 	client, err := api.NewClient(c.URL, c.CAFile, c.ServerName, credential)
@@ -309,10 +317,18 @@ func (a *app) initWorker(args []string) (any, error) {
 	if err := secure.Dir(c.StateDir); err != nil {
 		return nil, err
 	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	guide, err := guidance.Install(home)
+	if err != nil {
+		return nil, err
+	}
 	if err := privateExact(a.configFile, c); err != nil {
 		return nil, err
 	}
-	return map[string]any{"config": a.configFile, "mode": c.Mode, "enrolled": false}, nil
+	return map[string]any{"config": a.configFile, "mode": c.Mode, "enrolled": false, "guidance": guide}, nil
 }
 
 type enrollment struct {

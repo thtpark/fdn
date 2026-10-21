@@ -11,6 +11,7 @@ import (
 	"slices"
 	"time"
 
+	guidance "github.com/thtpark/fdn"
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
@@ -22,6 +23,22 @@ import (
 
 //go:embed prompt.txt
 var Prompt string
+
+func BasePrompt() (string, error) {
+	operating, err := guidance.WorkContext()
+	if err != nil {
+		return "", err
+	}
+	return Prompt + "\nFDN_OPERATING_GUIDANCE\n" + operating, nil
+}
+
+func invocationPrompt(context []byte) (string, error) {
+	base, err := BasePrompt()
+	if err != nil {
+		return "", err
+	}
+	return base + "\nFDN_CONTEXT_JSON\n" + string(context), nil
+}
 
 type Blocker struct {
 	TaskID string      `json:"task_id,omitempty"`
@@ -407,7 +424,10 @@ func (e *Engine) newJournal(launch Launch, health provider.Health, model string)
 	if err != nil {
 		return local.Journal{}, err
 	}
-	prompt := Prompt + "\nFDN_CONTEXT_JSON\n" + string(data)
+	prompt, err := invocationPrompt(data)
+	if err != nil {
+		return local.Journal{}, err
+	}
 	if len(prompt) > 512<<10 {
 		return local.Journal{}, domain.Fail(domain.Prerequisite, "selected context exceeds the bounded prompt budget")
 	}
@@ -435,6 +455,10 @@ func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manua
 }
 
 func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journal, launch Launch, path string, manual bool) error {
+	prompt, err := invocationPrompt(j.Context)
+	if err != nil {
+		return err
+	}
 	j.State = "invoking"
 	if err := e.State.SaveJournal(ctx, *j); err != nil {
 		return err
@@ -443,7 +467,7 @@ func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journ
 	defer cancel(nil)
 	go e.guardMode(invocationCtx, cancel, manual, "")
 	reply, err := e.Executor.Invoke(invocationCtx, provider.Invocation{ID: j.ID, Provider: j.Provider, Path: path, Model: j.Model,
-		Prompt: Prompt + "\nFDN_CONTEXT_JSON\n" + string(j.Context), Timeout: time.Duration(min(c.InvocationTimeoutSeconds, 300)) * time.Second,
+		Prompt: prompt, Timeout: time.Duration(min(c.InvocationTimeoutSeconds, 300)) * time.Second,
 		Started: func(pid int) error { j.PID = pid; return e.State.SaveJournal(invocationCtx, *j) }})
 	if err == nil {
 		err = reply.Validate()
