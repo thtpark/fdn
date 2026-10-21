@@ -13,8 +13,16 @@ go test -race -count=1 ./tests/scenario ./tests/fixtureprovider
 The native helpers allocate and clean short owner-only fixture roots in the test
 package directory; no `TMPDIR` override or caller-created scratch root is needed.
 
-The existing compiled native binaries and pinned loopback Foundation TLS helper
-start a Founder, a non-delegate assignee, and a delegate with separate HOME/state.
+The business-workflow harness uses compiled native worker binaries with an
+**explicit test-only** `api.NewAuthenticated` authenticator, direct Store setup
+and a test-local Unix worker proxy. Founder, non-delegate assignee and delegate
+have separate HOME/state but run under the test OS UID. This proves business
+policy/controller behavior, **not** OS account isolation, the production SSH
+account-to-certificate boundary or physical computer uniqueness. It is not a
+legacy bearer/TCP enrollment path available in the runtime. Actual Unix/mTLS
+security regressions are cataloged separately below; they also do not create
+real host accounts.
+
 Codex/Copilot roles are swapped in table cases. Founder arranges **mock** sign-in;
 scripted executables, not real providers, perform four actual-answer clarification
 rounds and tool-disabled preparation. Exact Founder signoff precedes real Git edits.
@@ -53,8 +61,9 @@ and provider plans in
 [delegate_workflow_helpers_test.go](delegate_workflow_helpers_test.go).
 Run it with the native command above.
 
-**Preconditions:** a fresh local Foundation TLS service; separate enrolled
-Founder, assignee and delegate identities/HOME/state; an active project;
+**Preconditions:** a fresh explicitly test-authenticated Foundation TLS business
+fixture; distinct Founder, assignee and delegate application identities and
+HOME/state under one OS UID, not native account provisioning; an active project;
 explicit local workspace-tool grants; deterministic provider executables;
 and an isolated bare Git origin plus authenticated loopback Git-host fixture.
 The assignee is not a project delegate. Founder approves the initial execution;
@@ -158,6 +167,93 @@ policy/provider tests with:
 go test -race -count=1 ./internal/domain ./internal/provider \
   -run '^(TestEligibleApproverUsesCurrentRoleAndNamedIndependentPolicy|TestVerificationDecisionRequiresReviewedOutcome)$'
 ```
+
+## Security boundary cases: source suites verified, final acceptance pending
+
+The following cases are linked to tests in
+[identity_test.go](../integration/identity_test.go), using
+[identity_fixture_test.go](../integration/identity_fixture_test.go). On
+2026-10-21 the coordinator confirmed all ten strict Unix/mTLS cases and both
+compiled attachment cases in full integration (**25.673s**) and e2e (**94.630s**).
+The enhanced `TestUnix` both-controller PolicyViolation ban notification and
+invalid/replayed-proof no-ban regression also passed (**8.432s**). These are
+source-working-tree fixture results, not a final all-suite acceptance of later
+restore/lifecycle/account-generation replay hardening or live native qualification.
+Run separately from the
+business harness:
+
+```sh
+go test -race -count=1 -tags=integration ./tests/integration -run '^TestUnix'
+```
+
+These fixtures use strict `api.New`, real Unix listeners/`ConnContext`, TLS/mTLS,
+signed public requests and WebSockets. One identity binds to the **actual kernel
+UID** of the unprivileged test process; other logical account bindings are
+negative policy fixtures, not provisioned OS users. Separate HOME directories
+and injected business authentication do not substitute for this boundary.
+
+| ID | Existing automated test | Verified source-fixture contract; final all-suite pending |
+| --- | --- | --- |
+| `SEC-001` | `TestUnixIdentityBoundaryRejectsSpoofedCredentials` | Actual Unix peer UID and certificate bind the principal; headers/valid legacy bearer cannot replace it. Reject missing/foreign/wrong-purpose/expired or mismatched certificates, wrong instance/agent/key/owner generation, TLS without Unix peer and retired enrollment routes. |
+| `SEC-002` | `TestUnixIdentityActivationRequiresFreshProof` | Activation binds fresh one-time nonce, instance/agent/key generation and proof; exact operation replay retains identity, but replaced/reused/tampered challenges do not activate or authorize ordinary API with a device certificate. |
+| `SEC-003` | `TestUnixIdentityRegistrationRequiresFounderSignedKeys` | Founder alone registers valid signed public keys with exact replay; project delegation, bad proofs, altered fields or submitted UID cannot confer registration authority. |
+| `SEC-004` | `TestUnixOwnerLeaseRejectsUnprovenDuplicates` | Wrong proof, replayed owner nonce and unverified device cannot obtain ownership or ban/change the live original. |
+| `SEC-005` | `TestUnixOwnerLeaseRequiresFreshRenewal` | Valid renewal rotates challenge while retaining owner generation; replay closes that owner lease without falsely banning the identity. |
+| `SEC-006` | `TestUnixOwnerReconnectAndCrashDoNotBan` | Same-key retry, closed/unresponsive owner and server restart do not ban; replacement owners fence old certificates as appropriate. |
+| `SEC-007` | `TestUnixConfirmedDuplicateBansOriginalAndFounder` | Different proved owner key plus fresh responsive incumbent ping bans the entire worker or Founder identity; both owners lose ordinary API and streams, not merely the newcomer. |
+| `SEC-008` | `TestUnixRevokedCertificatesRequireFreshKeyRecovery` | Revoked/retired credentials cannot recover themselves; explicit fresh-key recovery retains AgentID, requires reprovisioning the same reserved UID and fences old certificates/owners. |
+| `SEC-009` | `TestUnixOwnerEquivalentPublicKeyEncodingDoesNotBan` | Whitespace/CRLF encoding of the same cryptographic owner key reconnects canonically without a false different-owner ban. |
+| `SEC-010` | `TestUnixOwnerLeaseEndsWhenDeviceCertificateExpires` | Device-certificate expiry closes its owner WebSocket and denies owner API access without falsely banning the identity. |
+
+Compiled-worker attachment regressions in
+[identity_attachment_test.go](identity_attachment_test.go) were confirmed in the
+full e2e source run above; **final all-suite acceptance remains pending**. They
+use the explicit test-local business proxy, not real identity-service/runner
+OS isolation:
+
+| ID | Existing automated test | Verified source-fixture contract; final all-suite pending |
+| --- | --- | --- |
+| `ATT-001` | `TestNativeWorkerUsesOnlyLocalIdentityAndPreservesMigrationState` | Repeated connect retains only owner-restricted public AgentID, ignores unusable remote settings, requires explicit migration, preserves local checkpoint state, rejects another actor and fails closed without the local proxy. |
+| `ATT-002` | `TestNativeRetiredBearerEnrollmentFlagsDoNotReturn` | Reject retired invitation/name connect flags; no invitation output file or identity change results. |
+
+```sh
+go test -count=1 -tags=e2e ./tests/e2e \
+  -run '^(TestNativeWorkerUsesOnlyLocalIdentityAndPreservesMigrationState|TestNativeRetiredBearerEnrollmentFlagsDoNotReturn)$'
+```
+
+Paired native lifecycle/recovery regression sources also exist. The source
+owner reported full race tests for platform, identity CLI/service and API on
+2026-10-21 **before the latest account-generation replay hardening**. A subsequent
+full native-source race rerun passed ingress/platform/CLI (2.594s/2.958s/3.836s)
+and vet, including the new generation, actual Unix RPC replay and post-bind
+revocation races. **Final coordinating all-suite acceptance remains pending.**
+These use recording native account/manager adapters, never live host installation:
+
+| ID | Existing automated test / source | Expected fixture contract; acceptance pending |
+| --- | --- | --- |
+| `NAT-001` | `TestIdentityNativeInstallUsesRootSystemAndExactRunnerManagerContexts`, `TestIdentityNativeInstallUsesMacOSDaemonAndRunnerGUIWithUIDDrop` in [identity_service_install_test.go](../../internal/platform/identity_service_install_test.go) | Fixed identity system/daemon and actual runner user/GUI-manager contexts, paths, minimal environment and privilege drop; never root execution of the provider runner. |
+| `NAT-002` | `TestIdentityNativeInstallNeverAdoptsMissingConflictingOrOverprivilegedAccounts`, `TestIdentityNativeInstallApplyAndPrerequisiteFailuresRemainObservable` in the same source | Exact marked UID/GID/HOME/groups/configuration and explicit apply; missing, conflicting or overprivileged accounts and native failures stay prerequisites/conflicts, never adoption or same-UID fallback. |
+| `NAT-003` | `TestStoppedRecoveryUsesNewPrivateStateWithoutDeletingOldKeysOrRunnerJournal` in [recovery_test.go](../../internal/identityservice/recovery_test.go), plus `TestIdentityNativeConfigurationBindingAndStoppedRecoveryPreserveRunnerState` in the native lifecycle source | New empty sub-StateDir within the same identity HOME yields fresh prepared keys while retaining old keys and all runner evidence, stable private config/IPC and native HOME/workdir/read-write scope; ordinary preparation retries do not rotate keys. |
+| `NAT-004` | `TestIdentityServiceLifecycleCLIPlansWithoutPrivateConfigAndAppliesOnlyExplicitly`, `TestIdentityServiceLifecycleCLIRejectsUnknownOptionsFlagsAndUIDBypasses` in [service_test.go](../../cmd/agent-identity/service_test.go) | Offline service plan without private --config/enrollment, explicit install --apply, strict lifecycle options and no root/UID bypass or flag mixing. |
+| `NAT-005` | `TestManagedAccountGenerationFencesProvisionDisableAndRecovery` in [accounts_generation_test.go](../../internal/platform/accounts_generation_test.go) | Positive retained generation on typed root provision/disable; stale or same-generation changed keys fail before OS commands, exact retries are idempotent, approved newer fresh-key recovery retains UID/name. Covered by the reported native-source rerun; final all-suite pending. |
+| `NAT-006` | `TestManagedAccountNeverProvisionedDisableRetainsGenerationTombstone` in the same source | Disable before first provision retains a generation tombstone across reopen without creating a user; stale queued provision cannot resurrect it, while authorized fresh higher-generation recovery can proceed. A keyless UID0/GID0 tombstone is not an OS root binding. Covered by the reported native-source rerun; final all-suite pending. |
+
+```sh
+go test -race -count=1 ./cmd/agent-identity ./internal/platform ./internal/identityservice \
+  -run '^(TestIdentityNative|TestIdentityServiceLifecycleCLI|TestStoppedRecovery|TestManagedAccountGeneration|TestManagedAccountNeverProvisioned)'
+```
+
+Additional source-level account/crypto/identity-service/stream tests are listed
+by area in [TEST_PLAN.md](../../TEST_PLAN.md); no test count is inferred here.
+
+**Unperformed qualification:** real Linux/macOS multi-UID account creation,
+server-group separation, private-key filesystem access as the runner, installed
+sshd forced-command policy, native manager/reboot and root-local recovery drills
+require separately authorized native evidence. Current tests never create host
+users, modify sshd or register host services. Hardware signing/attestation is
+optional future work with no implemented adapter or qualification. Full
+software/RAM cloning and sequential use remain possible; these cases do not
+prove perfect physical-clone prevention.
 
 ## Opt-in: live GitHub boundary only
 

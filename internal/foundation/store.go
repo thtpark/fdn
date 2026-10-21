@@ -62,7 +62,7 @@ type Store struct {
 }
 
 func Open(ctx context.Context, path string) (*Store, error) {
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema})
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema})
 	if err != nil {
 		return nil, err
 	}
@@ -96,12 +96,12 @@ func get[T any](ctx context.Context, q queryer, table, id string) (T, error) {
 func encode(value any) ([]byte, error) { return json.Marshal(value) }
 
 func (s *Store) actor(ctx context.Context, q queryer, id string) (domain.Agent, error) {
-	agent, err := get[domain.Agent](ctx, q, "agents", id)
+	agent, err := activeIdentitySubject(ctx, q, id)
 	if err != nil {
 		return agent, err
 	}
-	if !agent.Active {
-		return agent, domain.Fail(domain.Denied, "agent is revoked")
+	if err := s.checkActorIdentityFence(ctx, q, id); err != nil {
+		return agent, err
 	}
 	return agent, nil
 }

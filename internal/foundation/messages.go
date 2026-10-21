@@ -13,7 +13,7 @@ func (s *Store) SendMessage(ctx context.Context, actor string, req domain.Messag
 		if err := domain.CheckText(req.Body, "message body", 32768, true); err != nil {
 			return domain.Message{}, err
 		}
-		if _, err := s.actor(ctx, tx, req.RecipientID); err != nil {
+		if _, err := activeIdentitySubject(ctx, tx, req.RecipientID); err != nil {
 			return domain.Message{}, err
 		}
 		if !slices.Contains([]string{"human", "ai", "service"}, req.Origin) || !slices.Contains([]string{"direct", "authentication", "session"}, req.Kind) {

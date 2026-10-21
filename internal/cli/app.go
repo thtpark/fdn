@@ -36,7 +36,7 @@ type app struct {
 
 var AgentCommands = []string{
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
-	"agent list", "agent revoke", "invitation create", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
+	"agent list", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "mention list", "mention acknowledge", "watch",
 	"message send", "message show", "message inbox", "message receipt", "session request", "session list", "session show", "session change", "session open",
@@ -46,7 +46,7 @@ var AgentCommands = []string{
 	"work prompt", "work status", "work run", "work recover", "service plan", "service install", "service status",
 }
 
-var FoundationCommands = []string{"init", "serve", "doctor", "bootstrap", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install"}
+var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install"}
 var ServiceCommands = []string{"serve", "status"}
 var GuideCommands = []string{"guide list", "guide show", "guide install"}
 var AutonomyCommands = []string{"agent show", "agent mode", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open"}
@@ -121,7 +121,7 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 	if a.configFile == "" && tail[0] != "guide" {
 		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "HOME unavailable; specify --config"), homeErr))
 	}
-	longRunning := tail[0] == "serve" || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
+	longRunning := tail[0] == "serve" || tail[0] == "gateway" || (tail[0] == "accounts" && len(tail) > 1 && tail[1] == "serve") || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
 	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open")) {
 		longRunning = true
 		flags.Visit(func(option *flag.Flag) {

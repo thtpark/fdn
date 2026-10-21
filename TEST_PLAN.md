@@ -37,6 +37,9 @@ run commands:
 | `VF-001`–`VF-018` | Verification authority/fences, competing claims, shared slots, invalid reports, revocation, pause/resume, cancellation, replay and recovery |
 | `POL-001` / `POL-002` | Named/independent approvers and structured provider-decision validation |
 | `FX-001`–`FX-007` | Deterministic provider plans and isolated Git/Git-host fixture contracts |
+| `SEC-001`–`SEC-010` | Coordinator-confirmed strict Unix/mTLS source fixture results, including full integration and enhanced both-controller ban/no-ban regressions; final all-suite acceptance pending, not native multi-UID qualification |
+| `ATT-001` / `ATT-002` | Coordinator-confirmed compiled public-only attachment/migration/retired-flag cases in full e2e; test-local business proxy, final all-suite pending |
+| `NAT-001`–`NAT-006` | Paired lifecycle, exact account/config and fresh-StateDir recovery plus root generation/tombstone replay cases; subsequent native-source race/vet rerun reported passing, final coordinated all-suite pending, not live native qualification |
 | `LIVE-001` | Separately opted-in real GitHub boundary check; excluded/skipped by default, not a passed live qualification |
 
 This is a concrete catalog for the workflow introduced here, not an exhaustive
@@ -49,18 +52,20 @@ their tests; planned/unimplemented cases must not be described as covered.
 | Change | Minimum related cases |
 | --- | --- |
 | DTO/input/CLI | Unknown/protected fields, bounded UTF-8 input, exact JSON envelope/exit code, every implemented leaf's offline help |
-| Enrollment/grants | Expiry/replay, active sponsor/current authority, unique credential, Founder-only boundaries, revoked access |
+| Identity registration/recovery | Signed public-key possession, Founder-only registration, explicit original-agent migration, canonical-key/request/account/UID uniqueness, exact activation challenge/replay, retired generations, no legacy bearer runtime, fresh-key recovery and root-local-only Founder recovery |
 | Tasks/policy | Named/independent eligibility, project epochs, invalidation, status gates, concurrent stale revisions, exact execution/verification claims/reports; verifier's current spec/result/discussion/epoch, independent own-provider selection, shared server slot, atomic feedback/rework approval, revoked authority/Founder pause and no self-acceptance |
 | Discussions/messages | Creator-only edits, literal mention/body generation, requested answers, private recipients, no automatic protected replies |
-| Persistence | Reopen/migration/future-schema rejection, transaction failures, immutable operation fingerprints, three-history bounds, integrity |
+| Persistence/restore | Reopen/migration/future-schema rejection, recognized backup-manifest schema 1/2 through SQL3 and future rejection, prepublication ALL-identity/owner/key quarantine, retired credential denial, sole legacy/restored Founder root-private fresh-key recovery retaining ID/history, regular fresh-key reapproval, unchanged mode/uncertain work, atomic transaction failures, immutable operation fingerprints, three-history bounds, integrity |
 | Worker/controller | One slot across manual/service/session/execution/verification, onboarding once, no idle inference, partial results/questions, retry/backoff/budget, offline report replay and no duplicate inference/review/merge; prepared review reply, claim-ack recovery, uncertain verifier failure, discussion/mode/workspace cancellation, disabled-binding preservation and manual resolution |
 | Providers/processes | Exact required flags, text tool isolation, prompt through stdin, private/bounded output, version/model pinning, cancellation of owned descendants, failed signed staging retains previous version; actual login PATH/bare command versions, profile preservation/collisions, current-version dispatch and real foreground-terminal input; missing-authentication to real Founder/delegate inbox before onboarding without inference, private/protected notice fields, exact replay across restart/lost ack, explicit pending failures, no notification spam or auth inferred from receipt acknowledgement |
 | Sessions | Request != consent != explicit open, current scope/expiry/revocation, no public listener, restart retirement, cleanup fences |
 | Autonomous control | Only Founder pauses/resumes; target/delegate/offline overrides denied; event-driven cancellation and server claim gate; version-1 server migration preserves identity; legacy unexplained manual pause fails closed |
 | Persistent assistance | Only Founder issues/revokes; exact requester/target/purpose/mode/provider/project; no-project authentication bootstrap; target prepares unattended without local consent; disconnect/restart/expiry retains grant; role/identity/revocation closes streams; delegate is not assumed human |
-| Native services | Recording adapters by default, raw scalar systemd paths, user-bus environment only for registration, Linux parser without starting a service |
+| Native identity/ingress | Recording account adapters/in-process SSH, unique UID/account/key reservations, positive per-account generation on typed root provision/disable; stale/same-generation-key-change rejection before OS calls, exact replay, never-provisioned disable tombstones, higher-generation fresh-key UID/name preservation and pre/returned/post-bind/current registry tuple checks; no arbitrary commands/PTY/forwarding, wrong-peer/pin/certificate rejection, private root maintenance outside agent gateway; no host users/sshd/services changed |
+| Owner/runner isolation | Device versus ephemeral owner certificate purposes, instance/agent/key/owner-generation agreement, kernel peer UID checks, runner cannot read keys or use control routes, one local proxy owner across CLI traffic; confirmed distinct live owner proofs plus fresh incumbent WS ping ban original and contender including Founder, while stale crash/reconnect/unproved attempts do not; ban cancels API/streams, recovery keeps work fenced |
+| Native services | Recording adapters by default, distinct non-root identity-service and runner UIDs/HOMEs, system identity service versus runner user service/GUI agent, raw scalar systemd paths, user-bus environment only for registration, Linux parser without starting a service |
 | Guidance/docs | Valid skill names/frontmatter/descriptions; local links/command coverage; no legacy checkout dependency; hashes/version completeness; preserve home instructions/unrelated skills; prompt inclusion; isolated homes; native and Debian guide content |
-| Release/install | Merged-release-only event/commit guards, pinned Actions, two matching builds, safe archive paths/types, Debian parent directories and real unprivileged extraction, trusted manifest, immutable/idempotent installation and state preservation |
+| Release/install | Merged-release-only event/commit guards, pinned Actions, two matching builds including agent-identity, native/worker binary lists and executable bytes/modes, all four archive binaries allowed/required/activated, missing identity payload denied before prefix changes, Debian parent directories and real unprivileged extraction with executable hashes, trusted manifest, immutable/idempotent installation and state preservation |
 
 Use existing helpers and one runner invocation with related selectors rather
 than repeatedly running the entire suite. Add faults/races at the actual
@@ -95,6 +100,68 @@ authenticated private GitHub CLI configurations. The normal suites cannot run
 live writes, even with inherited opt-in variables. That optional boundary check
 is not a live-provider or end-to-end Foundation qualification and is not implied
 by passing fixture tests.
+
+## Software-first identity security acceptance
+
+API/schema contract 2, server SQL 3 and preserved local SQL 1 are separate
+version checks. On 2026-10-21 the coordinator confirmed `SEC-001`–`SEC-010` and
+`ATT-001`/`ATT-002` source fixtures in full integration (25.673s) and e2e
+(94.630s); enhanced both-controller PolicyViolation ban notification and
+invalid/replayed-proof no-ban `TestUnix` passed (8.432s). See
+[SCENARIOS.md](tests/e2e/SCENARIOS.md#security-boundary-cases-source-suites-verified-final-acceptance-pending).
+These are working-tree fixture results, not a final all-suite pass for later
+restore/lifecycle/account-generation replay hardening or native deployment.
+Recording lifecycle source tests were also reported passing before the latest
+account-generation addition. The native source owner subsequently reported the
+full race ingress/platform/CLI rerun passing (2.594s/2.958s/3.836s) and vet after
+generation/root-alias/group changes, including actual Unix RPC stale replay and
+post-bind revocation races. Enhanced restore and final coordinated all-suite
+acceptance remain pending; none of these are live host qualification.
+
+The real Unix/TLS tests use strict `api.New`, `ingress.Listen`, kernel peer
+credentials, inner TLS/mTLS and owner WebSockets. One actual unprivileged UID
+is exercised; alternate UID bindings are logical negative fixtures, not newly
+created OS accounts. In contrast the existing business harness explicitly
+uses `api.NewAuthenticated`, direct Store setup and test-local worker proxies.
+Its separate HOME/state directories prove business isolation only, not the
+production account/certificate boundary. Keep both fixture types explicit.
+
+Source-level regression areas, without claiming a current passing result:
+
+- `internal/device`, `internal/pki`: independent signed keys, canonical formats,
+  proof field binding, certificate purposes/epochs and validity.
+- `internal/foundation/security*_test.go`: Founder-only registry, UID/key/request
+  races, migration/replay, whole-identity ban, fresh-key recovery, Founder-local
+  recovery and durable work/generation fences.
+- `internal/ingress`, `internal/transport`: actual peer UID, controlled Unix
+  sockets, exact forced selectors, no forwarding/arbitrary commands, pinned
+  native/in-process SSH, cancellation and observable cleanup errors.
+- `internal/identityservice`: public-only preparation/profile retry, key/runner
+  UID isolation, socket-peer checks, one owner across CLI traffic, fresh WS ping,
+  proactive device renewal with the same per-start ephemeral owner, owner
+  certificate rotation and expiry/denial stream cancellation without fallback.
+- `internal/platform`: recording account provisioning/retirement, native
+  identity-system-service versus runner-user-service plans and paired lifecycle
+  preflight/status/install. Cover exact UID/GID/HOME/group/managed markers,
+  preexisting private configurations/socket bindings, fixed native paths and
+  arguments, explicit apply/root/OS guards, real-runner manager privilege drop
+  and interrupted registration without account adoption or host changes.
+- `cmd/agent-identity`: offline service plan/help without `--config`/enrollment,
+  explicit install apply, native status and rejected lifecycle/private-command
+  flag mixing. `internal/identityservice` recovery fixtures preserve old private
+  state and all runner state while fresh preparation uses an empty sub-StateDir
+  in the same identity HOME; normal retry never rotates keys.
+- `tests/integration/identity*_test.go`: raw Unix/TLS boundary, certificate/UID
+  mismatch, signed activation, Founder-only registration, fresh owner proof,
+  stale/crash versus confirmed simultaneous owners, ban including Founder and
+  explicit fresh-key recovery. Run with `-tags=integration -run '^TestUnix'`.
+
+Native multi-UID filesystem/account/sshd/systemd/launchd/root-recovery/reboot
+qualification is **not performed** by these rootless/recording fixtures. No real
+host account, sshd or service change, real credential or paid inference belongs
+in the default suites. Software keys/RAM can be cloned or used sequentially;
+perfect physical-clone prevention is not proved. Hardware adapters/attestation
+are optional future work, not implemented or qualified.
 
 ## Documentation and discovery checks
 

@@ -25,7 +25,13 @@ func fixtureBundle(t *testing.T, root string, symlink bool, modify ...func([]Ent
 	if err != nil {
 		t.Fatal(err)
 	}
-	entries := []Entry{{Name: "bin/agent-cli", Data: []byte("fixture-cli"), Mode: 0755}, {Name: "bin/agent-service", Data: []byte("fixture-agent"), Mode: 0755}, {Name: "bin/fdn-service", Data: []byte("fixture-foundation"), Mode: 0755}, {Name: "THIRD_PARTY_NOTICES", Data: []byte("fixture notices"), Mode: 0644}}
+	entries := []Entry{
+		{Name: "bin/agent-cli", Data: []byte("fixture-cli"), Mode: 0755},
+		{Name: "bin/agent-service", Data: []byte("fixture-agent"), Mode: 0755},
+		{Name: "bin/agent-identity", Data: []byte("fixture-identity"), Mode: 0755},
+		{Name: "bin/fdn-service", Data: []byte("fixture-foundation"), Mode: 0755},
+		{Name: "THIRD_PARTY_NOTICES", Data: []byte("fixture notices"), Mode: 0644},
+	}
 	guide, err := GuideEntries("guide")
 	if err != nil {
 		t.Fatal(err)
@@ -110,9 +116,18 @@ func TestVerifiedInstallerIsIdempotentAndPreservesState(t *testing.T) {
 	if err != nil {
 		t.Fatal(string(output), err)
 	}
-	installed, err := os.ReadFile(filepath.Join(root, "prefix", "bin", "agent-cli"))
-	if err != nil || string(installed) != "fixture-cli" {
-		t.Fatal(string(installed), err)
+	for name, want := range map[string]string{"agent-cli": "fixture-cli", "agent-service": "fixture-agent", "agent-identity": "fixture-identity", "fdn-service": "fixture-foundation"} {
+		binary := filepath.Join(root, "prefix", "bin", name)
+		installed, err := os.ReadFile(binary)
+		if err != nil || string(installed) != want {
+			t.Fatal("installed executable differs", name, string(installed), err)
+		}
+		if info, err := os.Stat(binary); err != nil || info.Mode().Perm() != 0755 {
+			t.Fatal("installed executable permissions differ", name, err)
+		}
+		if target, err := os.Readlink(binary); err != nil || target != filepath.Join(root, "prefix", "lib", "fdn", "current", "bin", name) {
+			t.Fatal("binary activation link differs", name, target, err)
+		}
 	}
 	guide, err := os.ReadFile(filepath.Join(root, "prefix", "lib", "fdn", "current", "guide", ".agents", "skills", "foundation-work", "SKILL.md"))
 	if err != nil || !bytes.Contains(guide, []byte("name: foundation-work")) {
@@ -188,17 +203,17 @@ func TestArchiveHeaderDoesNotDependOnInputOrder(t *testing.T) {
 }
 
 func TestInstallerRejectsMissingGuideBeforeChangingPrefix(t *testing.T) {
-	for _, missing := range []string{"guide/AGENTS.md", "guide/MANIFEST.json", "guide/.agents/skills/foundation-work/SKILL.md"} {
+	for _, missing := range []string{"bin/agent-identity", "guide/AGENTS.md", "guide/MANIFEST.json", "guide/.agents/skills/foundation-work/SKILL.md"} {
 		t.Run(missing, func(t *testing.T) {
 			root := t.TempDir()
 			bundle, trusted := fixtureBundle(t, root, false, func(entries []Entry) []Entry {
 				return slices.DeleteFunc(entries, func(entry Entry) bool { return entry.Name == missing })
 			})
 			if output, err := installer(t, root, bundle, trusted); err == nil {
-				t.Fatal("installed an incomplete operating guide", string(output))
+				t.Fatal("installed an incomplete required release payload", string(output))
 			}
 			if _, err := os.Stat(filepath.Join(root, "prefix")); !os.IsNotExist(err) {
-				t.Fatal("incomplete guide modified the installation prefix")
+				t.Fatal("incomplete payload modified the installation prefix")
 			}
 		})
 	}

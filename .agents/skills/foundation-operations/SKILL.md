@@ -1,6 +1,6 @@
 ---
 name: foundation-operations
-description: "Use when checking Foundation or agent health, diagnosing a blocked worker, pausing automation, reconciling interrupted runs or sessions, managing private knowledge, backing up/restoring SQLite and trust, renewing TLS, or planning a state-preserving native upgrade."
+description: "Use when checking Foundation or identity-proxy health, diagnosing blocked workers or duplicate-owner bans, recovering fresh identity keys, pausing automation, reconciling runs/sessions, managing private knowledge, backing up SQLite/trust, renewing TLS, or planning a state-preserving upgrade."
 ---
 
 # Operate and recover without hiding uncertainty
@@ -9,8 +9,9 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 `guide show COMMANDS.md` through the installed local binary.
 
 1. Resolve actual role/account/HOME/configuration/version/identity/authority.
-   Start read-only: `doctor`, `status`, `service status`, `mode show`,
-   `work status`, relevant task/discussion/run/session and native manager state.
+   Start read-only: `doctor`, `status`, `agent identity`, `service status`,
+   `mode show`, `work status`, relevant task/discussion/run/session, protected
+   identity-service health and native manager state.
 2. Classify the blocker: transport/trust, login, current approval/specification,
    workspace permission/identity, occupied slot, retry/backoff, journal/outbox,
    maintenance or unproven interactive cleanup. Do not replace it with a default
@@ -41,7 +42,14 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    public recipient, and use `fdn-service backup --output FILE --recipient
    RECIPIENT`. Restore only to a fresh directory with the private identity
    supplied through a protected file. Verify full archive/integrity/compatible
-   schema. This restores SQLite/trust, not OS/provider homes or full-host state.
+   schema. Manifest schema 1/2 is supported through SQL3 migration; future
+   manifest/SQL versions fail closed. Restore quarantines ALL identity/owner/key
+   epochs before publication, so old tokens/keys/certificates never reactivate.
+   Root-private fresh-key Founder recovery retains ID/history, then Founder
+   explicitly reapproves regulars with fresh signed keys; no automatic mode
+   change or task resumption. Keep all uncertain work/evidence fenced. This
+   restores SQLite/trust, not root account/SSH policy, identity/provider homes,
+   services or full-host state; enhanced restore still needs final integration.
 9. For TLS renewal, stop Foundation, use `tls-renew` under the same CA and finish
    any exact retained partial renewal before serving. Expired/compromised trust
    needs explicit coordinated recovery; never turn off verification.
@@ -50,12 +58,43 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
      identity, auth, knowledge, bindings, workspaces, journals/outbox and HOME
      instructions; start and verify exact binary and guide versions. No generic
      force/upgrade/reset command is implemented.
-11. On suspected exposure, preserve redacted evidence and obtain current
-     authority for revocation/rotation. Founder can revoke agents; parties can
-     close/revoke sessions. Previously downloaded material cannot be recalled.
-     Persistent assistance grants survive closed/expired sessions and restarts;
-     Founder revokes the grant itself to remove future access. Reconnection
-     under a still-valid grant never requires repeated authorization.
+11. Inspect `agent identity` and the protected identity-service/Unix proxy
+    status for transport or account/key/owner-generation errors. Providers and
+    runner files must not contain Foundation long-term keys or certificates.
+    Legacy bearer files, TCP ingress, shared SSH accounts or another owner
+    process are never recovery shortcuts. Root account reconciliation is also
+    generation-fenced: stale operations or same-generation changed keys must
+    fail before OS changes; a retained disable tombstone must not be bypassed.
+    Preserve root inventory and inspect public identity/request/key-generation
+    references instead of editing it, replaying old keys or guessing an epoch.
+12. A proved second different live owner key plus a fresh successful incumbent
+    WebSocket ping bans the whole identity, including the original and Founder,
+    and closes API/streams. A stale/crashed/same-key reconnect, ordinary CLI
+    traffic, public-key collision or unproved attempt is not ban evidence.
+    Preserve the audit and work fences; do not delete state or auto-unban on
+    restart. There is no `--rotate`: safely stop identity/affected work, retain
+    the old private StateDir and ALL runner state/journals, and choose a new
+    empty identity-owned 0700 StateDir inside the SAME identity HOME. Preserve
+    stable private config file/IPC and every runner path; update only the intended
+    state_dir binding in config/service OPTIONS and run `prepare` there. Normal
+    retries never auto-rotate. Obtain intentional recovery: Founder uses
+    `agent recover AGENT
+    --input NEW_PUBLIC --reason REASON [--output PUBLIC_PROFILE]` for non-Founder;
+    Founder requires authorized root-local `fdn-service recover-founder --input
+    NEW_PUBLIC --reason REASON` through private Unix maintenance, not an agent
+    gateway/API route. Connect the approved new profile, then restart the same
+    native identity/runner services without changing runner state. Native-root
+    `agent-identity service status --input OPTIONS` inspects the exact paired
+    installation (no `--config`/`--apply`); runner doctor/status checks are
+    separate. New generations do not revive old certificates/runs.
+13. On suspected exposure, preserve redacted evidence and obtain current
+    authority for revocation/rotation. Founder can revoke non-Founder agents;
+    parties can close/revoke sessions. Downloaded material cannot be recalled.
+    Persistent assistance survives closed/expired sessions and restarts;
+    Founder revokes the grant itself to remove future access. Reconnection
+    under a still-valid grant never requires repeated authorization. Full
+    software/RAM cloning or sequential use remains possible; no hardware
+    signer, attestation or perfect physical-clone prevention is claimed.
 
 Read `guide show CAPACITY.md` before a scale claim. Existing evidence is 1,000
 tasks/24 concurrent writers, not 1,000 agents. Do not add infrastructure, weaken

@@ -22,9 +22,15 @@ commands.
 4. Verify source/version/platform/digests before native archive/Debian install.
    Preserve immutable releases and all existing state. Keep signing/attestation
    claims separate from checksum verification.
-5. Prepare the dedicated account's native prerequisites. Services/API/VNC bind
-   to loopback; remote workers need pinned individual SSH and TLS routes.
-   Prefer no attached cloud identity. Display attachment is not a desktop.
+5. Prepare approved native accounts/UIDs/HOMEs, not a same-UID provider and
+   credential service. `agent-identity` owns private key/config state; the runner
+   gets only a peer-checked Unix proxy and public AgentID. Foundation also needs
+   one dedicated SSH account/UID per identity, including Founder, separate from
+   the unprivileged server. An authorized root-local account provisioner manages
+   only that namespace. Pinned SSH forces `fdn-api`/`fdn-join` stdio into inner
+   mTLS Unix ingress, with no arbitrary commands, PTY, forwarding or TCP/bearer
+   bootstrap. Prefer no attached cloud identity. Display attachment is not a
+   desktop or consent.
 6. For upgrades, inspect `work status` and native state; stop/join active work
    before replacement. Retain exact mode, identity, credentials, provider homes,
    knowledge, bindings, journals, outbox and session fences. No manual database
@@ -33,13 +39,29 @@ commands.
    global mode pause/resumption; delegates and target-local commands cannot.
    Deploy the server migration before new workers and preserve unexplained
    legacy pauses for explicit Founder reconciliation, never silent resumption.
+   A restored snapshot quarantines every identity/owner/key epoch; root-private
+   fresh Founder recovery retains its ID/history, then Founder reapproves regulars
+   with fresh signed keys. Manifest1/2 migration to SQL3 never reactivates old
+   tokens/certificates, changes mode automatically or resets runner state.
 7. As the actual account, run `guide install`. It must preserve unrelated HOME
    instructions/skills; a collision is an actionable conflict, not permission to
    overwrite them. Worker initialization/startup also installs its guide.
-8. Preview registration with `service plan --input OPTIONS`, then use
-   `service install --input OPTIONS --apply` only under the approved native
-   account/OS privilege. Linux workers need their user manager and correct HOME/
-   user-bus environment; macOS needs the actual account's launchd domain.
+8. Native archives include `agent-cli`, `agent-service`, `agent-identity` and
+   `fdn-service`; Debian worker payloads include the first three. Verify the
+   new binary and complete guide against the trusted manifest, not just an old
+   launcher. Use `agent-identity service plan --input OPTIONS` read-only, then
+   authorized native-root `agent-identity service install --input OPTIONS
+   --apply` and `agent-identity service status --input OPTIONS`. These take no
+   `--config`; OPTIONS is the exact two-account IdentityServiceOptions in
+   DEPLOYMENT.md, not single-role agent-cli service options. Preprovision the
+   exact UID/GID/HOME/primary groups, managed `fdn-identity=NAME` /
+   `fdn-runner=NAME` markers, no-login identity shell and one-way identity
+   membership in the worker group; never worker membership in identity/root.
+   Private configurations must already exist and bind the planned socket/state.
+   Missing/mismatched accounts fail, never auto-adopt/create. Linux registers
+   identity system unit plus actual runner user manager; macOS identity
+   LaunchDaemon plus actual runner GUI LaunchAgent at fixed definition paths.
+   Native multi-UID/manager/GUI qualification remains separate authorized work.
 9. Verify actual process owner, exact version/source, enabled/running manager,
    SQLite/TLS health, private listeners, SSH route and guide discovery. Do not
    equate accepted registration with final health.

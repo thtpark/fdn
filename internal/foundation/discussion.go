@@ -227,7 +227,7 @@ func (s *Store) validateWaiting(ctx context.Context, tx *sql.Tx, task domain.Tas
 		mentioned = append(mentioned, e.Mentions...)
 	}
 	for _, id := range waiting.RequestedIDs {
-		if _, err := s.actor(ctx, tx, id); err != nil {
+		if _, err := activeIdentitySubject(ctx, tx, id); err != nil {
 			return err
 		}
 		if !slices.Contains(mentioned, id) {
@@ -250,7 +250,7 @@ func (s *Store) validateAnswers(ctx context.Context, tx *sql.Tx, task domain.Tas
 		if e.TaskID != task.ID || e.Kind != "comment" || !slices.Contains(task.Waiting.RequestedIDs, e.AuthorID) || !slices.Contains(task.Waiting.QuestionIDs, e.ParentID) {
 			return domain.Fail(domain.Prerequisite, "answer must be a current reply from a requested respondent to a blocking question")
 		}
-		if _, err := s.actor(ctx, tx, e.AuthorID); err != nil {
+		if _, err := activeIdentitySubject(ctx, tx, e.AuthorID); err != nil {
 			return err
 		}
 		answered[e.ParentID] = true

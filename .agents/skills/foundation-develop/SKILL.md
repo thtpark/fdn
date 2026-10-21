@@ -17,12 +17,27 @@ The checkout's root documents are canonical; no old source tree is required.
 3. Investigate every affected surface: domain models, API/client, CLI help/input/
    exit shape, server policy, local journal/controller/manual path, providers/
    cancellation, native deployment, embedded docs/skills and packages.
-4. Preserve exact operation replay, generation/epoch fences, completed-vs-done,
-   creator/recipient ownership and the one-slot rule. New adapters must prove
-   non-prompting coding approval and tool-disabled text calls before enabling.
+4. Preserve exact replay, generation/epoch fences, completed-vs-done, creator/
+   recipient ownership and the one-slot rule. Identity tests must distinguish
+   separate-HOME business fixtures from actual Unix peer-UID/mTLS checks. Prove
+   different live owner keys plus fresh incumbent WS ping before whole-identity
+   ban (including Founder); crash/reconnect/CLI/unproved attempts do not ban.
+   Keep keys outside runner UID and root maintenance outside agent ingress.
+   Root provision/disable RPCs must carry positive identity key generation:
+   retain inventory/tombstones, reject stale or same-generation changed keys
+   before OS calls, preserve UID/name on fresh-key recovery, and check current
+   registry/request/key/generation around returned/post-bind tuples. No new
+   CLI flag or generic root method is implied.
+   Software/RAM cloning and sequential use remain possible; optional future
+   hardware signing/attestation is not implemented or qualified. New provider
+   adapters must prove non-prompting coding approval and tool-disabled text calls.
 5. Add ordered compatibility-tested migrations, never rewrite shipped schemas
-   or reset state. Future schema versions fail closed. A binary rollback is not
-   automatically a compatible database rollback.
+   or reset state. API/schema contract is 2, server SQL migration 3, local SQL 1.
+   Retain old identities/tasks/operations and private worker state without
+   authorizing legacy bearer runtime. Explicit Founder binding and runner
+   `connect --migrate` preserve the designated original non-Founder; a keyless
+   legacy Founder needs root-local recovery. Future schemas fail closed; binary
+   rollback is not automatically database rollback.
 6. Update command/reference/skill behavior together. Skills need matching names,
    meaningful trigger descriptions and complete current procedures. Documentation
    must distinguish implemented capability, planned work and evidence limits.
@@ -32,7 +47,15 @@ The checkout's root documents are canonical; no old source tree is required.
    service registration, real credentials or paid inference.
 8. For guidance changes, verify frontmatter, links, CLI coverage, embedded
    catalog/source hashes, preservation of home instructions/unrelated skills,
-   both discovery locations, explicit prompt context and package payloads.
+   both discovery locations and explicit prompt context. Native/reproducible
+   build lists, archive checks/activation and Debian worker payloads must include
+   `agent-identity`; test with synthetic payloads, never local release packaging.
+   Keep its offline help distinct from the three guide-capable binaries.
+   `agent-identity service plan/install/status` takes two-account OPTIONS, not
+   `--config`; recording tests must reject implicit apply/account adoption and
+   prove native manager invocation under the actual runner. Fresh recovery
+   uses a new empty sub-StateDir in stable identity HOME and retains old keys/
+   all runner state; never invent `--rotate` or rotate during normal retries.
 9. PRs into main run separate Linux/macOS suites. Real packaging only follows
    an authorized PR merge into release on the exact source commit. Never
    fabricate a local Actions event or build/test on a deployment target.

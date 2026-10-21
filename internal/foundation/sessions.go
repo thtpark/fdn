@@ -9,11 +9,11 @@ import (
 )
 
 func (s *Store) sessionAuthority(ctx context.Context, q queryer, session domain.Session) error {
-	requester, err := s.actor(ctx, q, session.RequesterID)
+	requester, err := activeIdentitySubject(ctx, q, session.RequesterID)
 	if err != nil {
 		return err
 	}
-	if _, err := s.actor(ctx, q, session.TargetID); err != nil {
+	if _, err := activeIdentitySubject(ctx, q, session.TargetID); err != nil {
 		return err
 	}
 	if session.GrantID != "" {
@@ -56,7 +56,7 @@ func (s *Store) RequestSession(ctx context.Context, actor string, req domain.Ses
 			ProjectID: req.ProjectID, TaskID: req.TaskID, Mode: req.Mode, Purpose: req.Purpose,
 			Provider: req.Provider, Reason: req.Reason, State: "requested", ExpiresAt: req.ExpiresAt, Revision: 1, CreatedAt: s.timestamp()}
 		session.GrantID = req.GrantID
-		target, err := s.actor(ctx, tx, req.TargetID)
+		target, err := activeIdentitySubject(ctx, tx, req.TargetID)
 		if err != nil {
 			return session, err
 		}

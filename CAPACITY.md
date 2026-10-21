@@ -24,12 +24,17 @@ Code-derived healthy idle traffic per worker:
 
 This is roughly 4,000 requests/second before task preparation/reporting. It is a
 derived load estimate, not measured supported throughput. Slow responses,
-coalesced ticks and active sessions change the actual rate.
+coalesced ticks and active sessions change the actual rate. API/schema 2 also
+adds identity owner-control/renewal, inner mTLS and API/join SSH stdio costs;
+the table does not measure or include those costs. Rebenchmark the integrated
+security transport rather than carrying forward a pre-upgrade capacity claim.
 
 The current event watch is not recipient-scoped: unrelated shared changes can
-wake every worker and amplify selection traffic. A connected worker also keeps
-an SSH transport; reconnect storms exercise SSH admission, processes, sockets,
-memory and file descriptors as well as the Go API.
+wake every worker and amplify selection traffic. The protected identity service
+also maintains owner control and API/join SSH streams; reconnect storms exercise
+SSH admission, certificate/owner renewal, processes, sockets, memory and file
+descriptors as well as the Go API. Do not reduce peer/key/owner-generation checks
+or duplicate-proof freshness to meet a load target.
 
 SQLite permits concurrent readers but serializes write transactions. WAL/full
 synchronization, transaction duration, the eight-connection pool, busy timeout,
@@ -53,6 +58,9 @@ needed. Include at least:
 3. Slow consumers, disconnected workers and simultaneous reconnect/restart.
 4. Lost acknowledgements, exact replay and unsafe-side-effect fences.
 5. Long-running growth, index/query plans, history bounds and disk pressure.
+6. Per-identity SSH admission/account reservations, device/owner renewal, owner
+   reconnect storms and revocation/ban stream shutdown under load. Preserve the
+   fresh proved-duplicate threshold; dead owners must not create mass false bans.
 
 Measure API p50/p95/p99, successful/error/conflict rates, SQLite transaction and
 busy-wait latency, CPU/RSS, disk latency/growth/WAL/checkpoints, sockets/FDs, SSH

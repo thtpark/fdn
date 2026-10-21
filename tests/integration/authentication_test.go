@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -196,7 +197,7 @@ func (transport *authenticationTransport) RoundTrip(request *http.Request) (*htt
 	}
 	if transport.mode == "no-authority" && request.URL.Path == "/v1/agents" {
 		body := `{"ok":true,"data":[],"warnings":[]}`
-		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"X-Fdn-Api-Version": []string{"1"}},
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"X-Fdn-Api-Version": []string{strconv.Itoa(domain.APIVersion)}},
 			Body: io.NopCloser(strings.NewReader(body)), Request: request}, nil
 	}
 	return transport.base.RoundTrip(request)

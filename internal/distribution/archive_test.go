@@ -56,7 +56,9 @@ func TestDeterministicArchivesAndDebianLayout(t *testing.T) {
 
 func TestDebianPayloadExtractsIntoAnEmptyRoot(t *testing.T) {
 	entries := []Entry{
-		{Name: "usr/bin/agent-cli", Data: []byte("native binary"), Mode: 0755},
+		{Name: "usr/bin/agent-cli", Data: []byte("fixture-cli"), Mode: 0755},
+		{Name: "usr/bin/agent-service", Data: []byte("fixture-runner"), Mode: 0755},
+		{Name: "usr/bin/agent-identity", Data: []byte("fixture-identity"), Mode: 0755},
 		{Name: "usr/share/doc/fdn-agent/copyright", Data: []byte("license notices"), Mode: 0644},
 	}
 	var archive bytes.Buffer
@@ -119,6 +121,9 @@ func TestDebianPayloadExtractsIntoAnEmptyRoot(t *testing.T) {
 		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(entry.Name)))
 		if err != nil || !bytes.Equal(content, entry.Data) {
 			t.Fatal("extracted payload differs", entry.Name, err)
+		}
+		if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(entry.Name))); err != nil || info.Mode().Perm() != os.FileMode(entry.Mode) {
+			t.Fatal("extracted payload permissions differ", entry.Name, err)
 		}
 	}
 	for _, invalid := range [][]Entry{

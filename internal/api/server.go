@@ -9,12 +9,12 @@ import (
 	"mime"
 	"net/http"
 	"strconv"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/foundation"
+	"github.com/thtpark/fdn/internal/pki"
 	"github.com/thtpark/fdn/internal/relay"
 )
 
@@ -27,10 +27,12 @@ type Envelope struct {
 }
 
 type Server struct {
-	Store *foundation.Store
-	Log   *slog.Logger
-	Relay *relay.Broker
-	mux   *http.ServeMux
+	Store          *foundation.Store
+	Log            *slog.Logger
+	Relay          *relay.Broker
+	mux            *http.ServeMux
+	identity       *identityServer
+	authentication func(*http.Request) (domain.Agent, error)
 }
 
 func New(store *foundation.Store, log *slog.Logger) (*Server, error) {
@@ -41,14 +43,32 @@ func New(store *foundation.Store, log *slog.Logger) (*Server, error) {
 		log = slog.Default()
 	}
 	s := &Server{Store: store, Log: log, Relay: relay.New(store), mux: http.NewServeMux()}
+	s.identity = newIdentityServer(s)
 	s.routes()
+	s.identityRoutes()
 	return s, nil
 }
 
-func (s *Server) Close() error { return s.Relay.Close() }
+// NewAuthenticated permits a trusted embedding to supply connection authentication.
+// The standalone service always uses New and kernel-bound mutual TLS.
+func NewAuthenticated(store *foundation.Store, log *slog.Logger, authenticate func(*http.Request) (domain.Agent, error)) (*Server, error) {
+	if authenticate == nil {
+		return nil, domain.Fail(domain.Invalid, "a trusted connection authenticator is required")
+	}
+	s, err := New(store, log)
+	if err == nil {
+		s.authentication = authenticate
+	}
+	return s, err
+}
+
+func (s *Server) Close() error {
+	s.identity.close()
+	return s.Relay.Close()
+}
 
 func (s *Server) Handler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return s.access(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Fdn-API-Version", strconv.Itoa(domain.APIVersion))
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "no-store")
@@ -60,20 +80,46 @@ func (s *Server) Handler() http.Handler {
 			s.respond(w, r, nil, "", domain.Fail(domain.Denied, "cross-origin requests are not accepted"))
 			return
 		}
-		s.mux.ServeHTTP(w, r)
-	})
+		actor, owner, err := s.authenticateConnection(r, "owner")
+		if err != nil {
+			s.respond(w, r, nil, "", err)
+			return
+		}
+		var ctx context.Context
+		var cancel context.CancelFunc
+		if s.authentication == nil {
+			ctx, cancel = context.WithDeadline(r.Context(), r.TLS.PeerCertificates[0].NotAfter)
+		} else {
+			ctx, cancel = context.WithCancel(r.Context())
+		}
+		defer cancel()
+		if owner != nil {
+			stop := context.AfterFunc(owner, cancel)
+			defer stop()
+		}
+		if s.authentication == nil {
+			identity, parseErr := pki.ParseIdentity(r.TLS.PeerCertificates[0])
+			if parseErr != nil {
+				s.respond(w, r, nil, "", parseErr)
+				return
+			}
+			ctx = foundation.WithIdentityFence(ctx, identity)
+		}
+		ctx = context.WithValue(ctx, authenticatedActor{}, actor)
+		request := r.WithContext(ctx)
+		s.mux.ServeHTTP(w, request)
+		recordRoute(request)
+	}))
 }
 
+type authenticatedActor struct{}
+
 func (s *Server) authenticate(r *http.Request) (domain.Agent, error) {
-	header := r.Header.Values("Authorization")
-	if len(header) != 1 {
-		return domain.Agent{}, domain.Fail(domain.Denied, "Bearer authentication required")
+	if actor, ok := r.Context().Value(authenticatedActor{}).(domain.Agent); ok {
+		return actor, nil
 	}
-	token, ok := strings.CutPrefix(header[0], "Bearer ")
-	if !ok {
-		return domain.Agent{}, domain.Fail(domain.Denied, "Bearer authentication required")
-	}
-	return s.Store.Authenticate(r.Context(), token)
+	actor, _, err := s.authenticateConnection(r, "owner")
+	return actor, err
 }
 
 func (s *Server) respond(w http.ResponseWriter, r *http.Request, value any, op string, err error) {
@@ -192,9 +238,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		s.respond(w, r, map[string]any{"api_version": domain.APIVersion, "schema_version": domain.SchemaVersion, "version": domain.Version}, "", s.Store.Ping(r.Context()))
 	})
-	body(s, "POST /v1/enroll", true, func(r *http.Request, _ domain.Agent, q domain.EnrollRequest) (domain.Agent, error) {
-		return s.Store.Enroll(r.Context(), q)
-	})
 	read(s, "GET /v1/me", func(r *http.Request, a domain.Agent) (domain.Agent, error) { return s.Store.Me(r.Context(), a.ID) })
 	read(s, "GET /v1/agents", func(r *http.Request, a domain.Agent) ([]domain.Agent, error) {
 		return s.Store.Agents(r.Context(), a.ID)
@@ -202,11 +245,16 @@ func (s *Server) routes() {
 	body(s, "POST /v1/heartbeat", false, func(r *http.Request, a domain.Agent, _ domain.Command) (domain.Agent, error) {
 		return s.Store.Heartbeat(r.Context(), a.ID)
 	})
-	body(s, "POST /v1/invitations", false, func(r *http.Request, a domain.Agent, q domain.InvitationRequest) (domain.Invitation, error) {
-		return s.Store.Invite(r.Context(), a.ID, q)
-	})
 	body(s, "POST /v1/agents/{id}/revoke", false, func(r *http.Request, a domain.Agent, q domain.AgentRequest) (domain.Agent, error) {
-		return s.Store.Revoke(r.Context(), a.ID, r.PathValue("id"), q)
+		result, err := s.Store.Revoke(r.Context(), a.ID, r.PathValue("id"), q)
+		if err == nil {
+			current, lookupErr := s.Store.Identity(r.Context(), result.ID)
+			if lookupErr == nil && (current.State == "revoked" || current.State == "banned" || current.State == "restore-pending") {
+				s.identity.denyOlder(result.ID, current.Generation, "identity revoked; explicit recovery required")
+				s.disableIdentity(r.Context(), result.ID)
+			}
+		}
+		return result, err
 	})
 	read(s, "GET /v1/projects", func(r *http.Request, a domain.Agent) ([]domain.Project, error) {
 		return s.Store.Projects(r.Context(), a.ID)

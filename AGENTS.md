@@ -9,7 +9,7 @@ commands from historical examples.
 | Goal | Skill |
 | --- | --- |
 | Install a server/worker, register services, stage an upgrade | [foundation-install](.agents/skills/foundation-install/SKILL.md) |
-| Bootstrap Founder, invite/enroll a computer, manage authority | [foundation-enroll](.agents/skills/foundation-enroll/SKILL.md) |
+| Register/recover signed Founder or worker keys, manage authority | [foundation-enroll](.agents/skills/foundation-enroll/SKILL.md) |
 | Install Codex/Copilot, arrange protected sign-in or consented access | [foundation-provider-auth](.agents/skills/foundation-provider-auth/SKILL.md) |
 | Prepare, assign, clarify, approve, execute, and verify tasks | [foundation-work](.agents/skills/foundation-work/SKILL.md) |
 | Inspect health, pause work, recover, back up/restore, renew TLS | [foundation-operations](.agents/skills/foundation-operations/SKILL.md) |
@@ -47,9 +47,12 @@ guide includes this file, all skills, and the development references.
   permissions and task scope. Routine local access needs no project approval.
   Root changes, another computer's consent, cloud costs, external commitments,
   and provider spending retain their separate authorization boundaries.
-- Keep one identity/service and one active work slot per computer. Manual work,
-  automatic work, onboarding, replies, and remote sessions share admission.
-  Mentioning an agent does not assign work or confer authority.
+- Keep one enrolled identity and one active work slot per computer. Its protected
+  `agent-identity` service uses a different UID/HOME from the provider/tool runner;
+  only a peer-checked local Unix proxy and public AgentID reach the runner.
+  Every identity, including Founder, has its own Foundation-host SSH account/UID.
+  Manual work, automatic work, onboarding, replies, and remote sessions share
+  admission. Mentioning an agent does not assign work or confer authority.
 - Read the current instructions, criteria, discussion, assignment, workspace,
   approvals, project epoch, and continuation before execution. Questions are not
   a quota: ask useful blocking questions, incorporate actual requested replies
@@ -67,10 +70,21 @@ guide includes this file, all skills, and the development references.
   run/spec references, journals, pending reports, and uncertainty. Reconcile a
   lost response with the same operation and exact proposal. Never blindly rerun
   inference, reset retry budgets, take over timed-out ownership, or erase state.
-- Keep keys, bootstrap/invitation contents, tokens, provider login output,
+- Keep private keys, certificates with private material, provider login output,
   screenshots, raw transcripts, private knowledge, and workspace paths out of
-  chat/shared records. Use owner-restricted files and opaque encrypted transfer.
-  Structured output is not a protected credential-entry interface.
+  chat/shared records. Registration exchanges signed public requests/profiles
+  only; bearer invitations and legacy token-only runtime access are disabled.
+  Use owner-restricted files and authenticated transfer. Structured output is
+  not a protected credential-entry interface.
+- Identity registration is Founder-only, not a project-delegate permission or
+  provider sign-in. Use pinned SSH stdio and inner mutual TLS, never a TCP/bearer
+  bootstrap shortcut or a shared Foundation SSH account. A proved different
+  live owner key plus a fresh incumbent WebSocket ping bans the entire identity,
+  including the original and Founder; ordinary CLI traffic, stale reconnects,
+  collisions and unproved attempts do not. Recovery needs fresh keypairs and
+  explicit authority; Founder recovery is root-local only. Software/RAM keys
+  may still be fully cloned or used sequentially: never claim perfect physical
+  clone prevention, implemented hardware signing or attestation.
 - Record significant changes and decisions promptly in intentional worklog
   summaries: task/run/spec references, rationale, actual checks, risks,
   authorization, checkpoint, and recovery. Do not publish a terminal dump.

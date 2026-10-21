@@ -4,7 +4,9 @@ A self-contained Go implementation of Foundation through **Phase 5**, with an
 authoritative SQLite-backed service, a native worker daemon, and one structured
 CLI for people and coding agents. Development and operation need no companion
 checkout. Existing legacy configuration, credentials, and databases are **not
-imported or overwritten**.
+imported or overwritten**. The API/schema **2** software-first security upgrade
+is being integrated; source-bound acceptance and native qualification are
+separate. No hardware adapter or attestation is claimed.
 
 ## Documentation and operational skills
 
@@ -35,7 +37,7 @@ supplies bounded guidance explicitly when provider discovery is disabled.
 | Phase | Delivered capability |
 | --- | --- |
 | 1 | Go module, typed contracts, structured errors, owner-only configuration/state, schema migrations, TLS trust, reproducible release tooling. |
-| 2 | One-time Founder bootstrap, expiring invitations, delegated sponsorship, project-creation grants, revocation, heartbeat, pinned OpenSSH transport, native service definitions, encrypted database/trust backup and fresh-directory restore. |
+| 2 | Founder-only signed public-key registration, dedicated per-agent SSH accounts/UIDs, isolated identity service, mutual TLS and owner-generation fences; project-creation grants, revocation, heartbeat, native definitions, encrypted database/trust backup and fresh-directory restore. Security acceptance remains source-bound; native qualification is separate. |
 | 3 | Projects, collaborative tasks, assignment, named/independent approvals, verification/rework, three-history retention/revert with reasons, creator-owned discussions/worklogs, mentions, paginated watches, offline private knowledge, capability inventory, explicit workspace authorization. |
 | 4 | Codex/Copilot adapters, private messages, urgent inboxes, staged provider installation/updates, protected login handoff, expiring target-consented tmux/existing-VNC sessions. |
 | 5 | Shared manual/automatic controller and prompt, first capability review, scope/acceptance refinement, actual-answer incorporation, exact-specification signoff requests, preflight, serial claims, supervised processes, pause/checkpoints, durable report outbox, restart reconciliation, unsafe-retry approval/backoff, idle research. |
@@ -56,25 +58,32 @@ connection. Live connection expiry/restart does not erase that authorization.
 * `fdn-service` is the only SQLite writer exposed to computers. Its TLS API owns
   enrollment, roles, task authority, transaction boundaries, and run fences.
   Clients cannot bypass authorization with database writes or bulk endpoints.
-* `agent-service` runs directly under the worker's dedicated OS account.
-  `agent-cli work run` uses the **same controller, prompt, local slot, and server
+* `agent-service` runs under the dedicated provider-runner OS account, never the
+  protected identity-service UID. `agent-cli work run` uses the **same controller,
+  prompt, local slot, and server
   checks**, not a separate privileged execution path.
 * SQLite uses WAL, full synchronization, foreign keys, indexed assignment/state
   queries, keyset pagination, and bounded connection pools. It is intentionally
   a single-authority, single-writer design, not a distributed SQL system.
-* All listeners bind to loopback. Remote computers use an existing OpenSSH
-  server with explicitly pinned `known_hosts` and an individual identity file.
-  TLS remains mandatory inside the tunnel. No first-connection trust bypass,
-  shell-expanded SSH commands, environment proxy, or plaintext HTTP fallback.
-* Application identities are not Foundation-host shell accounts. Unlike the
-  old direct-CouchDB design, enrollment needs no per-agent privileged account
-  provisioning. Provision the service account and restricted SSH transport
-  separately through the operating system.
-* One dedicated worker account/configuration/service belongs on each computer.
-  OS locks serialize daemon/manual work and interactive sessions; server-side
-  ownership additionally prevents competing task claims for one identity.
-  This is coordination, not hardware attestation or protection from a malicious
-  administrator cloning credentials.
+* Each enrolled identity, **including Founder**, has a unique Foundation-host
+  SSH account and UID. An existing, pinned OpenSSH server forces the fixed
+  `fdn-api`/`fdn-join` stdio gateway; it permits no arbitrary command, PTY or
+  forwarding. API/join ingress is local Unix, not a TCP bootstrap listener.
+* Inner TLS remains mandatory. Kernel Unix peer UID must agree with the signed
+  client certificate's instance, agent, key generation and owner generation.
+  Device certificates open only identity admission/control; ephemeral owner
+  certificates authorize ordinary API requests while that owner is live.
+* `agent-identity` runs as a protected credential-service UID distinct from the
+  provider runner UID. Long-term SSH/authentication keys and device credentials
+  never reach the runner. `agent-cli`/`agent-service` use its peer-checked local
+  Unix proxy and retain only a public AgentID, not a bearer credential.
+* One enrolled identity and one active work slot belong on each computer. A
+  proved second **different live owner key**, with a fresh successful incumbent
+  WebSocket ping, bans the entire identity: both owners lose API/streams, even
+  when the original is Founder. Dead/reconnecting owners, ordinary CLI calls,
+  public-key collisions and unproved attempts are not duplicate proof.
+  Software keys, including RAM, can still be cloned or used sequentially;
+  this is not perfect physical-clone prevention or hardware attestation.
 * Enrolled agents can read shared projects/tasks/discussions. Messages and
   session records are API-private to their parties. Raw provider output, login
   credentials, workspace paths, discovery details, and local knowledge stay
@@ -115,9 +124,12 @@ perform paid inference.
 End-to-end tests execute both provider argument/output paths, actual workspace
 edits, clarification before readiness, separate scope/acceptance review, manual
 stop, failed/mid-run-question results, daemon kill/restart fencing, and explicit
-recovery. Integration tests exercise real OpenSSH forwarding, wrong host pins,
-TLS, raw unauthorized writes, competing claims, consent withdrawal, orphan
-claims, and lost-acknowledgment replay without repeated inference.
+recovery. Business fixtures use explicit test authentication and separate HOME,
+not native account-isolation proof. Separate security regressions use real Unix
+peer credentials, TLS/mTLS, owner WebSockets and pinned SSH stdio/in-process SSH;
+new security acceptance remains pending integrated verification. Policy fixtures
+also cover unauthorized writes, competing claims, consent withdrawal, orphan
+claims and lost acknowledgements without repeated inference.
 
 The measured stress workload is a reproducible correctness/retention check, not
 a claim of unlimited throughput. Add workload measurements before choosing a
@@ -132,80 +144,99 @@ macOS GUI consent, real VNC credentials, or reboot/full-host recovery. The real
 SSH/TLS/process/filesystem operations above do run locally. No hosted Actions
 run or signed/notarized release is implied by local success.
 
-## Initialize Foundation
+## Initialize Foundation and prepare Founder
 
-Use a dedicated unprivileged account. The Foundation deployment target is Linux;
-the server also runs unprivileged on macOS for local development/tests.
+The native Foundation target is Linux. Follow [DEPLOYMENT.md](DEPLOYMENT.md)
+for administrator-managed account-helper/gateway prerequisites and socket
+ownership. The main server remains unprivileged. Native multi-UID installation
+and hardware qualification have **not** been performed by rootless tests.
+
+On Founder's computer, as its protected identity-service account with an
+administrator-prepared private configuration (not as the provider runner):
+
+```sh
+agent-identity --config /PRIVATE/identity.json prepare \
+  --name Founder --output /PUBLIC/founder-request.json
+```
+
+Only the signed public request leaves that account. As the dedicated server
+account, after the approved root account helper is configured/running:
 
 ```sh
 fdn-service --config /var/lib/fdn/server.json init \
-  --state /var/lib/fdn --listen 127.0.0.1:8443 \
-  --bootstrap-file /var/lib/fdn/bootstrap.json
+  --state /var/lib/fdn --founder-request /PUBLIC/founder-request.json \
+  --ingress-socket /run/fdn-ingress/api.sock --join-socket /run/fdn-ingress/join.sock \
+  --ingress-group INGRESS_GID --account-socket /run/fdn-accounts/accounts.sock
 fdn-service --config /var/lib/fdn/server.json serve
 ```
 
-The account must already own its state directory, with mode `0700`. Private
-configuration, identity files, keys, locks, and journals use `0600`.
-Initialization retains a private preparation record so an interrupted operation
-can be retried with the original paths. Reinitialization does not reset state.
+`INGRESS_GID` is the approved numeric group ID. State/configuration and keys
+remain service-owned 0700/0600. Initialization returns the public identity and
+CA-file path; an authorized operator assembles the public connection profile
+with independently pinned SSH host/port/known_hosts. There is no init profile
+output flag, bearer bootstrap or TCP API listener. An interrupted initialization
+retains the same request/identity/keys; retry it exactly rather than resetting.
 
-Obtain the public `ca.pem` and one-time bootstrap bundle through a trusted
-out-of-band channel. Do not put bootstrap/invitation contents in chat, command
-arguments, commits, or shared task records. Bootstrap expires after 15 minutes.
-Before Founder enrollment only, an administrator may issue a replacement:
+## Register a worker and attach its runner
+
+Each computer, including Founder, needs a separate identity-service UID/HOME and
+provider runner UID/HOME. The protected identity account prepares its own keys:
 
 ```sh
-fdn-service --config /var/lib/fdn/server.json bootstrap \
-  --output /var/lib/fdn/replacement-bootstrap.json --ttl 900
+agent-identity --config /PRIVATE/identity.json prepare \
+  --name Agent1 --output /PUBLIC/agent-request.json
 ```
 
-Enrollment consumes the credential transactionally. Retrying an uncertain
-enrollment preserves the original operation and client-generated credential;
-it does not create a second computer.
+Founder alone registers subsequent signed requests, not a project delegate:
 
-## Configure and enroll a worker
+```sh
+agent-cli agent register --input /PUBLIC/agent-request.json \
+  --output /PUBLIC/agent-profile.json
+```
 
-Run under the computer's dedicated local account. Place the trusted public CA
-in a regular account/root-owned file without group/other write permission.
+After authenticated public-profile transfer, as that target's identity account
+with its identity service stopped for the offline profile operation:
+
+```sh
+agent-identity --config /PRIVATE/identity.json connect \
+  --profile /PUBLIC/agent-profile.json
+agent-identity --config /PRIVATE/identity.json serve
+```
+
+`serve` performs key-bound activation and maintains the device-authenticated
+owner WebSocket. Founder uses its operator-assembled profile the same way.
+Run only the runner CLI/provider service as the distinct runner account:
 
 ```sh
 agent-cli --config "$HOME/.config/fdn/agent.json" config init \
-  --state "$HOME/.local/share/fdn" \
-  --url https://localhost:8443 --ca-file "$HOME/.config/fdn/ca.pem"
-agent-cli --config "$HOME/.config/fdn/agent.json" connect \
-  --invitation-file "$HOME/.config/fdn/bootstrap.json" --name Founder
+  --state "$HOME/.local/share/fdn" --identity-socket /run/fdn-agent/identity.sock
+agent-cli --config "$HOME/.config/fdn/agent.json" connect
+agent-cli agent identity
+agent-cli doctor
 ```
 
-Founder bootstrap defaults to `manual`; ordinary invitations default to `ai`.
-The Founder or a current project delegate creates subsequent invitations:
+The local socket is absolute, identity-owned and peer-checked. The runner keeps
+only public AgentID; it never receives long-term keys, device/owner certificates
+or bearer invitations. Founder initially uses manual mode; regular agents use
+server-controlled ai. Provider sign-in remains separate from enrollment.
 
-```sh
-agent-cli invitation create --output /PRIVATE/PATH/invitation.json --ttl 900
-```
+For a designated original existing non-Founder, Founder first uses
+`agent register --existing-agent AGENT --input PUBLIC [--output PROFILE]`;
+then that runner explicitly uses `connect --migrate`, preserving local SQLite 1,
+knowledge, journals, bindings and outbox. Legacy Founder recovery is root-local.
+Do not copy another identity, share SSH accounts or use old tokens as fallback.
 
-A different computer enrolls with that bundle using its own configuration,
-local account, CA pin, and client-generated credential. Do not copy an enrolled
-computer's credential or a provider's login state to another identity.
-
-For remote transport, `config set --input FILE` accepts an `ssh` object:
-
-```json
-{
-  "ssh": {
-    "host": "foundation.example",
-    "user": "worker-tunnel",
-    "port": 22,
-    "identity_file": "/PRIVATE/PATH/ssh-key",
-    "known_hosts_file": "/PRIVATE/PATH/known_hosts",
-    "local_port": 8443,
-    "remote_port": 8443
-  }
-}
-```
-
-The SSH account/forwarding restrictions and initial host pin are operator
-prerequisites, not an unauthenticated enrollment shortcut. Agent Service
-reconnects with bounded backoff using the same pins and identity.
+A confirmed simultaneous different owner bans the **whole identity**, including
+the original and Founder, and closes API/streams. Recovery requires fresh
+keypairs and explicit authority (`agent recover AGENT`, or root-local
+`fdn-service recover-founder` for Founder). A crash/reconnect, ordinary CLI call,
+public-key collision or unproved attempt is not sufficient ban evidence.
+Software/RAM clones or sequential key use can remain undetected; no perfect
+physical-clone prevention, hardware signer or attestation is claimed. Explicit
+fresh-key recovery uses a new empty private StateDir inside the same identity
+HOME, preserving old private evidence and all runner state/configuration paths;
+there is no `--rotate` or automatic retry-time rotation. Follow the
+[recovery runbook](DEPLOYMENT.md#diagnose-identity-state-and-recover).
 
 ## Tasks and approvals
 
@@ -270,7 +301,7 @@ that its original processes stopped; there is no timeout takeover.
 Writes retain the exact proposal locally before submission. If an expected
 revision is omitted where a current entity is readable, the CLI reads and pins
 it once. On a lost response, repeat the same operation ID and original input;
-do not replace the revision, mint another invitation, or re-run a provider.
+do not replace the revision, create another identity request, or re-run a provider.
 Server receipts reference current records rather than creating a hidden archive
 of historical payloads. Only the latest **three** history snapshots are retained.
 
@@ -377,7 +408,9 @@ material, checkpoints, and authority boundaries explicit.
 Only Founder can request `manual`/`ai` for a non-Founder agent. `manual` stops
 automatic inference/execution while retaining reconciliation; it is not a
 local-human operating model, and a delegate/target cannot bypass the pause.
-Already-running approved work may continue during a connection outage; new
+Already-running approved work during a connection outage is bounded by retained
+owner authority and local supervision; certificate expiry/denial closes owned
+streams and preserves uncertainty, not indefinite offline permission. New
 unclaimed work cannot start offline. Reports retain a stable operation ID and
 are replayed without invoking the provider again.
 
@@ -440,7 +473,7 @@ it does not scan networks or publish addresses/identifiers.
 | Group | Leaves |
 | --- | --- |
 | Setup | `config init/show/set`, `connect`, `status`, `doctor`, `mode show/set`, `preferences show/set` |
-| Identity/projects | `agent list/revoke`, `invitation create`, `project create/list/show/change/delegate/authorize` |
+| Identity/projects | `agent list/revoke/register/recover/identity`, `project create/list/show/change/delegate/authorize` |
 | Founder control / retained access | `agent show/mode`, `assistance grant/list/show/revoke/open` |
 | Tasks | `task create/list/show/change/history/runs` |
 | Collaboration | `comment add/edit`, `worklog add`, `discussion list`, `mention list/acknowledge`, `watch [--once]` |
@@ -448,7 +481,9 @@ it does not scan networks or publish addresses/identifiers.
 | Local state | `knowledge put/list/show/history`, `inventory refresh/show`, `workspace bind/list/enable/disable` |
 | Providers/work | `provider status/install/update/login/link/exec`, `work prompt/status/run/recover` |
 | Native manager | `service plan/install/status`; installation requires explicit `--apply` |
-| Offline guide (all binaries) | `guide list/show/install` |
+| Protected identity account | `agent-identity --config PRIVATE_CONFIG prepare/connect/serve`; offline `--help`, not a runner or guide command |
+| Paired identity/runner manager | `agent-identity service plan/install/status --input OPTIONS`; no `--config`; plan is read-only, install needs native root plus `--apply`, status native root |
+| Offline guide (`agent-cli`, `agent-service`, `fdn-service`) | `guide list/show/install` |
 
 Discussion/comment edits require the creator's current revision; there is no
 task/comment/worklog deletion API. List pages are bounded to 1-200 records.
@@ -469,9 +504,16 @@ fdn-service restore --input /PRIVATE/BACKUPS/foundation.age \
 Backups stream age-encrypted archives of a consistent SQLite hot snapshot and
 TLS trust/keys with verified file hashes. Restore authenticates the full stream,
 rejects unexpected/duplicate/traversing entries, checks schema/database integrity,
-retires sessions, and publishes only a complete fresh destination. It does not
-overwrite existing state, clear uncertain run ownership, restore OS accounts,
-or claim full-host recovery. Keep the private age identity off the backup host.
+accepts manifest schema 1/2 through supported SQL 3 migration and rejects future
+formats. Before publishing the complete fresh destination it retires sessions
+and quarantines **all restored identities/owner/key epochs**: old tokens, keys
+and certificates cannot regain API access. Root-local fresh Founder recovery
+(retaining ID/history), then explicit Founder fresh-key reapproval of regular
+agents is required. It never changes mode automatically or clears uncertain
+work. OS account inventory/SSH policy, identity/provider HOMEs and native
+services are not restored; full-host/native root/group qualification is separate.
+Keep the private age identity off-host. Final enhanced-restore/all-suite
+verification remains pending.
 
 Server certificates last up to a year; the CA lasts ten years. Stop Foundation
 and run `fdn-service --config FILE tls-renew` to replace the leaf/key while
@@ -479,14 +521,28 @@ preserving CA pins and identities. An interrupted renewal retains its exact
 pair; complete it before serving. Expired CA trust requires an explicit
 operator-coordinated rotation, not silent regeneration.
 
-`service plan --input OPTIONS` renders systemd (Linux) or launchd (macOS agent)
-definitions without changing the host. `service install --input OPTIONS
---apply` explicitly registers/starts them; Foundation's system registration
-requires OS administrator execution. Options are in
-[platform.Options](internal/platform/service.go). The account/configuration must
-already exist. Normal service startup does not provision root accounts or
-change SSH/firewall/desktop policy. Use one registration per worker computer.
-On Linux, invoke agent service registration as the dedicated account with its
+For the protected worker pair, `agent-identity service plan --input OPTIONS`
+is read-only without configuration/enrollment. Native-root `agent-identity
+service install --input OPTIONS --apply` and `service status --input OPTIONS`
+use the exact preprovisioned accounts/groups/markers/private configurations and
+fixed native definition paths; they never create/adopt accounts. Linux pairs
+an identity system unit with the actual runner user manager; macOS pairs an
+identity LaunchDaemon with the actual runner GUI LaunchAgent. See
+[DEPLOYMENT.md](DEPLOYMENT.md#native-identity-and-runner-services) for complete
+options/prerequisites and explicitly unperformed native qualification.
+
+The existing single-role `service plan --input OPTIONS` renders systemd (Linux)
+or launchd (macOS agent) without changing the host. Its `service install --input
+OPTIONS --apply` explicitly registers/starts that role; Foundation's system
+registration requires OS administrator execution. Single-role options are in
+[platform.Options](internal/platform/service.go). Foundation installation needs
+its reviewed ingress supplementary group and writable socket directories;
+see [DEPLOYMENT.md](DEPLOYMENT.md). Accounts/configuration must already be
+prepared. Only the separately authorized root helper reconciles the managed
+SSH namespace; ordinary services are not general-purpose root/SSH/firewall/
+desktop administration. Use one protected identity-service registration and one
+separate runner registration per computer, never a same-UID pair. On Linux,
+invoke runner service registration as its dedicated account with its
 active user manager (`XDG_RUNTIME_DIR` and, where set,
 `DBUS_SESSION_BUS_ADDRESS`). These two bus variables are passed only to the
 user-service registration commands; provider processes do not inherit them.
@@ -505,9 +561,12 @@ registering or starting a service, to check the rendered unit syntax.
   The packaging program independently checks that same event/commit contract.
 * Targets are Linux amd64/arm64 and macOS arm64 (`darwin-arm64`).
   Each job compares two independent trimmed, CGO-free binary builds, produces
-  a native archive, metadata, third-party notices, a complete version-matched
-  operational/development guide with all six skills, and `SHA256SUMS`; Linux also
-  produces separate Foundation and Agent Debian packages. Foundation's Debian
+  a native archive containing `agent-cli`, `agent-service`, `agent-identity` and
+  `fdn-service`, metadata/build list, third-party notices, a complete version-matched
+  operational/development guide with all six skills, and `SHA256SUMS`. Archive
+  checksums cover the identity binary along with every payload. Linux also
+  produces separate Foundation and Agent Debian packages; the worker package
+  includes `agent-cli`, `agent-service` and `agent-identity`. Foundation's Debian
   package provisions only its dedicated service account; it does not bootstrap
   or start an unconfigured service. Debian payloads include deterministic parent
   directory entries and pass unprivileged `dpkg-deb --extract` verification,

@@ -15,7 +15,12 @@ These workflows do not grant extra tools, authority or another work slot.
 1. Establish the current identity, project, actual mode, provider/model,
    inventory, selected private knowledge, work slot, pending reports and session
    fences. Commands: `status`, `work status`, `preferences show`, `inventory
-   show`, `knowledge list`. Presence is not permission/authentication.
+   show`, `knowledge list`, `agent identity`. The runner attaches its distinct
+   protected identity service through the peer-checked Unix socket and retains
+   only public AgentID; never read keys/certificates, start another owner or
+   bypass a ban by copying credentials. Provider sign-in, signed Foundation
+   registration and project authority are separate. Presence is not permission
+   or authentication.
 2. Read `task show TASK`, project/parent context, `discussion list TASK`,
    `task history TASK`, and `task runs TASK`. A mention is not assignment.
    Founder/current project delegates assign and choose required provider/model.

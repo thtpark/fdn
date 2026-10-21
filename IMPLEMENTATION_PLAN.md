@@ -6,15 +6,28 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
-- One native worker computer/identity/service and one active work slot.
+- One native worker computer/enrolled identity and one active work slot, with
+  distinct protected credential-service and provider/tool-runner UIDs/HOMEs.
 - Every non-Founder is autonomous/unattended; only Founder coordinates human
   needs and explicitly pauses/resumes global mode. Delegates may be AI agents.
 - Persistent scoped Founder-issued assistance authorization survives restarts
   and live-connection expiry; targets need no human or repeated consent.
 - One authoritative TLS API and embedded SQLite service; agents never write the
   server database directly. Service-controlled policy applies to every client.
-- Loopback listeners plus pinned SSH and TLS for remote machines.
-- Dedicated account ownership, not unrestricted root or hardware attestation.
+- Pinned SSH forced stdio (`fdn-api`/`fdn-join`) into local Unix ingress plus
+  inner mTLS; no API TCP listener, bearer bootstrap or token-only runtime.
+- A dedicated Foundation SSH account/UID per identity, including Founder;
+  kernel peer UID must agree with certificate instance/agent/key/owner epochs.
+- Founder-only signed public registration; private software keys stay in the
+  separate identity-service account, never the provider runner or its prompts.
+- Confirmed different simultaneous owner keys plus a fresh incumbent WebSocket
+  ping ban the entire identity, including the original and Founder. Stale/dead
+  reconnects, ordinary CLI traffic, collisions and unproved attempts do not ban.
+- Recovery is explicit with fresh keys/generations; Founder recovery is only
+  root-local private Unix maintenance, not an agent gateway capability.
+- Software-first account/key isolation, not physical clone prevention: full
+  software/RAM clones and sequential use remain possible. Native hardware
+  signing is optional future work; no adapter or attestation is implemented.
 - Founder/project delegation controls assignment and current readiness/result
   approval; local tool permission and financial/legal authority stay separate.
 - Human and automatic launches use one controller/prompt and identical fences.
@@ -33,7 +46,7 @@ approvals, run models, or publish sensitive data.
 | Phase | Implemented Go scope | Verification boundary |
 | --- | --- | --- |
 | 1 | Module/contracts/configuration, private storage, migrations, TLS, reproducible packages | Local suites and source-bound CI; unsigned/unattested artifacts |
-| 2 | Bootstrap/invitations, identity/grants/revocation, heartbeat, native service/tunnel adapters, encrypted backup/restore | Real local TLS/SSH, recording OS adapters, native deployment/reboot checks reported separately |
+| 2 | Signed public registration/recovery, per-identity SSH accounts/UIDs, separate credential service/runner, Unix/mTLS/owner fences, grants/revocation, heartbeat, native adapters, encrypted backup/restore | Software security integration acceptance is ongoing; real local Unix/TLS/SSH and recording account fixtures are not native multi-UID/deployment/reboot qualification |
 | 3 | Projects/tasks, approval/verification, histories/revert, discussions/mentions/watch, local knowledge/inventory/workspaces | Raw API policy/races and offline persistence |
 | 4 | Codex/Copilot adapters/install/update, protected authentication, private messages, consented tmux/VNC relays | Synthetic inference; real local streams; no implicit live-provider/desktop certification |
 | 5 | Onboarding, separate scope/acceptance review, actual-answer refinement, signoff, serial execution and independent delegated verification/rework, pause/retry/recovery/outbox, idle research | Native binary and isolated Git/PR fixtures, exact-result authority, crash/lost-ack/restart fences; completed != accepted; no live vendor/GitHub qualification |
@@ -43,6 +56,56 @@ The first usable vertical slice is installation, fresh Founder and worker
 enrollment, project/task creation, authorized assignment/readiness, approved
 execution and separate verification. Missing provider authentication remains an
 explicit prerequisite, not success or an empty-work result.
+
+## Current acceptance gate: software-first identity security
+
+API/schema contract **2**, server SQL migration **3** and preserved local SQL
+**1** are the current implementation target. This is mandatory security work,
+not an optional hardware milestone or permission to bypass existing project/
+work policies. Source integration and exact test outcomes must be confirmed
+before marking this gate complete.
+
+- Signed public preparation/Founder registration and explicit original-agent
+  migration; no bearer invitation, token-only runtime or public TCP bootstrap.
+- Root-local narrow account provisioning, unique Foundation-host SSH UID for
+  every agent including Founder, protected forced stdio and separate private
+  Founder-maintenance channel; main server remains unprivileged. Internal
+  provision/disable carries positive retained key generation: reject stale or
+  same-generation changed keys, preserve exact replay/disable tombstones and
+  UID/name during fresh-key recovery, and fence registry/returned/post-bind
+  tuples. No new root method/CLI flag; native-source race/vet replay-hardening
+  reruns were reported passing, but final all-suite acceptance remains pending.
+- Separate identity-service and runner UIDs/HOMEs/keys; runner stores only public
+  AgentID and uses a peer-checked local Unix proxy. Supported `agent-identity
+  service plan/install/status --input OPTIONS` uses exact preprovisioned marked
+  accounts/configurations, fixed native definitions and explicit native-root
+  apply for install, never account adoption. Fresh-key recovery uses an empty
+  sub-StateDir in the same identity HOME while retaining old private evidence
+  and all runner state; no `--rotate` or normal-retry rotation. Device control
+  WS/ephemeral owner mTLS agree with kernel peer and instance/key/owner epochs.
+- Fresh proved simultaneous different owners ban the whole identity including
+  Founder and close API/streams; crash/reconnect/CLI/public collisions/unproved
+  attempts do not ban. Explicit fresh-key recovery retains work/evidence fences.
+- Rootless/recording/in-process SSH and real Unix/TLS regressions are separate
+  from business fixtures with injected authentication/separate HOME. Coordinator-
+  confirmed strict Unix/attachment source results do not finish all-suite
+  acceptance after subsequent restore/lifecycle changes; see
+  [TEST_PLAN.md](TEST_PLAN.md) and [SCENARIOS.md](tests/e2e/SCENARIOS.md).
+- Known backup manifest schemas 1/2 migrate through server SQL3; future formats
+  fail closed. Restore quarantines ALL identity/owner/key epochs before
+  publication. Root-private fresh-key recovery adopts/recovers the sole existing
+  legacy/restored Founder retaining ID/history, then active Founder explicitly
+  reapproves regulars. No old credential resurrection or automatic mode change;
+  enhanced restore and final all-suite acceptance remain pending.
+- `agent-identity` belongs in reproducible builds, every native archive,
+  checksum-covered payloads, Debian worker packages and installer activation.
+  Test synthetic payloads; no actual local release packaging or deployment.
+
+**Explicitly unperformed:** native multi-UID filesystem/users/groups, installed
+sshd/systemd/launchd, root recovery/reboot and hardware qualification. Software
+keys/RAM and sequential use remain clonable. Optional future native hardware
+signing does not change the software-first acceptance requirement; no hardware
+adapter or attestation is part of this implementation.
 
 ## Next work: verify scale before adding infrastructure
 

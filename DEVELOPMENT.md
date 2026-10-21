@@ -42,11 +42,11 @@ computer. Do not run test services against an existing Foundation/state director
 | Contracts | `internal/domain/` | IDs, DTOs, generations, errors and limits |
 | Server authority | `internal/foundation/` | Transactional policy, enrollment, projects, tasks, reports, discussions, messages/sessions |
 | Persistence | `internal/database/` | Private SQLite, WAL/full sync, migrations and integrity |
-| Transport | `internal/api/`, `internal/pki/`, `internal/transport/` | TLS API, pinned trust and OpenSSH tunnels |
+| Transport and identity | `internal/api/`, `internal/pki/`, `internal/transport/`, `internal/ingress/`, `internal/device/`, `internal/identityservice/`, `cmd/agent-identity/` | Signed public registration, pinned SSH stdio, peer-UID/mTLS binding, protected identity proxy and owner control |
 | Worker durability | `internal/local/`, `internal/work/` | Identity binding, knowledge, inventory, workspace authorization, serial controller, journals/outbox |
 | Provider/process boundary | `internal/provider/`, `internal/process/` | Capability/auth probes, staged updates, stdin prompts, cancellation and bounded private output |
 | Human sessions | `internal/remote/`, `internal/relay/` | Explicit open + consent, expiring relays, native endpoint/viewer control |
-| Native deployment | `internal/platform/`, `internal/distribution/`, `tools/package/`, `scripts/` | Unit rendering, deterministic packages, trusted installation |
+| Native deployment | `internal/platform/`, `cmd/agent-identity/`, `internal/distribution/`, `tools/package/`, `scripts/` | Exact preprovisioned two-UID service plan/install/status, fixed native definitions/privilege drops, recording lifecycle tests, deterministic packages and trusted installation |
 | Embedded guidance | Root guidance package, `.agents/skills/`, root Markdown | Same versioned knowledge in source, binaries, packages, prompts and worker homes |
 
 Keep policy in the server's transactions, not just friendly CLI validation.
@@ -85,17 +85,43 @@ approval behavior before enabling coding; text calls must remain tool-disabled.
 
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
-version is 1. Read [SCHEMA.md](SCHEMA.md) before changing either database.
+version is **2**; server SQLite migration is **3**, local SQLite remains **1**.
+Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
-- Reject databases newer than the binary rather than resetting them.
+- Reject databases newer than the binary rather than resetting them. Restore
+  recognizes manifest schema 1/2 separately from SQL3, rejects future formats,
+  and quarantines all restored identity/owner/key epochs before publication.
+  Test root-private sole-legacy-Founder adoption preserving ID/history, regular
+  fresh-key reapproval, retired credential denial and unchanged mode/work fences.
 - Test migration of representative prior state, unknown/future versions, crash
   recovery and reopen/integrity. Preserve existing identities, operation IDs,
   generations, private bindings, knowledge, journals and outbox.
 - Do not assume binary rollback can read an upgraded schema. Define and verify
   a compatibility/restore path before deployment.
 - Version an incompatible API/DTO and document upgrade order. Do not add a hidden
-  success-shaped fallback for an older client.
+  success-shaped fallback for an older client. Migration 3 retains old agents,
+  tasks and operation evidence but does not authorize their old bearer files.
+  Founder explicitly binds the designated original non-Founder agent with
+  `agent register --existing-agent`; the runner then uses `connect --migrate`.
+  A legacy Founder needs the root-local recovery route before it can register
+  others. Preserve worker SQLite 1, knowledge, journals, outbox and bindings.
+- Keep long-term keys in the identity-service UID, never provider context or the
+  runner HOME. Validate kernel peer UID against certificate instance/agent/key/
+  owner generations and recheck the fence inside authoritative transactions.
+  The root provisioner is a fixed local account operation surface, not a root
+  command runner; the forced SSH gateway selects only API or join stdio.
+  Root provision/disable RPCs carry positive identity key generation, retained
+  with per-account inventory/tombstones. Test stale/same-generation-key-change
+  rejection before OS commands, exact retries, disable-before-provision, fresh
+  higher-generation UID/name retention and current registry/returned/post-bind
+  tuple checks; do not add a generation override CLI or reset root inventory.
+- Duplicate-owner tests must prove different live owner keys and a fresh
+  incumbent WebSocket ping before the whole-identity ban, including Founder.
+  Same-key reconnect, dead owner, CLI traffic and unproved attempts must not
+  ban. Recovery rotates keys/generations explicitly and cannot revive old
+  certificates or work authority. Software/RAM cloning and sequential use
+  remain possible; optional future native hardware signing is not implemented.
 
 ## Documentation and skills are runtime assets
 
@@ -122,9 +148,12 @@ and stress jobs; Linux/macOS runs qualify their own sources. Packaging runs only
 for merged PRs into `release`, on the exact merge commit. Version changes must
 produce new immutable releases.
 
-The release jobs build each binary twice, compare hashes, create native archives
-and Linux Debian role packages, verify Debian extraction and include notices,
-guidance and checksums. The operator independently obtains the manifest digest
+The release jobs build all four binaries (`agent-cli`, `agent-service`,
+`agent-identity`, `fdn-service`) twice, compare hashes, create native archives
+and Linux Debian role packages, verify Debian executable/guide extraction and
+include notices, guidance and checksums. The worker Debian payload includes
+`agent-identity` alongside its runner/CLI; archive installer validation and
+activation must require/link all four binaries. The operator independently obtains the manifest digest
 from the trusted Actions result before deployment. Packages are unsigned and
 unattested unless that policy is explicitly changed and implemented.
 

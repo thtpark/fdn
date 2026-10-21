@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thtpark/fdn/internal/config"
+	"github.com/thtpark/fdn/internal/device"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/foundation"
 	"github.com/thtpark/fdn/internal/pki"
@@ -57,9 +58,20 @@ func TestEncryptedSnapshotRestoreAndTamper(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restored.Close()
-	got, err := restored.Authenticate(ctx, credential)
-	if err != nil || got.ID != agent.ID {
-		t.Fatal("identity/operation state not restored", got, err)
+	if _, err := restored.Authenticate(ctx, credential); err == nil {
+		t.Fatal("restored snapshot resurrected an old credential")
+	}
+	public, _, _, err := device.Generate("recovered Founder")
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := restored.RecoverFounderOffline(ctx, domain.RecoverIdentityRequest{Command: domain.Command{OperationID: "restore-founder-recovery"}, Reason: "explicitly reconcile restored identity", Identity: public})
+	if err != nil || identity.AgentID != agent.ID {
+		t.Fatal("restoration lost the immutable Founder identity", identity, err)
+	}
+	restoredConfig, err := config.LoadServer(filepath.Join(recovered, "server.json"))
+	if err != nil || restoredConfig.Listen != "" || restoredConfig.IngressSocket == "" || restoredConfig.JoinSocket == "" {
+		t.Fatal("restore recreated a legacy TCP listener", restoredConfig, err)
 	}
 	if err := Restore(ctx, output, keyFile, recovered); err == nil {
 		t.Fatal("overwrote existing state")

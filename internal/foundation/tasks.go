@@ -122,7 +122,7 @@ func (s *Store) validApproval(ctx context.Context, tx *sql.Tx, p domain.Project,
 	if approval == nil || approval.SpecGeneration != t.SpecGeneration || approval.ProjectEpoch != p.Epoch {
 		return false, nil
 	}
-	actor, err := s.actor(ctx, tx, approval.ActorID)
+	actor, err := activeIdentitySubject(ctx, tx, approval.ActorID)
 	if err != nil {
 		var fault *domain.Fault
 		if errors.As(err, &fault) && (fault.Code == domain.NotFound || fault.Code == domain.Denied) {
@@ -224,7 +224,7 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 			}
 			if req.Kind == "assign" {
 				if req.AgentID != "" {
-					if _, err := s.actor(ctx, tx, req.AgentID); err != nil {
+					if _, err := activeIdentitySubject(ctx, tx, req.AgentID); err != nil {
 						return t, err
 					}
 				}
@@ -252,7 +252,7 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 				return t, domain.Fail(domain.Invalid, "bounded approval policy is required")
 			}
 			for _, actor := range req.Policy.RequiredActors {
-				if _, err := s.actor(ctx, tx, actor); err != nil {
+				if _, err := activeIdentitySubject(ctx, tx, actor); err != nil {
 					return t, err
 				}
 			}
@@ -296,7 +296,7 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 			if t.AssigneeID == "" || t.WorkspaceRef == "" || strings.TrimSpace(t.Description) == "" || strings.TrimSpace(t.AcceptanceCriteria) == "" || t.Waiting != nil || t.ActiveRun != nil {
 				return t, domain.Fail(domain.Prerequisite, "readiness needs instructions, criteria, assignment, workspace, and no unresolved blocker/run")
 			}
-			if _, err := s.actor(ctx, tx, t.AssigneeID); err != nil {
+			if _, err := activeIdentitySubject(ctx, tx, t.AssigneeID); err != nil {
 				return t, err
 			}
 			t.Readiness = &domain.Approval{ActorID: a.ID, SpecGeneration: t.SpecGeneration, ProjectEpoch: p.Epoch, At: s.timestamp(), OperationID: req.OperationID}

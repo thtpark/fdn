@@ -1,33 +1,44 @@
 # Foundation data and authority contracts
 
-Current API and application schema version: **1**. This document describes the
-Go implementation, not a direct-database client protocol. Read
+Current API and application schema version: **2**. This document describes the
+Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
-Server SQLite migration version is now **2**; local-worker SQLite remains
-version 1. Additive API/DTO fields retain API contract 1. Deploy the server first;
-new workers require its authoritative mode metadata.
+Server SQLite migration version is **3**; local-worker SQLite remains **1**.
+Deploy the server first. Version 2 requires account-bound public-key admission
+and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
+create new runtime identities. Native multi-UID qualification is separate from
+source-bound software tests and has not been performed.
 
 ## Persistence and transaction boundaries
 
 Foundation owns a private SQLite database, normally
-`/var/lib/fdn/foundation.sqlite`. Agents use the HTTPS API; they cannot submit
+`/var/lib/fdn/foundation.sqlite`. Agents use the inner HTTPS API over pinned SSH
+stdio/Unix ingress; they cannot submit
 arbitrary SQL, raw documents, bulk writes or replication traffic. The Go SQLite
 driver uses WAL, `synchronous(FULL)`, foreign keys, a 10-second busy timeout,
 immediate write transactions, and at most eight connections. Writes serialize;
 SQLite is not distributed multi-master storage.
 
-Each worker has an independent private `local.sqlite` under `state_dir`.
-Application databases, credentials, locks, state directories and their owners
-are checked. Default private directory/file permissions are 0700/0600.
+Each runner has an independent private `local.sqlite` under `state_dir`.
+The distinct identity service owns its own protected key/profile state, not that
+runner database. Application databases, configurations, locks, state directories
+and their owners are checked. Default private directory/file permissions are
+0700/0600; the deliberately shared IPC path is described below.
 `PRAGMA user_version` is local to each database. Future versions fail closed.
 
 ### Server tables
 
 | Table | Contract |
 | --- | --- |
-| `agents` | Immutable identity, display name, Founder flag, active state, sponsor, timestamps, mode/revision and Founder mode-request attribution; indexed credential hash, never plaintext credential |
-| `invitations` | Founder/bootstrap or sponsor-bound one-time invitation, expiry, used-by reference; indexed token hash |
+| `agents` | Immutable identity, display name, Founder/active/banned state, sponsor, timestamps, mode/revision and Founder mode-request attribution; legacy credential hashes are retained but cannot authenticate v2 |
+| `invitations` | Retained legacy records only; no bearer invitation/bootstrap redemption in v2 |
+| `agent_identities` | Instance/agent/request binding, unique dedicated SSH user/UID, approved public keys/fingerprints, key and owner generations, active/banned state and software assurance |
+| `identity_accounts` | Durable one-agent/one-UID/one-SSH-user reservation; no reuse by another identity |
+| `identity_keys` | Canonical public-key fingerprints, owning agent/generation/kind and retired-key reservations |
+| `identity_requests` | Signed public request fingerprint and exact agent/key-generation replay binding |
+| `identity_challenges` | Hashed one-time, expiring activation nonce bound to agent/key generation |
+| `identity_receipts` | Exact operation receipt plus identity generation; old receipts cannot activate recovered keys |
 | `projects` | Name/description, owner, service-maintained delegate list, revision, authority/context epoch, archive state |
 | `project_creators` | Specific Founder-issued one-use project-creation authorization |
 | `tasks` | Authoritative task aggregate; indexed project, assignee, status, priority, archive and active owner |
@@ -82,9 +93,10 @@ knowledge selection never grants shared project authority.
 
 IDs use a stable family prefix plus random hex, for example `agent_...`,
 `project_...`, `task_...`, `run_...`, `comment_...`. Display names are not identity.
-Operation IDs match `[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}`. Tokens are random
-32-byte values encoded as 43 URL-safe characters; server storage keeps SHA-256
-hashes. Do not accept credentials as plaintext command-line arguments.
+Operation IDs match `[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}`. Run ownership tokens
+remain random 32-byte values with server-side SHA-256 hashes; they are not agent
+login credentials. Legacy bearer hashes are recovery evidence only. Do not
+accept private credentials as plaintext command-line arguments.
 
 Timestamps are UTC Unix seconds. Local clocks do not prove human presence or
 authority. Revisions are optimistic concurrency tokens. Generations and project
@@ -99,13 +111,148 @@ epochs fence semantic decisions independently of a revision.
 | Project `epoch` | Delegation/context changes; invalidates old readiness/clarity/retry authority |
 | Entry `generation` | Body edit; old mention receipts become stale |
 
+## Software-first identity and transport
+
+The v2 contract uses software keys. Hardware-backed native signers are optional
+future work; no hardware adapter, attestation or physical machine uniqueness is
+implemented or claimed. A privileged actor can clone software keys, including
+RAM, or use a full clone sequentially without proving simultaneous owners.
+
+### Accounts, keys and registration
+
+- Every agent, including Founder, receives a unique Foundation-host SSH user and
+  UID. Durable account/key reservations prevent another identity reusing them.
+  The unprivileged server delegates only fixed managed-account operations to a
+  separate root-local Unix provisioner, never arbitrary command execution.
+  Its typed provision/disable RPCs require the **positive identity key
+  generation**, retained per account in the private root inventory. Lower
+  generations and same-generation different keys are rejected before OS
+  commands; exact same-generation retries are idempotent. A newer disable
+  persists a tombstone even when no account was ever provisioned. Approved
+  higher-generation fresh-key recovery retains an existing account's UID/name.
+  Server callbacks precheck the current registry request/key/generation, verify
+  the returned tuple, and recheck binding/current registry afterward; stale
+  completion cannot overwrite a newer identity. These are internal authority
+  fields, not additional CLI flags, database versions or agent-controlled IDs.
+  Root inventory format remains 1 (the first/unshipped native format); missing
+  or zero generation fails closed, never inferred or reset. A never-provisioned
+  keyless UID0/GID0 tombstone is only a disabled/retiring inventory reservation,
+  **not a root OS account binding**; later fresh higher-generation approval
+  allocates a native account only for that same identity/name.
+- On the worker, `agent-identity` owns private SSH/authentication keys and device
+  certificates under a different non-root UID/HOME from `agent-service`,
+  `agent-cli` and providers. Private state is 0700 and private files 0600. A
+  separate identity-owned 0710 IPC directory exposes a 0660 proxy socket to the
+  configured runner group; kernel peer checks additionally pin the runner UID.
+  Group membership alone is not authentication.
+- `agent-identity prepare` retains fresh keypairs and emits only a signed public
+  request: version, request ID, name, SSH/auth public keys and both possession
+  proofs. First Founder binding uses the explicit local server initialization
+  request; subsequent registration is Founder-only. Project delegation and
+  provider sign-in do not authorize registration.
+- Exact registration/activation retries retain request/operation/key-generation
+  bindings. Challenges expire and are one-time. A public-key collision or
+  unproved request is rejected, never evidence to ban the original identity.
+- An approved public connection profile binds the Foundation instance/agent,
+  provisioned SSH account/UID, public keys, URL, CA and SSH host pins. The
+  identity service validates it against its own prepared keys before saving it.
+  Only the local socket and public AgentID are retained by the runner; no legacy
+  bearer token authenticates API v2.
+
+### SSH stdio, mutual TLS and owner control
+
+Pinned SSH invokes the root-controlled forced gateway with exactly `fdn-api` or
+`fdn-join`. No arbitrary command, PTY, forwarding or client-supplied account
+metadata is accepted. The gateway connects the corresponding group Unix socket;
+Foundation reads the kernel peer UID rather than trusting headers or JSON.
+There is no TCP/bearer bootstrap fallback. Private root maintenance is a
+separate socket and is never selectable by this gateway.
+
+Activation proves the approved authentication key through the join channel and
+obtains a device certificate. The device certificate authorizes only identity
+control, including WebSocket `/v1/identity/owner` on that channel. Owner admission
+proves an ephemeral owner key and issues an owner certificate for ordinary API
+use. Certificates bind `instance_id`, `agent_id`, key `generation`, purpose and
+(for owners) `owner_generation`; these must agree with the peer UID, registered
+keys, current state and live owner. Transactions recheck the same generation
+fence so revocation/recovery cannot authorize a late stale write.
+
+Ordinary CLI calls attach to the existing local identity proxy. They do not open
+a second owner or expose signing/control keys to provider processes. Device
+certificate renewal uses fresh approved-key proof; reconnects retain the same
+per-start ephemeral owner key, never persist it on disk, and rotate owner
+certificates under current authority. Device/owner expiry or denial closes
+access rather than falling back to direct/device/bearer API use.
+
+### Confirmed duplicate ban and explicit recovery
+
+Only two **different live owner keys** that prove possession, plus a **fresh
+successful WebSocket ping of the incumbent**, establish the duplicate condition.
+The policy is to ban the **entire identity**, not choose a winner: both original
+and contender lose API admission and active streams, including when the original
+is Founder. Key/owner generations retire, outstanding challenges cannot revive
+access, and active work remains stopped/fenced rather than silently reassigned.
+
+A stale/crashed connection, same-key reconnect, ordinary CLI traffic, key
+collision or unproved attempt does **not** trigger that ban. Failed incumbent
+liveness permits stale-owner retirement/reconnection, not a claim of cloning.
+This cannot detect all full software/RAM clones or sequential use.
+
+Recovery requires an intentional reason, fresh SSH and authentication keypairs,
+a new signed public request and explicit epoch/key-generation transition. An
+active Founder uses `agent recover AGENT` for a non-Founder. Founder itself can
+be recovered only by root through the **private local Unix maintenance channel**
+(`recover-founder`), never by an agent gateway or an API exemption. Old keys,
+certificates, owner leases and old-generation receipts remain invalid. Recovery
+does not erase tasks, work journals/outbox or uncertain side effects, and does
+not approve resuming a run. The supported software-key workflow stops the
+service, retains its old private StateDir and **all runner state**, then prepares
+fresh keys in a new empty 0700 sub-StateDir inside the same identity HOME. The
+private config path/IPC endpoint and runner paths stay stable; config and native
+service OPTIONS bind the new `state_dir`. Explicit recovery/profile approval
+precedes reconnect/restart. There is no `--rotate` flag or automatic key rotation
+on ordinary prepare retry, reconnect or restart.
+
+### Restored identities are quarantined, not reactivated
+
+A verified backup restore accepts known manifest schema 1/2 and applies
+supported SQL migrations through server SQL 3; future manifest/SQL versions
+fail closed. Before publishing the fresh destination, restore retires sessions
+and quarantines every restored agent/key/owner epoch, including Founder and
+legacy agents without a prior key binding. Old bearer files, signed requests,
+certificates, challenges or owner leases cannot resume access. Existing IDs,
+retained histories, mode values and uncertain work remain evidence, not
+reactivated authority. Quarantine is not a global mode change or task retry.
+
+Root-private Unix `recover-founder --input NEW_PUBLIC --reason REASON` requires
+exactly one existing Founder, retains its AgentID/history and approves fresh
+signed keys for a restored or keyless legacy Founder; it does not create a
+replacement actor or choose by display name. The sole existing Founder lookup
+is the designation mechanism, not an extra adoption/target-ID flag. Active Founder then explicitly reapproves regular identities with
+fresh keys through normal recovery/original-binding policy. Restored-original
+migration cannot bypass an existing ban; explicit fresh-key recovery is needed.
+Revoked identities stay inactive until explicit Founder fresh-key reapproval.
+Native account
+cleanup/reprovisioning and all worker private state stay separate; old or empty
+restored keys must never be provisioned automatically. Enhanced restore still
+requires final integrated/all-suite verification, not native qualification.
+
+Migration 3 preserves prior identities/tasks/operations; it does not silently
+turn old bearer credentials into this trust binding. Founder explicitly binds
+the designated original non-Founder via `agent register --existing-agent`;
+`connect --migrate` then replaces only that runner's matching legacy file with
+its public AgentID. Legacy Founder binding requires root-local recovery. Local
+SQLite schema 1 and its private knowledge/bindings/journals/outbox are preserved.
+
 ## Authority
 
 | Action | Required authority |
 | --- | --- |
 | Read shared projects/tasks/discussion/history | Any active enrolled agent |
-| Invite globally | Founder or a current delegate of an active project |
-| Revoke an agent | Founder; Founder itself cannot be revoked |
+| Register signed public identity keys / migrate designated original non-Founder | Founder only; project delegation is insufficient |
+| Revoke an agent | Founder; Founder itself cannot be manually revoked, but confirmed duplicate-owner auto-ban includes Founder |
+| Recover a non-Founder identity | Active Founder, fresh signed keypairs and explicit reason/epoch transition |
+| Recover Founder | Root-only private Unix maintenance channel; never an agent gateway or ordinary API |
 | Pause/resume global agent mode | Founder only, including its own mode; delegates/targets cannot override |
 | Issue/revoke persistent assistance | Founder only; scope is explicit and the requester may be an agent |
 | Create a project | Founder, or specific creation authorization consumed by creation |
@@ -228,8 +375,10 @@ Worker journal states include prepared, claim-prepared, claimed, invoking,
 reply-prepared/applying, report-prepared, done, stale, uncertain and abandoned.
 Prepared reports replay without another model call. Interrupted invocations stay
 fenced until explicit stopped-process recovery. A disconnected already-approved
-run may continue; no new unclaimed work starts offline. Never claim exactly-once
-external side effects.
+run is bounded by retained owner authority and local supervision, not permission
+to run indefinitely offline: expiry/denial closes owned streams and must retain
+uncertain effects for recovery. No new unclaimed work starts offline. Never
+claim exactly-once external side effects.
 
 ## Privacy, sessions and future data
 
