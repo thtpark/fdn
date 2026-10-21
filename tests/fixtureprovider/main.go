@@ -17,6 +17,15 @@ import (
 
 func main() {
 	args := os.Args[1:]
+	if slices.Contains(args, "--fixture-interactive") {
+		fmt.Println("FIXTURE_TERMINAL_READY")
+		scanner := bufio.NewScanner(os.Stdin)
+		if !scanner.Scan() {
+			panic("foreground terminal input was unavailable")
+		}
+		fmt.Println("FIXTURE_TERMINAL_INPUT=" + scanner.Text())
+		return
+	}
 	if slices.Contains(args, "--help") {
 		fmt.Println("--available-tools --allow-all --disable-builtin-mcps --no-custom-instructions --no-ask-user --no-auto-update --silent --dangerously-bypass-approvals-and-sandbox --ask-for-approval --output-last-message --ephemeral --sandbox --skip-git-repo-check")
 		return

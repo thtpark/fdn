@@ -200,6 +200,18 @@ Read `provider status`. Codex credentials-present-unverified is not proof of
 live authentication. Copilot uses bounded read-only auth/model RPC. Neither
 status invokes paid inference.
 
+Providers are installed in private version directories, not globally with npm.
+Install/update and daemon startup expose stable `codex`/`copilot` commands in the
+account's `.local/bin` and preserve a managed PATH block in its login profile.
+Verify the actual login shell with `command -v codex`, `command -v copilot`,
+`codex --version`, and `copilot --version`, not only absolute managed paths.
+For older installations run `agent-cli --config FILE provider link` as the worker
+and reconnect (or export `.local/bin` in the current shell). Never use global
+reinstallation or another account's credentials to fix a PATH omission.
+Launchers resolve the active version on each call; interactive native sessions
+share the local slot and require the human's terminal. Version/help probes are
+non-inference checks.
+
 Before sign-in, inspect mode/current work and spending authority. Authenticate
 only in an explicitly human-operated terminal (`provider login`, without JSON or
 non-interactive flags), or through an authorized target-consented session. If

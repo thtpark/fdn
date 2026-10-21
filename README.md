@@ -299,6 +299,16 @@ agent-cli provider status --provider codex
 agent-cli provider update --provider copilot
 ```
 
+The installer exposes managed `codex` and `copilot` launchers in the account's
+`.local/bin` and adds it to the applicable login profile without replacing user
+settings. Worker startup repairs older installs; `agent-cli provider link` does
+the same offline. Start a new login shell after repair, or run
+`export PATH="$HOME/.local/bin:$PATH"; hash -r` in the current shell.
+Bare commands select the current managed version, not an old pinned executable.
+Interactive use shares the local work slot and requires a human terminal;
+`--version`/`--help` are safe non-inference probes. No global npm installation or
+provider-auth copying is needed.
+
 Managed updates resolve public registry metadata, use exact integrity-locked
 packages, disable install scripts, audit registry signatures, smoke-check the
 version/non-prompting capabilities, and atomically change the active pointer.
@@ -402,7 +412,7 @@ it does not scan networks or publish addresses/identifiers.
 | Collaboration | `comment add/edit`, `worklog add`, `discussion list`, `mention list/acknowledge`, `watch [--once]` |
 | Private communication | `message send/show/inbox/receipt`, `session request/list/show/change/open` |
 | Local state | `knowledge put/list/show/history`, `inventory refresh/show`, `workspace bind/list/enable/disable` |
-| Providers/work | `provider status/install/update/login`, `work prompt/status/run/recover` |
+| Providers/work | `provider status/install/update/login/link/exec`, `work prompt/status/run/recover` |
 | Native manager | `service plan/install/status`; installation requires explicit `--apply` |
 | Offline guide (all binaries) | `guide list/show/install` |
 

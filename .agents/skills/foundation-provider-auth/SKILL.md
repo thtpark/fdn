@@ -17,6 +17,11 @@ model and authorized inference.
    EXACT`; explicit `provider update --provider NAME` chooses latest. Keep
    integrity/signature/non-prompting checks; never force an unsupported adapter
    or silently select another provider/model.
+   Managed executables are private, with stable shell launchers in `.local/bin`.
+   Verify actual login-shell `command -v codex/copilot` and bare `--version`;
+   absolute-path success alone does not prove shell usability. Repair an older
+   install with `provider link`, then reconnect or add `.local/bin` to the
+   current PATH. Do not globally reinstall packages to mask this omission.
 3. Login can unlock an ai-mode worker's initial review or automatic work. Resolve
    spending authorization and an approved manual hold before protected sign-in
    where needed; record prior mode for separately authorized restoration.
