@@ -15,14 +15,15 @@ import (
 )
 
 type Spec struct {
-	Path    string
-	Args    []string
-	Dir     string
-	Env     []string
-	Stdin   io.Reader
-	Stdout  io.Writer
-	Stderr  io.Writer
-	Started func(int) error
+	Path     string
+	Args     []string
+	Dir      string
+	Env      []string
+	Stdin    io.Reader
+	Stdout   io.Writer
+	Stderr   io.Writer
+	Started  func(int) error
+	Terminal *os.File
 }
 
 type Runner interface {
@@ -43,7 +44,7 @@ func finished(cause, cleanup error) error {
 	return cause
 }
 
-func (Native) Run(ctx context.Context, spec Spec) error {
+func (Native) Run(ctx context.Context, spec Spec) (err error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -51,6 +52,15 @@ func (Native) Run(ctx context.Context, spec Spec) error {
 	cmd.Dir, cmd.Stdin, cmd.Stdout, cmd.Stderr = spec.Dir, spec.Stdin, spec.Stdout, spec.Stderr
 	cmd.Env = spec.Env
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if spec.Terminal != nil {
+		restore, prepareErr := prepareTerminal(spec.Terminal)
+		if prepareErr != nil {
+			return prepareErr
+		}
+		defer func() { err = finished(err, restore()) }()
+		cmd.SysProcAttr.Foreground = true
+		cmd.SysProcAttr.Ctty = int(spec.Terminal.Fd())
+	}
 	cmd.WaitDelay = 2 * time.Second
 	if err := cmd.Start(); err != nil {
 		return err

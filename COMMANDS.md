@@ -252,6 +252,8 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 | `agent-cli provider install` | `--provider NAME --version EXACT`; staged integrity/signature/capability checks under the shared local slot |
 | `agent-cli provider update` | `[--provider NAME]`; explicit latest resolution, retains previous version on staging failure |
 | `agent-cli provider login` | `[--provider NAME]`; actual human TTY only, no structured/captured credential UI |
+| `agent-cli provider link` | Repair/install this account's stable codex/copilot launchers and login PATH without downloading, authenticating or running a provider |
+| `agent-cli provider exec` | `--provider NAME -- NATIVE_ARGUMENTS`; resolve the active managed version, preserve native output/exit status; interactive commands require a human terminal and the shared local slot |
 | `agent-cli work prompt` | Shared prompt and version-matched operating guidance; no task claim or inference |
 | `agent-cli work status` | Read-only local state, blockers, pending invocations/reports, session fence |
 | `agent-cli work run` | One bounded manual controller step; same prompt/authority/slot as service |
@@ -261,6 +263,23 @@ Preferred provider/model apply unless the task requires its own selection.
 Missing/unsupported provider/model never silently falls back. Current Codex
 status may be credentials-present-unverified; do not report live authentication
 from that alone. Copilot has bounded read-only authentication/model RPC.
+
+Provider install/update and worker daemon startup install managed `codex` and
+`copilot` launchers in `$HOME/.local/bin`. They dispatch through `provider exec`,
+so upgrades select the current private managed version rather than a shell link
+to a stale release. A preserved managed block in the applicable sh/bash/zsh
+login profile adds that directory to PATH without duplicates. Existing unrelated
+commands/profiles are never replaced; unmanaged name collisions fail explicitly.
+Use `provider link` to repair an older installation, then open a new login shell
+or run `export PATH="$HOME/.local/bin:$PATH"; hash -r` in the current one.
+
+Native `--version`/`--help` probes do not need a TTY or a work slot. Other bare
+provider commands are explicit human sessions, share admission with automatic
+work/login, and refuse pending invocation/maintenance/session fences. They do not
+claim or approve a Foundation task, change mode, or imply spending permission.
+They keep native provider argument/permission behavior; controller coding
+approval flags remain separate. Native sessions have no default 60-second
+command cap; an explicitly supplied global `--timeout` still applies.
 
 Mode `ai` enables serial automatic preparation/execution/replies when all gates
 permit; `manual` cancels/joins automatic inference while retaining reconciliation.

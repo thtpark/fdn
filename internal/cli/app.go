@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/thtpark/fdn/internal/api"
@@ -28,6 +31,7 @@ type app struct {
 	operation         string
 	explicitOperation bool
 	expectedRevision  int64
+	nativeOutput      bool
 }
 
 var AgentCommands = []string{
@@ -38,7 +42,7 @@ var AgentCommands = []string{
 	"message send", "message show", "message inbox", "message receipt", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable",
-	"provider status", "provider install", "provider update", "provider login", "preferences show", "preferences set",
+	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
 	"work prompt", "work status", "work run", "work recover", "service plan", "service install", "service status",
 }
 
@@ -93,6 +97,9 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 		return a.emit(map[string]any{"commands": commands(role), "usage": "global flags before command; IDs before leaf flags; --input FILE or - reads bounded JSON"}, nil)
 	}
 	for _, item := range tail {
+		if item == "--" {
+			break
+		}
 		if item == "--help" || item == "-h" {
 			key := tail[0]
 			if len(tail) > 1 && !strings.HasPrefix(tail[1], "-") {
@@ -114,6 +121,14 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "HOME unavailable; specify --config"), homeErr))
 	}
 	longRunning := tail[0] == "serve" || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
+	if len(tail) > 1 && tail[0] == "provider" && tail[1] == "exec" {
+		longRunning = true
+		flags.Visit(func(flag *flag.Flag) {
+			if flag.Name == "timeout" {
+				longRunning = false
+			}
+		})
+	}
 	if !longRunning {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(a.timeout)*time.Second)
@@ -131,6 +146,25 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 		value, err = a.service(ctx, tail)
 	default:
 		value, err = a.agent(ctx, tail)
+	}
+	if a.nativeOutput {
+		if err == nil {
+			return 0
+		}
+		var native *exec.ExitError
+		if errors.As(err, &native) {
+			if native.ExitCode() >= 0 {
+				return native.ExitCode()
+			}
+			if status, ok := native.Sys().(syscall.WaitStatus); ok && status.Signaled() {
+				return 128 + int(status.Signal())
+			}
+		}
+		if errors.Is(err, context.Canceled) {
+			return 130
+		}
+		_, _ = fmt.Fprintln(a.diagnostic, domain.AsFault(err).Error())
+		return domain.ExitCode(err)
 	}
 	if errors.Is(err, context.Canceled) {
 		err = domain.Fail(domain.Cancelled, "operation cancelled; persisted evidence retained")
