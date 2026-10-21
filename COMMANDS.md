@@ -255,9 +255,28 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 | `agent-cli provider link` | Repair/install this account's stable codex/copilot launchers and login PATH without downloading, authenticating or running a provider |
 | `agent-cli provider exec` | `--provider NAME -- NATIVE_ARGUMENTS`; resolve the active managed version, preserve native output/exit status; interactive commands require a human terminal and the shared local slot |
 | `agent-cli work prompt` | Shared prompt and version-matched operating guidance; no task claim or inference |
-| `agent-cli work status` | Read-only local state, blockers, pending invocations/reports, session fence |
+| `agent-cli work status` | Read-only local state, blockers, pending invocations/reports, session fence and durable authentication request/delivery references |
 | `agent-cli work run` | One bounded manual controller step; same prompt/authority/slot as service |
 | `agent-cli work recover` | Exactly one `--journal INVOCATION` or `--session SESSION`, plus `--acknowledge-stopped` after confirming owned processes stopped |
+
+When an ai-mode or explicitly invoked controller observes `login-required` or
+`credentials-rejected`, it sends a protected `authentication` message to the
+active Founder and, for task-scoped work, current project delegates. This
+deterministic handoff works before onboarding and requires no provider inference.
+Founder can read it with `message inbox`/`message show MESSAGE` even in manual
+mode. It requests no automatic AI response and creates/opens/consents to no
+remote session.
+
+`work status` exposes `authentication_requests`: request/provider/scope IDs,
+creation/state, recipient/operation/message references, confirmed delivery or
+pending error, and resolution time. States are `delivery-pending`, `requested`
+and `resolved`. No active recipients or unavailable delivery stays explicitly
+pending. Polling, restart, lost acknowledgements, ordinary replies and receipt
+acknowledgement do not create repeated requests or prove authentication. A later
+successful provider readiness observation resolves the local episode; a new
+confirmed sign-out can create a fresh request. The immutable old inbox message
+remains recipient-owned evidence; inspect current status before acting.
+Unknown/outage/protocol failures do not manufacture a login request.
 
 Preferred provider/model apply unless the task requires its own selection.
 Missing/unsupported provider/model never silently falls back. Current Codex
