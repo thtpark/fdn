@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 suite=${1:-all}
 case "$suite" in
   static)
-    test -z "$(gofmt -l cmd internal tests tools)"
+    test -z "$(gofmt -l guidance.go guidance_test.go cmd internal tests tools)"
     go mod verify
     go vet ./...
     go build ./cmd/...
@@ -15,7 +15,7 @@ case "$suite" in
     bash -n scripts/test.sh
     sh -n scripts/install.sh
     ;;
-  unit) go test -race -count=1 ./internal/... ./tools/... ;;
+  unit) go test -race -count=1 . ./internal/... ./tools/... ;;
   integration) go test -race -count=1 -tags=integration ./tests/integration ;;
   e2e) go test -count=1 -tags=e2e ./tests/e2e ;;
   stress) go test -race -count=1 -tags=stress ./tests/stress ;;

@@ -25,7 +25,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.connect(ctx, tail)
 	}
 	if group == "work" && len(tail) == 1 && tail[0] == "prompt" {
-		return map[string]string{"prompt": work.Prompt}, nil
+		prompt, err := work.BasePrompt()
+		return map[string]string{"prompt": prompt}, err
 	}
 	if group == "service" && len(tail) > 0 && tail[0] != "status" {
 		return a.nativeService(ctx, tail, "agent")

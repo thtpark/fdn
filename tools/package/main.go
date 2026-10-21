@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	guidance "github.com/thtpark/fdn"
 	"github.com/thtpark/fdn/internal/distribution"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/platform"
@@ -64,6 +65,7 @@ func run() error {
 	if !regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?$`).MatchString(version) {
 		return domain.Fail(domain.Invalid, "VERSION must contain an exact semantic version")
 	}
+	domain.Version, domain.Commit = version, commit
 	epochText, err := command("git", "show", "-s", "--format=%ct", commit)
 	if err != nil {
 		return err
@@ -114,6 +116,11 @@ func run() error {
 		return err
 	}
 	native := []distribution.Entry{{Name: "THIRD_PARTY_NOTICES", Data: notices, Mode: 0644}}
+	guideEntries, err := distribution.GuideEntries("guide")
+	if err != nil {
+		return err
+	}
+	native = append(native, guideEntries...)
 	for _, name := range names {
 		native = append(native, distribution.Entry{Name: "bin/" + name, Path: filepath.Join(stage, "first", name), Mode: 0755})
 	}
@@ -128,6 +135,12 @@ func run() error {
 			pkg := "fdn-" + role
 			control := "Package: " + pkg + "\nVersion: " + version + "\nArchitecture: " + arch + "\nMaintainer: Foundation Project\nSection: admin\nPriority: optional\nDescription: Native Go Foundation " + role + "\n"
 			data := []distribution.Entry{{Name: "usr/share/doc/" + pkg + "/copyright", Data: notices, Mode: 0644}}
+			guidePrefix := "usr/share/doc/" + pkg + "/guide"
+			guideEntries, err := distribution.GuideEntries(guidePrefix)
+			if err != nil {
+				return err
+			}
+			data = append(data, guideEntries...)
 			controlEntries := []distribution.Entry{{Name: "control", Data: []byte(control), Mode: 0644}}
 			if role == "foundation" {
 				data = append(data, distribution.Entry{Name: "usr/bin/fdn-service", Path: filepath.Join(stage, "first", "fdn-service"), Mode: 0755})
@@ -151,6 +164,7 @@ else
   install -d -m 0700 -o fdn -g fdn /var/lib/fdn
 fi
 if command -v systemctl >/dev/null; then systemctl daemon-reload; fi
+runuser -u fdn -- env HOME=/var/lib/fdn /usr/bin/fdn-service guide install --home /var/lib/fdn
 printf '%s\n' 'State and identities are preserved. Initialize as fdn, then explicitly enable/start fdn-foundation.service.'
 `
 				controlEntries = append(controlEntries, distribution.Entry{Name: "postinst", Data: []byte(postinst), Mode: 0755})
@@ -181,11 +195,26 @@ printf '%s\n' 'State and identities are preserved. Initialize as fdn, then expli
 			if extractedNotices != hex.EncodeToString(expectedNotices[:]) {
 				return domain.Fail(domain.Internal, "Debian extraction did not preserve required license notices")
 			}
+			for _, entry := range guideEntries {
+				digest, err := distribution.SHA256(filepath.Join(extract, filepath.FromSlash(entry.Name)))
+				if err != nil {
+					return err
+				}
+				expected := sha256.Sum256(entry.Data)
+				if digest != hex.EncodeToString(expected[:]) {
+					return domain.Fail(domain.Internal, "Debian extraction did not preserve the complete version-matched guide")
+				}
+			}
 			artifacts = append(artifacts, filename)
 		}
 	}
 	metadata := map[string]any{"format_version": 1, "version": version, "commit": commit, "platform": target, "source_date_epoch": epoch,
 		"go_version": runtime.Version(), "reproducible_binary_builds": true, "signed": false, "attested": false, "artifacts": artifacts}
+	catalog, err := guidance.Catalog()
+	if err != nil {
+		return err
+	}
+	metadata["guide_content_sha256"], metadata["guide_files"], metadata["guide_skills"] = catalog.ContentSHA256, len(catalog.Files), catalog.Skills
 	if err := write(filepath.Join(out, "release.json"), func(w io.Writer) error { return json.NewEncoder(w).Encode(metadata) }); err != nil {
 		return err
 	}
