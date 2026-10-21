@@ -220,7 +220,7 @@ func (s *Store) Revoke(ctx context.Context, actor, target string, req domain.Age
 		if _, err := tx.ExecContext(ctx, "UPDATE agents SET data = ?, active = 0 WHERE id = ?", data, target); err != nil {
 			return agent, err
 		}
-		rows, err := tx.QueryContext(ctx, "SELECT data FROM tasks WHERE assignee_id = ? OR json_extract(data, '$.readiness.actor_id') = ? OR json_extract(data, '$.retry_approval.actor_id') = ?", target, target, target)
+		rows, err := tx.QueryContext(ctx, "SELECT data FROM tasks WHERE assignee_id = ? OR json_extract(data, '$.readiness.actor_id') = ? OR json_extract(data, '$.retry_approval.actor_id') = ? OR json_extract(data, '$.active_run.agent_id') = ?", target, target, target, target)
 		if err != nil {
 			return agent, err
 		}

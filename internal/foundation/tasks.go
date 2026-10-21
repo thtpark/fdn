@@ -115,17 +115,7 @@ func requireAuthority(a domain.Agent, p domain.Project) error {
 }
 
 func eligibleApprover(a domain.Agent, p domain.Project, t domain.Task, verification bool) bool {
-	if !authority(a, p) || p.Archived {
-		return false
-	}
-	if len(t.Policy.RequiredActors) != 0 && !slices.Contains(t.Policy.RequiredActors, a.ID) {
-		return false
-	}
-	independent := t.Policy.IndependentReadiness
-	if verification {
-		independent = t.Policy.IndependentVerification
-	}
-	return !independent || a.ID != t.AssigneeID
+	return domain.EligibleApprover(a, p, t, verification)
 }
 
 func (s *Store) validApproval(ctx context.Context, tx *sql.Tx, p domain.Project, t domain.Task, approval *domain.Approval, verify bool) (bool, error) {
@@ -333,7 +323,7 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 			}
 			switch req.Decision {
 			case "accept":
-				t.Status = domain.Done
+				t.Status, t.Waiting = domain.Done, nil
 				t.Verification = &domain.Approval{ActorID: a.ID, SpecGeneration: t.SpecGeneration, ResultGeneration: t.ResultGeneration, ProjectEpoch: p.Epoch, At: s.timestamp(), OperationID: req.OperationID}
 			case "rework":
 				invalidate(&t)
@@ -436,8 +426,20 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 			if err := s.saveRun(ctx, tx, run); err != nil {
 				return t, err
 			}
-			t.ActiveRun, t.Clarity, t.UnsafeRetry, t.Status = nil, nil, true, domain.Paused
-			t.Waiting = &domain.Waiting{Kind: "retry", Reason: req.Reason, Since: s.timestamp()}
+			if run.Kind == domain.VerificationRun {
+				afterStop := t.ActiveRun.AfterStop
+				t.ActiveRun = nil
+				if t.Result != nil && t.Result.SpecGeneration == t.SpecGeneration {
+					t.Status = domain.Completed
+					t.Waiting = &domain.Waiting{Kind: "verification", Reason: req.Reason, Since: s.timestamp()}
+				}
+				if afterStop == domain.CancelledStatus {
+					t.Status, t.Waiting = domain.CancelledStatus, nil
+				}
+			} else {
+				t.ActiveRun, t.Clarity, t.UnsafeRetry, t.Status = nil, nil, true, domain.Paused
+				t.Waiting = &domain.Waiting{Kind: "retry", Reason: req.Reason, Since: s.timestamp()}
+			}
 		}
 		if err := validateContent(t); err != nil {
 			return t, err

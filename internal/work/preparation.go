@@ -138,6 +138,9 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 			err = errors.Join(err, e.State.SaveJournal(ctx, *j))
 		}
 	}()
+	if reply.Decision != "" {
+		return domain.Fail(domain.Provider, "text-only responses cannot make verification decisions")
+	}
 	switch launch.Phase {
 	case "onboarding":
 		if reply.Outcome != "reviewed" || len(reply.Questions) != 0 {
@@ -224,6 +227,9 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 			if launch.Phase == "preflight" || task.Waiting != nil {
 				task, err = e.changePrepared(ctx, task, j.ID+".clarity", "clarity", reply.Summary, func(r *domain.TaskChange) { r.SpecGeneration = task.SpecGeneration; r.AnswerIDs = reply.AnswerIDs })
 				if err != nil {
+					return err
+				}
+				if err := e.acknowledgeReviewFeedback(ctx, j, launch, task); err != nil {
 					return err
 				}
 			}

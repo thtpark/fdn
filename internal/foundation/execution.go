@@ -44,33 +44,58 @@ func (s *Store) Claim(ctx context.Context, actor, id string, req domain.ClaimReq
 		if err != nil {
 			return domain.Run{}, err
 		}
-		if t.AssigneeID != a.ID {
-			return domain.Run{}, domain.Fail(domain.Denied, "only the assigned agent can claim")
+		kind := req.Kind
+		if kind == "" {
+			kind = domain.ExecutionRun
+		}
+		if kind != domain.ExecutionRun && kind != domain.VerificationRun {
+			return domain.Run{}, domain.Fail(domain.Invalid, "claim kind must be execution or verification")
 		}
 		if !domain.ValidHash(req.TokenHash) || !domain.ValidProvider(req.Provider) {
 			return domain.Run{}, domain.Fail(domain.Invalid, "claim requires an ownership-token hash and supported provider")
 		}
-		if t.SpecGeneration != req.SpecGeneration {
-			return domain.Run{}, domain.Fail(domain.Conflict, "specification changed")
-		}
-		if t.ArchivedAt != 0 || p.Archived || t.Repetitive || t.ActiveRun != nil || (t.Status != domain.Todo && t.Status != domain.Paused) {
-			return domain.Run{}, domain.Fail(domain.Prerequisite, "task is not an executable stopped candidate")
-		}
-		valid, err := s.validApproval(ctx, tx, p, t, t.Readiness, false)
-		if err != nil {
+		if err := domain.CheckText(req.Model, "claim model", 256, false); err != nil {
 			return domain.Run{}, err
 		}
-		if t.WorkspaceRef == "" || t.Waiting != nil || !valid {
-			return domain.Run{}, domain.Fail(domain.Prerequisite, "current readiness approval, workspace, and resolved blockers are required")
-		}
-		if t.Clarity == nil || t.Clarity.ActorID != a.ID || t.Clarity.SpecGeneration != t.SpecGeneration || t.Clarity.DiscussionGeneration != t.DiscussionGeneration || t.Clarity.ProjectEpoch != p.Epoch {
-			return domain.Run{}, domain.Fail(domain.Prerequisite, "assigned worker must review the latest specification and discussion")
-		}
-		if (t.Provider != "" && t.Provider != req.Provider) || (t.Model != "" && t.Model != req.Model) {
-			return domain.Run{}, domain.Fail(domain.Prerequisite, "provider/model does not match the approved task")
-		}
-		if err := s.retryReady(ctx, tx, p, t); err != nil {
-			return domain.Run{}, err
+		if kind == domain.VerificationRun {
+			if !eligibleApprover(a, p, t, true) || a.ID == t.AssigneeID {
+				return domain.Run{}, domain.Fail(domain.Denied, "verification runs require independent current project authority satisfying task policy")
+			}
+			if t.SpecGeneration != req.SpecGeneration || t.ResultGeneration != req.ResultGeneration || p.Epoch != req.ProjectEpoch {
+				return domain.Run{}, domain.Fail(domain.Conflict, "verification specification, result or project authority changed")
+			}
+			if t.ArchivedAt != 0 || t.Repetitive || t.ActiveRun != nil || t.Waiting != nil || t.Status != domain.Completed || t.Result == nil || t.Result.SpecGeneration != t.SpecGeneration {
+				return domain.Run{}, domain.Fail(domain.Prerequisite, "verification requires an unblocked current completed result and no active run")
+			}
+		} else {
+			if req.ResultGeneration != 0 || req.ProjectEpoch != 0 {
+				return domain.Run{}, domain.Fail(domain.Invalid, "result and project epoch fields are only valid for verification claims")
+			}
+			if t.AssigneeID != a.ID {
+				return domain.Run{}, domain.Fail(domain.Denied, "only the assigned agent can claim execution")
+			}
+			if t.SpecGeneration != req.SpecGeneration {
+				return domain.Run{}, domain.Fail(domain.Conflict, "specification changed")
+			}
+			if t.ArchivedAt != 0 || p.Archived || t.Repetitive || t.ActiveRun != nil || (t.Status != domain.Todo && t.Status != domain.Paused) {
+				return domain.Run{}, domain.Fail(domain.Prerequisite, "task is not an executable stopped candidate")
+			}
+			valid, err := s.validApproval(ctx, tx, p, t, t.Readiness, false)
+			if err != nil {
+				return domain.Run{}, err
+			}
+			if t.WorkspaceRef == "" || t.Waiting != nil || !valid {
+				return domain.Run{}, domain.Fail(domain.Prerequisite, "current readiness approval, workspace, and resolved blockers are required")
+			}
+			if t.Clarity == nil || t.Clarity.ActorID != a.ID || t.Clarity.SpecGeneration != t.SpecGeneration || t.Clarity.DiscussionGeneration != t.DiscussionGeneration || t.Clarity.ProjectEpoch != p.Epoch {
+				return domain.Run{}, domain.Fail(domain.Prerequisite, "assigned worker must review the latest specification and discussion")
+			}
+			if (t.Provider != "" && t.Provider != req.Provider) || (t.Model != "" && t.Model != req.Model) {
+				return domain.Run{}, domain.Fail(domain.Prerequisite, "provider/model does not match the approved task")
+			}
+			if err := s.retryReady(ctx, tx, p, t); err != nil {
+				return domain.Run{}, err
+			}
 		}
 		var active int
 		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM tasks WHERE json_extract(data, '$.active_run.agent_id') = ?", a.ID).Scan(&active); err != nil {
@@ -79,8 +104,11 @@ func (s *Store) Claim(ctx context.Context, actor, id string, req domain.ClaimReq
 		if active != 0 {
 			return domain.Run{}, domain.Fail(domain.Conflict, "this computer already owns an active task")
 		}
-		run := domain.Run{ID: domain.NewID("run"), TaskID: t.ID, AgentID: a.ID, SpecGeneration: t.SpecGeneration,
+		run := domain.Run{ID: domain.NewID("run"), Kind: kind, TaskID: t.ID, AgentID: a.ID, SpecGeneration: t.SpecGeneration,
 			Attempt: t.Attempts + 1, Provider: req.Provider, Model: req.Model, State: "running", Evidence: []string{}, StartedAt: s.timestamp()}
+		if kind == domain.VerificationRun {
+			run.Attempt, run.ResultGeneration, run.DiscussionGeneration, run.ProjectEpoch, run.AgentRevision = 1, t.ResultGeneration, t.DiscussionGeneration, p.Epoch, a.Revision
+		}
 		data, err := encode(run)
 		if err != nil {
 			return run, err
@@ -88,9 +116,11 @@ func (s *Store) Claim(ctx context.Context, actor, id string, req domain.ClaimReq
 		if _, err := tx.ExecContext(ctx, "INSERT INTO runs(id, data, task_id, agent_id, token_hash) VALUES(?, ?, ?, ?, ?)", run.ID, data, t.ID, a.ID, req.TokenHash); err != nil {
 			return run, err
 		}
-		t.ActiveRun = &domain.ActiveRun{ID: run.ID, AgentID: a.ID, SpecGeneration: t.SpecGeneration, Attempt: run.Attempt}
-		t.LastRunID, t.Attempts, t.Status = run.ID, run.Attempt, domain.Running
-		t.RetryApproval = nil
+		t.ActiveRun = &domain.ActiveRun{ID: run.ID, Kind: kind, AgentID: a.ID, SpecGeneration: t.SpecGeneration, Attempt: run.Attempt}
+		if kind == domain.ExecutionRun {
+			t.LastRunID, t.Attempts, t.Status = run.ID, run.Attempt, domain.Running
+			t.RetryApproval = nil
+		}
 		return run, s.saveTask(ctx, tx, &t, a.ID, "claim")
 	})
 }
@@ -142,6 +172,12 @@ func (s *Store) Report(ctx context.Context, actor, taskID string, req domain.Rep
 		}
 		if t.ActiveRun == nil || t.ActiveRun.ID != run.ID || run.State != "running" || req.SpecGeneration != run.SpecGeneration {
 			return outcome, domain.Fail(domain.Conflict, "run is no longer the active ownership generation")
+		}
+		if run.Kind == domain.VerificationRun {
+			return s.reportVerification(ctx, tx, a, t, run, req)
+		}
+		if req.ResultGeneration != 0 || req.Decision != "" || req.ApproveRework {
+			return outcome, domain.Fail(domain.Invalid, "verification fields are not valid for an execution report")
 		}
 		if req.Waiting != nil {
 			if err := s.validateWaiting(ctx, tx, t, a.ID, req.Waiting); err != nil {

@@ -31,8 +31,8 @@ are checked. Default private directory/file permissions are 0700/0600.
 | `projects` | Name/description, owner, service-maintained delegate list, revision, authority/context epoch, archive state |
 | `project_creators` | Specific Founder-issued one-use project-creation authorization |
 | `tasks` | Authoritative task aggregate; indexed project, assignee, status, priority, archive and active owner |
-| `runs` | Immutable claim identity and stopped/result projection, provider/model, attempt, ownership-token hash |
-| `entries` | Creator-owned comment/worklog, body generation/revision, task/reply references, mentions |
+| `runs` | Immutable execution/verification claim identity and stopped/result projection, provider/model, attempt, ownership-token hash; verification additionally binds result/discussion generations and project epoch |
+| `entries` | Creator-owned comment/worklog, body generation/revision, task/reply references, mentions; server-only run/spec/result/decision provenance on verification feedback |
 | `attention` | Recipient/entry/body-generation receipt: pending, handled, deferred or stale |
 | `messages` | Immutable private payload, recipient disposition/revision, urgency and declared origin/kind |
 | `sessions` | Private requester/target/project scope, mode/purpose, explicit-open flag, consent state, expiry/revision |
@@ -159,6 +159,52 @@ Reports require the exact run/worker/token/specification. Stop, changed authorit
 or specification retains stale evidence without completing a newer task. New
 questions override an apparent completed result. `completed` is not accepted;
 verification binds exact spec/result generations and eligible authority.
+
+### Autonomous delegated verification
+
+An eligible independent Founder/delegate controller can select completed results
+after its assigned work. Named/independent policy, current project authority,
+Founder mode control, owned local tools and the same serial slot all still apply.
+A verifier never uses the assignee's private workspace reference or required
+execution provider/model: it uses its own preferred provider/model and its own
+reusable `workspace_root/PROJECT` binding under explicit `allow_workspace_tools`.
+A disabled binding is not replaced. Preparation, messages and mentions remain tool-disabled.
+
+`POST /v1/tasks/TASK/claim` accepts optional `kind` (`execution` by default,
+`verification` for review). Verification requires exact `spec_generation`,
+`result_generation`, `project_epoch`, revision and token hash. The server retains
+`completed` and the original result while setting active verification ownership;
+execution and verification compete for the same task and per-computer slot.
+Legacy runs with no kind remain execution runs. These additive JSON fields need
+no SQLite migration; deploy the supporting server before new workers. Older
+binaries do not understand review ownership/recovery; do not downgrade an active
+verification workflow or treat database version compatibility as rollback proof.
+
+A verification report binds that run/token/spec/result and rechecks the claimed
+discussion generation, project epoch, verifier revision, eligibility and mode.
+A Founder pause/resume cannot resurrect an earlier verification claim. A completed review
+requires decision `accept` or `rework` and nonempty intentional evidence. Feedback
+is published as a verifier-owned task comment in the same transaction. Accept
+produces `done`; rework advances the specification and returns `todo`, retaining
+prior evidence. Explicit `approve_rework:true` additionally records fresh current
+readiness by an eligible delegate for corrections within the unchanged task
+scope. The worker must preflight the new discussion before continuing. Successful
+clarity acknowledges the exact current rework-feedback mention using its typed
+server-only review provenance; it does not publish a redundant echo that could
+invalidate a concurrent final review. Ordinary requested mentions remain pending.
+Review cannot edit task scope or approve expanded work. Manual `verify` remains
+available but cannot bypass active ownership.
+
+For pull-request tasks the provider must inspect the actual current head/checks,
+address feedback on the existing PR, and confirm any expressly required merge
+before proposing acceptance. Foundation does not infer a merge from a URL or
+provider exit, nor bypass repository policies. Git hosting is a tool boundary,
+not a hardcoded GitHub state machine or an exactly-once external transaction.
+Failed/paused/interrupted/stale verification releases only its own ownership and
+keeps current completed evidence blocked with waiting kind `verification`; it
+does not charge the assignee's failure budget or automatically rerun tools.
+Project authority must inspect external effects and explicitly accept or request
+rework. A prepared reply/report replays without another review/merge invocation.
 
 Defaults: three failure retries after the first attempt, 30-second initial
 exponential backoff capped at one day. Intentional pause/stop/clarification is

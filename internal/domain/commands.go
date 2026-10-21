@@ -147,23 +147,29 @@ type SessionChange struct {
 
 type ClaimRequest struct {
 	Command
-	SpecGeneration int64  `json:"spec_generation"`
-	TokenHash      string `json:"token_hash"`
-	Provider       string `json:"provider"`
-	Model          string `json:"model,omitempty"`
+	Kind             string `json:"kind,omitempty"`
+	SpecGeneration   int64  `json:"spec_generation"`
+	ResultGeneration int64  `json:"result_generation,omitempty"`
+	ProjectEpoch     int64  `json:"project_epoch,omitempty"`
+	TokenHash        string `json:"token_hash"`
+	Provider         string `json:"provider"`
+	Model            string `json:"model,omitempty"`
 }
 
 type ReportRequest struct {
 	Command
-	RunID          string   `json:"run_id"`
-	Token          string   `json:"token"`
-	SpecGeneration int64    `json:"spec_generation"`
-	Outcome        string   `json:"outcome"`
-	Summary        string   `json:"summary"`
-	Evidence       []string `json:"evidence"`
-	Checkpoint     string   `json:"checkpoint,omitempty"`
-	SafeToRetry    bool     `json:"safe_to_retry"`
-	Waiting        *Waiting `json:"waiting,omitempty"`
+	RunID            string   `json:"run_id"`
+	Token            string   `json:"token"`
+	SpecGeneration   int64    `json:"spec_generation"`
+	ResultGeneration int64    `json:"result_generation,omitempty"`
+	Decision         string   `json:"decision,omitempty"`
+	ApproveRework    bool     `json:"approve_rework,omitempty"`
+	Outcome          string   `json:"outcome"`
+	Summary          string   `json:"summary"`
+	Evidence         []string `json:"evidence"`
+	Checkpoint       string   `json:"checkpoint,omitempty"`
+	SafeToRetry      bool     `json:"safe_to_retry"`
+	Waiting          *Waiting `json:"waiting,omitempty"`
 }
 
 type ReportOutcome struct {

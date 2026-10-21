@@ -14,6 +14,7 @@ import (
 
 	"github.com/thtpark/fdn/internal/provider"
 	"github.com/thtpark/fdn/internal/work"
+	"github.com/thtpark/fdn/tests/scenario"
 )
 
 func main() {
@@ -40,8 +41,12 @@ func main() {
 		return
 	}
 	if slices.Contains(args, "login") {
-		if slices.Contains(args, "status") && fixtureNeedsLogin() {
-			os.Exit(1)
+		if slices.Contains(args, "status") {
+			if fixtureNeedsLogin() {
+				os.Exit(1)
+			}
+		} else if err := os.Remove(filepath.Join(os.Getenv("HOME"), ".fixture-login-required")); err != nil && !os.IsNotExist(err) {
+			check(err)
 		}
 		return
 	}
@@ -53,6 +58,11 @@ func main() {
 	}
 	var launch work.Launch
 	check(json.Unmarshal([]byte(raw), &launch))
+	if response, scripted, err := scenario.RunScript(os.Getenv("HOME"), launch, args); scripted {
+		check(err)
+		writeResponse(args, response)
+		return
+	}
 	reply := provider.Reply{Outcome: "clear", Summary: "fixture reviewed the exact supplied context", Evidence: []string{}, Questions: []provider.Question{}, AnswerIDs: []string{}}
 	switch launch.Phase {
 	case "onboarding":
@@ -113,10 +123,14 @@ func main() {
 	}
 	response, err := json.Marshal(reply)
 	check(err)
+	writeResponse(args, response)
+}
+
+func writeResponse(args []string, response []byte) {
 	if index := slices.Index(args, "--output-last-message"); index >= 0 {
 		check(os.WriteFile(args[index+1], response, 0600))
 	}
-	_, err = os.Stdout.Write(response)
+	_, err := os.Stdout.Write(response)
 	check(err)
 }
 
@@ -174,7 +188,18 @@ func serveRPC() {
 		case "auth.getStatus":
 			result = map[string]any{"isAuthenticated": !fixtureNeedsLogin()}
 		case "models.list":
-			result = map[string]any{"models": []map[string]string{{"id": "fixture-model"}}}
+			models := []string{"fixture-model"}
+			if plan, present, err := scenario.ReadPlan(os.Getenv("HOME")); present {
+				check(err)
+				if len(plan.Models) != 0 {
+					models = plan.Models
+				}
+			}
+			catalog := make([]map[string]string, 0, len(models))
+			for _, model := range models {
+				catalog = append(catalog, map[string]string{"id": model})
+			}
+			result = map[string]any{"models": catalog}
 		default:
 			panic("unapproved RPC")
 		}

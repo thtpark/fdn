@@ -2,12 +2,14 @@ package work
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/local"
 )
 
 func (e *Engine) messages(ctx context.Context, c config.Worker, urgent, manual bool) (bool, error) {
@@ -63,6 +65,61 @@ func (e *Engine) attention(ctx context.Context, c config.Worker, manual bool) (b
 	launch.Attention = &item
 	_, err = e.text(ctx, c, launch, manual)
 	return true, err
+}
+
+func (e *Engine) acknowledgeReviewFeedback(ctx context.Context, j *local.Journal, launch Launch, task domain.Task) error {
+	if task.Result == nil {
+		return nil
+	}
+	acknowledge := func(entry domain.Entry) error {
+		_, err := commit[domain.Attention](ctx, e, "POST", api.Path("attention", entry.ID), domain.AttentionRequest{Command: domain.Command{OperationID: j.ID + ".feedback." + entry.ID}, Generation: entry.Generation, State: "handled"})
+		return err
+	}
+	pending := map[string]domain.Entry{}
+	for _, entry := range launch.Discussion {
+		if entry.Review == nil || entry.Review.Decision != "rework" || entry.Review.ResultGeneration != task.ResultGeneration || entry.Review.SpecGeneration != task.Result.SpecGeneration || !slices.Contains(entry.Mentions, e.Client.Credential.AgentID) {
+			continue
+		}
+		var previous proposal
+		found, err := e.State.Get(ctx, "proposal:"+j.ID+".feedback."+entry.ID, &previous)
+		if err != nil {
+			return err
+		}
+		if found {
+			if err := acknowledge(entry); err != nil {
+				return err
+			}
+		} else {
+			pending[entry.ID] = entry
+		}
+	}
+	cursor := ""
+	for len(pending) != 0 {
+		path := "/v1/attention?limit=200"
+		if cursor != "" {
+			path += "&cursor=" + cursor
+		}
+		page, err := api.Call[domain.Page[domain.Attention]](ctx, e.Client, "GET", path, nil)
+		if err != nil {
+			return err
+		}
+		for _, attention := range page.Items {
+			if entry, found := pending[attention.EntryID]; found {
+				if attention.Generation != entry.Generation {
+					return domain.Fail(domain.Conflict, "review feedback changed after clarity")
+				}
+				if err := acknowledge(entry); err != nil {
+					return err
+				}
+				delete(pending, entry.ID)
+			}
+		}
+		cursor = page.NextCursor
+		if cursor == "" {
+			break
+		}
+	}
+	return nil
 }
 
 func (e *Engine) research(ctx context.Context, c config.Worker, tasks []domain.Task, manual bool) (bool, error) {

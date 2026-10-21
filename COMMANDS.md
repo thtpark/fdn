@@ -134,7 +134,7 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli task show` | `TASK`; current protected/ordinary context |
 | `agent-cli task change` | `TASK --input FILE`; typed mutation kinds below, reason required |
 | `agent-cli task history` | `TASK`; latest three retained snapshots with action/reason |
-| `agent-cli task runs` | `TASK`; execution projections/evidence, not a claim/approval shortcut |
+| `agent-cli task runs` | `TASK`; execution/verification kinds, actor/provider and evidence projections, not a claim/approval shortcut |
 
 Every change supplies `kind`, nonempty `reason`, operation metadata, and only
 fields allowed for that kind. The API also enforces all authority/preconditions.
@@ -310,7 +310,9 @@ an AI delegate cannot replace that requirement. Older-format unresolved notices
 are superseded once with a new immutable message describing autonomous/persistent
 assistance, never silently rewritten under an old operation ID.
 
-Preferred provider/model apply unless the task requires its own selection.
+Preferred provider/model apply unless the assigned execution task requires its
+own selection. Independent verification always uses the verifier's own preferred
+provider/model, not the assignee's required selection.
 Missing/unsupported provider/model never silently falls back. Current Codex
 status may be credentials-present-unverified; do not report live authentication
 from that alone. Copilot has bounded read-only authentication/model RPC.
@@ -335,8 +337,21 @@ instead of bare `copilot update` to preserve managed integrity checks.
 Native sessions have no default 60-second
 command cap; an explicitly supplied global `--timeout` still applies.
 
-Mode `ai` enables serial automatic preparation/execution/replies when all gates
-permit. Only an explicit authenticated Founder request may place a non-Founder
+Mode `ai` enables serial automatic preparation/execution/verification/replies
+when all gates permit. An independent current project delegate selects completed
+results after its assigned work and reviews them with tools in its own authorized
+`workspace_root/PROJECT` binding. Review decisions and evidence are recorded in
+`task runs` and verifier-owned task comments. In-scope rework returns `todo` with
+a fresh delegate readiness approval; scope changes still invalidate approval.
+Accept is applied only through an exact current verification report. A required
+PR merge must be checked by the reviewer before acceptance; a provider exit or
+PR URL alone is not merge evidence. Failed or uncertain verification retains
+`completed` with waiting kind `verification` and never automatically retries
+external tools. After inspecting effects, project authority can use an exact
+`task change` kind `verify`, decision `accept` or `rework`; recovery/acknowledgement
+alone is not a review retry authorization.
+
+Only an explicit authenticated Founder request may place a non-Founder
 agent in `manual` or resume it; delegates and local target CLI calls cannot.
 Workers mirror those requests, cancel/join automatic inference on pause, and
 retain reconciliation. A legacy unexplained local manual pause is not silently

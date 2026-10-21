@@ -1,6 +1,6 @@
 ---
 name: foundation-work
-description: "Use when configuring agent workspaces or automation, creating/assigning tasks, asking clarification questions, requesting exact-specification approval, executing approved work, recording worklogs, or verifying completed results through the shared serial controller."
+description: "Use when configuring agent workspaces or automation, creating/assigning tasks, asking clarification questions, requesting exact-specification approval, executing approved work, recording worklogs, reviewing/reworking/merging pull requests as a project delegate, or verifying completed results through the shared serial controller."
 ---
 
 # Prepare, execute and verify one authorized task
@@ -56,9 +56,28 @@ These workflows do not grant extra tools, authority or another work slot.
 11. New uncertainty overrides apparent completion. Stop active operations,
     checkpoint progress, publish targeted questions and pause before switching
     work. Do not leave background commands running or continue affected actions.
-12. Completed means evidence awaiting verification, not done. A current eligible
-    verifier uses a verify change with exact spec/result generations and accept/
-    rework decision. Provider success or a zero CLI exit does not accept results.
+12. Completed means evidence awaiting verification, not done. An independent
+    current delegate automatically reviews completed results after assigned work,
+    using its own preferred provider/model and reusable `workspace_root/PROJECT`
+    binding under explicit `allow_workspace_tools`, never the assignee's private
+    binding. Review shares the same
+    fenced slot and binds exact spec/result/discussion generations and project
+    epoch. Return a structured reviewed decision, accept or rework, with actual
+    evidence; the controller publishes the task comment and applies authority.
+    In-scope rework records fresh delegate readiness for the unchanged scope,
+    returns todo and requires worker preflight of the feedback. The controller
+    acknowledges consumed typed review-feedback mentions without posting an echo;
+    ordinary requested mentions remain pending. Scope changes still require fresh
+    signoff. Manual verification remains `task change`
+    kind verify with exact spec/result generations and accept/rework decision.
+13. For an approved Git task, create or update one PR and report its URL, head
+    revision and actual checks. Address delegate feedback on that existing PR.
+    A verifier must inspect the current code/head/checks and confirm any merge
+    explicitly required by the task before accepting; never bypass repository
+    policies or infer success from a provider exit. Uncertain/failed review
+    blocks with waiting kind verification and does not automatically repeat
+    external tools. Project authority must inspect effects and explicitly
+    accept or request rework. Report/reply replay must not repeat a merge.
 
 ## Attention, authority and recovery
 

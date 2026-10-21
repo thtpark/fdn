@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -125,6 +126,23 @@ type ApprovalPolicy struct {
 	IndependentVerification bool     `json:"independent_verification"`
 }
 
+func EligibleApprover(a Agent, p Project, t Task, verification bool) bool {
+	if !a.Active || p.Archived || (!a.Founder && !slices.Contains(p.Delegates, a.ID)) {
+		return false
+	}
+	if len(t.Policy.RequiredActors) != 0 && !slices.Contains(t.Policy.RequiredActors, a.ID) {
+		return false
+	}
+	independent := t.Policy.IndependentReadiness
+	if verification {
+		independent = t.Policy.IndependentVerification
+	}
+	return !independent || a.ID != t.AssigneeID
+}
+
+const ExecutionRun = "execution"
+const VerificationRun = "verification"
+
 type RetryPolicy struct {
 	MaxRetries     int   `json:"max_retries"`
 	BackoffSeconds int64 `json:"backoff_seconds"`
@@ -167,6 +185,7 @@ type Waiting struct {
 
 type ActiveRun struct {
 	ID             string `json:"id"`
+	Kind           string `json:"kind,omitempty"`
 	AgentID        string `json:"agent_id"`
 	SpecGeneration int64  `json:"spec_generation"`
 	Attempt        int    `json:"attempt"`
@@ -221,33 +240,47 @@ type Task struct {
 }
 
 type Run struct {
-	ID             string   `json:"id"`
-	TaskID         string   `json:"task_id"`
-	AgentID        string   `json:"agent_id"`
-	SpecGeneration int64    `json:"spec_generation"`
-	Attempt        int      `json:"attempt"`
-	Provider       string   `json:"provider"`
-	Model          string   `json:"model,omitempty"`
-	State          string   `json:"state"`
-	Summary        string   `json:"summary,omitempty"`
-	Evidence       []string `json:"evidence"`
-	Checkpoint     string   `json:"checkpoint,omitempty"`
-	StartedAt      int64    `json:"started_at"`
-	FinishedAt     int64    `json:"finished_at,omitempty"`
+	ID                   string   `json:"id"`
+	Kind                 string   `json:"kind,omitempty"`
+	TaskID               string   `json:"task_id"`
+	AgentID              string   `json:"agent_id"`
+	SpecGeneration       int64    `json:"spec_generation"`
+	ResultGeneration     int64    `json:"result_generation,omitempty"`
+	DiscussionGeneration int64    `json:"discussion_generation,omitempty"`
+	ProjectEpoch         int64    `json:"project_epoch,omitempty"`
+	AgentRevision        int64    `json:"agent_revision,omitempty"`
+	Decision             string   `json:"decision,omitempty"`
+	Attempt              int      `json:"attempt"`
+	Provider             string   `json:"provider"`
+	Model                string   `json:"model,omitempty"`
+	State                string   `json:"state"`
+	Summary              string   `json:"summary,omitempty"`
+	Evidence             []string `json:"evidence"`
+	Checkpoint           string   `json:"checkpoint,omitempty"`
+	StartedAt            int64    `json:"started_at"`
+	FinishedAt           int64    `json:"finished_at,omitempty"`
+}
+
+type ReviewReference struct {
+	RunID            string `json:"run_id"`
+	SpecGeneration   int64  `json:"spec_generation"`
+	ResultGeneration int64  `json:"result_generation"`
+	Decision         string `json:"decision"`
 }
 
 type Entry struct {
-	ID         string   `json:"id"`
-	TaskID     string   `json:"task_id"`
-	Kind       string   `json:"kind"`
-	Body       string   `json:"body"`
-	ParentID   string   `json:"parent_id,omitempty"`
-	AuthorID   string   `json:"author_id"`
-	Mentions   []string `json:"mentions"`
-	Generation int64    `json:"generation"`
-	Revision   int64    `json:"revision"`
-	CreatedAt  int64    `json:"created_at"`
-	UpdatedAt  int64    `json:"updated_at"`
+	Review     *ReviewReference `json:"review,omitempty"`
+	ID         string           `json:"id"`
+	TaskID     string           `json:"task_id"`
+	Kind       string           `json:"kind"`
+	Body       string           `json:"body"`
+	ParentID   string           `json:"parent_id,omitempty"`
+	AuthorID   string           `json:"author_id"`
+	Mentions   []string         `json:"mentions"`
+	Generation int64            `json:"generation"`
+	Revision   int64            `json:"revision"`
+	CreatedAt  int64            `json:"created_at"`
+	UpdatedAt  int64            `json:"updated_at"`
 }
 
 type Attention struct {

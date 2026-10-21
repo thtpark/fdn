@@ -26,6 +26,7 @@ type Question struct {
 
 type Reply struct {
 	Outcome            string     `json:"outcome"`
+	Decision           string     `json:"decision,omitempty"`
 	Summary            string     `json:"summary"`
 	Evidence           []string   `json:"evidence"`
 	Questions          []Question `json:"questions"`
@@ -39,6 +40,9 @@ type Reply struct {
 func (r Reply) Validate() error {
 	if !slices.Contains([]string{"reviewed", "clear", "blocked", "completed", "paused", "failed", "responded", "researched"}, r.Outcome) {
 		return domain.Fail(domain.Provider, "provider reply has an unsupported outcome")
+	}
+	if r.Decision != "" && (r.Outcome != "reviewed" || (r.Decision != "accept" && r.Decision != "rework")) {
+		return domain.Fail(domain.Provider, "only a reviewed verification reply may propose accept or rework")
 	}
 	if err := domain.CheckText(r.Summary, "provider summary", 32768, true); err != nil {
 		return err

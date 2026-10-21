@@ -15,7 +15,7 @@ case "$suite" in
     bash -n scripts/test.sh
     sh -n scripts/install.sh
     ;;
-  unit) go test -race -count=1 . ./internal/... ./tools/... ;;
+  unit) go test -race -count=1 . ./internal/... ./tools/... ./tests/scenario ./tests/fixtureprovider ;;
   integration) go test -race -count=1 -tags=integration ./tests/integration ;;
   e2e) go test -count=1 -tags=e2e ./tests/e2e ;;
   stress) go test -race -count=1 -tags=stress ./tests/stress ;;
