@@ -47,15 +47,16 @@ type Blocker struct {
 }
 
 type Status struct {
-	State             string         `json:"state"`
-	Mode              string         `json:"mode"`
-	TaskID            string         `json:"task_id,omitempty"`
-	JournalID         string         `json:"journal_id,omitempty"`
-	PendingReports    int            `json:"pending_reports"`
-	InitialReviewDone bool           `json:"initial_review_done"`
-	LastReport        *ReportReceipt `json:"last_report,omitempty"`
-	Blockers          []Blocker      `json:"blockers"`
-	UpdatedAt         int64          `json:"updated_at"`
+	State                  string                  `json:"state"`
+	Mode                   string                  `json:"mode"`
+	TaskID                 string                  `json:"task_id,omitempty"`
+	JournalID              string                  `json:"journal_id,omitempty"`
+	PendingReports         int                     `json:"pending_reports"`
+	InitialReviewDone      bool                    `json:"initial_review_done"`
+	LastReport             *ReportReceipt          `json:"last_report,omitempty"`
+	Blockers               []Blocker               `json:"blockers"`
+	UpdatedAt              int64                   `json:"updated_at"`
+	AuthenticationRequests []AuthenticationRequest `json:"authentication_requests"`
 }
 
 type Launch struct {
@@ -109,6 +110,10 @@ func (e *Engine) Status(ctx context.Context) (Status, error) {
 		return status, err
 	}
 	status.PendingReports = len(items)
+	status.AuthenticationRequests, err = e.authenticationRequests(ctx)
+	if err != nil {
+		return status, err
+	}
 	inventory, err := e.State.Inventory(ctx)
 	if err != nil {
 		if domain.AsFault(err).Code != domain.Prerequisite {
@@ -144,6 +149,11 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 			err = errors.Join(err, readErr)
 		} else {
 			status.PendingReports = len(pending)
+		}
+		if requests, readErr := e.authenticationRequests(saveCtx); readErr != nil {
+			err = errors.Join(err, readErr)
+		} else {
+			status.AuthenticationRequests = requests
 		}
 		if err != nil {
 			status.State = "blocked"
@@ -320,6 +330,9 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		status.State = "research"
 		return status, nil
 	}
+	if len(status.Blockers) != 0 {
+		status.State = "blocked"
+	}
 	return status, nil
 }
 
@@ -411,7 +424,17 @@ func (e *Engine) selected(ctx context.Context, c config.Worker, task *domain.Tas
 		return health, model, err
 	}
 	if health.Authentication != "authenticated" && health.Authentication != "credentials-present-unverified" {
-		return health, model, domain.Fail(domain.Prerequisite, "provider login is required; use a human-only consented authentication handoff")
+		if health.Authentication != "login-required" && health.Authentication != "credentials-rejected" {
+			return health, model, domain.Fail(domain.Prerequisite, "provider authentication is unknown; inspect provider status without starting inference")
+		}
+		request, err := e.requestAuthentication(ctx, c, name, task)
+		if err != nil {
+			return health, model, err
+		}
+		return health, model, domain.Fail(domain.Prerequisite, "provider login is required; protected sign-in request "+request.ID+" was delivered and awaits human action")
+	}
+	if err := e.resolveAuthentication(ctx, name); err != nil {
+		return health, model, err
 	}
 	if model != "" && len(health.Models) > 0 && !slices.Contains(health.Models, model) {
 		return health, model, domain.Fail(domain.Prerequisite, "configured required model is absent from the fresh provider catalog")

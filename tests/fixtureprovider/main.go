@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -39,6 +40,9 @@ func main() {
 		return
 	}
 	if slices.Contains(args, "login") {
+		if slices.Contains(args, "status") && fixtureNeedsLogin() {
+			os.Exit(1)
+		}
 		return
 	}
 	prompt, err := io.ReadAll(io.LimitReader(os.Stdin, 1<<20))
@@ -122,6 +126,17 @@ func check(err error) {
 	}
 }
 
+func fixtureNeedsLogin() bool {
+	_, err := os.Stat(filepath.Join(os.Getenv("HOME"), ".fixture-login-required"))
+	if err == nil {
+		return true
+	}
+	if !os.IsNotExist(err) {
+		panic(err)
+	}
+	return false
+}
+
 func serveRPC() {
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -157,7 +172,7 @@ func serveRPC() {
 		case "connect":
 			result = map[string]any{"protocolVersion": 3}
 		case "auth.getStatus":
-			result = map[string]any{"isAuthenticated": true}
+			result = map[string]any{"isAuthenticated": !fixtureNeedsLogin()}
 		case "models.list":
 			result = map[string]any{"models": []map[string]string{{"id": "fixture-model"}}}
 		default:

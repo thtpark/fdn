@@ -47,11 +47,28 @@ automatically bounded by the three-snapshot rule; see [CAPACITY.md](CAPACITY.md)
 
 | Table | Local-only contract |
 | --- | --- |
-| `kv` | Identity binding, current inventory/review, mode-related observations, checkpoints, preparation, watch cursors and immutable proposal receipts |
+| `kv` | Identity binding, current inventory/review, mode-related observations, checkpoints, preparation, watch cursors, authentication request/delivery episodes and immutable proposal receipts |
 | `knowledge`, `knowledge_history` | Offline memory/skill/knowledge, revision, selected/archive state; three retained versions |
 | `bindings` | Opaque workspace ref -> owned path + device/inode, enabled/tool grant, execution timeout |
 | `journals` | Durable invocation/claim/reply/report state, pinned provider/model/version, private context and evidence |
 | `outbox` | Immutable report operation/method/path/body awaiting remote acknowledgement |
+
+Authentication requests keep one current local episode per provider/project
+scope (empty project for onboarding/other computer-local work). An explicit
+sign-in-required/rejected observation prepares a stable request before delivery.
+Recipients are the active Founder and current relevant project delegates;
+departed recipients are not retried and newly eligible recipients can receive
+the existing episode. Each recipient has one stable message operation. The
+existing private-message transaction and immutable local proposal provide
+lost-ack/restart replay, not repeated inference or a new notification each poll.
+
+Delivery failures/missing recipients remain `delivery-pending`; confirmed
+delivery is `requested`, not authentication. Provider readiness observation may
+mark the episode `resolved`; a later real sign-out starts a new episode. Previous
+immutable message/operation evidence remains retained; only its recipient changes
+disposition. Unknown provider status never proves sign-out. No schema migration,
+session consent, mode change, token handling or model invocation is needed to
+send this handoff.
 
 Private journals and CLI proposal receipts may contain sensitive machine-local
 material. Do not publish or dump them as diagnostic evidence. A local binding or
