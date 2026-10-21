@@ -9,11 +9,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
 
-func fixtureBundle(t *testing.T, root string, symlink bool) (string, string) {
+func fixtureBundle(t *testing.T, root string, symlink bool, modify ...func([]Entry) []Entry) (string, string) {
 	t.Helper()
 	bundle := filepath.Join(root, "bundle")
 	if err := os.MkdirAll(bundle, 0700); err != nil {
@@ -25,6 +26,14 @@ func fixtureBundle(t *testing.T, root string, symlink bool) (string, string) {
 		t.Fatal(err)
 	}
 	entries := []Entry{{Name: "bin/agent-cli", Data: []byte("fixture-cli"), Mode: 0755}, {Name: "bin/agent-service", Data: []byte("fixture-agent"), Mode: 0755}, {Name: "bin/fdn-service", Data: []byte("fixture-foundation"), Mode: 0755}, {Name: "THIRD_PARTY_NOTICES", Data: []byte("fixture notices"), Mode: 0644}}
+	guide, err := GuideEntries("guide")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries = append(entries, guide...)
+	for _, change := range modify {
+		entries = change(entries)
+	}
 	if symlink {
 		compressed := gzip.NewWriter(archive)
 		writer := tar.NewWriter(compressed)
@@ -105,6 +114,10 @@ func TestVerifiedInstallerIsIdempotentAndPreservesState(t *testing.T) {
 	if err != nil || string(installed) != "fixture-cli" {
 		t.Fatal(string(installed), err)
 	}
+	guide, err := os.ReadFile(filepath.Join(root, "prefix", "lib", "fdn", "current", "guide", ".agents", "skills", "foundation-work", "SKILL.md"))
+	if err != nil || !bytes.Contains(guide, []byte("name: foundation-work")) {
+		t.Fatal("installed release is missing its operating skill", err)
+	}
 	marker := filepath.Join(root, "identity-marker")
 	if err := os.WriteFile(marker, []byte("preserve"), 0600); err != nil {
 		t.Fatal(err)
@@ -165,10 +178,28 @@ func TestArchiveHeaderDoesNotDependOnInputOrder(t *testing.T) {
 	if err := TarGzip(&one, []Entry{a, b}, 0); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := TarGzip(&two, []Entry{b, a}, 0); err != nil {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(one.Bytes(), two.Bytes()) {
 		t.Fatal("non-canonical archive order")
+	}
+}
+
+func TestInstallerRejectsMissingGuideBeforeChangingPrefix(t *testing.T) {
+	for _, missing := range []string{"guide/AGENTS.md", "guide/MANIFEST.json", "guide/.agents/skills/foundation-work/SKILL.md"} {
+		t.Run(missing, func(t *testing.T) {
+			root := t.TempDir()
+			bundle, trusted := fixtureBundle(t, root, false, func(entries []Entry) []Entry {
+				return slices.DeleteFunc(entries, func(entry Entry) bool { return entry.Name == missing })
+			})
+			if output, err := installer(t, root, bundle, trusted); err == nil {
+				t.Fatal("installed an incomplete operating guide", string(output))
+			}
+			if _, err := os.Stat(filepath.Join(root, "prefix")); !os.IsNotExist(err) {
+				t.Fatal("incomplete guide modified the installation prefix")
+			}
+		})
 	}
 }

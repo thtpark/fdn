@@ -44,6 +44,7 @@ var AgentCommands = []string{
 
 var FoundationCommands = []string{"init", "serve", "doctor", "bootstrap", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install"}
 var ServiceCommands = []string{"serve", "status"}
+var GuideCommands = []string{"guide list", "guide show", "guide install"}
 
 func RunAgent(ctx context.Context, args []string, in io.Reader, out, diagnostic io.Writer) int {
 	return run(ctx, "agent", args, in, out, diagnostic)
@@ -109,7 +110,7 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			return a.emit(map[string]any{"command": key, "usage": "see README command reference; JSON changes require a reason and current generations"}, nil)
 		}
 	}
-	if a.configFile == "" {
+	if a.configFile == "" && tail[0] != "guide" {
 		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "HOME unavailable; specify --config"), homeErr))
 	}
 	longRunning := tail[0] == "serve" || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
@@ -119,6 +120,10 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 		defer cancel()
 	}
 	var value any
+	if tail[0] == "guide" {
+		value, err = a.guide(ctx, tail[1:])
+		return a.emit(value, err)
+	}
 	switch role {
 	case "foundation":
 		value, err = a.foundation(ctx, tail)
@@ -137,14 +142,16 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 }
 
 func commands(role string) []string {
+	var entries []string
 	switch role {
 	case "foundation":
-		return FoundationCommands
+		entries = FoundationCommands
 	case "service":
-		return ServiceCommands
+		entries = ServiceCommands
 	default:
-		return AgentCommands
+		entries = AgentCommands
 	}
+	return append(append([]string{}, entries...), GuideCommands...)
 }
 
 func (a *app) emit(value any, err error) int {

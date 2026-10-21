@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	guidance "github.com/thtpark/fdn"
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
@@ -69,9 +70,21 @@ type child struct {
 	stopped bool
 }
 
+func isolatedEnvironment(args []string) []string {
+	home := filepath.Join(binaries, "isolated-home")
+	for index, value := range args {
+		if value == "--config" && index+1 < len(args) {
+			home = filepath.Join(filepath.Dir(args[index+1]), "home")
+			break
+		}
+	}
+	return append(os.Environ(), "HOME="+home)
+}
+
 func start(t *testing.T, name string, args ...string) (*child, api.Envelope) {
 	t.Helper()
 	cmd := exec.Command(filepath.Join(binaries, name), args...)
+	cmd.Env = isolatedEnvironment(args)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -143,6 +156,7 @@ func run(t *testing.T, name string, args []string, input any) (api.Envelope, int
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, filepath.Join(binaries, name), args...)
+	cmd.Env = isolatedEnvironment(args)
 	if input != nil {
 		data, err := json.Marshal(input)
 		if err != nil {
@@ -392,9 +406,29 @@ func TestNativeBinariesPhaseOneThroughFive(t *testing.T) {
 				if strings.Contains(string(journal.Context), l.worker.client.Credential.Token) {
 					t.Fatal("credential entered model context")
 				}
+				prompt, err := os.ReadFile(filepath.Join(l.worker.config.StateDir, "invocations", journal.ID, "prompt.txt"))
+				if err != nil || !bytes.Contains(prompt, []byte("FDN_OPERATING_GUIDANCE")) || !bytes.Contains(prompt, []byte("name: foundation-work")) {
+					t.Fatal("actual provider invocation did not receive the operating skill", journal.Kind, err)
+				}
+				if journal.PromptHash != domain.Hash(string(prompt)) {
+					t.Fatal("private prompt hash did not bind the delivered operational guidance")
+				}
 			}
 			if reviews != 1 {
 				t.Fatal("initial review not serialized once", reviews)
+			}
+			catalog, err := guidance.Catalog()
+			if err != nil {
+				t.Fatal(err)
+			}
+			home := filepath.Join(filepath.Dir(l.worker.configFile), "home")
+			for _, skillRoot := range []string{".agents", ".copilot"} {
+				for _, skill := range catalog.Skills {
+					data, err := os.ReadFile(filepath.Join(home, skillRoot, "skills", skill, "SKILL.md"))
+					if err != nil || !bytes.Contains(data, []byte("name: "+skill+"\n")) {
+						t.Fatal("native worker is missing a discoverable skill", skillRoot, skill, err)
+					}
+				}
 			}
 			knowledge, err := state.Knowledge(context.Background(), "memory:lesson")
 			if err != nil || knowledge.Content != "PRIVATE_TEST_NOTE_NOT_PUBLISHED" {
