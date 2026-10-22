@@ -193,7 +193,7 @@ func (s *Server) provisionIdentity(ctx context.Context, proposed domain.AgentIde
 	switch current.State {
 	case "active":
 		return current, nil
-	case "pending", "join-ready":
+	case "pending", "provisioned":
 	default:
 		return current, domain.Fail(domain.Denied, "identity requires explicit key recovery before provisioning")
 	}

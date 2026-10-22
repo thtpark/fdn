@@ -363,16 +363,7 @@ func TestIdentityNativeConfigurationBindingAndStoppedRecoveryPreserveRunnerState
 
 func identityInstallTestDir(t *testing.T) string {
 	t.Helper()
-	path, err := os.MkdirTemp(filepath.Join("..", ".."), ".identity-install-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	path, err = filepath.Abs(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(path) })
-	return path
+	return platformTestRoot(t, ".identity-install-test-")
 }
 
 func TestIdentityNativeFilesPreserveOwnershipAndRefuseForeignDefinitions(t *testing.T) {
