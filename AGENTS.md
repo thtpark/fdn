@@ -70,9 +70,13 @@ guide includes this file, all skills, and the development references.
   run/spec references, journals, pending reports, and uncertainty. Reconcile a
   lost response with the same operation and exact proposal. Never blindly rerun
   inference, reset retry budgets, take over timed-out ownership, or erase state.
-- Keep private keys, certificates with private material, provider login output,
-  screenshots, raw transcripts, private knowledge, and workspace paths out of
-  chat/shared records. Registration exchanges signed public requests/profiles
+- Keep private keys, certificates with private material, credential-bearing
+  provider output/screenshots, raw transcripts, private knowledge, and workspace
+  paths out of chat/shared records. Showing standard sign-in screens and public
+  verification links to the authorized human through a consented terminal/session
+  is permitted and is not by itself a privacy violation; public generic URLs and
+  instructions are shareable. Prefer supported device/headless login. Keep
+  passwords/tokens/cookies, one-time codes and secret-bearing URLs protected. Registration exchanges signed public requests/profiles
   only; bearer invitations and legacy token-only runtime access are disabled.
   Use owner-restricted files and authenticated transfer. Structured output is
   not a protected credential-entry interface.

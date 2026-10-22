@@ -300,8 +300,10 @@ covers supported authentication providers; it is not arbitrary terminal access.
 Only Founder issues/revokes grants; assistance never grants mode/task/spending
 authority. The target daemon prepares the bounded connection unattended after
 explicit requester open. A reconnect uses the same grant without reapproval.
-Delegates can coordinate with typed APIs; protected credential UI/input/output
-must never enter an AI context.
+Delegates can coordinate with typed APIs. Provider sign-in screens and public
+verification links may be displayed to the authorized human; public generic URLs
+and non-secret instructions may be relayed. Password/token/cookie inputs, one-time
+codes and secret-bearing sign-in state must not enter an AI context.
 
 | Command | Arguments/input |
 | --- | --- |
@@ -317,8 +319,11 @@ must never enter an AI context.
 
 Message origin defaults to human (a declared label, not attestation); kind
 defaults to direct. Kinds authentication/permission/session cannot request automatic
-responses. A protected handoff body contains references/actions/expiry, never a
-token, code, private authentication URL, transcript or screenshot.
+responses. A protected handoff body may contain public generic verification
+URLs, non-secret instructions and references/actions/expiry. It must not contain
+a token, one-time code, private/secret-bearing authentication URL or an unredacted
+credential transcript/screenshot. Authorized human-visible sign-in screens/links
+are not themselves a privacy violation.
 
 Autonomous targets need a current matching Founder-issued grant, not a local
 human consent decision, plus explicit requester open. Founder targets may still
@@ -360,7 +365,7 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 | `agent-cli provider status` | `[--provider codex|copilot]`; bounded version/capability/auth probes without inference |
 | `agent-cli provider install` | `--provider NAME --version EXACT`; staged integrity/signature/capability checks under the shared local slot |
 | `agent-cli provider update` | `[--provider NAME]`; explicit latest resolution, retains previous version on staging failure |
-| `agent-cli provider login` | `[--provider NAME]`; actual human TTY only, no structured/captured credential UI |
+| `agent-cli provider login` | `[--provider NAME]`; actual human TTY only; probes login help and prefers supported device-code/headless flow, otherwise native login; no structured/captured credentials |
 | `agent-cli provider link` | Repair/install this account's stable codex/copilot launchers and login PATH without downloading, authenticating or running a provider |
 | `agent-cli provider exec` | `--provider NAME -- NATIVE_ARGUMENTS`; resolve the active managed version, preserve native output/exit status; interactive commands require a human terminal and the shared local slot |
 | `agent-cli work prompt` | Shared prompt and version-matched operating guidance; no task claim or inference |

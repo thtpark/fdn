@@ -77,11 +77,7 @@ func (a *app) providerCommand(ctx context.Context, r *resources, args []string) 
 			return nil, err
 		}
 		defer slot.Close()
-		path, err := manager.Resolve(*name)
-		if err != nil {
-			return nil, err
-		}
-		arguments, err := provider.NativeArguments(*name, []string{"login"})
+		path, arguments, err := manager.LoginCommand(ctx, *name)
 		if err != nil {
 			return nil, err
 		}

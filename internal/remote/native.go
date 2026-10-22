@@ -45,11 +45,7 @@ func (Native) Open(ctx context.Context, s domain.Session, c config.Worker) (io.R
 	socket := filepath.Join(dir, s.ID+".sock")
 	args := []string{"-S", socket, "-f", "/dev/null", "new-session", "-s", "foundation"}
 	if s.Purpose == "authentication" {
-		path, err := provider.New(c).Resolve(s.Provider)
-		if err != nil {
-			return nil, err
-		}
-		native, err := provider.NativeArguments(s.Provider, []string{"login"})
+		path, native, err := provider.New(c).LoginCommand(ctx, s.Provider)
 		if err != nil {
 			return nil, err
 		}

@@ -215,6 +215,27 @@ These are isolated fixture results, not live provider sign-in, new VM deployment
 or permission approval. Missing authentication can prevent semantic questions;
 help delivery is deterministic and does not need a model to ask for access.
 
+## LOGIN: supported device flows and authorized human display
+
+Only synthetic provider help/screens are used; no real login, device code,
+credential file, provider inference or model-visible credential UI is exercised.
+
+| ID | Automated test | Expected result |
+| --- | --- | --- |
+| `LOGIN-001` | `TestLoginCommandPrefersOnlyAdvertisedDeviceFlows` and `TestLoginCommandProbeFailureNeverStartsLogin` in [provider tests](../../internal/provider/login_test.go) | Prefer Codex `--device-auth`/Copilot `--device-code` only when login help advertises the exact flag; retain legacy native login otherwise; preserve no-auto-update; failed/cancelled help starts no login. |
+| `LOGIN-002` | `TestNativeAuthenticationPrefersAdvertisedDeviceFlow` in [remote tests](../../internal/remote/native_login_test.go) | The real tmux opener passes the same safe device-flow arguments to a synthetic terminal adapter; no arbitrary flags or copied credentials. |
+| `LOGIN-003` | `TestNativeProviderLoginShowsSupportedDeviceFlowOnHumanTTY` in [native tests](provider_login_test.go) | Both compiled provider-login paths display a synthetic sign-in screen/public link to the actual human TTY using supported device flags. |
+
+```sh
+go test -race -count=1 ./internal/provider ./internal/remote ./internal/work -run 'Login|NativeAuthentication|AuthenticationNotice'
+go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeProviderLoginShowsSupportedDeviceFlowOnHumanTTY$'
+```
+
+Showing provider sign-in screens/public verification URLs to the authorized
+human is a normal consented authentication step, not intrinsically a privacy
+violation. This does not authorize publishing credentials, one-time codes,
+secret-bearing URLs or unredacted credential transcripts to models/shared logs.
+
 ## Security boundary cases: source suites verified, final acceptance pending
 
 The following cases are linked to tests in

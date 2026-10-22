@@ -64,6 +64,11 @@ These workflows do not grant extra tools, authority or another work slot.
 10. Keep consequential actions/decisions in intentional worklogs with task/run/
     spec references, rationale, checks, risks, authorization and recovery.
     Provider transcripts, credentials, private knowledge and paths stay local.
+    For sign-in help, prefer supported headless/device flows. Standard sign-in
+    screens and public verification links may be shown to the authorized human;
+    public generic URLs/instructions are not inherently private. Keep passwords,
+    tokens/cookies, one-time codes and secret-bearing state out of model/shared
+    records; human display permission does not authorize login or inference.
 11. New uncertainty overrides apparent completion. Stop active operations,
     checkpoint progress, publish targeted questions and pause before switching
     work. Do not leave background commands running or continue affected actions.

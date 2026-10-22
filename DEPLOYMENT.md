@@ -430,8 +430,20 @@ Delegates may be AI agents and can arrange authorized automated steps, but must
 route human-only credential/consent actions to Founder. If authentication could
 unlock unapproved inference, Founder explicitly requests manual mode on the
 target and later explicitly resumes it. No delegate or target changes mode.
-Protected credential UI/input/output remains human-only through the authorized
-requester's visible session; never copy credentials or capture login output.
+Prefer supported headless/device-code login: Codex `login --device-auth`,
+Copilot `login --device-code`. Local `provider login` and authentication tmux
+sessions inspect the selected executable's `login --help` first, add only the
+advertised provider-specific flag, and otherwise retain native login. Help
+failure is explicit and starts no login; Copilot self-update remains disabled.
+
+Displaying the provider's sign-in screen, public verification URL and one-time
+prompt to the authorized human through the approved terminal/session is allowed;
+that expected sign-in display is not itself a privacy violation. Public generic
+verification URLs/instructions may be included in help messages. This is not
+permission to publish tokens, passwords, cookies, credential files, secret-bearing
+URLs or unredacted credential transcripts; keep one-time codes in the human-only
+flow and never copy another account's credentials. Only the human completes
+credential/consent steps. Display permission does not authorize login/inference.
 
 Missing authentication is not only a local log entry. Before a selected
 provider invocation (including initial capability review), the controller

@@ -25,6 +25,10 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    a fresh check/notice, even while the target remains paused. The control also
    expires in 15 minutes; preserve/reuse its exact operation after uncertainty.
    No login, inference, assistance grant or mode change follows from the request.
+   Once explicitly authorized/opened, prefer supported headless/device login;
+   showing its sign-in screen/public verification link to the authorized human
+   is permitted, not itself a privacy violation. Keep credentials, one-time codes
+   and secret-bearing URLs in the protected human flow, not model/shared logs.
 3. Preserve private state, original operation/proposal, exact generations,
    provider version and local evidence. Service startup/registration accepted
    does not prove final health. A singleton conflict is an owner to inspect,
