@@ -557,14 +557,14 @@ func TestWorkerProxyStripsCredentialsDeniesTransportControlAndReturnsPublicStatu
 	if forwarded.Header.Get("Accept") != "application/json" || forwarded.Host != "localhost:8443" {
 		t.Fatal("proxy did not preserve the ordinary request under its fixed remote origin")
 	}
-	for _, path := range []string{"/v1/identity/owner", "/v1/identity/challenge", "/v1/identity/activate", "/v1/identity/certificate", "/v1/identities", "/v1/enroll", "/v1/invitations", "/v1/agents/agent_1/revoke", "/local/prepare", "/local/connect", "/local/memory", "/v1/tasks/../identity/owner", "/v1/%69dentity/owner", "/v1/tasks/%2e%2e/identity/owner", "/v1//identity/owner"} {
+	for _, path := range []string{"/v1/identity/owner", "/v1/identity/challenge", "/v1/identity/activate", "/v1/identity/certificate", "/v1/identities", "/v1/enroll", "/v1/invitations", "/local/prepare", "/local/connect", "/local/memory", "/v1/tasks/../identity/owner", "/v1/%69dentity/owner", "/v1/tasks/%2e%2e/identity/owner", "/v1//identity/owner"} {
 		if err := client.Request(context.Background(), http.MethodPost, path, domain.Command{OperationID: "denied"}, nil); domain.AsFault(err).Code != domain.Denied {
 			t.Fatal("worker accessed transport/identity service control", path, err)
 		}
 	}
-	for _, path := range []string{"/v1/identity/register", "/v1/identity/agent_123/recover"} {
+	for _, path := range []string{"/v1/identity/register", "/v1/identity/agent_123/recover", "/v1/agents/agent_1/revoke"} {
 		if err := client.Request(context.Background(), http.MethodPost, path, domain.Command{OperationID: "business"}, nil); err != nil {
-			t.Fatal("Founder business registration/recovery must remain server-authorized", path, err)
+			t.Fatal("Founder business registration/recovery/revocation must remain server-authorized", path, err)
 		}
 		<-f.remote.requests
 	}
