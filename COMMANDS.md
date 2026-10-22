@@ -316,7 +316,7 @@ must never enter an AI context.
 | `agent-cli session open` | `SESSION`; explicit requester action + protected human terminal attachment, no `--json`/`--non-interactive` |
 
 Message origin defaults to human (a declared label, not attestation); kind
-defaults to direct. Kinds authentication/session cannot request automatic
+defaults to direct. Kinds authentication/permission/session cannot request automatic
 responses. A protected handoff body contains references/actions/expiry, never a
 token, code, private authentication URL, transcript or screenshot.
 
@@ -381,7 +381,12 @@ creation/expiry/state, recipient/operation/message references, confirmed deliver
 or pending error, refresh/supersession references, and resolution time. States are
 `delivery-pending`, `requested`, `expired` and `resolved`. Requests expire exactly
 15 minutes after creation, including pending deliveries, and do not automatically
-renew. Expired authentication notices disappear from `message inbox`; `message
+renew on polling alone. New requested work has its own durable `action_key`:
+assigned task context, requested direct reply, mention/verification context or an
+explicit `work run` operation. It can issue a fresh help request even if an older
+action expired, including before initial onboarding. Repeating the same action
+or operation reuses its episode/deliveries. Expired authentication notices
+disappear from `message inbox`; `message
 show MESSAGE` retains their deadline/history and reports expired pending/deferred
 state. A receipt cannot revive an expired notice. Legacy requests/messages derive
 the deadline from their original creation; upgrade/restart does not renew them.
@@ -407,6 +412,16 @@ a sign-in notice; unknown/outage status remains an explicit blocker. An offline
 or fenced target may not process the refresh before it expires; Founder can issue
 a new operation when appropriate. Retry the same operation/input after a lost
 acknowledgement; a new intentional refresh needs a new operation ID.
+
+`work status` also exposes `permission_requests`: protected help requests for
+workspace/tool permission, provider access, task authority or exact retry approval.
+They identify the requested action and route to active Founder/current project
+delegates without inference. Delivery uncertainty remains pending; retries reuse
+their exact proposals. A new requested action or an observed resolution followed
+by loss can ask again; expiry/polling alone does not create a notification loop.
+Private paths/raw provider errors are never copied into these notices. A fresh
+provider-status check after an invocation failure requests sign-in if it now
+reports login-required/rejected; uncertain invocation/retry fences remain enforced.
 
 This never performs login, exposes device codes, opens assistance, resumes ai or
 changes a persistent grant. Provider/device-code/live-session expiries are

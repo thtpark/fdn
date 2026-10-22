@@ -438,8 +438,10 @@ provider invocation (including initial capability review), the controller
 durably requests sign-in from the active Founder and any relevant task-project
 delegates. The protected private message contains the target/provider/request
 references, supported human-terminal commands and explicit consent/spending
-boundaries. It expires 15 minutes after creation, without automatic renewal;
-delivery/restart does not extend it. It does not need a model, create a session,
+boundaries. It expires 15 minutes after creation; unchanged polling, delivery
+or restart does not extend it. A new requested action can ask again under its
+own stable action key. Assigned work, requested messages and mentions are checked
+before onboarding, so an expired computer-local notice cannot hide a new task. It does not need a model, create a session,
 assume target consent, change mode or perform login.
 
 Read the request from Founder's `message inbox` or `message show MESSAGE` using
@@ -459,6 +461,12 @@ unattended target processes it under its own identity, including in manual mode,
 and only sends a fresh superseding notice if a read-only probe still explicitly
 requires sign-in. Check the control's receipt and the target's work status; an
 offline/fenced target may need another explicit request after control expiry.
+Workspace/provider-access/task-authority/retry-approval blockers also send
+protected `permission` help to Founder/current relevant project delegates, with
+public references and no raw errors/private paths. Inspect `permission_requests`
+in work status. New requested actions can ask again; pending deliveries retain
+the same operation. After a provider fails mid-work, an explicit sign-out in a
+fresh readiness probe produces help, but uncertainty/report/retry fences remain.
 No login, provider/device-code renewal, mode change, model call or assistance
 session is initiated. Persistent assistance grants remain separate and valid
 until revoked; their live connections and provider codes have their own expiry.

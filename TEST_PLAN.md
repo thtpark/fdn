@@ -38,6 +38,7 @@ run commands:
 | `POL-001` / `POL-002` | Named/independent approvers and structured provider-decision validation |
 | `FX-001`–`FX-007` | Deterministic provider plans and isolated Git/Git-host fixture contracts |
 | `AUTH-001`–`AUTH-008` | 15-minute sign-in expiry, immutable legacy/retry evidence, Founder-only refresh, paused/offline targets, protected API fields and no implicit login/inference |
+| `HELP-001`–`HELP-005` | Requested-action help before onboarding, expired older notices, same-project task/reply/explicit-operation deduplication, current authority routing, permission boundaries and mid-work sign-out with recovery fences |
 | `SEC-001`–`SEC-010` | Coordinator-confirmed strict Unix/mTLS source fixture results, including full integration and enhanced both-controller ban/no-ban regressions; final all-suite acceptance pending, not native multi-UID qualification |
 | `ATT-001` / `ATT-002` | Coordinator-confirmed compiled public-only attachment/migration/retired-flag cases in full e2e; test-local business proxy, final all-suite pending |
 | `NAT-001`–`NAT-006` | Paired lifecycle, exact account/config and fresh-StateDir recovery plus root generation/tombstone replay cases; subsequent native-source race/vet rerun reported passing, final coordinated all-suite pending, not live native qualification |

@@ -20,7 +20,13 @@ These workflows do not grant extra tools, authority or another work slot.
    only public AgentID; never read keys/certificates, start another owner or
    bypass a ban by copying credentials. Provider sign-in, signed Foundation
    registration and project authority are separate. Presence is not permission
-   or authentication.
+   or authentication. When requested work/replies/mentions are blocked by sign-in
+   or permissions, send protected durable help to active Founder and current
+   relevant project delegates without inference. New action contexts can ask
+   again after an older notice expired; unchanged polls/restarts must not spam.
+   Inspect authentication_requests/permission_requests and delivery references.
+   A provider signing out during work requires a new status check/help request,
+   never automatic retry across uncertain side effects or lost approval.
 2. Read `task show TASK`, project/parent context, `discussion list TASK`,
    `task history TASK`, and `task runs TASK`. A mention is not assignment.
    Founder/current project delegates assign and choose required provider/model.
