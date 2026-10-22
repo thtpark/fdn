@@ -1,6 +1,6 @@
 ---
 name: foundation-provider-auth
-description: "Use when installing/updating Codex or Copilot, checking provider readiness, arranging human-only sign-in, renewing expired sign-in requests through Founder, preparing an authorized tmux/VNC assistance session, or diagnosing expired consent without exposing credentials or starting inference."
+description: "Use when installing/updating Codex or Copilot, checking provider readiness, arranging headless/device-code human sign-in, displaying authorized sign-in screens/public verification links, renewing expired sign-in requests through Founder, preparing an authorized tmux/VNC assistance session, or diagnosing expired consent without exposing credentials or starting inference."
 ---
 
 # Provider readiness and protected authentication
@@ -58,8 +58,13 @@ model and authorized inference.
    protected identity-service account; providers use only its local Unix proxy.
    Provider sign-in is not signed Foundation registration, identity recovery or
    authority to share an SSH account. Never read/copy another account's provider
-   auth or identity state, ask for a token/device code/password in chat, capture
-   the UI, or publish a private login URL/transcript.
+   auth or identity state, ask for a token/password in chat, or publish a
+   credential-bearing URL/transcript. Standard sign-in screens and public
+   verification links may be shown to the authorized human through the approved
+   terminal/session; that is an expected login step, not itself a privacy
+   violation. Do not suppress public generic sign-in links as credentials.
+   One-time codes stay in the human login flow; passwords, tokens, cookies,
+   credential files/private keys and secret-bearing URLs remain protected.
 5. Never wait for a human at the target to run login or record consent. Founder
    can issue `assistance grant --input FILE` once, scoped to the requester/target,
    mode, purpose authentication and optional provider/project. The requester can
@@ -69,14 +74,39 @@ model and authorized inference.
    The grant survives disconnects/restarts until revoked; another live connection
    is not another authorization decision. Current scope/identity/project
    authority and revocation are always rechecked.
-7. The protected credential UI must be operated through Founder's human-help
-   channel, never exposed to a model, including a delegate AI. Native terminal
-   attachment refuses JSON/captured UI. Send non-secret references/actions and
+7. The human may view the provider's sign-in screen and verification link in
+   Founder's authorized human-help channel. Showing them there is permitted;
+   public generic URLs and non-secret login instructions may also be relayed in
+   messages/model context. Actual credential inputs, one-time codes and private
+   sign-in state must not enter a model, including a delegate AI. Native terminal
+   attachment still refuses JSON/captured credential UI. Send non-secret references/actions and
    live-session UTC expiry through messaging; protected authentication/permission/
    session kinds have response_requested=false. A message is not a grant or open action.
-8. Tmux authentication starts the selected login command. VNC needs an existing,
-   authenticated, verified loopback backend and trusted viewer; it does not
-   install/unlock a desktop or transfer the requester's application identity.
+8. Prefer headless/device-code authentication when the selected CLI supports
+   it: `codex login --device-auth`, `copilot login --device-code`. Foundation's
+   local provider-login and authentication tmux paths probe that executable's
+   `login --help`, use only its advertised device-flow flag and retain native
+   login if unsupported; never guess flags or substitute token transfer.
+   Copilot retains `--no-auto-update`. A failed capability probe starts no login.
+   Device login can require enabling the provider/workspace's device-code
+   permission; the human/admin handles that decision, not an automated consent.
+   For graphical help, first `screen list`: only actual physical/virtual screens
+   with a verified authenticated loopback backend may use VNC; headless targets
+   cannot. Use `screen launch SCREEN --application APP` for a configured app on
+   that screen, never arbitrary shell/credential injection. Prefer per-screen
+   app/capture; if only whole-desktop capture is possible, label it desktop scope
+   and require explicit desktop_fallback in the Founder grant/session.
+   Ask Founder/current delegates with `assistance request --input FILE`, mode
+   vnc, screen_id/application_id, purpose authentication or terminal for general
+   human help. This sends a protected notice, not a grant/open/login action.
+   Founder grants the exact scope; the human uses `assistance open GRANT --viewer
+   browser --listen 127.0.0.1:PORT --assets-dir TRUSTED_NOVNC_DIR` and SSH-forwards
+   the same port to localhost. Browser access stays loopback and RFB uses the
+   existing SSH/mTLS relay; no public listener/clipboard/UI capture. The helper's
+   token-bearing bootstrap URL is private session access, not a public provider
+   verification link. VNC never installs/unlocks a desktop or transfers the
+   requester's application identity; OS desktop/screen-recording prerequisites
+   require their own native approval.
    Never automate keystrokes through arbitrary consent/login prompts.
 9. Expired/closed live sessions can reconnect under the same active grant without
    reapproval. Revoked grants cannot reopen; Founder must explicitly issue a new
@@ -86,6 +116,10 @@ model and authorized inference.
     A finished login command and Codex credentials-present-unverified do not
     prove live vendor usability. Respect task-required provider/model; unknown
     cost/catalog quality is not permission for paid probes or guessed ranking.
+
+Provider references: [Codex headless authentication](https://developers.openai.com/codex/auth/#login-on-headless-devices)
+and [Copilot login options](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#copilot-login-options).
+Installed `login --help` remains authoritative for version-specific flags.
 
 Report redacted installed/authentication/model/session states, pending human
 action/expiry, and authorized next step. Never claim sign-in, spending consent

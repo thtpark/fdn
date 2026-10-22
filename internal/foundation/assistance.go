@@ -22,7 +22,11 @@ func (s *Store) grantAuthority(ctx context.Context, q queryer, grant domain.Assi
 	if err != nil {
 		return err
 	}
-	if _, err := activeIdentitySubject(ctx, q, grant.TargetID); err != nil {
+	target, err := activeIdentitySubject(ctx, q, grant.TargetID)
+	if err != nil {
+		return err
+	}
+	if _, err := assistanceScreen(target, grant.Mode, grant.ScreenID, grant.ApplicationID, grant.DesktopFallback); err != nil {
 		return err
 	}
 	if grant.ProjectID != "" {
@@ -59,7 +63,8 @@ func (s *Store) CreateAssistance(ctx context.Context, actor string, req domain.A
 			return grant, err
 		}
 		grant = domain.AssistanceGrant{ID: domain.NewID("assistance"), RequesterID: req.RequesterID, TargetID: req.TargetID, ProjectID: req.ProjectID,
-			Mode: req.Mode, Purpose: req.Purpose, Provider: req.Provider, Active: true, Revision: 1, CreatedBy: a.ID, CreatedAt: s.timestamp(), UpdatedAt: s.timestamp(), Reason: req.Reason}
+			Mode: req.Mode, Purpose: req.Purpose, Provider: req.Provider, Active: true, Revision: 1, CreatedBy: a.ID, CreatedAt: s.timestamp(), UpdatedAt: s.timestamp(), Reason: req.Reason,
+			ScreenID: req.ScreenID, ApplicationID: req.ApplicationID, DesktopFallback: req.DesktopFallback}
 		if err := s.grantAuthority(ctx, tx, grant); err != nil {
 			return grant, err
 		}

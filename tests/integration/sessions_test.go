@@ -54,8 +54,8 @@ func TestAutonomousTargetUsesRetainedGrantAndExplicitOpenWithoutLocalConsent(t *
 		}
 	}()
 	task := h.ready(t)
-	grant := grantFor(t, h, h.founderAgent.ID, h.workerAgent.ID, "vnc", "terminal", task.ProjectID)
-	session, err := api.Call[domain.Session](ctx, h.founder, "POST", "/v1/sessions", domain.SessionRequest{Command: command(), GrantID: grant.ID, TargetID: h.workerAgent.ID, ProjectID: task.ProjectID, Mode: "vnc", Purpose: "terminal", Reason: "recorded endpoint adapter", ExpiresAt: time.Now().Unix() + 90})
+	grant := grantFor(t, h, h.founderAgent.ID, h.workerAgent.ID, "tmux", "terminal", task.ProjectID)
+	session, err := api.Call[domain.Session](ctx, h.founder, "POST", "/v1/sessions", domain.SessionRequest{Command: command(), GrantID: grant.ID, TargetID: h.workerAgent.ID, ProjectID: task.ProjectID, Mode: "tmux", Purpose: "terminal", Reason: "recorded endpoint adapter", ExpiresAt: time.Now().Unix() + 90})
 	if err != nil {
 		t.Fatal(err)
 	}

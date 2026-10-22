@@ -13,7 +13,11 @@ func (s *Store) sessionAuthority(ctx context.Context, q queryer, session domain.
 	if err != nil {
 		return err
 	}
-	if _, err := activeIdentitySubject(ctx, q, session.TargetID); err != nil {
+	target, err := activeIdentitySubject(ctx, q, session.TargetID)
+	if err != nil {
+		return err
+	}
+	if _, err := assistanceScreen(target, session.Mode, session.ScreenID, session.ApplicationID, session.DesktopFallback); err != nil {
 		return err
 	}
 	if session.GrantID != "" {
@@ -22,7 +26,8 @@ func (s *Store) sessionAuthority(ctx context.Context, q queryer, session domain.
 			return err
 		}
 		if grant.RequesterID != session.RequesterID || grant.TargetID != session.TargetID || grant.ProjectID != session.ProjectID ||
-			grant.Mode != session.Mode || grant.Purpose != session.Purpose || (grant.Provider != "" && grant.Provider != session.Provider) {
+			grant.Mode != session.Mode || grant.Purpose != session.Purpose || (grant.Provider != "" && grant.Provider != session.Provider) ||
+			grant.ScreenID != session.ScreenID || grant.ApplicationID != session.ApplicationID || grant.DesktopFallback != session.DesktopFallback {
 			return domain.Fail(domain.Denied, "session is outside its persistent assistance authorization")
 		}
 		return s.grantAuthority(ctx, q, grant)
@@ -54,7 +59,8 @@ func (s *Store) RequestSession(ctx context.Context, actor string, req domain.Ses
 	return mutate(ctx, s, actor, "session.request", req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.Session, error) {
 		session := domain.Session{ID: domain.NewID("session"), RequesterID: a.ID, TargetID: req.TargetID,
 			ProjectID: req.ProjectID, TaskID: req.TaskID, Mode: req.Mode, Purpose: req.Purpose,
-			Provider: req.Provider, Reason: req.Reason, State: "requested", ExpiresAt: req.ExpiresAt, Revision: 1, CreatedAt: s.timestamp()}
+			Provider: req.Provider, Reason: req.Reason, State: "requested", ExpiresAt: req.ExpiresAt, Revision: 1, CreatedAt: s.timestamp(),
+			ScreenID: req.ScreenID, ApplicationID: req.ApplicationID, DesktopFallback: req.DesktopFallback}
 		session.GrantID = req.GrantID
 		target, err := activeIdentitySubject(ctx, tx, req.TargetID)
 		if err != nil {

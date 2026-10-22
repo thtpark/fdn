@@ -254,8 +254,14 @@ func TestConsentRelayTransfersBytesAndClosesOnWithdrawal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	task := h.ready(t)
-	grant := grantFor(t, h, h.founderAgent.ID, h.workerAgent.ID, "vnc", "terminal", task.ProjectID)
-	session, err := api.Call[domain.Session](ctx, h.founder, "POST", "/v1/sessions", domain.SessionRequest{Command: command(), GrantID: grant.ID, TargetID: h.workerAgent.ID, ProjectID: task.ProjectID, TaskID: task.ID, Mode: "vnc", Purpose: "terminal", Reason: "view authorized test endpoint", ExpiresAt: time.Now().Unix() + 90})
+	if _, err := api.Call[[]domain.Screen](ctx, h.worker, "POST", api.Path("agents", h.workerAgent.ID, "screens"), domain.ScreensRequest{Command: command(), Screens: []domain.Screen{{ID: "relay-screen", Name: "RFB fixture screen", Scope: "screen", Width: 1280, Height: 800, Primary: true, Applications: []string{}}}}); err != nil {
+		t.Fatal(err)
+	}
+	grant, err := api.Call[domain.AssistanceGrant](ctx, h.founder, "POST", "/v1/assistance", domain.AssistanceGrantRequest{Command: command(), RequesterID: h.founderAgent.ID, TargetID: h.workerAgent.ID, ProjectID: task.ProjectID, Mode: "vnc", Purpose: "terminal", ScreenID: "relay-screen", Reason: "Founder authorizes the fixture screen only"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := api.Call[domain.Session](ctx, h.founder, "POST", "/v1/sessions", domain.SessionRequest{Command: command(), GrantID: grant.ID, TargetID: h.workerAgent.ID, ProjectID: task.ProjectID, TaskID: task.ID, Mode: "vnc", Purpose: "terminal", ScreenID: grant.ScreenID, Reason: "view authorized test endpoint", ExpiresAt: time.Now().Unix() + 90})
 	if err != nil {
 		t.Fatal(err)
 	}

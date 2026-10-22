@@ -42,6 +42,7 @@ func (a *app) localCommand(ctx context.Context, r *resources, group string, args
 				ProviderPaths            map[string]string `json:"provider_paths"`
 				VNCAddress               *string           `json:"vnc_address"`
 				VNCVerified              *bool             `json:"vnc_verified"`
+				Screens                  *[]config.Screen  `json:"screens"`
 				SSH                      *config.SSH       `json:"ssh"`
 			}
 			if err := a.input(args[1:], &patch); err != nil {
@@ -79,6 +80,9 @@ func (a *app) localCommand(ctx context.Context, r *resources, group string, args
 			}
 			if patch.VNCVerified != nil {
 				c.VNCVerified = *patch.VNCVerified
+			}
+			if patch.Screens != nil {
+				c.Screens = *patch.Screens
 			}
 			if patch.SSH != nil {
 				c.SSH = patch.SSH

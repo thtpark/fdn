@@ -26,13 +26,16 @@ type ModeRequest struct {
 
 type AssistanceGrantRequest struct {
 	Command
-	RequesterID string `json:"requester_id"`
-	TargetID    string `json:"target_id"`
-	ProjectID   string `json:"project_id,omitempty"`
-	Mode        string `json:"mode"`
-	Purpose     string `json:"purpose"`
-	Provider    string `json:"provider,omitempty"`
-	Reason      string `json:"reason"`
+	RequesterID     string `json:"requester_id"`
+	TargetID        string `json:"target_id"`
+	ProjectID       string `json:"project_id,omitempty"`
+	Mode            string `json:"mode"`
+	Purpose         string `json:"purpose"`
+	Provider        string `json:"provider,omitempty"`
+	Reason          string `json:"reason"`
+	ScreenID        string `json:"screen_id,omitempty"`
+	ApplicationID   string `json:"application_id,omitempty"`
+	DesktopFallback bool   `json:"desktop_fallback,omitempty"`
 }
 
 type AssistanceRevoke struct {
@@ -137,15 +140,18 @@ type MessageReceipt struct {
 
 type SessionRequest struct {
 	Command
-	TargetID  string `json:"target_id"`
-	ProjectID string `json:"project_id"`
-	TaskID    string `json:"task_id,omitempty"`
-	Mode      string `json:"mode"`
-	Purpose   string `json:"purpose"`
-	Provider  string `json:"provider,omitempty"`
-	Reason    string `json:"reason"`
-	ExpiresAt int64  `json:"expires_at"`
-	GrantID   string `json:"grant_id,omitempty"`
+	TargetID        string `json:"target_id"`
+	ProjectID       string `json:"project_id"`
+	TaskID          string `json:"task_id,omitempty"`
+	Mode            string `json:"mode"`
+	Purpose         string `json:"purpose"`
+	Provider        string `json:"provider,omitempty"`
+	Reason          string `json:"reason"`
+	ExpiresAt       int64  `json:"expires_at"`
+	GrantID         string `json:"grant_id,omitempty"`
+	ScreenID        string `json:"screen_id,omitempty"`
+	ApplicationID   string `json:"application_id,omitempty"`
+	DesktopFallback bool   `json:"desktop_fallback,omitempty"`
 }
 
 type SessionChange struct {

@@ -58,7 +58,7 @@ func TestAuthenticationNoticeHasDeadlineAndExplicitFounderRefresh(t *testing.T) 
 	request := AuthenticationRequest{ID: "auth_request_fixture", AgentID: "agent_fixture", AgentName: "Fixture", Provider: "copilot", ModeAtRequest: "manual",
 		CreatedAt: 1800000000, ExpiresAt: 1800000900, Supersedes: "auth_request_old"}
 	body := authenticationMessage(request)
-	for _, text := range []string{time.Unix(request.ExpiresAt, 0).UTC().Format(time.RFC3339), "15 minutes", "will not automatically renew", "agent request-sign-in", "Provider device-code expiry", request.Supersedes} {
+	for _, text := range []string{time.Unix(request.ExpiresAt, 0).UTC().Format(time.RFC3339), "15 minutes", "will not automatically renew", "agent request-sign-in", "Provider device-code expiry", "codex login --device-auth", "copilot login --device-code", "not itself a privacy violation", "secret-bearing", request.Supersedes} {
 		if !strings.Contains(body, text) {
 			t.Fatal("notice omitted its expiry/refresh boundary", text, body)
 		}

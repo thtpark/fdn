@@ -277,6 +277,49 @@ mentions do not confer authority. Cursors are actor/query-bound; pages are
 limited to 1-200. Watch delivery is at least once; inspect sequence/cursor rather
 than assuming exactly-once processing.
 
+## Displays, browser VNC and human-help requests
+
+`agent-cli screen list` reports the current runner's available verified screens,
+not cloud hardware flags or screenshots. Headless agents publish an empty screen
+inventory and cannot request/open VNC. Configure only actual physical/virtual
+screens and a verified authenticated loopback backend. Each screen has a stable
+public ID and scope `screen` (only that screen) or `desktop` (whole host fallback),
+geometry and configured application IDs; private paths/addresses remain local.
+
+`agent-cli screen launch SCREEN --application APP` explicitly launches the
+configured application under the runner account on that screen, held in the
+foreground until app exit or the command timeout/cancellation; cleanup is joined
+before its work slot is released. It accepts an application ID, not arbitrary
+shell commands, and respects existing invocation/session fences. For VNC help,
+prefer binding application_id in the grant/session so app preparation and cleanup
+share the live session's lifetime instead of running a separate CLI launcher. Use an app per screen when supported;
+unsupported placement must not be represented as screen isolation.
+
+`agent-cli assistance request --input FILE` is the target agent asking for help.
+Input: mode tmux/vnc, purpose authentication/terminal, reason, optional provider,
+project_id/task_id, and for VNC screen_id/application_id plus desktop_fallback.
+The server sends protected private notices to active Founder and current relevant
+delegates. This does not create a grant, open a viewer, launch an app or start
+login/inference. General human desktop help uses purpose terminal; headless
+provider sign-in normally uses tmux/device-code instead of VNC.
+
+Founder issues the matching `assistance grant` with screen_id, application_id
+and explicit desktop_fallback if the inventory reports whole-desktop scope.
+Grant/session checks prevent screen/app swaps or silent broadening; all current
+identity, project, expiry and revocation checks still apply.
+
+VNC `assistance open`/`session open` default to `--viewer browser`; `--viewer
+native` retains the trusted native viewer. The browser helper needs an absolute
+trusted installed noVNC assets directory (`--assets-dir`, default
+`/usr/share/novnc`), not a CDN or downloaded remote script. It binds only literal
+loopback (`--listen`, default `127.0.0.1:0`). On a headless requester, choose a
+fixed loopback port and SSH-forward that same port to the human's localhost;
+open the helper's human-terminal URL locally. The target RFB stream still uses
+the existing authenticated SSH/mTLS relay; no public VNC/API listener is needed.
+The helper's token-bearing bootstrap URL is session access material, not a public
+provider verification link: keep it in the authorized human terminal, never a
+Foundation message/model log. No clipboard transfer is permitted.
+
 ## Persistent assistance and protected sessions
 
 Every non-Founder target is unattended. Founder issues authorization once;
@@ -300,8 +343,10 @@ covers supported authentication providers; it is not arbitrary terminal access.
 Only Founder issues/revokes grants; assistance never grants mode/task/spending
 authority. The target daemon prepares the bounded connection unattended after
 explicit requester open. A reconnect uses the same grant without reapproval.
-Delegates can coordinate with typed APIs; protected credential UI/input/output
-must never enter an AI context.
+Delegates can coordinate with typed APIs. Provider sign-in screens and public
+verification links may be displayed to the authorized human; public generic URLs
+and non-secret instructions may be relayed. Password/token/cookie inputs, one-time
+codes and secret-bearing sign-in state must not enter an AI context.
 
 | Command | Arguments/input |
 | --- | --- |
@@ -317,8 +362,11 @@ must never enter an AI context.
 
 Message origin defaults to human (a declared label, not attestation); kind
 defaults to direct. Kinds authentication/permission/session cannot request automatic
-responses. A protected handoff body contains references/actions/expiry, never a
-token, code, private authentication URL, transcript or screenshot.
+responses. A protected handoff body may contain public generic verification
+URLs, non-secret instructions and references/actions/expiry. It must not contain
+a token, one-time code, private/secret-bearing authentication URL or an unredacted
+credential transcript/screenshot. Authorized human-visible sign-in screens/links
+are not themselves a privacy violation.
 
 Autonomous targets need a current matching Founder-issued grant, not a local
 human consent decision, plus explicit requester open. Founder targets may still
@@ -360,7 +408,7 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 | `agent-cli provider status` | `[--provider codex|copilot]`; bounded version/capability/auth probes without inference |
 | `agent-cli provider install` | `--provider NAME --version EXACT`; staged integrity/signature/capability checks under the shared local slot |
 | `agent-cli provider update` | `[--provider NAME]`; explicit latest resolution, retains previous version on staging failure |
-| `agent-cli provider login` | `[--provider NAME]`; actual human TTY only, no structured/captured credential UI |
+| `agent-cli provider login` | `[--provider NAME]`; actual human TTY only; probes login help and prefers supported device-code/headless flow, otherwise native login; no structured/captured credentials |
 | `agent-cli provider link` | Repair/install this account's stable codex/copilot launchers and login PATH without downloading, authenticating or running a provider |
 | `agent-cli provider exec` | `--provider NAME -- NATIVE_ARGUMENTS`; resolve the active managed version, preserve native output/exit status; interactive commands require a human terminal and the shared local slot |
 | `agent-cli work prompt` | Shared prompt and version-matched operating guidance; no task claim or inference |

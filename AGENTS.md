@@ -70,9 +70,13 @@ guide includes this file, all skills, and the development references.
   run/spec references, journals, pending reports, and uncertainty. Reconcile a
   lost response with the same operation and exact proposal. Never blindly rerun
   inference, reset retry budgets, take over timed-out ownership, or erase state.
-- Keep private keys, certificates with private material, provider login output,
-  screenshots, raw transcripts, private knowledge, and workspace paths out of
-  chat/shared records. Registration exchanges signed public requests/profiles
+- Keep private keys, certificates with private material, credential-bearing
+  provider output/screenshots, raw transcripts, private knowledge, and workspace
+  paths out of chat/shared records. Showing standard sign-in screens and public
+  verification links to the authorized human through a consented terminal/session
+  is permitted and is not by itself a privacy violation; public generic URLs and
+  instructions are shareable. Prefer supported device/headless login. Keep
+  passwords/tokens/cookies, one-time codes and secret-bearing URLs protected. Registration exchanges signed public requests/profiles
   only; bearer invitations and legacy token-only runtime access are disabled.
   Use owner-restricted files and authenticated transfer. Structured output is
   not a protected credential-entry interface.
@@ -108,6 +112,12 @@ guide includes this file, all skills, and the development references.
   Founder arranges any genuinely human-only action; delegate agents coordinate
   without seeing protected UI bytes. The authorized requester explicitly opens
   an existing assistance grant, not a new authorization on every reconnect.
+  VNC help is only for actual physical/virtual screen-equipped targets. Prefer
+  per-screen applications/capture; whole-desktop fallback must be labelled and
+  explicitly Founder-authorized. Use screen list, the target's assistance request,
+  a matching retained grant and a human browser viewer over SSH-forwarded localhost.
+  Never expose public VNC/web ports, enable clipboard transfer, invent a desktop
+  on a headless target, or copy token-bearing viewer URLs into messages/model logs.
   Do not open a human terminal or collect credentials on the person's behalf.
   Before enrollment use an approved
   out-of-band channel; absent one, report pending delivery.
