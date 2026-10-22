@@ -72,7 +72,7 @@ func TestManagedAccountNeverProvisionedDisableRetainsGenerationTombstone(t *test
 	if err != nil || disabled.UID != 0 || disabled.Generation != 2 || disabled.State != AccountDisabled || len(system.mutations) != 0 {
 		t.Fatal(disabled, err)
 	}
-	reopened, err := NewAccountManager(manager.options, system)
+	reopened, err := newAccountManager(manager.options, system, manager.filesystemRoot)
 	if err != nil {
 		t.Fatal(err)
 	}

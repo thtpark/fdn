@@ -36,8 +36,8 @@ func (m *AccountManager) guard(ctx context.Context, apply bool) error {
 	return nil
 }
 
-func accountDirectory(path string, mode os.FileMode, create, traversable bool) error {
-	if err := accountAncestors(filepath.Dir(path), uint32(os.Geteuid()), traversable); err != nil {
+func (m *AccountManager) accountDirectory(path string, mode os.FileMode, create, traversable bool) error {
+	if err := m.accountAncestors(filepath.Dir(path), uint32(os.Geteuid()), traversable); err != nil {
 		return err
 	}
 	if create {
@@ -56,6 +56,46 @@ func accountDirectory(path string, mode os.FileMode, create, traversable bool) e
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !ok || !info.IsDir() || info.Mode().Perm() != mode || stat.Uid != uint32(os.Geteuid()) {
 		return errors.New("managed account directory must have its exact protected owner and permissions")
+	}
+	return nil
+}
+
+func accountRelativePath(root, path string) (string, error) {
+	if !filepath.IsAbs(root) || filepath.Clean(root) != root || !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return "", errors.New("managed account filesystem paths must be absolute and canonical")
+	}
+	relative, err := filepath.Rel(root, path)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
+		return "", errors.New("managed account path is outside its logical filesystem root")
+	}
+	return relative, nil
+}
+
+func (m *AccountManager) accountAncestors(path string, owner uint32, traversable bool) error {
+	root := m.filesystemRoot
+	if m.native || root == "" || root == "/" {
+		return accountAncestors(path, owner, traversable)
+	}
+	if _, err := accountRelativePath(root, path); err != nil {
+		return err
+	}
+	// Keep ownership, symlink and write protection anchored at / even for fixtures.
+	if err := accountAncestors(path, owner, false); err != nil {
+		return err
+	}
+	if traversable {
+		for current := path; ; current = filepath.Dir(current) {
+			info, err := os.Lstat(current)
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() || info.Mode().Perm()&0001 == 0 {
+				return errors.New("managed account path has a non-traversable public ancestor")
+			}
+			if current == root {
+				break
+			}
+		}
 	}
 	return nil
 }
@@ -96,7 +136,7 @@ func accountTrustedFile(path string, owner uint32, executable bool) error {
 }
 
 func (m *AccountManager) lockInventory() (*secure.Lock, error) {
-	if err := accountDirectory(m.options.StateDir, 0700, true, false); err != nil {
+	if err := m.accountDirectory(m.options.StateDir, 0700, true, false); err != nil {
 		return nil, err
 	}
 	return secure.Acquire(filepath.Join(m.options.StateDir, "inventory.lock"))
@@ -104,7 +144,7 @@ func (m *AccountManager) lockInventory() (*secure.Lock, error) {
 
 func (m *AccountManager) loadInventory() (AccountInventory, error) {
 	initial := AccountInventory{Version: AccountInventoryVersion, OptionsHash: m.optionsHash(), NextUID: m.options.UIDMin}
-	if err := accountDirectory(m.options.StateDir, 0700, false, false); errors.Is(err, os.ErrNotExist) {
+	if err := m.accountDirectory(m.options.StateDir, 0700, false, false); errors.Is(err, os.ErrNotExist) {
 		return m.emptyInventory(initial)
 	} else if err != nil {
 		return AccountInventory{}, err
@@ -222,7 +262,7 @@ func (m *AccountManager) saveInventory(inventory *AccountInventory) error {
 }
 
 func (m *AccountManager) preparePolicy() error {
-	if err := accountDirectory(m.options.PolicyDir, 0755, true, true); err != nil {
+	if err := m.accountDirectory(m.options.PolicyDir, 0755, true, true); err != nil {
 		return err
 	}
 	marker := filepath.Join(m.options.PolicyDir, ".foundation-accounts")
@@ -242,7 +282,7 @@ func (m *AccountManager) preparePolicy() error {
 		return errors.New("SSH policy directory belongs to another installation")
 	}
 	for _, directory := range []string{"authorized_keys", "homes"} {
-		if err := accountDirectory(filepath.Join(m.options.PolicyDir, directory), 0755, true, true); err != nil {
+		if err := m.accountDirectory(filepath.Join(m.options.PolicyDir, directory), 0755, true, true); err != nil {
 			return err
 		}
 	}
@@ -250,7 +290,7 @@ func (m *AccountManager) preparePolicy() error {
 }
 
 func (m *AccountManager) prepareHome(path string) error {
-	return accountDirectory(path, 0555, true, true)
+	return m.accountDirectory(path, 0555, true, true)
 }
 
 func accountReadPublic(path string) ([]byte, error) {
@@ -334,7 +374,7 @@ func (m *AccountManager) verifyActive(ctx context.Context, account ManagedAccoun
 	if err := m.verifyUser(ctx, account); err != nil {
 		return err
 	}
-	if err := accountDirectory(m.desired(account).Home, 0555, false, true); err != nil {
+	if err := m.accountDirectory(m.desired(account).Home, 0555, false, true); err != nil {
 		return err
 	}
 	gateway, err := m.gatewayConfig()

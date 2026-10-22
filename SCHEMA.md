@@ -120,6 +120,10 @@ RAM, or use a full clone sequentially without proving simultaneous owners.
 
 ### Accounts, keys and registration
 
+- Registration advances from `pending` to `provisioned` to `active`. An exact
+  retry after native account binding but before activation reconciles the same
+  provisioned account/key/generation; it must not create another identity or
+  reject a retained successful binding. Active identities are not reprovisioned.
 - Every agent, including Founder, receives a unique Foundation-host SSH user and
   UID. Durable account/key reservations prevent another identity reusing them.
   The unprivileged server delegates only fixed managed-account operations to a
@@ -175,7 +179,11 @@ proves an ephemeral owner key and issues an owner certificate for ordinary API
 use. Certificates bind `instance_id`, `agent_id`, key `generation`, purpose and
 (for owners) `owner_generation`; these must agree with the peer UID, registered
 keys, current state and live owner. Transactions recheck the same generation
-fence so revocation/recovery cannot authorize a late stale write.
+fence so revocation/recovery cannot authorize a late stale write. Bounded
+WebSocket keepalive pings run independently of certificate renewal so the
+finite-idle SSH gateway does not expire a healthy owner. Native SSH process exit
+propagates EOF even while its stdin is idle; a closed gateway cannot leave a
+stale local lease looking ready instead of triggering same-owner reconnection.
 
 Ordinary CLI calls attach to the existing local identity proxy. They do not open
 a second owner or expose signing/control keys to provider processes. Device

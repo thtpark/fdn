@@ -149,22 +149,37 @@ type AccountSystem interface {
 }
 
 type AccountManager struct {
-	options AccountOptions
-	system  AccountSystem
-	native  bool
-	mu      sync.Mutex
+	options        AccountOptions
+	system         AccountSystem
+	native         bool
+	filesystemRoot string
+	mu             sync.Mutex
 }
 
 // NewAccountManager constructs an injected/recording manager. Production uses
 // NewNativeAccountManager, never a user-supplied OS adapter.
 func NewAccountManager(options AccountOptions, system AccountSystem) (*AccountManager, error) {
+	return newAccountManager(options, system, "/")
+}
+
+// A logical root is only an injected-system seam, never an AccountOptions input.
+// Native managers always validate public traversal from the real filesystem root.
+func newAccountManager(options AccountOptions, system AccountSystem, filesystemRoot string) (*AccountManager, error) {
 	if err := options.normalize(); err != nil {
 		return nil, err
 	}
 	if system == nil {
 		return nil, errors.New("managed accounts require a native or recording OS adapter")
 	}
-	return &AccountManager{options: options, system: system}, nil
+	if _, native := system.(*nativeAccountSystem); native && filesystemRoot != "/" {
+		return nil, errors.New("native account systems require the real filesystem root")
+	}
+	for _, path := range []string{options.StateDir, options.PolicyDir} {
+		if _, err := accountRelativePath(filesystemRoot, path); err != nil {
+			return nil, err
+		}
+	}
+	return &AccountManager{options: options, system: system, filesystemRoot: filesystemRoot}, nil
 }
 
 // AccountUsername is deterministic, bounded and independent of display names.

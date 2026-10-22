@@ -8,6 +8,8 @@ import (
 	"crypto/tls"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
@@ -103,7 +105,17 @@ func (NativeRemote) Owner(ctx context.Context, c config.Worker, cert tls.Certifi
 		return nil, domain.Fail(domain.Unavailable, "identity owner connection failed")
 	}
 	connection.SetReadLimit(domain.MaxBody)
-	return &nativeOwner{connection: connection, client: client}, nil
+	// Certificate renewal is slower than the gateway's idle limit. Keep the
+	// authenticated owner stream alive independently of certificate renewal.
+	heartbeatCtx, cancel := context.WithCancel(ctx)
+	owner := &nativeOwner{connection: connection, client: client, cancel: cancel, heartbeatDone: make(chan struct{})}
+	go func() {
+		defer close(owner.heartbeatDone)
+		if err := ownerKeepalive(heartbeatCtx, 20*time.Second, connection.Ping); err != nil && heartbeatCtx.Err() == nil {
+			connection.CloseNow()
+		}
+	}()
+	return owner, nil
 }
 
 func (NativeRemote) Client(c config.Worker, cert tls.Certificate) (*api.Client, error) {
@@ -111,8 +123,30 @@ func (NativeRemote) Client(c config.Worker, cert tls.Certificate) (*api.Client, 
 }
 
 type nativeOwner struct {
-	connection *websocket.Conn
-	client     *api.Client
+	connection    *websocket.Conn
+	client        *api.Client
+	cancel        context.CancelFunc
+	heartbeatDone chan struct{}
+	closeOnce     sync.Once
+	closeErr      error
+}
+
+func ownerKeepalive(ctx context.Context, interval time.Duration, ping func(context.Context) error) error {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			check, cancel := context.WithTimeout(ctx, 10*time.Second)
+			err := ping(check)
+			cancel()
+			if err != nil {
+				return err
+			}
+		}
+	}
 }
 
 func (o *nativeOwner) Challenge(ctx context.Context) (domain.IdentityChallenge, error) {
@@ -132,7 +166,15 @@ func (o *nativeOwner) Receive(ctx context.Context) (domain.OwnerCertificate, err
 	return cert, err
 }
 func (o *nativeOwner) Close() error {
-	err := o.connection.CloseNow()
-	o.client.Close()
-	return err
+	o.closeOnce.Do(func() {
+		if o.cancel != nil {
+			o.cancel()
+		}
+		o.closeErr = o.connection.CloseNow()
+		if o.heartbeatDone != nil {
+			<-o.heartbeatDone
+		}
+		o.client.Close()
+	})
+	return o.closeErr
 }

@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -115,10 +116,23 @@ func servingTunnel(t *testing.T, serverTLS *tls.Config, handler http.Handler, st
 	return tunnelRunner(func(ctx context.Context, spec process.Spec) error {
 		starts.Add(1)
 		defer func() { stops <- struct{}{} }()
-		conn, ok := spec.Stdin.(net.Conn)
-		if !ok || spec.Stdout != conn {
-			return errors.New("tunnel did not use duplex stdin/stdout")
+		input, inputOK := spec.Stdin.(*os.File)
+		output, outputOK := spec.Stdout.(*os.File)
+		if !inputOK || !outputOK {
+			return errors.New("tunnel did not use native file-backed stdin/stdout")
 		}
+		bridge, conn := net.Pipe()
+		copies := make(chan struct{}, 2)
+		go func() { _, _ = io.Copy(bridge, input); copies <- struct{}{} }()
+		go func() { _, _ = io.Copy(output, bridge); copies <- struct{}{} }()
+		defer func() {
+			bridge.Close()
+			conn.Close()
+			input.Close()
+			output.Close()
+			<-copies
+			<-copies
+		}()
 		listener := &tunnelListener{conn: conn, done: make(chan struct{})}
 		server := &http.Server{Handler: handler, TLSConfig: serverTLS, ErrorLog: log.New(io.Discard, "", 0), ReadHeaderTimeout: time.Second}
 		done := make(chan error, 1)

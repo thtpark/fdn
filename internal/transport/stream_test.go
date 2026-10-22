@@ -213,6 +213,31 @@ func TestStreamNativeOwnedProcessRoundTrip(t *testing.T) {
 	}
 }
 
+func TestStreamNativeChildExitPropagatesEOFWithoutClientInput(t *testing.T) {
+	c := streamSSH(t)
+	done := make(chan struct{})
+	runner := streamRunner(func(ctx context.Context, spec process.Spec) error {
+		defer close(done)
+		spec.Path, spec.Args = "/bin/sh", []string{"-c", "printf ended"}
+		return (process.Native{}).Run(ctx, spec)
+	})
+	conn, err := OpenStream(context.Background(), c, "fdn-join", runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	data, err := io.ReadAll(conn)
+	if err != nil || string(data) != "ended" {
+		t.Fatalf("native child exit did not close its stream: %q %v", data, err)
+	}
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("exited native child remained blocked on unused stdin")
+	}
+}
+
 func TestStreamCleanupFailuresRemainObservable(t *testing.T) {
 	c := streamSSH(t)
 	runner := streamRunner(func(ctx context.Context, spec process.Spec) error {
