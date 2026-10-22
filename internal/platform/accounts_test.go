@@ -56,15 +56,7 @@ func platformTestRoot(t *testing.T, prefix string) string {
 
 func accountTestRoot(t *testing.T) string {
 	t.Helper()
-	root := platformTestRoot(t, ".a-")
-	// SSH policy ancestors must be traversable; private state remains 0700.
-	if err := os.Chmod(root, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := accountAncestors(root, uint32(os.Geteuid()), true); err != nil {
-		t.Fatal("OS account home must allow SSH policy traversal", err)
-	}
-	return root
+	return platformTestRoot(t, ".a-")
 }
 
 func TestPlatformFixtureRootsUseAccountHome(t *testing.T) {
@@ -87,13 +79,11 @@ func TestPlatformFixtureRootsUseAccountHome(t *testing.T) {
 	t.Chdir(checkout)
 	t.Setenv("HOME", unsafe)
 	for _, fixture := range []struct {
-		name        string
-		root        func(*testing.T) string
-		mode        os.FileMode
-		traversable bool
+		name string
+		root func(*testing.T) string
 	}{
-		{"accounts", accountTestRoot, 0755, true},
-		{"identity-install", identityInstallTestDir, 0700, false},
+		{"accounts", accountTestRoot},
+		{"identity-install", identityInstallTestDir},
 	} {
 		var root string
 		t.Run(fixture.name, func(t *testing.T) {
@@ -102,10 +92,10 @@ func TestPlatformFixtureRootsUseAccountHome(t *testing.T) {
 				t.Error("fixture root must use the OS account home, not HOME or the checkout")
 			}
 			info, err := os.Lstat(root)
-			if err != nil || info.Mode().Perm() != fixture.mode {
+			if err != nil || info.Mode().Perm() != 0700 {
 				t.Fatal("incorrect fixture root permissions", info, err)
 			}
-			if err := accountAncestors(root, uint32(os.Geteuid()), fixture.traversable); err != nil {
+			if err := accountAncestors(root, uint32(os.Geteuid()), false); err != nil {
 				t.Error("fixture inherited unsafe ancestors", err)
 			}
 		})
@@ -269,12 +259,15 @@ func (r *recordingAccounts) ActivateSSH(ctx context.Context, _ AccountSSHPolicy)
 
 func accountFixture(t *testing.T) (*AccountManager, *recordingAccounts) {
 	t.Helper()
-	root := accountTestRoot(t)
+	root := filepath.Join(accountTestRoot(t), "root")
+	if err := os.Mkdir(root, 0755); err != nil {
+		t.Fatal(err)
+	}
 	options := AccountOptions{StateDir: filepath.Join(root, "s"), PolicyDir: filepath.Join(root, "p"), GatewayBinary: "/opt/fdn/fdn-service",
 		APISocket: filepath.Join(root, "api"), JoinSocket: filepath.Join(root, "join"), ServerUID: 1200, ServerGroup: "fdn", ServerGID: 1200,
 		IngressGroup: "fdn_ingress", IngressGID: 210000, UIDMin: 220000, UIDMax: 220010}
 	system := &recordingAccounts{users: map[string]AccountUser{"fdn": {Username: "fdn", UID: 1200, GID: 1200, Groups: []uint32{1200}}}, groups: map[string]AccountGroup{"fdn": {Name: "fdn", GID: 1200}}, disabled: map[string]bool{}}
-	manager, err := NewAccountManager(options, system)
+	manager, err := newAccountManager(options, system, root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -363,7 +356,7 @@ func TestManagedAccountPlanApplyAndRetainedReplay(t *testing.T) {
 	}
 	count := len(system.mutations)
 	system.before = nil
-	reopened, err := NewAccountManager(manager.options, system)
+	reopened, err := newAccountManager(manager.options, system, manager.filesystemRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -447,7 +440,7 @@ func TestManagedAccountInterruptedProvisionAndFailedPolicyStayClosed(t *testing.
 			}
 			system.fail = ""
 			system.lostCreate = false
-			reopened, err := NewAccountManager(manager.options, system)
+			reopened, err := newAccountManager(manager.options, system, manager.filesystemRoot)
 			if err != nil {
 				t.Fatal(err)
 			}
