@@ -519,12 +519,25 @@ virtual desktops or monitor-scoped capture; macOS needs an existing authorized
 desktop and any native screen-recording/accessibility consent. Never unlock
 someone else's desktop or automate OS permission/credential prompts.
 
+Readiness probes read only RFB protocol metadata, never VNC credentials or pixels.
+TigerVNC can count these incomplete connections toward its connection blacklist,
+then return an RFB denial banner even while the port is listening. With explicit
+operator approval, a **verified loopback-only** TigerVNC backend can use
+`-UseBlacklist=0` while retaining `-SecurityTypes VncAuth`, private credentials,
+SSH/mTLS relay authorization and disabled X11 TCP. Never apply that exception to
+an externally reachable backend. Foundation duplicate-identity bans are separate
+and remain enforced. Qualify actual backend authentication separately through an
+authorized human or an opaque credential probe that emits only readiness metadata.
+
 Configure one explicit `screens` profile per usable display: stable id/name,
 geometry, scope screen/desktop, verified loopback VNC address, native display
 binding and a bounded list of application IDs with absolute approved executable
 and argument arrays. `config set --input FILE` accepts the profiles. Local paths,
-Xauthority and backend authentication stay private. Place/launch each app on its
-own screen when native support allows; share only the selected screen. If capture
+Xauthority and backend authentication stay private. Xauthority remains a bounded
+0600 regular file owned by the runner, not root or the identity service. Native
+service inspection validates against the planned runner UID; do not change file
+ownership to satisfy a root invocation. Place/launch each app on its own screen
+when native support allows; share only the selected screen. If capture
 cannot isolate it, label scope desktop and require desktop_fallback in the
 Founder grant/session instead of silently exposing more screens.
 

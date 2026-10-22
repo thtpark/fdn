@@ -321,7 +321,7 @@ func validateIdentityServiceConfiguration(o IdentityServiceOptions, identity con
 		identityPathWithin(o.IdentityHome, worker.CredentialFile) || identityPathWithin(o.IdentityHome, worker.CAFile) {
 		return domain.Fail(domain.Denied, "runner configuration must use only the planned public IPC endpoint, never identity-private state or SSH keys")
 	}
-	return worker.Validate()
+	return worker.ValidateForOwner(uint32(o.WorkerUID))
 }
 
 func identityInstallUnitParents(base, target string, uid, gid int) error {

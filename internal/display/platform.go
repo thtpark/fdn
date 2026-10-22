@@ -101,9 +101,9 @@ func placementReady(ctx context.Context, item available) error {
 func place(ctx context.Context, item available, pid int) error {
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
-	// Leave room for window-manager decorations without accepting placement on
-	// another monitor. Returned client/window bounds are still checked below.
-	marginX, marginY := min(32, item.rect.Width/8), min(32, item.rect.Height/8)
+	// Native window managers can report client origins over 32 pixels below the
+	// requested position. Reserve decoration space, but still verify all bounds.
+	marginX, marginY := min(64, item.rect.Width/8), min(64, item.rect.Height/8)
 	desired := rectangle{item.rect.X + marginX, item.rect.Y + marginY, item.rect.Width - 2*marginX, item.rect.Height - 2*marginY}
 	if strings.HasPrefix(item.profile.Display, "macos:") {
 		data, err := runTool(ctx, item.profile, "/usr/bin/osascript", "-l", "JavaScript", "-e", macPlacementScript,

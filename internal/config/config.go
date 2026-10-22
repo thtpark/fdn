@@ -153,6 +153,12 @@ func (c Server) Validate() error {
 }
 
 func (c Worker) Validate() error {
+	return c.ValidateForOwner(uint32(os.Geteuid()))
+}
+
+// ValidateForOwner lets a native inspector check an already-bound runner UID.
+// Worker execution must use Validate, which always requires its actual EUID.
+func (c Worker) ValidateForOwner(ownerUID uint32) error {
 	if !filepath.IsAbs(c.StateDir) || !filepath.IsAbs(c.CredentialFile) || !filepath.IsAbs(c.CAFile) || !filepath.IsAbs(c.WorkspaceRoot) {
 		return domain.Fail(domain.Invalid, "worker paths must be absolute")
 	}
@@ -182,7 +188,7 @@ func (c Worker) Validate() error {
 			return err
 		}
 	}
-	if err := c.ValidateScreens(); err != nil {
+	if err := c.validateScreensForOwner(ownerUID); err != nil {
 		return err
 	}
 	return URL(c.URL)
@@ -213,6 +219,10 @@ func LocalDisplay(display string) bool {
 }
 
 func (c Worker) ValidateScreens() error {
+	return c.validateScreensForOwner(uint32(os.Geteuid()))
+}
+
+func (c Worker) validateScreensForOwner(ownerUID uint32) error {
 	if len(c.Screens) > 16 {
 		return domain.Fail(domain.Invalid, "at most 16 local screen profiles are supported")
 	}
@@ -269,7 +279,7 @@ func (c Worker) ValidateScreens() error {
 			if strings.HasPrefix(screen.Display, "macos:") || !filepath.IsAbs(screen.XAuthority) || strings.ContainsRune(screen.XAuthority, 0) {
 				return domain.Fail(domain.Invalid, "Xauthority must explicitly name an absolute private X11 file")
 			}
-			if err := CheckXAuthority(screen.XAuthority); err != nil {
+			if err := checkXAuthorityForOwner(screen.XAuthority, ownerUID); err != nil {
 				return err
 			}
 		}
@@ -297,8 +307,13 @@ func (c Worker) ValidateScreens() error {
 	return nil
 }
 
-// CheckXAuthority checks metadata only and never blocks opening a pipe or device.
+// CheckXAuthority checks metadata for the actual EUID, without reading cookies.
+// O_NONBLOCK prevents a substituted pipe or device from blocking validation.
 func CheckXAuthority(path string) error {
+	return checkXAuthorityForOwner(path, uint32(os.Geteuid()))
+}
+
+func checkXAuthorityForOwner(path string, ownerUID uint32) error {
 	if !filepath.IsAbs(path) || strings.ContainsRune(path, 0) {
 		return domain.Fail(domain.Denied, "Xauthority must explicitly name an absolute runner-owned private file")
 	}
@@ -308,7 +323,18 @@ func CheckXAuthority(path string) error {
 	}
 	defer file.Close()
 	info, err := file.Stat()
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 || info.Size() > 1<<20 || secure.CheckOwner(info) != nil {
+	if err != nil {
+		return domain.Fail(domain.Denied, "cannot inspect private Xauthority metadata")
+	}
+	return checkXAuthorityMetadata(info, ownerUID)
+}
+
+func checkXAuthorityMetadata(info os.FileInfo, ownerUID uint32) error {
+	if info == nil {
+		return domain.Fail(domain.Denied, "Xauthority metadata is unavailable")
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 || info.Size() > 1<<20 || stat.Uid != ownerUID {
 		return domain.Fail(domain.Denied, "Xauthority must be a bounded private regular file owned by the runner UID")
 	}
 	return nil
