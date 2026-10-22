@@ -8,13 +8,31 @@ import (
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/remote"
 )
 
 func (a *app) assistanceCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "assistance requires grant, list, show, revoke, or open")
+		return nil, domain.Fail(domain.Invalid, "assistance requires request, grant, list, show, revoke, or open")
 	}
 	switch args[0] {
+	case "request":
+		var req domain.AssistanceHelpRequest
+		if err := a.input(args[1:], &req); err != nil {
+			return nil, err
+		}
+		if err := a.metadata(&req.Command); err != nil {
+			return nil, err
+		}
+		if req.Mode == "" {
+			req.Mode = "tmux"
+		}
+		if req.Mode == "vnc" {
+			if err := a.publishScreens(ctx, r); err != nil {
+				return nil, err
+			}
+		}
+		return a.write(ctx, r, "/v1/assistance/requests", req, "")
 	case "list":
 		if err := requireArgs(args, 1); err != nil {
 			return nil, err
@@ -55,8 +73,14 @@ func (a *app) assistanceCommand(ctx context.Context, r *resources, args []string
 		flags := flag.NewFlagSet("assistance open", flag.ContinueOnError)
 		provider := flags.String("provider", "", "authentication provider (grant requirement wins)")
 		ttl := flags.Int("ttl", 300, "live connection seconds, not grant lifetime")
+		viewer := flags.String("viewer", "browser", "browser or native for VNC")
+		listen := flags.String("listen", "127.0.0.1:0", "VNC browser loopback listener; forward the same port over SSH")
+		assets := flags.String("assets-dir", "/usr/share/novnc", "absolute trusted installed noVNC assets directory")
 		if err := parse(flags, tail); err != nil {
 			return nil, err
+		}
+		if *viewer != "browser" && *viewer != "native" {
+			return nil, domain.Fail(domain.Invalid, "VNC viewer must be browser or native")
 		}
 		if *ttl < 60 || *ttl > 900 {
 			return nil, domain.Fail(domain.Invalid, "live assistance session must be 60-900 seconds")
@@ -96,11 +120,13 @@ func (a *app) assistanceCommand(ctx context.Context, r *resources, args []string
 		if !found {
 			proposal.GrantID = id
 			proposal.Request = domain.SessionRequest{Command: domain.Command{OperationID: "assist_" + domain.Hash(a.operation)}, GrantID: id, TargetID: grant.TargetID,
-				ProjectID: grant.ProjectID, Mode: grant.Mode, Purpose: grant.Purpose, Provider: selected, Reason: "Explicit requester launch under retained Founder authorization", ExpiresAt: time.Now().UTC().Unix() + int64(*ttl)}
+				ProjectID: grant.ProjectID, Mode: grant.Mode, Purpose: grant.Purpose, Provider: selected, Reason: "Explicit requester launch under retained Founder authorization", ExpiresAt: time.Now().UTC().Unix() + int64(*ttl),
+				ScreenID: grant.ScreenID, ApplicationID: grant.ApplicationID, DesktopFallback: grant.DesktopFallback}
 			if err := r.state.Put(ctx, key, proposal); err != nil {
 				return nil, err
 			}
-		} else if proposal.GrantID != id || proposal.Request.Provider != selected || proposal.Request.Mode != grant.Mode || proposal.Request.Purpose != grant.Purpose {
+		} else if proposal.GrantID != id || proposal.Request.Provider != selected || proposal.Request.Mode != grant.Mode || proposal.Request.Purpose != grant.Purpose ||
+			proposal.Request.ScreenID != grant.ScreenID || proposal.Request.ApplicationID != grant.ApplicationID || proposal.Request.DesktopFallback != grant.DesktopFallback {
 			return nil, domain.Fail(domain.Conflict, "assistance launch operation belongs to a different exact grant/provider proposal")
 		}
 		data, err := a.write(ctx, r, "/v1/sessions", proposal.Request, "")
@@ -111,7 +137,7 @@ func (a *app) assistanceCommand(ctx context.Context, r *resources, args []string
 		if err := json.Unmarshal(data, &session); err != nil {
 			return nil, err
 		}
-		return a.openSession(ctx, r, session.ID)
+		return a.openSessionViewer(ctx, r, session.ID, *viewer, remote.BrowserOptions{Address: *listen, AssetsDir: *assets})
 	default:
 		return nil, domain.Fail(domain.Invalid, "unknown assistance command")
 	}

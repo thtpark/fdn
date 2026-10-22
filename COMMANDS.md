@@ -277,6 +277,49 @@ mentions do not confer authority. Cursors are actor/query-bound; pages are
 limited to 1-200. Watch delivery is at least once; inspect sequence/cursor rather
 than assuming exactly-once processing.
 
+## Displays, browser VNC and human-help requests
+
+`agent-cli screen list` reports the current runner's available verified screens,
+not cloud hardware flags or screenshots. Headless agents publish an empty screen
+inventory and cannot request/open VNC. Configure only actual physical/virtual
+screens and a verified authenticated loopback backend. Each screen has a stable
+public ID and scope `screen` (only that screen) or `desktop` (whole host fallback),
+geometry and configured application IDs; private paths/addresses remain local.
+
+`agent-cli screen launch SCREEN --application APP` explicitly launches the
+configured application under the runner account on that screen, held in the
+foreground until app exit or the command timeout/cancellation; cleanup is joined
+before its work slot is released. It accepts an application ID, not arbitrary
+shell commands, and respects existing invocation/session fences. For VNC help,
+prefer binding application_id in the grant/session so app preparation and cleanup
+share the live session's lifetime instead of running a separate CLI launcher. Use an app per screen when supported;
+unsupported placement must not be represented as screen isolation.
+
+`agent-cli assistance request --input FILE` is the target agent asking for help.
+Input: mode tmux/vnc, purpose authentication/terminal, reason, optional provider,
+project_id/task_id, and for VNC screen_id/application_id plus desktop_fallback.
+The server sends protected private notices to active Founder and current relevant
+delegates. This does not create a grant, open a viewer, launch an app or start
+login/inference. General human desktop help uses purpose terminal; headless
+provider sign-in normally uses tmux/device-code instead of VNC.
+
+Founder issues the matching `assistance grant` with screen_id, application_id
+and explicit desktop_fallback if the inventory reports whole-desktop scope.
+Grant/session checks prevent screen/app swaps or silent broadening; all current
+identity, project, expiry and revocation checks still apply.
+
+VNC `assistance open`/`session open` default to `--viewer browser`; `--viewer
+native` retains the trusted native viewer. The browser helper needs an absolute
+trusted installed noVNC assets directory (`--assets-dir`, default
+`/usr/share/novnc`), not a CDN or downloaded remote script. It binds only literal
+loopback (`--listen`, default `127.0.0.1:0`). On a headless requester, choose a
+fixed loopback port and SSH-forward that same port to the human's localhost;
+open the helper's human-terminal URL locally. The target RFB stream still uses
+the existing authenticated SSH/mTLS relay; no public VNC/API listener is needed.
+The helper's token-bearing bootstrap URL is session access material, not a public
+provider verification link: keep it in the authorized human terminal, never a
+Foundation message/model log. No clipboard transfer is permitted.
+
 ## Persistent assistance and protected sessions
 
 Every non-Founder target is unattended. Founder issues authorization once;

@@ -8,6 +8,12 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 )
 
+type assistanceHelpReceipt struct {
+	AgentID    string   `json:"agent_id"`
+	MessageIDs []string `json:"message_ids"`
+	ExpiresAt  int64    `json:"expires_at"`
+}
+
 type storedResult struct {
 	Kind     string          `json:"kind"`
 	ID       string          `json:"id,omitempty"`
@@ -38,9 +44,19 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "sessions", ID: v.ID}
 	case domain.AssistanceGrant:
 		ref = storedResult{Kind: "assistance_grants", ID: v.ID}
+	case domain.AssistanceHelp:
+		help := assistanceHelpReceipt{AgentID: v.AgentID, MessageIDs: make([]string, len(v.Messages)), ExpiresAt: v.ExpiresAt}
+		for i, message := range v.Messages {
+			help.MessageIDs[i] = message.ID
+		}
+		data, err := json.Marshal(help)
+		if err != nil {
+			return nil, err
+		}
+		ref = storedResult{Kind: "assistance-help", ID: v.ID, Value: data}
 	case domain.ReportOutcome:
 		ref = storedResult{Kind: "report", ID: v.Run.ID, TaskID: v.Task.ID, Accepted: v.Accepted, Stale: v.Stale}
-	case domain.Attention, map[string]bool:
+	case domain.Attention, map[string]bool, []domain.Screen:
 		data, err := json.Marshal(v)
 		if err != nil {
 			return nil, err
@@ -79,6 +95,25 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, data []byte) (T, error
 		value, err = get[domain.Session](ctx, tx, ref.Kind, ref.ID)
 	case "assistance_grants":
 		value, err = get[domain.AssistanceGrant](ctx, tx, ref.Kind, ref.ID)
+	case "assistance-help":
+		var receipt assistanceHelpReceipt
+		if err := json.Unmarshal(ref.Value, &receipt); err != nil {
+			return zero, err
+		}
+		help := domain.AssistanceHelp{ID: ref.ID, AgentID: receipt.AgentID, Messages: []domain.Message{}, ExpiresAt: receipt.ExpiresAt}
+		for _, id := range receipt.MessageIDs {
+			message, err := get[domain.Message](ctx, tx, "messages", id)
+			if err != nil {
+				return zero, err
+			}
+			if message.SenderID != receipt.AgentID || !assistanceHelpMessage(message) || message.ExpiresAt != receipt.ExpiresAt {
+				return zero, domain.Fail(domain.Internal, "assistance help receipt does not match its immutable messages")
+			}
+			// Disposition/expiry projections never rewrite the original help receipt.
+			message.State, message.Revision = "pending", 1
+			help.Messages = append(help.Messages, message)
+		}
+		value = help
 	case "value":
 		err = json.Unmarshal(ref.Value, &zero)
 		return zero, err

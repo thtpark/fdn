@@ -55,16 +55,26 @@ func (a *app) sessionCommand(ctx context.Context, r *resources, args []string) (
 			return nil, err
 		}
 		fs := flag.NewFlagSet("session open", flag.ContinueOnError)
+		viewer := fs.String("viewer", "browser", "browser or native for VNC")
+		listen := fs.String("listen", "127.0.0.1:0", "VNC browser loopback listener; forward the same port over SSH")
+		assets := fs.String("assets-dir", "/usr/share/novnc", "absolute trusted installed noVNC assets directory")
 		if err := parse(fs, tail); err != nil {
 			return nil, err
 		}
-		return a.openSession(ctx, r, id)
+		if *viewer != "browser" && *viewer != "native" {
+			return nil, domain.Fail(domain.Invalid, "VNC viewer must be browser or native")
+		}
+		return a.openSessionViewer(ctx, r, id, *viewer, remote.BrowserOptions{Address: *listen, AssetsDir: *assets})
 	default:
 		return nil, domain.Fail(domain.Invalid, "unknown session command")
 	}
 }
 
 func (a *app) openSession(ctx context.Context, r *resources, id string) (any, error) {
+	return a.openSessionViewer(ctx, r, id, "browser", remote.BrowserOptions{Address: "127.0.0.1:0", AssetsDir: "/usr/share/novnc"})
+}
+
+func (a *app) openSessionViewer(ctx context.Context, r *resources, id, viewer string, browser remote.BrowserOptions) (any, error) {
 	input, output, diagnostic, err := a.humanTerminal()
 	if err != nil {
 		return nil, err
@@ -88,8 +98,10 @@ func (a *app) openSession(ctx context.Context, r *resources, id string) (any, er
 	defer cancel()
 	if session.Mode == "tmux" {
 		err = remote.AttachTerminal(ctx, r.client, id, input, output)
-	} else {
+	} else if viewer == "native" {
 		err = remote.AttachVNC(ctx, r.client, id, diagnostic)
+	} else {
+		err = remote.AttachBrowserVNC(ctx, r.client, id, browser, diagnostic)
 	}
 	current, readErr := api.Call[domain.Session](context.WithoutCancel(ctx), r.client, "GET", api.Path("sessions", id), nil)
 	if readErr != nil {

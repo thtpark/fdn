@@ -90,9 +90,23 @@ model and authorized inference.
    Copilot retains `--no-auto-update`. A failed capability probe starts no login.
    Device login can require enabling the provider/workspace's device-code
    permission; the human/admin handles that decision, not an automated consent.
-   VNC needs an existing,
-   authenticated, verified loopback backend and trusted viewer; it does not
-   install/unlock a desktop or transfer the requester's application identity.
+   For graphical help, first `screen list`: only actual physical/virtual screens
+   with a verified authenticated loopback backend may use VNC; headless targets
+   cannot. Use `screen launch SCREEN --application APP` for a configured app on
+   that screen, never arbitrary shell/credential injection. Prefer per-screen
+   app/capture; if only whole-desktop capture is possible, label it desktop scope
+   and require explicit desktop_fallback in the Founder grant/session.
+   Ask Founder/current delegates with `assistance request --input FILE`, mode
+   vnc, screen_id/application_id, purpose authentication or terminal for general
+   human help. This sends a protected notice, not a grant/open/login action.
+   Founder grants the exact scope; the human uses `assistance open GRANT --viewer
+   browser --listen 127.0.0.1:PORT --assets-dir TRUSTED_NOVNC_DIR` and SSH-forwards
+   the same port to localhost. Browser access stays loopback and RFB uses the
+   existing SSH/mTLS relay; no public listener/clipboard/UI capture. The helper's
+   token-bearing bootstrap URL is private session access, not a public provider
+   verification link. VNC never installs/unlocks a desktop or transfers the
+   requester's application identity; OS desktop/screen-recording prerequisites
+   require their own native approval.
    Never automate keystrokes through arbitrary consent/login prompts.
 9. Expired/closed live sessions can reconnect under the same active grant without
    reapproval. Revoked grants cannot reopen; Founder must explicitly issue a new

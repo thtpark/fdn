@@ -236,6 +236,29 @@ human is a normal consented authentication step, not intrinsically a privacy
 violation. This does not authorize publishing credentials, one-time codes,
 secret-bearing URLs or unredacted credential transcripts to models/shared logs.
 
+## VNC: display-only, screen-bound browser assistance
+
+These source fixtures use synthetic display metadata/RFB streams and original
+small noVNC module fixtures; they never capture a real screen or login. Native OS
+desktop/backend, trusted installed noVNC and actual app placement are separate
+per-equipped-host qualification. Headless targets must not acquire a desktop.
+
+| ID | Automated test | Expected result |
+| --- | --- | --- |
+| `VNC-001` | `TestInventoryRequiresActualDisplayAndRFBWithoutCreatingAnything`, `TestInventoryReportsOnlyVerifiedGeometryAndPublicMetadata`, `TestInventoryRejectsNonRFBAndUnavailableBackends` in [display tests](../../internal/display/display_test.go) | Configuration/cloud flags alone do not fabricate readiness; only owned native geometry plus verified loopback RFB is published, no paths/UI/credentials. |
+| `VNC-002` | `TestOpenBindsChosenScreenApplicationAndFallbackExactly`, `TestLegacyDesktopNeedsOwnDisplayEvidenceAndExplicitScope` in [display tests](../../internal/display/display_test.go) | Selected screen/app cannot be substituted or widened; whole-desktop scope/fallback is explicit, not claimed isolation. |
+| `VNC-003` | `TestScreenScopedHelpAndSessionsKeepAgentIdentityAndGrantBoundaries`, `TestDesktopFallbackIsNeverImplicitlyExpandedFromAScreenGrant` in [TLS integration tests](../integration/screens_test.go) | Target help reaches Founder/current delegates without opening access; self-only capability, exact replay, screen/app grants, headless denial and fallback policy hold. |
+| `VNC-004` | `TestBrowserRejectsNonLoopbackListen`, `TestBrowserRejectsUnsafeAssets`, `TestBrowserBootstrapAuthorizationHeadersAndPaths`, `TestBrowserWebSocketAuthorizationAndSingleViewer` in [browser tests](../../internal/remote/browser_test.go) | Only trusted installed assets and authenticated loopback browser connection, strict Host/Origin/path and no-cache/CSP policies; no public listener/clipboard. |
+| `VNC-005` | `TestBrowserCredentialFormCannotSubmitSecretsToHTTP`, `TestBrowserCredentialFormSyntheticJavaScriptBehavior` in [browser tests](../../internal/remote/browser_test.go) | Human noVNC credential form sends only to RFB, clears inputs and never uses HTTP endpoints/URLs/logs/storage or model output. |
+| `VNC-006` | `TestBrowserRevocationAndTransportLossStopAttachment`, `TestBrowserContextCancellationAndExpiryCloseSockets`, `TestBrowserBoundsHTTPRequestsAndFailedHumanDiagnostics` in [browser tests](../../internal/remote/browser_test.go) | Revocation/expiry/loss/failed human output stops the viewer/relay and bounded resources; no quiet success after identity denial. |
+| `VNC-007` | `TestOpenCloseAndCancellationStopOwnedApplication`, `TestFailedPlacementCleansOnlyOwnedProcessAndProvesStartupFailure` in [display tests](../../internal/display/display_test.go), plus `TestNoProcessVNCStartupFailureRetiresOnlyOwnedFence`, `TestUnknownStartupAndCleanupFailuresRemainFenced` in [manager tests](../../internal/remote/screens_test.go) | App placement/ownership is proved; expiry joins only owned helpers; no-process failures retire safely, unknown cleanup and unrelated fences remain. |
+| `VNC-008` | `TestManualManagerPublishesHeadlessInventoryWithoutModeOrRevisionWrites`, `TestScreenPublicationLostAcknowledgementReusesDurableProposal`, `TestManagerReloadsActualProfilesFromLoadedSourceWithoutRestart` in [manager tests](../../internal/remote/screens_test.go), plus `TestHeadlessScreenCLIRequiresNoEnrollmentAndDoesNotInventDisplay` in [CLI tests](../../internal/cli/screens_test.go) | Capability publication works while manual without inference/claim-revision churn, exact uncertain retry, live profile reload and headless offline CLI. |
+
+```sh
+go test -race -count=1 ./internal/config ./internal/display ./internal/remote ./internal/domain ./internal/foundation ./internal/api ./internal/cli
+go test -race -count=1 -tags=integration ./tests/integration -run 'ScreenScoped|DesktopFallback|ConsentRelay'
+```
+
 ## Security boundary cases: source suites verified, final acceptance pending
 
 The following cases are linked to tests in

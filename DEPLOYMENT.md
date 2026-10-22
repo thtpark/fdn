@@ -502,8 +502,53 @@ closes routes, not the grant. Closing a connection does not revoke future access
 `assistance revoke GRANT --input FILE` does. Broad terminal access needs its own
 explicit purpose grant; authentication permission is not a shell grant. Existing
 no-grant per-session consent is retained only for Founder targets.
-VNC still needs a verified authenticated loopback backend and trusted viewer;
-granting access does not install/unlock a desktop. Messages are never grants.
+### Display-equipped agents and browser VNC
+
+VNC is conditional on an actual physical/virtual desktop, never on a VM display
+hardware flag alone. `screen list` and the published public screen inventory must
+report actual ready screens before VNC is requested. Headless agents keep an
+empty screen inventory; do not silently create a desktop on them. A headless
+Founder can still coordinate/view another agent through an SSH-forwarded browser
+viewer without gaining its application identity.
+
+As an authorized OS operator, prepare a native desktop and authenticated
+loopback-only VNC backend under the same dedicated runner account that owns the
+apps/provider state. Keep the identity-service account/HOME/keys separate. Use
+trusted signed OS packages, not downloaded root scripts. Linux can use distinct
+virtual desktops or monitor-scoped capture; macOS needs an existing authorized
+desktop and any native screen-recording/accessibility consent. Never unlock
+someone else's desktop or automate OS permission/credential prompts.
+
+Configure one explicit `screens` profile per usable display: stable id/name,
+geometry, scope screen/desktop, verified loopback VNC address, native display
+binding and a bounded list of application IDs with absolute approved executable
+and argument arrays. `config set --input FILE` accepts the profiles. Local paths,
+Xauthority and backend authentication stay private. Place/launch each app on its
+own screen when native support allows; share only the selected screen. If capture
+cannot isolate it, label scope desktop and require desktop_fallback in the
+Founder grant/session instead of silently exposing more screens.
+
+Targets use `assistance request --input FILE` for VNC or tmux human help. VNC
+requests name the screen/application, reason, purpose authentication/terminal and
+optional project/task. Founder/current delegates receive protected notices; only
+Founder issues the matching retained grant and the human explicitly opens it.
+Requests alone never launch a screen/app, open access, sign in or start inference.
+
+The browser viewer uses trusted locally installed noVNC assets (for example a
+signed distribution's novnc package on the requester) through `--assets-dir`.
+`assistance open GRANT --viewer browser --listen 127.0.0.1:PORT` binds only loopback;
+forward the same PORT over the authorized operator SSH connection to the human's
+localhost. Agent RFB bytes remain inside Foundation's existing authenticated
+SSH/mTLS relay. No external VNC/web/API listener or CDN is needed. The bootstrap
+URL is a short-lived access capability and stays in the human terminal, unlike a
+public provider verification link; do not put it in shared messages/model logs.
+Clipboard transfer remains disabled. `--viewer native` is available for an
+existing trusted local viewer. Expiry/revocation/disconnect cleans up the viewer
+and relay; uncertain process state remains fenced.
+
+Granting access does not install/unlock a desktop. Messages are never grants.
+Actual display/backend/window placement and browser-client qualification remain
+separate from synthetic source tests and must be verified on each equipped host.
 
 ## Upgrade and rollback
 

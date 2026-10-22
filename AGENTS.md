@@ -112,6 +112,12 @@ guide includes this file, all skills, and the development references.
   Founder arranges any genuinely human-only action; delegate agents coordinate
   without seeing protected UI bytes. The authorized requester explicitly opens
   an existing assistance grant, not a new authorization on every reconnect.
+  VNC help is only for actual physical/virtual screen-equipped targets. Prefer
+  per-screen applications/capture; whole-desktop fallback must be labelled and
+  explicitly Founder-authorized. Use screen list, the target's assistance request,
+  a matching retained grant and a human browser viewer over SSH-forwarded localhost.
+  Never expose public VNC/web ports, enable clipboard transfer, invent a desktop
+  on a headless target, or copy token-bearing viewer URLs into messages/model logs.
   Do not open a human terminal or collect credentials on the person's behalf.
   Before enrollment use an approved
   out-of-band channel; absent one, report pending delivery.

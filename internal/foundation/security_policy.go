@@ -279,6 +279,7 @@ func (s *Store) recoverIdentity(ctx context.Context, tx *sql.Tx, actor, id strin
 		}
 	}
 	agent.Active, agent.Banned, agent.BanReason = false, false, ""
+	agent.Screens = nil
 	agent.Revision++
 	if err := saveIdentityAgent(ctx, tx, agent); err != nil {
 		return domain.AgentIdentity{}, err

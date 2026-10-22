@@ -51,6 +51,7 @@ func (s *Store) QuarantineRestoredIdentities(ctx context.Context) error {
 			identity.State, identity.OwnerKey = identityRestorePending, ""
 		}
 		agent.Active = false
+		agent.Screens = nil
 		agent.Revision++
 		if err := saveIdentityAgent(ctx, tx, agent); err != nil {
 			return err
