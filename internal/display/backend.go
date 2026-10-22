@@ -20,7 +20,28 @@ import (
 	"github.com/thtpark/fdn/internal/secure"
 )
 
-func dialBackend(ctx context.Context, address string) (net.Conn, []byte, error) {
+func contextError(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Socket deadlines can fire before the context timer publishes Err/Done.
+	if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
+
+func backendUnavailable(sourceCtx context.Context, message string) error {
+	if err := contextError(sourceCtx); err != nil {
+		return err
+	}
+	return domain.Fail(domain.Prerequisite, message)
+}
+
+func dialBackend(sourceCtx context.Context, address string) (net.Conn, []byte, error) {
+	if err := contextError(sourceCtx); err != nil {
+		return nil, nil, err
+	}
 	if err := config.Loopback(address); err != nil {
 		return nil, nil, err
 	}
@@ -34,7 +55,7 @@ func dialBackend(ctx context.Context, address string) (net.Conn, []byte, error) 
 		// Never let DNS or an altered hosts file widen a localhost-only backend.
 		addresses = []string{net.JoinHostPort("127.0.0.1", port), net.JoinHostPort("::1", port)}
 	}
-	probeCtx, cancel := context.WithTimeout(ctx, time.Second)
+	probeCtx, cancel := context.WithTimeout(sourceCtx, time.Second)
 	defer cancel()
 	var conn net.Conn
 	var err error
@@ -45,25 +66,35 @@ func dialBackend(ctx context.Context, address string) (net.Conn, []byte, error) 
 		}
 	}
 	if err != nil {
-		return nil, nil, domain.Fail(domain.Prerequisite, "verified loopback VNC backend is not responding")
+		return nil, nil, backendUnavailable(sourceCtx, "verified loopback VNC backend is not responding")
 	}
 	peer, ok := conn.RemoteAddr().(*net.TCPAddr)
 	if !ok || !peer.IP.IsLoopback() {
 		conn.Close()
 		return nil, nil, domain.Fail(domain.Denied, "VNC backend did not resolve to loopback")
 	}
+	stop := context.AfterFunc(probeCtx, func() { conn.Close() })
+	defer stop()
 	deadline, _ := probeCtx.Deadline()
 	if err := conn.SetReadDeadline(deadline); err != nil {
 		conn.Close()
-		return nil, nil, err
+		return nil, nil, errors.Join(contextError(sourceCtx), err)
 	}
 	banner := make([]byte, 12)
 	_, err = io.ReadFull(conn, banner)
 	if err != nil || (string(banner) != "RFB 003.003\n" && string(banner) != "RFB 003.007\n" && string(banner) != "RFB 003.008\n" && string(banner) != "RFB 003.889\n") {
 		conn.Close()
-		return nil, nil, domain.Fail(domain.Prerequisite, "loopback endpoint did not provide a supported RFB version banner")
+		return nil, nil, backendUnavailable(sourceCtx, "loopback endpoint did not provide a supported RFB version banner")
+	}
+	if contextError(probeCtx) != nil || !stop() {
+		conn.Close()
+		return nil, nil, backendUnavailable(sourceCtx, "verified loopback VNC backend is not responding")
 	}
 	if err := conn.SetReadDeadline(time.Time{}); err != nil {
+		conn.Close()
+		return nil, nil, errors.Join(contextError(sourceCtx), err)
+	}
+	if err := contextError(sourceCtx); err != nil {
 		conn.Close()
 		return nil, nil, err
 	}

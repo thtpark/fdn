@@ -58,13 +58,13 @@ func Inventory(ctx context.Context, c config.Worker) ([]domain.Screen, error) {
 
 func inventory(ctx context.Context, c config.Worker) ([]available, error) {
 	result := []available{}
-	if err := ctx.Err(); err != nil {
+	if err := contextError(ctx); err != nil {
 		return result, err
 	}
 	if err := c.ValidateScreens(); err != nil {
 		return result, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, inventoryTimeout)
+	inventoryCtx, cancel := context.WithTimeout(ctx, inventoryTimeout)
 	defer cancel()
 	profiles := slices.Clone(c.Screens)
 	if c.VNCAddress != "" && c.VNCVerified && len(profiles) < 16 {
@@ -76,14 +76,17 @@ func inventory(ctx context.Context, c config.Worker) ([]available, error) {
 	}
 	var problems error
 	for _, profile := range profiles {
-		if err := ctx.Err(); err != nil {
+		if err := contextError(inventoryCtx); err != nil {
 			return result, errors.Join(problems, err)
 		}
 		if !profile.VNCVerified || profile.VNCAddress == "" {
 			continue
 		}
-		conn, _, err := dialBackend(ctx, profile.VNCAddress)
+		conn, _, err := dialBackend(inventoryCtx, profile.VNCAddress)
 		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return result, errors.Join(problems, err)
+			}
 			if domain.AsFault(err).Code == domain.Denied || domain.AsFault(err).Code == domain.Invalid {
 				problems = errors.Join(problems, err)
 			}
@@ -93,7 +96,7 @@ func inventory(ctx context.Context, c config.Worker) ([]available, error) {
 			problems = errors.Join(problems, err)
 			continue
 		}
-		rect, primary, err := probe(ctx, profile)
+		rect, primary, err := probe(inventoryCtx, profile)
 		if err != nil {
 			problems = errors.Join(problems, err)
 			continue
@@ -125,7 +128,7 @@ func inventory(ctx context.Context, c config.Worker) ([]available, error) {
 		}})
 	}
 	slices.SortFunc(result, func(a, b available) int { return strings.Compare(a.public.ID, b.public.ID) })
-	return result, errors.Join(problems, ctx.Err())
+	return result, errors.Join(problems, contextError(inventoryCtx))
 }
 
 func selected(ctx context.Context, c config.Worker, screenID, applicationID string) (available, *config.ScreenApplication, error) {
@@ -134,7 +137,7 @@ func selected(ctx context.Context, c config.Worker, screenID, applicationID stri
 	}
 	found, err := inventory(ctx, c)
 	var cleanup *process.CleanupError
-	if errors.As(err, &cleanup) {
+	if errors.As(err, &cleanup) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return available{}, nil, err
 	}
 	for _, item := range found {
