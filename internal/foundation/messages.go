@@ -22,15 +22,43 @@ func (s *Store) SendMessage(ctx context.Context, actor string, req domain.Messag
 		if req.Kind != "direct" && req.ResponseRequest {
 			return domain.Message{}, domain.Fail(domain.Invalid, "protected handoffs cannot request automatic AI responses")
 		}
-		m := domain.Message{ID: domain.NewID("message"), SenderID: a.ID, RecipientID: req.RecipientID, Body: req.Body,
-			Origin: req.Origin, Kind: req.Kind, Urgent: req.Urgent, ResponseRequest: req.ResponseRequest, State: "pending", CreatedAt: s.timestamp(), Revision: 1}
-		data, err := encode(m)
-		if err != nil {
-			return m, err
+		now := s.timestamp()
+		expiresAt := req.ExpiresAt
+		if req.Kind == "authentication" {
+			if expiresAt == 0 {
+				expiresAt = now + domain.AuthenticationRequestTTL
+			}
+			if expiresAt <= now || expiresAt > now+domain.AuthenticationRequestTTL {
+				return domain.Message{}, domain.Fail(domain.Invalid, "authentication message expiry must be in the next 900 seconds")
+			}
+		} else if expiresAt != 0 {
+			return domain.Message{}, domain.Fail(domain.Invalid, "only authentication messages may set an expiry")
 		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO messages(id, data, sender_id, recipient_id, state, urgent) VALUES(?, ?, ?, ?, ?, ?)", m.ID, data, m.SenderID, m.RecipientID, m.State, m.Urgent)
-		return m, err
+		m := domain.Message{ID: domain.NewID("message"), SenderID: a.ID, RecipientID: req.RecipientID, Body: req.Body,
+			Origin: req.Origin, Kind: req.Kind, Urgent: req.Urgent, ResponseRequest: req.ResponseRequest, State: "pending", CreatedAt: now, ExpiresAt: expiresAt, Revision: 1}
+		return insertMessage(ctx, tx, m)
 	})
+}
+
+func insertMessage(ctx context.Context, tx *sql.Tx, m domain.Message) (domain.Message, error) {
+	data, err := encode(m)
+	if err != nil {
+		return m, err
+	}
+	_, err = tx.ExecContext(ctx, "INSERT INTO messages(id, data, sender_id, recipient_id, state, urgent) VALUES(?, ?, ?, ?, ?, ?)", m.ID, data, m.SenderID, m.RecipientID, m.State, m.Urgent)
+	return m, err
+}
+
+func messageAt(m domain.Message, now int64) domain.Message {
+	if m.Kind == "authentication" || m.Kind == "authentication-refresh" {
+		if m.ExpiresAt == 0 {
+			m.ExpiresAt = m.CreatedAt + domain.AuthenticationRequestTTL
+		}
+		if m.ExpiresAt <= now && (m.State == "pending" || m.State == "deferred") {
+			m.State = "expired"
+		}
+	}
+	return m
 }
 
 func (s *Store) Message(ctx context.Context, actor, id string) (domain.Message, error) {
@@ -44,7 +72,7 @@ func (s *Store) Message(ctx context.Context, actor, id string) (domain.Message, 
 	if m.SenderID != actor && m.RecipientID != actor {
 		return domain.Message{}, domain.Fail(domain.Denied, "message is private to its sender and recipient")
 	}
-	return m, nil
+	return messageAt(m, s.timestamp()), nil
 }
 
 func (s *Store) Inbox(ctx context.Context, actor, cursor string, limit int, urgent bool) (domain.Page[domain.Message], error) {
@@ -64,17 +92,23 @@ func (s *Store) Inbox(ctx context.Context, actor, cursor string, limit int, urge
 	if err != nil {
 		return page, err
 	}
-	query := "SELECT data FROM messages WHERE recipient_id = ? AND state = 'pending' AND id > ?"
+	now := s.timestamp()
+	query := `SELECT data FROM messages WHERE recipient_id = ? AND state = 'pending' AND id > ?
+AND (COALESCE(json_extract(data, '$.kind'), '') NOT IN ('authentication', 'authentication-refresh')
+OR COALESCE(NULLIF(json_extract(data, '$.expires_at'), 0), json_extract(data, '$.created_at') + ?) > ?)`
 	if urgent {
 		query += " AND urgent = 1"
 	}
-	rows, err := s.db.QueryContext(ctx, query+" ORDER BY id LIMIT ?", actor, last, limit+1)
+	rows, err := s.db.QueryContext(ctx, query+" ORDER BY id LIMIT ?", actor, last, domain.AuthenticationRequestTTL, now, limit+1)
 	if err != nil {
 		return page, err
 	}
 	page.Items, err = scanJSON[domain.Message](rows)
 	if err != nil {
 		return page, err
+	}
+	for i := range page.Items {
+		page.Items[i] = messageAt(page.Items[i], now)
 	}
 	if len(page.Items) > limit {
 		page.Items = page.Items[:limit]
@@ -100,6 +134,9 @@ func (s *Store) ReceiveMessage(ctx context.Context, actor, id string, req domain
 		}
 		if m.State == "handled" || m.State == "stale" {
 			return m, domain.Fail(domain.Conflict, "final receipts cannot reopen")
+		}
+		if messageAt(m, s.timestamp()).State == "expired" && req.State != "stale" {
+			return m, domain.Fail(domain.Conflict, "expired authentication messages cannot be handled or reopened; a fresh request is required")
 		}
 		if req.State == "pending" && m.State != "deferred" {
 			return m, domain.Fail(domain.Invalid, "only deferred messages can return to pending")

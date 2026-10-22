@@ -438,9 +438,9 @@ provider invocation (including initial capability review), the controller
 durably requests sign-in from the active Founder and any relevant task-project
 delegates. The protected private message contains the target/provider/request
 references, supported human-terminal commands and explicit consent/spending
-boundaries; it has no timed expiry and names invalidating state/authority
-changes. It does not need a model, create a session, assume target consent,
-change mode or perform login.
+boundaries. It expires 15 minutes after creation, without automatic renewal;
+delivery/restart does not extend it. It does not need a model, create a session,
+assume target consent, change mode or perform login.
 
 Read the request from Founder's `message inbox` or `message show MESSAGE` using
 Founder's own identity, including when Founder is manual. Agent1's `work status`
@@ -450,6 +450,18 @@ acknowledgement instead of spamming new requests. Unknown provider status stays
 an explicit diagnostic, not a guessed sign-in request. Acknowledgement is not
 authentication; a successful readiness observation resolves the local episode
 without editing the recipient's old message receipt.
+
+After expiry, Founder uses `agent request-sign-in AGENT --input FILE`, supplying
+`provider`, a non-secret `reason` and optional matching `project_id`. Use a stable
+new operation ID for this intentional refresh; reuse it for an uncertain retry.
+The server queues a protected urgent control, also valid for 15 minutes. The
+unattended target processes it under its own identity, including in manual mode,
+and only sends a fresh superseding notice if a read-only probe still explicitly
+requires sign-in. Check the control's receipt and the target's work status; an
+offline/fenced target may need another explicit request after control expiry.
+No login, provider/device-code renewal, mode change, model call or assistance
+session is initiated. Persistent assistance grants remain separate and valid
+until revoked; their live connections and provider codes have their own expiry.
 
 Founder authorizes assistance once with `assistance grant --input FILE`. Scope
 is the exact requester/target, tmux/VNC, authentication/terminal purpose, optional

@@ -99,7 +99,7 @@ func requireArgs(args []string, count int) error {
 
 func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "agent requires list, show, register, recover, identity or revoke")
+		return nil, domain.Fail(domain.Invalid, "agent requires list, show, register, recover, identity, revoke, mode or request-sign-in")
 	}
 	if args[0] == "register" || args[0] == "recover" || args[0] == "identity" {
 		return a.identityCommand(ctx, r, args)
@@ -115,6 +115,20 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 			return nil, err
 		}
 		return api.Call[domain.Agent](ctx, r.client, "GET", api.Path("agents", args[1]), nil)
+	}
+	if args[0] == "request-sign-in" {
+		id, tail, err := idArgs(args[1:])
+		if err != nil {
+			return nil, err
+		}
+		var req domain.AuthenticationRefreshRequest
+		if err := a.input(tail, &req); err != nil {
+			return nil, err
+		}
+		if err := a.metadata(&req.Command); err != nil {
+			return nil, err
+		}
+		return a.write(ctx, r, api.Path("agents", id, "authentication"), req, "")
 	}
 	if args[0] == "mode" {
 		id, tail, err := idArgs(args[1:])

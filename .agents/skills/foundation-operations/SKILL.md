@@ -15,7 +15,12 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 2. Classify the blocker: transport/trust, login, current approval/specification,
    workspace permission/identity, occupied slot, retry/backoff, journal/outbox,
    maintenance or unproven interactive cleanup. Do not replace it with a default
-   success/empty-work explanation.
+   success/empty-work explanation. Sign-in requests expire after 15 minutes and
+   do not renew on polling/restart. Founder can use `agent request-sign-in AGENT
+   --input FILE` with provider/reason and optional matching project_id to request
+   a fresh check/notice, even while the target remains paused. The control also
+   expires in 15 minutes; preserve/reuse its exact operation after uncertainty.
+   No login, inference, assistance grant or mode change follows from the request.
 3. Preserve private state, original operation/proposal, exact generations,
    provider version and local evidence. Service startup/registration accepted
    does not prove final health. A singleton conflict is an owner to inspect,

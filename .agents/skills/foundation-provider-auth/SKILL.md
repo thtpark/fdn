@@ -1,6 +1,6 @@
 ---
 name: foundation-provider-auth
-description: "Use when installing/updating Codex or Copilot, checking provider readiness, arranging human-only sign-in, preparing an authorized tmux/VNC assistance session, or diagnosing expired consent without exposing credentials or starting inference."
+description: "Use when installing/updating Codex or Copilot, checking provider readiness, arranging human-only sign-in, renewing expired sign-in requests through Founder, preparing an authorized tmux/VNC assistance session, or diagnosing expired consent without exposing credentials or starting inference."
 ---
 
 # Provider readiness and protected authentication
@@ -17,9 +17,20 @@ model and authorized inference.
    project delegates, before onboarding if needed and without AI inference.
    Read `work status` authentication_requests and the recipient's `message
    inbox`/`message show MESSAGE`; pending delivery is not sent/approved.
-   Reuse the existing episode/message operation after uncertainty instead of
-   repeating notices. A reply/receipt never proves sign-in; unknown provider
-   status does not justify fabricating a login request.
+   Requests expire 15 minutes after creation, including undelivered requests;
+   polling/restart never renews them. Expired notices leave the pending inbox,
+   but `message show MESSAGE` retains their deadline/evidence. Founder can issue
+   `agent request-sign-in AGENT --input FILE` with provider, non-secret reason
+   and optional matching project_id. Use one new stable operation for this
+   intentional refresh and reuse it after uncertainty. The protected urgent
+   control also expires after 15 minutes; its handled receipt means the target
+   checked, not that authentication succeeded. The target can check while
+   paused without resuming inference, sends a fresh superseding notice only
+   for explicit login-required/rejected status, and never opens login itself.
+   Reuse existing episode/message operations for delivery uncertainty instead
+   of repeating notices. Provider device-code and session/grant expiry are
+   separate. A reply/receipt never proves sign-in; unknown provider status
+   does not justify fabricating a login request.
 2. Missing provider: obtain approval for the native Node/npm prerequisite and
    exact provider version, then `provider install --provider NAME --version
    EXACT`; explicit `provider update --provider NAME` chooses latest. Keep

@@ -123,7 +123,7 @@ func TestMissingAuthenticationReachesFounderBeforeOnboardingWithoutInference(t *
 				t.Fatal("authentication handoff is not protected/attributed", message)
 			}
 			for _, expected := range []string{request.ID, h.workerAgent.ID, name, "agent mode",
-				"assistance open GRANT --provider " + name, "No timed expiry", "autonomous", "delegate may be an AI", "spending"} {
+				"assistance open GRANT --provider " + name, "Expires at:", "will not automatically renew", "autonomous", "delegate may be an AI", "spending"} {
 				if !strings.Contains(message.Body, expected) {
 					t.Fatal("request omitted an actionable boundary/reference", expected, message.Body)
 				}
@@ -218,7 +218,7 @@ func TestAuthenticationDeliveryFailureAndLostAckRemainDurableWithoutDuplicates(t
 				t.Fatal("uncertain delivery was presented as success", first)
 			}
 			engine = restartAuthenticationEngine(t, engine)
-			engine.Now = func() time.Time { return time.Now().Add(time.Hour) }
+			engine.Now = func() time.Time { return time.Now().Add(time.Minute) }
 			second := requireAuthenticationBlock(t, engine, domain.Prerequisite).AuthenticationRequests[0]
 			if second.ID != first.ID || second.CreatedAt != first.CreatedAt || second.State != "requested" || second.Error != nil {
 				t.Fatal("delivery replay changed the immutable request", first, second)

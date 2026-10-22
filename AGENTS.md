@@ -98,6 +98,10 @@ guide includes this file, all skills, and the development references.
   Foundation message to the responsible authority through the requester's own
   identity. Include the exact non-secret CLI action, IDs/generations, UTC expiry
   and time remaining, or say no timed expiry and name invalidating changes.
+  Provider sign-in requests expire after 15 minutes without automatic renewal;
+  only Founder can issue `agent request-sign-in AGENT --input FILE` for a fresh
+  readiness check/notice. This starts no login/inference and changes no mode or
+  persistent assistance grant. Preserve exact operation replay after uncertainty.
   Founder arranges any genuinely human-only action; delegate agents coordinate
   without seeing protected UI bytes. The authorized requester explicitly opens
   an existing assistance grant, not a new authorization on every reconnect.
