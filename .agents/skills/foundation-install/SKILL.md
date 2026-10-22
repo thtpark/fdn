@@ -65,7 +65,17 @@ commands.
 9. Verify actual process owner, exact version/source, enabled/running manager,
    SQLite/TLS health, private listeners, SSH route and guide discovery. Do not
    equate accepted registration with final health.
-10. Report installed/enrolled/authenticated/mode/work states separately. Route
+10. Screen/VNC capability is conditional, not permission to create a desktop on
+    every headless worker. Inspect actual physical/virtual display availability;
+    cloud display attachment alone is not a running desktop. As an authorized OS
+    operator prepare a runner-owned desktop plus authenticated loopback backend,
+    per-screen app/capture profiles and trusted noVNC assets on the requester.
+    Preserve identity-service isolation. Publish only current ready screens;
+    label whole-desktop fallback explicitly. The browser viewer binds localhost
+    and uses SSH forwarding plus the existing authenticated RFB relay, never a
+    public VNC/web listener. Verify real backend/window placement and native OS
+    screen-recording/accessibility permissions separately from source fixtures.
+11. Report installed/enrolled/authenticated/mode/work states separately. Route
     enrollment to foundation-enroll and protected login to foundation-provider-auth.
 
 Use `agent-cli guide show COMMANDS.md` for exact setup/service arguments and

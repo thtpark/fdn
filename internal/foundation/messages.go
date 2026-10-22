@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"slices"
+	"strings"
 
 	"github.com/thtpark/fdn/internal/domain"
 )
@@ -52,8 +53,13 @@ func insertMessage(ctx context.Context, tx *sql.Tx, m domain.Message) (domain.Me
 	return m, err
 }
 
+// Only the help transaction assigns this namespace; clients cannot choose IDs.
+func assistanceHelpMessage(m domain.Message) bool {
+	return m.Kind == "session" && m.Origin == "service" && strings.HasPrefix(m.ID, "message_help_")
+}
+
 func messageAt(m domain.Message, now int64) domain.Message {
-	if m.Kind == "authentication" || m.Kind == "authentication-refresh" || m.Kind == "permission" {
+	if m.Kind == "authentication" || m.Kind == "authentication-refresh" || m.Kind == "permission" || assistanceHelpMessage(m) {
 		if m.ExpiresAt == 0 {
 			m.ExpiresAt = m.CreatedAt + domain.AuthenticationRequestTTL
 		}
@@ -97,7 +103,8 @@ func (s *Store) Inbox(ctx context.Context, actor, cursor string, limit int, urge
 	}
 	now := s.timestamp()
 	query := `SELECT data FROM messages WHERE recipient_id = ? AND state = 'pending' AND id > ?
-AND (COALESCE(json_extract(data, '$.kind'), '') NOT IN ('authentication', 'authentication-refresh', 'permission')
+AND ((COALESCE(json_extract(data, '$.kind'), '') NOT IN ('authentication', 'authentication-refresh', 'permission')
+AND NOT (COALESCE(json_extract(data, '$.kind'), '') = 'session' AND COALESCE(json_extract(data, '$.origin'), '') = 'service' AND substr(id, 1, 13) = 'message_help_'))
 OR COALESCE(NULLIF(json_extract(data, '$.expires_at'), 0), json_extract(data, '$.created_at') + ?) > ?)`
 	if urgent {
 		query += " AND urgent = 1"

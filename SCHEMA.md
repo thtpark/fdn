@@ -455,7 +455,31 @@ and does not survive a server relay restart. A retained grant supplies target
 authorization unattended and survives that restart; reconnect uses it without
 reapproval. Expiry/revocation closes streams, not the retained permission unless
 the grant itself was revoked. A terminal/desktop can
-expose other account material; project scope is not screen-level isolation.
+expose other account material; project scope alone is not screen-level isolation.
+
+Public `Agent.screens` observations contain only stable screen IDs, display scope,
+geometry, primary status and approved application IDs. Only the active bound
+identity may publish its own current ready displays; headless clears the list.
+Publication is an observation, not a mode/claim revision change or authority grant.
+Root/agent identity recovery and restore retire stale display observations.
+
+A target's `assistance request` sends immutable protected human-help notices to
+active Founder/current relevant delegates without creating a grant/session.
+VNC requires a currently published screen. Screen ID, application ID and explicit
+whole-desktop fallback are bound into Founder grants and every session/relay
+recheck. Reconnect cannot substitute another screen/app or silently widen capture.
+Configured per-screen applications use the runner's account/display and safe argv;
+placement/ownership are proved before access. Session cancellation joins owned
+helpers; uncertain cleanup remains fenced. The foreground screen-launch CLI keeps
+its local slot until app exit/cancellation and joins cleanup before returning.
+
+The human browser viewer binds only loopback and reaches RFB through the existing
+SSH-backed authenticated API relay. Trusted installed noVNC assets are served
+without remote scripts; one-use bootstrap, session cookie, strict Host/Origin,
+no-cache/CSP, bounded resources and clipboard disabled prevent incidental local/
+cross-origin access. Credentials are entered only in the human browser and sent
+to RFB, never HTTP endpoints, URLs, logs, shared records or models. A token-bearing
+viewer bootstrap URL is session access material, unlike a public verification URL.
 
 Future files, diaries, shared skills/ideas and recurring children remain in
 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), not this schema's implemented

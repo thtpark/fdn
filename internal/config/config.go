@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/thtpark/fdn/internal/domain"
@@ -58,7 +60,31 @@ type Worker struct {
 	ResearchIntervalHours    int               `json:"research_interval_hours"`
 	VNCAddress               string            `json:"vnc_address,omitempty"`
 	VNCVerified              bool              `json:"vnc_verified"`
+	Screens                  []Screen          `json:"screens,omitempty"`
 	SSH                      *SSH              `json:"ssh,omitempty"`
+	sourcePath               string
+}
+
+type Screen struct {
+	ID           string              `json:"id"`
+	Name         string              `json:"name"`
+	Scope        string              `json:"scope"`
+	Width        int                 `json:"width"`
+	Height       int                 `json:"height"`
+	X            int                 `json:"x,omitempty"`
+	Y            int                 `json:"y,omitempty"`
+	Primary      bool                `json:"primary"`
+	VNCAddress   string              `json:"vnc_address,omitempty"`
+	VNCVerified  bool                `json:"vnc_verified"`
+	Display      string              `json:"display"`
+	XAuthority   string              `json:"xauthority,omitempty"`
+	Applications []ScreenApplication `json:"applications,omitempty"`
+}
+
+type ScreenApplication struct {
+	ID         string   `json:"id"`
+	Executable string   `json:"executable"`
+	Arguments  []string `json:"arguments,omitempty"`
 }
 
 type Credential struct {
@@ -156,8 +182,140 @@ func (c Worker) Validate() error {
 			return err
 		}
 	}
+	if err := c.ValidateScreens(); err != nil {
+		return err
+	}
 	return URL(c.URL)
 }
+
+func ValidScreenID(id string) bool { return domain.ValidScreenID(id) }
+
+// LocalDisplay accepts only existing local X11 displays or explicit macOS display IDs.
+func LocalDisplay(display string) bool {
+	if strings.HasPrefix(display, "macos:") {
+		id, err := strconv.ParseUint(strings.TrimPrefix(display, "macos:"), 10, 32)
+		return err == nil && id != 0 && display == "macos:"+strconv.FormatUint(id, 10)
+	}
+	if !strings.HasPrefix(display, ":") {
+		return false
+	}
+	parts := strings.Split(strings.TrimPrefix(display, ":"), ".")
+	if len(parts) > 2 {
+		return false
+	}
+	for i, part := range parts {
+		n, err := strconv.ParseUint(part, 10, 16)
+		if err != nil || part != strconv.FormatUint(n, 10) || (i == 1 && n > 255) {
+			return false
+		}
+	}
+	return true
+}
+
+func (c Worker) ValidateScreens() error {
+	if len(c.Screens) > 16 {
+		return domain.Fail(domain.Invalid, "at most 16 local screen profiles are supported")
+	}
+	ids, endpoints := map[string]bool{}, map[string]bool{}
+	primary := false
+	if c.VNCAddress != "" {
+		if err := Loopback(c.VNCAddress); err != nil {
+			return err
+		}
+		if c.VNCVerified {
+			_, port, _ := net.SplitHostPort(c.VNCAddress)
+			number, _ := strconv.Atoi(port)
+			endpoints[strconv.Itoa(number)] = true
+		}
+	}
+	for _, screen := range c.Screens {
+		if !ValidScreenID(screen.ID) || screen.ID == "legacy-desktop" || ids[screen.ID] {
+			return domain.Fail(domain.Invalid, "screen IDs must be unique safe identifiers of at most 64 bytes; legacy-desktop is reserved")
+		}
+		ids[screen.ID] = true
+		if err := domain.CheckText(screen.Name, "screen name", 128, true); err != nil {
+			return err
+		}
+		if screen.Name != strings.TrimSpace(screen.Name) || strings.IndexFunc(screen.Name, func(r rune) bool {
+			return !unicode.IsLetter(r) && !unicode.IsDigit(r) && !unicode.IsMark(r) && !strings.ContainsRune(" ._()-", r)
+		}) >= 0 || (screen.Scope != "screen" && screen.Scope != "desktop") ||
+			screen.Width < 1 || screen.Width > 32768 || screen.Height < 1 || screen.Height > 32768 ||
+			screen.X < -131072 || screen.X > 131072 || screen.Y < -131072 || screen.Y > 131072 || !LocalDisplay(screen.Display) {
+			return domain.Fail(domain.Invalid, "screen profiles need a safe name, screen/desktop scope, bounded geometry and an explicit local display")
+		}
+		if screen.Scope == "desktop" && (screen.X != 0 || screen.Y != 0) {
+			return domain.Fail(domain.Invalid, "whole-desktop fallback geometry starts at the desktop origin")
+		}
+		if primary && screen.Primary {
+			return domain.Fail(domain.Invalid, "at most one local screen profile may be primary")
+		}
+		primary = primary || screen.Primary
+		if screen.VNCVerified && screen.VNCAddress == "" {
+			return domain.Fail(domain.Invalid, "a verified screen backend needs a loopback VNC address")
+		}
+		if screen.VNCAddress != "" {
+			if err := Loopback(screen.VNCAddress); err != nil {
+				return err
+			}
+			_, port, _ := net.SplitHostPort(screen.VNCAddress)
+			number, _ := strconv.Atoi(port)
+			key := strconv.Itoa(number)
+			if number == 0 || endpoints[key] {
+				return domain.Fail(domain.Invalid, "screen VNC endpoints must use distinct nonzero loopback ports, not a reused whole-desktop backend")
+			}
+			endpoints[key] = true
+		}
+		if screen.XAuthority != "" {
+			if strings.HasPrefix(screen.Display, "macos:") || !filepath.IsAbs(screen.XAuthority) || strings.ContainsRune(screen.XAuthority, 0) {
+				return domain.Fail(domain.Invalid, "Xauthority must explicitly name an absolute private X11 file")
+			}
+			if err := CheckXAuthority(screen.XAuthority); err != nil {
+				return err
+			}
+		}
+		if len(screen.Applications) > 32 {
+			return domain.Fail(domain.Invalid, "at most 32 applications per screen are supported")
+		}
+		apps := map[string]bool{}
+		for _, app := range screen.Applications {
+			if !ValidScreenID(app.ID) || apps[app.ID] || !filepath.IsAbs(app.Executable) || strings.ContainsRune(app.Executable, 0) || len(app.Executable) > 4096 || len(app.Arguments) > 64 {
+				return domain.Fail(domain.Invalid, "screen applications need unique safe IDs, absolute executables and bounded argument arrays")
+			}
+			apps[app.ID] = true
+			size := 0
+			for _, arg := range app.Arguments {
+				if err := domain.CheckText(arg, "application argument", 4096, false); err != nil {
+					return err
+				}
+				size += len(arg)
+			}
+			if size > 32768 {
+				return domain.Fail(domain.Invalid, "application argument array is too large")
+			}
+		}
+	}
+	return nil
+}
+
+// CheckXAuthority checks metadata only and never blocks opening a pipe or device.
+func CheckXAuthority(path string) error {
+	if !filepath.IsAbs(path) || strings.ContainsRune(path, 0) {
+		return domain.Fail(domain.Denied, "Xauthority must explicitly name an absolute runner-owned private file")
+	}
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return domain.Fail(domain.Denied, "Xauthority must be an existing private regular file owned by the runner UID")
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 || info.Size() > 1<<20 || secure.CheckOwner(info) != nil {
+		return domain.Fail(domain.Denied, "Xauthority must be a bounded private regular file owned by the runner UID")
+	}
+	return nil
+}
+
+// SourcePath stays local and is not part of the worker configuration JSON.
+func (c Worker) SourcePath() string { return c.sourcePath }
 
 func Decode(data []byte, value any) error {
 	if !utf8.Valid(data) {
@@ -195,6 +353,11 @@ func LoadWorker(path string) (Worker, error) {
 	if err := Read(path, &c); err != nil {
 		return c, err
 	}
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return c, err
+	}
+	c.sourcePath = absolute
 	return c, c.Validate()
 }
 

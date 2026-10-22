@@ -40,6 +40,7 @@ run commands:
 | `AUTH-001`–`AUTH-008` | 15-minute sign-in expiry, immutable legacy/retry evidence, Founder-only refresh, paused/offline targets, protected API fields and no implicit login/inference |
 | `HELP-001`–`HELP-005` | Requested-action help before onboarding, expired older notices, same-project task/reply/explicit-operation deduplication, current authority routing, permission boundaries and mid-work sign-out with recovery fences |
 | `LOGIN-001`–`LOGIN-003` | Supported headless/device-flow selection, legacy fallback, bounded help-only probes, local/remote human-visible sign-in and public links without exposing credentials |
+| `VNC-001`–`VNC-008` | Actual display-only inventory, scoped screen/app/fallback grants, protected target help, browser loopback/Host/Origin/session authorization, human-only credentials, owned application placement and proven cleanup |
 | `SEC-001`–`SEC-010` | Coordinator-confirmed strict Unix/mTLS source fixture results, including full integration and enhanced both-controller ban/no-ban regressions; final all-suite acceptance pending, not native multi-UID qualification |
 | `ATT-001` / `ATT-002` | Coordinator-confirmed compiled public-only attachment/migration/retired-flag cases in full e2e; test-local business proxy, final all-suite pending |
 | `NAT-001`–`NAT-006` | Paired lifecycle, exact account/config and fresh-StateDir recovery plus root generation/tombstone replay cases; subsequent native-source race/vet rerun reported passing, final coordinated all-suite pending, not live native qualification |

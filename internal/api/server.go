@@ -220,6 +220,18 @@ func (s *Server) routes() {
 	body(s, "POST /v1/agents/{id}/authentication", false, func(r *http.Request, a domain.Agent, q domain.AuthenticationRefreshRequest) (domain.Message, error) {
 		return s.Store.RequestAuthentication(r.Context(), a.ID, r.PathValue("id"), q)
 	})
+	body(s, "POST /v1/agents/{id}/screens", false, func(r *http.Request, a domain.Agent, q domain.ScreensRequest) ([]domain.Screen, error) {
+		if a.ID != r.PathValue("id") {
+			return nil, domain.Fail(domain.Denied, "only the target agent may publish its own screen observations")
+		}
+		return s.Store.PublishScreens(r.Context(), a.ID, q)
+	})
+	read(s, "GET /v1/agents/{id}/screens", func(r *http.Request, a domain.Agent) ([]domain.Screen, error) {
+		return s.Store.Screens(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/assistance/requests", false, func(r *http.Request, a domain.Agent, q domain.AssistanceHelpRequest) (domain.AssistanceHelp, error) {
+		return s.Store.RequestAssistanceHelp(r.Context(), a.ID, q)
+	})
 	read(s, "GET /v1/assistance", func(r *http.Request, a domain.Agent) ([]domain.AssistanceGrant, error) {
 		return s.Store.AssistanceList(r.Context(), a.ID)
 	})

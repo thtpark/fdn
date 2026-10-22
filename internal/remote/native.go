@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/thtpark/fdn/internal/config"
+	"github.com/thtpark/fdn/internal/display"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/process"
 	"github.com/thtpark/fdn/internal/provider"
@@ -23,17 +23,11 @@ import (
 type Native struct{}
 
 func (Native) Open(ctx context.Context, s domain.Session, c config.Worker) (io.ReadWriteCloser, error) {
+	if s.Mode == "vnc" {
+		return display.Open(ctx, c, s)
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
-	}
-	if s.Mode == "vnc" {
-		if !c.VNCVerified || c.VNCAddress == "" {
-			return nil, domain.Fail(domain.Prerequisite, "owner must configure and verify an authenticated loopback-only existing VNC service")
-		}
-		if err := config.Loopback(c.VNCAddress); err != nil {
-			return nil, err
-		}
-		return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", c.VNCAddress)
 	}
 	if s.Mode != "tmux" {
 		return nil, domain.Fail(domain.Invalid, "unsupported session endpoint")

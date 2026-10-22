@@ -41,7 +41,7 @@ var AgentCommands = []string{
 	"comment add", "comment edit", "worklog add", "discussion list", "mention list", "mention acknowledge", "watch",
 	"message send", "message show", "message inbox", "message receipt", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
-	"workspace bind", "workspace list", "workspace enable", "workspace disable",
+	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
 	"work prompt", "work status", "work run", "work recover", "service plan", "service install", "service status",
 }
@@ -49,7 +49,7 @@ var AgentCommands = []string{
 var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install"}
 var ServiceCommands = []string{"serve", "status"}
 var GuideCommands = []string{"guide list", "guide show", "guide install"}
-var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open"}
+var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance request", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open"}
 
 func RunAgent(ctx context.Context, args []string, in io.Reader, out, diagnostic io.Writer) int {
 	return run(ctx, "agent", args, in, out, diagnostic)
