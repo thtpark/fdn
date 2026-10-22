@@ -98,9 +98,12 @@ guide includes this file, all skills, and the development references.
   Foundation message to the responsible authority through the requester's own
   identity. Include the exact non-secret CLI action, IDs/generations, UTC expiry
   and time remaining, or say no timed expiry and name invalidating changes.
-  Provider sign-in requests expire after 15 minutes without automatic renewal;
-  only Founder can issue `agent request-sign-in AGENT --input FILE` for a fresh
-  readiness check/notice. This starts no login/inference and changes no mode or
+  Sign-in/permission blockers for newly requested tasks, replies, mentions or
+  continuation must send durable protected help to Founder and current relevant
+  delegates, before onboarding if needed. Old expired notices do not swallow new
+  requests. Sign-in requests expire after 15 minutes; unchanged polling/restart
+  never renews them. Only Founder can explicitly issue `agent request-sign-in
+  AGENT --input FILE` independently of a new requested action. This starts no login/inference and changes no mode or
   persistent assistance grant. Preserve exact operation replay after uncertainty.
   Founder arranges any genuinely human-only action; delegate agents coordinate
   without seeing protected UI bytes. The authorized requester explicitly opens

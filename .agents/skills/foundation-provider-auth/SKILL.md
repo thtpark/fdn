@@ -18,7 +18,13 @@ model and authorized inference.
    Read `work status` authentication_requests and the recipient's `message
    inbox`/`message show MESSAGE`; pending delivery is not sent/approved.
    Requests expire 15 minutes after creation, including undelivered requests;
-   polling/restart never renews them. Expired notices leave the pending inbox,
+   unchanged polling/restart never renews them. Newly requested work, messages,
+   mentions, explicit work-run operations and continuation after an observed
+   sign-out have their own durable help context and can ask again. Inspect
+   requested work before onboarding so an expired idle notice cannot hide it.
+   A provider failure gets a fresh read-only authentication check and help
+   escalation when explicitly signed out; uncertain process/run fences remain.
+   Expired notices leave the pending inbox,
    but `message show MESSAGE` retains their deadline/evidence. Founder can issue
    `agent request-sign-in AGENT --input FILE` with provider, non-secret reason
    and optional matching project_id. Use one new stable operation for this
@@ -66,8 +72,8 @@ model and authorized inference.
 7. The protected credential UI must be operated through Founder's human-help
    channel, never exposed to a model, including a delegate AI. Native terminal
    attachment refuses JSON/captured UI. Send non-secret references/actions and
-   live-session UTC expiry through messaging; protected kind authentication/
-   session has response_requested=false. A message is not a grant or open action.
+   live-session UTC expiry through messaging; protected authentication/permission/
+   session kinds have response_requested=false. A message is not a grant or open action.
 8. Tmux authentication starts the selected login command. VNC needs an existing,
    authenticated, verified loopback backend and trusted viewer; it does not
    install/unlock a desktop or transfer the requester's application identity.

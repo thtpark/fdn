@@ -68,9 +68,15 @@ automatically bounded by the three-snapshot rule; see [CAPACITY.md](CAPACITY.md)
 | `journals` | Durable invocation/claim/reply/report state, pinned provider/model/version, private context and evidence |
 | `outbox` | Immutable report operation/method/path/body awaiting remote acknowledgement |
 
-Authentication requests keep one current local episode per provider/project
-scope (empty project for onboarding/other computer-local work). An explicit
-sign-in-required/rejected observation prepares a stable request before delivery.
+Authentication requests keep one current local episode per provider/project and
+requested-action key (empty action/project for otherwise idle onboarding). Task
+specification/discussion/result/run context, a requested direct reply, a mention,
+or an explicit CLI operation distinguishes new work from another polling tick.
+A new action may ask again even when an earlier action's notice expired. The
+same blocked action never automatically renews merely because time passed.
+An explicit sign-in-required/rejected observation prepares a stable request
+before delivery. Requested work is inspected before onboarding, so a missing
+preferred/required provider login cannot swallow a newly assigned task or reply.
 Recipients are the active Founder and current relevant project delegates;
 departed recipients are not retried and newly eligible recipients can receive
 the existing episode. Each recipient has one stable message operation. The
@@ -104,6 +110,16 @@ deadlines derive from original creation; immutable stored body/operation receipt
 remain evidence. Device-code/live-session expiry and persistent assistance grants
 are separate. No SQLite migration or API-contract change is required for these
 additive DTO/local-episode fields.
+
+Permission blockers use durable `permission_requests`, with the same requested-
+action identity, 900-second deadline, protected delivery/replay and active
+Founder/current relevant delegates. Supported categories include workspace/tool
+authorization, provider access, task authority and exact retry approval. Messages
+contain only category and public references, never raw errors or private paths.
+A successful observed boundary resolves its episode; a later revocation can ask
+again without bypassing the boundary. Provider failures trigger a fresh read-only
+authentication check; confirmed sign-out sends help while uncertain invocations,
+failed-run evidence, retry approvals and the one-slot fence remain intact.
 
 Private journals and CLI proposal receipts may contain sensitive machine-local
 material. Do not publish or dump them as diagnostic evidence. A local binding or

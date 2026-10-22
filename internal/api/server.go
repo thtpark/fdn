@@ -341,18 +341,18 @@ func (s *Server) routes() {
 	read(s, "GET /v1/tasks/{id}/runs", func(r *http.Request, a domain.Agent) ([]domain.Run, error) {
 		return s.Store.Runs(r.Context(), a.ID, r.PathValue("id"))
 	})
-	// Retain presence so non-authentication messages cannot supply even a zero expiry.
+	// Retain presence so ordinary direct/session messages cannot supply even a zero expiry.
 	type messageInput struct {
 		domain.MessageRequest
 		ExpiresAt json.RawMessage `json:"expires_at,omitempty"`
 	}
 	body(s, "POST /v1/messages", false, func(r *http.Request, a domain.Agent, q messageInput) (domain.Message, error) {
 		if len(q.ExpiresAt) != 0 {
-			if q.Kind != "authentication" {
-				return domain.Message{}, domain.Fail(domain.Invalid, "only authentication messages may set an expiry")
+			if q.Kind != "authentication" && q.Kind != "permission" {
+				return domain.Message{}, domain.Fail(domain.Invalid, "only authentication and permission messages may set an expiry")
 			}
 			if err := json.Unmarshal(q.ExpiresAt, &q.MessageRequest.ExpiresAt); err != nil || q.MessageRequest.ExpiresAt == 0 {
-				return domain.Message{}, domain.Fail(domain.Invalid, "authentication message expiry must be a future Unix timestamp")
+				return domain.Message{}, domain.Fail(domain.Invalid, "authentication and permission message expiry must be a future Unix timestamp")
 			}
 		}
 		return s.Store.SendMessage(r.Context(), a.ID, q.MessageRequest)

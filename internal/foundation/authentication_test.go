@@ -304,7 +304,7 @@ func TestAuthenticationExpiryProjectsLegacyWithoutMutatingEvidence(t *testing.T)
 	f := newFixture(t)
 	ctx := context.Background()
 	clock := f.now
-	for _, kind := range []string{"authentication", "authentication-refresh", "direct", "session"} {
+	for _, kind := range []string{"authentication", "authentication-refresh", "permission", "direct", "session"} {
 		for _, state := range []string{"pending", "deferred", "handled", "stale"} {
 			for _, legacy := range []bool{false, true} {
 				t.Run(fmt.Sprintf("%s/%s/legacy=%t", kind, state, legacy), func(t *testing.T) {
@@ -321,7 +321,7 @@ func TestAuthenticationExpiryProjectsLegacyWithoutMutatingEvidence(t *testing.T)
 					f.now = clock
 					read, err = f.s.Message(ctx, f.worker.ID, message.ID)
 					wantState, wantExpiry := state, message.ExpiresAt
-					if kind == "authentication" || kind == "authentication-refresh" {
+					if kind == "authentication" || kind == "authentication-refresh" || kind == "permission" {
 						wantExpiry = clock.Unix()
 						if state == "pending" || state == "deferred" {
 							wantState = "expired"
@@ -341,7 +341,7 @@ func TestAuthenticationExpiryProjectsLegacyWithoutMutatingEvidence(t *testing.T)
 }
 
 func TestAuthenticationReceiptsCannotReviveExpiredHandoffs(t *testing.T) {
-	for _, kind := range []string{"authentication", "authentication-refresh"} {
+	for _, kind := range []string{"authentication", "authentication-refresh", "permission"} {
 		for _, disposition := range []string{"pending", "deferred"} {
 			for _, legacy := range []bool{false, true} {
 				t.Run(fmt.Sprintf("%s/%s/legacy=%t", kind, disposition, legacy), func(t *testing.T) {
@@ -392,7 +392,7 @@ func TestAuthenticationReceiptsCannotReviveExpiredHandoffs(t *testing.T) {
 }
 
 func TestAuthenticationHandledReceiptSurvivesExpiry(t *testing.T) {
-	for _, kind := range []string{"authentication", "authentication-refresh"} {
+	for _, kind := range []string{"authentication", "authentication-refresh", "permission"} {
 		t.Run(kind, func(t *testing.T) {
 			f := newFixture(t)
 			ctx := context.Background()

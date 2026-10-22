@@ -244,7 +244,7 @@ func (a *app) localCommand(ctx context.Context, r *resources, group string, args
 			if err := requireArgs(args, 1); err != nil {
 				return nil, err
 			}
-			return a.engine(r).Step(ctx, true)
+			return a.engine(r).Step(work.WithRequestedAction(ctx, a.operation), true)
 		case "recover":
 			fs := flag.NewFlagSet("work recover", flag.ContinueOnError)
 			journal := fs.String("journal", "", "interrupted invocation ID")

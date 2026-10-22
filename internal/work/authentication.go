@@ -38,6 +38,7 @@ type AuthenticationRequest struct {
 	CreatedAt      int64                    `json:"created_at"`
 	ExpiresAt      int64                    `json:"expires_at"`
 	RefreshID      string                   `json:"refresh_id,omitempty"`
+	ActionKey      string                   `json:"action_key,omitempty"`
 	ResolvedAt     int64                    `json:"resolved_at,omitempty"`
 	Deliveries     []AuthenticationDelivery `json:"deliveries"`
 	Error          *domain.Fault            `json:"error,omitempty"`
@@ -122,7 +123,7 @@ Founder should use its own enrolled identity:
 6. Only Founder may request ai resumption through agent mode after any pause, with current spending/work authorization.
 Do not initialize a replacement configuration, transfer Founder identity to the target, or copy another computer's provider credentials. Login completion or credentials-present-unverified is not proof of live vendor usability. Grant holders may be agents; protected credential UI/input/output never belongs in a model context.
 This notice creates no grant/session, changes no mode and starts no inference. Assistance authorization is separate from task approval and spending authority.
-This request expires at the UTC deadline above and will not automatically renew. Founder can ask this computer to recheck sign-in and issue a fresh request: agent-cli agent request-sign-in %s --input FILE, with {"provider":"%s","reason":"Request a fresh protected sign-in notice"} and optional "project_id" matching this request. Use the target/provider IDs above. This does not open login or start inference. Provider device-code expiry and persistent assistance authorization are separate. Successful authentication observation, a changed required provider/computer identity, or changed recipient authority also invalidates this notice; check current work/provider status before acting.
+This request expires at the UTC deadline above and will not automatically renew just because time passes. Newly requested work or a newly observed sign-out after readiness can issue another scoped request; unchanged polls/restarts reuse their episode. Founder can also ask this computer to recheck sign-in and issue a fresh request: agent-cli agent request-sign-in %s --input FILE, with {"provider":"%s","reason":"Request a fresh protected sign-in notice"} and optional "project_id" matching this request. Use the target/provider IDs above. This does not open login or start inference. Provider device-code expiry and persistent assistance authorization are separate. Successful authentication observation, a changed required provider/computer identity, or changed recipient authority also invalidates this notice; check current work/provider status before acting.
 Delivery, acknowledgement, a text reply, or silence is not authentication, consent, task approval, or spending permission. Do not send tokens, passwords, device codes, authentication URLs, screenshots, or transcripts in messages or chat.
 `, request.AgentID, request.AgentID, request.Provider, request.Provider, request.AgentID, request.Provider)
 }
@@ -140,8 +141,9 @@ func (e *Engine) refreshAuthentication(ctx context.Context, c config.Worker, pro
 	if task != nil {
 		projectID = task.ProjectID
 	}
+	actionKey, _ := ctx.Value(requestedActionContext{}).(string)
 	index := slices.IndexFunc(requests, func(request AuthenticationRequest) bool {
-		return request.Provider == provider && request.ProjectID == projectID
+		return request.Provider == provider && request.ProjectID == projectID && request.ActionKey == actionKey
 	})
 	request := AuthenticationRequest{}
 	if index >= 0 {
@@ -152,7 +154,7 @@ func (e *Engine) refreshAuthentication(ctx context.Context, c config.Worker, pro
 		now := e.Now().UTC().Unix()
 		request = AuthenticationRequest{FormatVersion: authenticationFormat, Supersedes: supersedes, ID: domain.NewID("auth_request"), AgentID: e.Client.Credential.AgentID, Provider: provider,
 			ProjectID: projectID, ModeAtRequest: c.Mode, State: "delivery-pending", CreatedAt: now, ExpiresAt: now + domain.AuthenticationRequestTTL,
-			RefreshID: refreshID, Deliveries: []AuthenticationDelivery{}}
+			RefreshID: refreshID, ActionKey: actionKey, Deliveries: []AuthenticationDelivery{}}
 		if task != nil {
 			request.TaskID, request.SpecGeneration = task.ID, task.SpecGeneration
 		}
