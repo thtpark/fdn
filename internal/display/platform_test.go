@@ -3,6 +3,7 @@ package display
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,6 +14,32 @@ import (
 
 	"github.com/thtpark/fdn/internal/config"
 )
+
+func TestX11PlacementReservesNativeDecorationsAndRejectsEscapingWindows(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		offset    int
+		wantError bool
+	}{
+		{name: "native-openbox-decoration", offset: 40},
+		{name: "still-outside-selected-screen", offset: 128, wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := screenFixtureFor(t)
+			writeHelper(t, filepath.Join(f.bin, "xdotool"), fmt.Sprintf(`case "$1" in
+search) printf '101\n';;
+windowsize) printf 'X=%%s\nY=%%s\nWIDTH=%%s\nHEIGHT=%%s\n' "$(( ${10}+2 ))" "$(( ${11}+%d ))" "$4" "$5";;
+*) exit 90;;
+esac
+`, tc.offset))
+			item := available{profile: f.config.Screens[0], rect: rectangle{Width: 1440, Height: 900}}
+			err := place(context.Background(), item, 1001)
+			if (err != nil) != tc.wantError {
+				t.Fatal("native decoration reservation weakened or rejected measured screen bounds", err)
+			}
+		})
+	}
+}
 
 func TestMacGeometryUsesExactNativeDisplayAndPhysicalPixels(t *testing.T) {
 	screens := []macMonitor{
