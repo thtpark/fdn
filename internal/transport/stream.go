@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -61,9 +62,35 @@ func StreamArguments(c config.SSH, mode string) ([]string, error) {
 		"--", c.User + "@" + c.Host, mode}, nil
 }
 
+type stdioConn struct {
+	reader *os.File
+	writer *os.File
+}
+
+func (c *stdioConn) Read(data []byte) (int, error)  { return c.reader.Read(data) }
+func (c *stdioConn) Write(data []byte) (int, error) { return c.writer.Write(data) }
+func (c *stdioConn) Close() error                   { return errors.Join(c.reader.Close(), c.writer.Close()) }
+func (c *stdioConn) LocalAddr() net.Addr            { return streamAddress("local") }
+func (c *stdioConn) RemoteAddr() net.Addr           { return streamAddress("ssh") }
+func (c *stdioConn) SetDeadline(deadline time.Time) error {
+	return errors.Join(c.reader.SetReadDeadline(deadline), c.writer.SetWriteDeadline(deadline))
+}
+func (c *stdioConn) SetReadDeadline(deadline time.Time) error {
+	return c.reader.SetReadDeadline(deadline)
+}
+func (c *stdioConn) SetWriteDeadline(deadline time.Time) error {
+	return c.writer.SetWriteDeadline(deadline)
+}
+
+type streamAddress string
+
+func (a streamAddress) Network() string { return "pipe" }
+func (a streamAddress) String() string  { return string(a) }
+
 type streamConn struct {
 	net.Conn
-	peer      net.Conn
+	input     *os.File
+	output    *os.File
 	cancel    context.CancelFunc
 	done      chan struct{}
 	closeOnce sync.Once
@@ -82,19 +109,32 @@ func OpenStream(ctx context.Context, c config.SSH, mode string, runner process.R
 	if runner == nil {
 		return nil, domain.Fail(domain.Invalid, "SSH stream requires a process runner")
 	}
-	client, peer := net.Pipe()
+	// File-backed stdio lets exec observe SSH exit without waiting for an
+	// unrelated stdin copy blocked on a net.Pipe reader.
+	input, writer, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	reader, output, err := os.Pipe()
+	if err != nil {
+		input.Close()
+		writer.Close()
+		return nil, err
+	}
+	client := &stdioConn{reader: reader, writer: writer}
 	streamCtx, cancel := context.WithCancel(ctx)
-	conn := &streamConn{Conn: client, peer: peer, cancel: cancel, done: make(chan struct{})}
+	conn := &streamConn{Conn: client, input: input, output: output, cancel: cancel, done: make(chan struct{})}
 	started := make(chan struct{}, 1)
 	stderr := process.NewBuffer(8192)
 	stop := context.AfterFunc(streamCtx, func() {
 		client.Close()
-		peer.Close()
+		input.Close()
+		output.Close()
 	})
 	go func() {
 		err := runner.Run(streamCtx, process.Spec{Path: "/usr/bin/ssh", Args: args,
 			Env:   []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"},
-			Stdin: peer, Stdout: peer, Stderr: stderr,
+			Stdin: input, Stdout: output, Stderr: stderr,
 			Started: func(int) error {
 				select {
 				case started <- struct{}{}:
@@ -117,7 +157,8 @@ func OpenStream(ctx context.Context, c config.SSH, mode string, runner process.R
 			conn.err = domain.Fail(domain.Unavailable, "SSH stream stderr exceeded its private size limit")
 		}
 		stop()
-		peer.Close()
+		input.Close()
+		output.Close()
 		cancel()
 		close(conn.done)
 	}()
@@ -159,7 +200,8 @@ func (c *streamConn) Close() error {
 	c.closeOnce.Do(func() {
 		c.cancel()
 		c.Conn.Close()
-		c.peer.Close()
+		c.input.Close()
+		c.output.Close()
 		<-c.done
 		if !errors.Is(c.err, context.Canceled) && !errors.Is(c.err, context.DeadlineExceeded) && !errors.Is(c.err, io.EOF) {
 			c.closeErr = c.err

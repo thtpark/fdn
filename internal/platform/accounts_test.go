@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -24,9 +26,23 @@ import (
 const accountTestAgent = "agent_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const accountTestOther = "agent_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
-func accountTestRoot(t *testing.T) string {
+func platformTestRoot(t *testing.T, prefix string) string {
 	t.Helper()
-	root, err := os.MkdirTemp(".", ".a-")
+	account, err := user.LookupId(strconv.Itoa(os.Geteuid()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !filepath.IsAbs(account.HomeDir) {
+		t.Fatal("OS account home must be absolute")
+	}
+	home, err := filepath.EvalSymlinks(account.HomeDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := accountAncestors(home, uint32(os.Geteuid()), false); err != nil {
+		t.Fatal("OS account home cannot hold protected test fixtures", err)
+	}
+	root, err := os.MkdirTemp(home, prefix)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,14 +51,68 @@ func accountTestRoot(t *testing.T) string {
 			t.Error(err)
 		}
 	})
+	return root
+}
+
+func accountTestRoot(t *testing.T) string {
+	t.Helper()
+	root := platformTestRoot(t, ".a-")
+	// SSH policy ancestors must be traversable; private state remains 0700.
 	if err := os.Chmod(root, 0755); err != nil {
 		t.Fatal(err)
 	}
-	root, err = filepath.Abs(root)
+	if err := accountAncestors(root, uint32(os.Geteuid()), true); err != nil {
+		t.Fatal("OS account home must allow SSH policy traversal", err)
+	}
+	return root
+}
+
+func TestPlatformFixtureRootsUseAccountHome(t *testing.T) {
+	account, err := user.LookupId(strconv.Itoa(os.Geteuid()))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return root
+	home, err := filepath.EvalSymlinks(account.HomeDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unsafe := filepath.Join(accountTestRoot(t), "unsafe")
+	checkout := filepath.Join(unsafe, "checkout", "internal", "platform")
+	if err := os.MkdirAll(checkout, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(unsafe, 0777); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(checkout)
+	t.Setenv("HOME", unsafe)
+	for _, fixture := range []struct {
+		name        string
+		root        func(*testing.T) string
+		mode        os.FileMode
+		traversable bool
+	}{
+		{"accounts", accountTestRoot, 0755, true},
+		{"identity-install", identityInstallTestDir, 0700, false},
+	} {
+		var root string
+		t.Run(fixture.name, func(t *testing.T) {
+			root = fixture.root(t)
+			if filepath.Dir(root) != home {
+				t.Error("fixture root must use the OS account home, not HOME or the checkout")
+			}
+			info, err := os.Lstat(root)
+			if err != nil || info.Mode().Perm() != fixture.mode {
+				t.Fatal("incorrect fixture root permissions", info, err)
+			}
+			if err := accountAncestors(root, uint32(os.Geteuid()), fixture.traversable); err != nil {
+				t.Error("fixture inherited unsafe ancestors", err)
+			}
+		})
+		if _, err := os.Lstat(root); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("fixture root was not cleaned up", err)
+		}
+	}
 }
 
 func accountTestKey(t *testing.T) string {

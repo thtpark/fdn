@@ -179,7 +179,11 @@ proves an ephemeral owner key and issues an owner certificate for ordinary API
 use. Certificates bind `instance_id`, `agent_id`, key `generation`, purpose and
 (for owners) `owner_generation`; these must agree with the peer UID, registered
 keys, current state and live owner. Transactions recheck the same generation
-fence so revocation/recovery cannot authorize a late stale write.
+fence so revocation/recovery cannot authorize a late stale write. Bounded
+WebSocket keepalive pings run independently of certificate renewal so the
+finite-idle SSH gateway does not expire a healthy owner. Native SSH process exit
+propagates EOF even while its stdin is idle; a closed gateway cannot leave a
+stale local lease looking ready instead of triggering same-owner reconnection.
 
 Ordinary CLI calls attach to the existing local identity proxy. They do not open
 a second owner or expose signing/control keys to provider processes. Device

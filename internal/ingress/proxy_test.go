@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -175,6 +176,13 @@ func TestGatewayCancellationIdleAndLifetimeJoinWorkers(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				input, inputWriter := io.Pipe()
 				outputReader, output := io.Pipe()
+				t.Cleanup(func() {
+					cancel()
+					_ = input.Close()
+					_ = inputWriter.Close()
+					_ = outputReader.Close()
+					_ = output.Close()
+				})
 				accepted := make(chan struct{})
 				serverDone := make(chan error, 1)
 				go func() {
@@ -188,7 +196,10 @@ func TestGatewayCancellationIdleAndLifetimeJoinWorkers(t *testing.T) {
 					_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
 					close(accepted)
 					if mode == "cancel-output" {
-						_, _ = io.WriteString(conn, "blocked output")
+						if _, err := io.WriteString(conn, "blocked output"); err != nil {
+							serverDone <- err
+							return
+						}
 					}
 					_, err = io.Copy(io.Discard, conn)
 					serverDone <- err
@@ -202,6 +213,18 @@ func TestGatewayCancellationIdleAndLifetimeJoinWorkers(t *testing.T) {
 				proxyDone := make(chan error, 1)
 				go func() { proxyDone <- Proxy(ctx, "fdn-api", input, output, options) }()
 				<-accepted
+				if mode == "cancel-output" {
+					// Read only one byte so cancellation interrupts a pending output write.
+					ready := make(chan error, 1)
+					go func() {
+						var first [1]byte
+						_, err := io.ReadFull(outputReader, first[:])
+						ready <- err
+					}()
+					if err := joinGatewayWorker(t, ready); err != nil {
+						t.Fatal("gateway output did not become ready", err)
+					}
+				}
 				if strings.HasPrefix(mode, "cancel") {
 					cancel()
 				}
@@ -212,7 +235,8 @@ func TestGatewayCancellationIdleAndLifetimeJoinWorkers(t *testing.T) {
 				if mode == "idle" && !errors.Is(err, ErrIdleTimeout) || mode == "lifetime" && !errors.Is(err, context.DeadlineExceeded) || strings.HasPrefix(mode, "cancel") && !errors.Is(err, context.Canceled) {
 					t.Fatal("wrong gateway cancellation result", mode, err)
 				}
-				if err := joinGatewayWorker(t, serverDone); err != nil {
+				// Linux may reset a Unix peer closed with unread output during cancellation.
+				if err := joinGatewayWorker(t, serverDone); err != nil && !(mode == "cancel-output" && errors.Is(err, syscall.ECONNRESET)) {
 					t.Fatal(err)
 				}
 			}
