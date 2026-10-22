@@ -16,6 +16,7 @@ const SchemaVersion = 2
 const APIVersion = 2
 const MaxBody = 1 << 20
 const HistoryLimit = 3
+const AuthenticationRequestTTL int64 = 900
 
 var Version = "dev"
 var Commit = "unknown"
@@ -292,18 +293,26 @@ type Attention struct {
 	State      string `json:"state"`
 }
 
+type AuthenticationRefresh struct {
+	Provider  string `json:"provider"`
+	ProjectID string `json:"project_id,omitempty"`
+	Reason    string `json:"reason"`
+}
+
 type Message struct {
-	ID              string `json:"id"`
-	SenderID        string `json:"sender_id"`
-	RecipientID     string `json:"recipient_id"`
-	Body            string `json:"body"`
-	Origin          string `json:"origin"`
-	Kind            string `json:"kind"`
-	Urgent          bool   `json:"urgent"`
-	ResponseRequest bool   `json:"response_requested"`
-	State           string `json:"state"`
-	CreatedAt       int64  `json:"created_at"`
-	Revision        int64  `json:"revision"`
+	ID                    string                 `json:"id"`
+	SenderID              string                 `json:"sender_id"`
+	RecipientID           string                 `json:"recipient_id"`
+	Body                  string                 `json:"body"`
+	Origin                string                 `json:"origin"`
+	Kind                  string                 `json:"kind"`
+	Urgent                bool                   `json:"urgent"`
+	ResponseRequest       bool                   `json:"response_requested"`
+	State                 string                 `json:"state"`
+	CreatedAt             int64                  `json:"created_at"`
+	ExpiresAt             int64                  `json:"expires_at,omitempty"`
+	Revision              int64                  `json:"revision"`
+	AuthenticationRefresh *AuthenticationRefresh `json:"authentication_refresh,omitempty"`
 }
 
 type Session struct {

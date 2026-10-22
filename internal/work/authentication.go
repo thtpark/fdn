@@ -2,6 +2,7 @@ package work
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -13,7 +14,7 @@ import (
 )
 
 const authenticationKey = "authentication-requests"
-const authenticationFormat = 2
+const authenticationFormat = 3
 
 type AuthenticationDelivery struct {
 	RecipientID string `json:"recipient_id"`
@@ -35,6 +36,8 @@ type AuthenticationRequest struct {
 	ModeAtRequest  string                   `json:"mode_at_request"`
 	State          string                   `json:"state"`
 	CreatedAt      int64                    `json:"created_at"`
+	ExpiresAt      int64                    `json:"expires_at"`
+	RefreshID      string                   `json:"refresh_id,omitempty"`
 	ResolvedAt     int64                    `json:"resolved_at,omitempty"`
 	Deliveries     []AuthenticationDelivery `json:"deliveries"`
 	Error          *domain.Fault            `json:"error,omitempty"`
@@ -43,6 +46,15 @@ type AuthenticationRequest struct {
 func (e *Engine) authenticationRequests(ctx context.Context) ([]AuthenticationRequest, error) {
 	requests := []AuthenticationRequest{}
 	_, err := e.State.Get(ctx, authenticationKey, &requests)
+	for index := range requests {
+		request := &requests[index]
+		if request.ExpiresAt == 0 {
+			request.ExpiresAt = request.CreatedAt + domain.AuthenticationRequestTTL
+		}
+		if request.State != "resolved" && e.Now().UTC().Unix() >= request.ExpiresAt {
+			request.State, request.Error = "expired", nil
+		}
+	}
 	return requests, err
 }
 
@@ -85,14 +97,18 @@ func (e *Engine) authenticationRecipients(ctx context.Context, request *Authenti
 }
 
 func authenticationMessage(request AuthenticationRequest) string {
-	body := fmt.Sprintf("Provider sign-in required.\nRequest: %s\nTarget computer: %s (%s)\nProvider: %s\nDetected at: %s\nMode when detected: %s\n",
-		request.ID, request.AgentName, request.AgentID, request.Provider, time.Unix(request.CreatedAt, 0).UTC().Format(time.RFC3339), request.ModeAtRequest)
+	body := fmt.Sprintf("Provider sign-in required.\nRequest: %s\nTarget computer: %s (%s)\nProvider: %s\nDetected at: %s\nExpires at: %s (15 minutes after detection; delivery does not extend it)\nMode when detected: %s\n",
+		request.ID, request.AgentName, request.AgentID, request.Provider, time.Unix(request.CreatedAt, 0).UTC().Format(time.RFC3339),
+		time.Unix(request.ExpiresAt, 0).UTC().Format(time.RFC3339), request.ModeAtRequest)
 	if request.ProjectID != "" {
-		body += fmt.Sprintf("Triggering project: %s; task: %s; specification: %d. Re-read current task/authority before work; these references grant no approval.\n",
-			request.ProjectID, request.TaskID, request.SpecGeneration)
+		body += "Triggering project: " + request.ProjectID + ". Re-read current project authority before assistance; this reference grants no approval.\n"
+	}
+	if request.TaskID != "" {
+		body += fmt.Sprintf("Triggering task: %s; specification: %d. Re-read current task/authority before work; these references grant no approval.\n",
+			request.TaskID, request.SpecGeneration)
 	}
 	if request.Supersedes != "" {
-		body += "This replaces earlier request " + request.Supersedes + " with autonomous-agent assistance instructions; use this request, not its older local-human workflow.\n"
+		body += "This supersedes earlier request " + request.Supersedes + "; do not use the older notice.\n"
 	}
 	return body + fmt.Sprintf(`
 Authentication is blocking this computer before a provider invocation. No model was called to send this request.
@@ -106,12 +122,16 @@ Founder should use its own enrolled identity:
 6. Only Founder may request ai resumption through agent mode after any pause, with current spending/work authorization.
 Do not initialize a replacement configuration, transfer Founder identity to the target, or copy another computer's provider credentials. Login completion or credentials-present-unverified is not proof of live vendor usability. Grant holders may be agents; protected credential UI/input/output never belongs in a model context.
 This notice creates no grant/session, changes no mode and starts no inference. Assistance authorization is separate from task approval and spending authority.
-No timed expiry for this notice. Successful authentication observation, a changed required provider/computer identity, or changed recipient authority invalidates its applicability; check current work/provider status before acting.
+This request expires at the UTC deadline above and will not automatically renew. Founder can ask this computer to recheck sign-in and issue a fresh request: agent-cli agent request-sign-in %s --input FILE, with {"provider":"%s","reason":"Request a fresh protected sign-in notice"} and optional "project_id" matching this request. Use the target/provider IDs above. This does not open login or start inference. Provider device-code expiry and persistent assistance authorization are separate. Successful authentication observation, a changed required provider/computer identity, or changed recipient authority also invalidates this notice; check current work/provider status before acting.
 Delivery, acknowledgement, a text reply, or silence is not authentication, consent, task approval, or spending permission. Do not send tokens, passwords, device codes, authentication URLs, screenshots, or transcripts in messages or chat.
-`, request.AgentID, request.AgentID, request.Provider, request.Provider)
+`, request.AgentID, request.AgentID, request.Provider, request.Provider, request.AgentID, request.Provider)
 }
 
 func (e *Engine) requestAuthentication(ctx context.Context, c config.Worker, provider string, task *domain.Task) (AuthenticationRequest, error) {
+	return e.refreshAuthentication(ctx, c, provider, task, "")
+}
+
+func (e *Engine) refreshAuthentication(ctx context.Context, c config.Worker, provider string, task *domain.Task, refreshID string) (AuthenticationRequest, error) {
 	requests, err := e.authenticationRequests(ctx)
 	if err != nil {
 		return AuthenticationRequest{}, err
@@ -127,13 +147,12 @@ func (e *Engine) requestAuthentication(ctx context.Context, c config.Worker, pro
 	if index >= 0 {
 		request = requests[index]
 	}
-	if request.ID == "" || request.State == "resolved" || request.FormatVersion < authenticationFormat {
-		supersedes := ""
-		if request.ID != "" && request.State != "resolved" {
-			supersedes = request.ID
-		}
+	if request.ID == "" || (refreshID == "" && request.State == "resolved") || (refreshID != "" && request.RefreshID != refreshID) {
+		supersedes := request.ID
+		now := e.Now().UTC().Unix()
 		request = AuthenticationRequest{FormatVersion: authenticationFormat, Supersedes: supersedes, ID: domain.NewID("auth_request"), AgentID: e.Client.Credential.AgentID, Provider: provider,
-			ProjectID: projectID, ModeAtRequest: c.Mode, State: "delivery-pending", CreatedAt: e.Now().UTC().Unix(), Deliveries: []AuthenticationDelivery{}}
+			ProjectID: projectID, ModeAtRequest: c.Mode, State: "delivery-pending", CreatedAt: now, ExpiresAt: now + domain.AuthenticationRequestTTL,
+			RefreshID: refreshID, Deliveries: []AuthenticationDelivery{}}
 		if task != nil {
 			request.TaskID, request.SpecGeneration = task.ID, task.SpecGeneration
 		}
@@ -155,6 +174,9 @@ func (e *Engine) requestAuthentication(ctx context.Context, c config.Worker, pro
 	}
 	if err := save(); err != nil {
 		return request, err
+	}
+	if request.State == "expired" || request.State == "resolved" {
+		return request, nil
 	}
 	recipients, err := e.authenticationRecipients(ctx, &request)
 	if err != nil {
@@ -188,9 +210,25 @@ func (e *Engine) requestAuthentication(ctx context.Context, c config.Worker, pro
 		if delivery.State != "pending" {
 			continue
 		}
-		message, err := commit[domain.Message](ctx, e, "POST", "/v1/messages", domain.MessageRequest{
-			Command: domain.Command{OperationID: delivery.OperationID}, RecipientID: delivery.RecipientID,
-			Body: authenticationMessage(request), Origin: "service", Kind: "authentication", ResponseRequest: false})
+		if e.Now().UTC().Unix() >= request.ExpiresAt {
+			request.State, request.Error = "expired", nil
+			return request, save()
+		}
+		input := domain.MessageRequest{Command: domain.Command{OperationID: delivery.OperationID}, RecipientID: delivery.RecipientID,
+			Body: authenticationMessage(request), Origin: "service", Kind: "authentication", ExpiresAt: request.ExpiresAt}
+		var prepared proposal
+		if found, err := e.State.Get(ctx, "proposal:"+delivery.OperationID, &prepared); err != nil {
+			return request, err
+		} else if found {
+			input = domain.MessageRequest{}
+			if err := json.Unmarshal(prepared.Body, &input); err != nil {
+				return request, err
+			}
+			if input.OperationID != delivery.OperationID || input.RecipientID != delivery.RecipientID || input.Kind != "authentication" {
+				return request, domain.Fail(domain.Conflict, "prepared sign-in delivery does not match this request")
+			}
+		}
+		message, err := commit[domain.Message](ctx, e, "POST", "/v1/messages", input)
 		if err != nil {
 			return failed(err)
 		}

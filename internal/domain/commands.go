@@ -112,6 +112,13 @@ type AttentionRequest struct {
 	State      string `json:"state"`
 }
 
+type AuthenticationRefreshRequest struct {
+	Command
+	Provider  string `json:"provider"`
+	ProjectID string `json:"project_id,omitempty"`
+	Reason    string `json:"reason"`
+}
+
 type MessageRequest struct {
 	Command
 	RecipientID     string `json:"recipient_id"`
@@ -120,6 +127,7 @@ type MessageRequest struct {
 	Kind            string `json:"kind"`
 	Urgent          bool   `json:"urgent"`
 	ResponseRequest bool   `json:"response_requested"`
+	ExpiresAt       int64  `json:"expires_at,omitempty"`
 }
 
 type MessageReceipt struct {

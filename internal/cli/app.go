@@ -49,7 +49,7 @@ var AgentCommands = []string{
 var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install"}
 var ServiceCommands = []string{"serve", "status"}
 var GuideCommands = []string{"guide list", "guide show", "guide install"}
-var AutonomyCommands = []string{"agent show", "agent mode", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open"}
+var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open"}
 
 func RunAgent(ctx context.Context, args []string, in io.Reader, out, diagnostic io.Writer) int {
 	return run(ctx, "agent", args, in, out, diagnostic)

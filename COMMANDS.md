@@ -194,6 +194,7 @@ or an older server/client fallback.
 | `agent-cli agent list` | Active identity checks; shared agent registry |
 | `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision and Founder request attribution |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
+| `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban still includes Founder |
 | `agent-cli agent register` | `--input SIGNED_PUBLIC [--existing-agent AGENT] [--output PUBLIC_PROFILE]`; Founder-only new registration or explicit binding of the designated original existing non-Founder |
 | `agent-cli agent recover` | `AGENT --input NEW_SIGNED_PUBLIC --reason REASON [--output PUBLIC_PROFILE]`; Founder-only non-Founder recovery with fresh keypairs/generation, not task-run recovery |
@@ -376,19 +377,43 @@ mode. It requests no automatic AI response and creates/opens/consents to no
 remote session.
 
 `work status` exposes `authentication_requests`: request/provider/scope IDs,
-creation/state, recipient/operation/message references, confirmed delivery or
-pending error, and resolution time. States are `delivery-pending`, `requested`
-and `resolved`. No active recipients or unavailable delivery stays explicitly
-pending. Polling, restart, lost acknowledgements, ordinary replies and receipt
-acknowledgement do not create repeated requests or prove authentication. A later
-successful provider readiness observation resolves the local episode; a new
-confirmed sign-out can create a fresh request. The immutable old inbox message
-remains recipient-owned evidence; inspect current status before acting.
-Unknown/outage/protocol failures do not manufacture a login request.
-Founder must be an active notification recipient for human-help escalation;
-an AI delegate cannot replace that requirement. Older-format unresolved notices
-are superseded once with a new immutable message describing autonomous/persistent
-assistance, never silently rewritten under an old operation ID.
+creation/expiry/state, recipient/operation/message references, confirmed delivery
+or pending error, refresh/supersession references, and resolution time. States are
+`delivery-pending`, `requested`, `expired` and `resolved`. Requests expire exactly
+15 minutes after creation, including pending deliveries, and do not automatically
+renew. Expired authentication notices disappear from `message inbox`; `message
+show MESSAGE` retains their deadline/history and reports expired pending/deferred
+state. A receipt cannot revive an expired notice. Legacy requests/messages derive
+the deadline from their original creation; upgrade/restart does not renew them.
+
+Founder can explicitly ask an agent to check again, even while it remains paused:
+
+```sh
+agent-cli --operation-id STABLE_NEW_REFRESH agent request-sign-in AGENT --input FILE
+```
+
+```json
+{"provider":"codex","reason":"Request a fresh protected sign-in notice"}
+```
+
+Include `project_id` to refresh a project-scoped episode. Server authority, not a
+message body or declared origin, enforces Founder-only issuance. The result is a
+protected urgent `authentication-refresh` message with a 15-minute expiry, not
+proof of delivery or sign-in. Its `handled` receipt means the target processed the
+check. The target probes the selected provider without inference and, only if
+sign-in is explicitly required/rejected, issues a fresh superseding request under
+its own identity. Healthy/credentials-present-unverified status does not produce
+a sign-in notice; unknown/outage status remains an explicit blocker. An offline
+or fenced target may not process the refresh before it expires; Founder can issue
+a new operation when appropriate. Retry the same operation/input after a lost
+acknowledgement; a new intentional refresh needs a new operation ID.
+
+This never performs login, exposes device codes, opens assistance, resumes ai or
+changes a persistent grant. Provider/device-code/live-session expiries are
+independent. Polling, restart, replies and receipts never renew requests or prove
+authentication. A later successful readiness observation resolves the episode;
+a subsequent confirmed sign-out can create a new one. Founder must remain an
+active human-help recipient; an AI delegate is not a replacement.
 
 Preferred provider/model apply unless the assigned execution task requires its
 own selection. Independent verification always uses the verifier's own preferred

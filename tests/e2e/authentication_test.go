@@ -43,7 +43,8 @@ func TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference(t *testing.T
 			status := must[struct {
 				Work work.Status `json:"work"`
 			}](t, "agent-cli", []string{"--config", l.worker.configFile, "work", "status"}, nil)
-			if len(status.Work.AuthenticationRequests) != 1 || status.Work.AuthenticationRequests[0].State != "requested" {
+			if len(status.Work.AuthenticationRequests) != 1 || status.Work.AuthenticationRequests[0].State != "requested" ||
+				status.Work.AuthenticationRequests[0].ExpiresAt-status.Work.AuthenticationRequests[0].CreatedAt != 900 || messages[0].ExpiresAt != status.Work.AuthenticationRequests[0].ExpiresAt {
 				t.Fatal("native work status did not expose confirmed handoff", status)
 			}
 			time.Sleep(1200 * time.Millisecond)
@@ -54,6 +55,27 @@ func TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference(t *testing.T
 			messages = inbox()
 			if len(messages) != 1 || messages[0].ID != status.Work.AuthenticationRequests[0].Deliveries[0].MessageID {
 				t.Fatal("poll/restart duplicated a provider-authentication request", messages)
+			}
+			refreshArgs := []string{"--config", l.founder.configFile, "--operation-id", "native-sign-in-refresh", "agent", "request-sign-in", l.worker.agent.ID, "--input", "-"}
+			input := domain.AuthenticationRefreshRequest{Provider: name, Reason: "Founder asks the offline worker to request sign-in again"}
+			control := must[domain.Message](t, "agent-cli", refreshArgs, input)
+			replay := must[domain.Message](t, "agent-cli", refreshArgs, input)
+			if replay.ID != control.ID || control.AuthenticationRefresh == nil || control.Kind != "authentication-refresh" || control.ResponseRequest {
+				t.Fatal("native Founder refresh lacks exact replay/protected typing", control, replay)
+			}
+			denied, code, _ := run(t, "agent-cli", []string{"--config", l.worker.configFile, "agent", "request-sign-in", l.worker.agent.ID, "--input", "-"}, input)
+			if code == 0 || denied.Error == nil || denied.Error.Code != domain.Denied {
+				t.Fatal("native non-Founder bypassed refresh authorization", denied, code)
+			}
+			resumed := l.startAgent(t)
+			waitFor(t, 10*time.Second, func() bool { return len(inbox()) == 2 }, "fresh sign-in notice after explicit Founder refresh")
+			resumed.stop(t)
+			fresh := must[struct {
+				Work work.Status `json:"work"`
+			}](t, "agent-cli", []string{"--config", l.worker.configFile, "work", "status"}, nil)
+			if len(fresh.Work.AuthenticationRequests) != 1 || fresh.Work.AuthenticationRequests[0].Supersedes != status.Work.AuthenticationRequests[0].ID ||
+				fresh.Work.AuthenticationRequests[0].RefreshID != control.ID || fresh.Work.AuthenticationRequests[0].ExpiresAt-fresh.Work.AuthenticationRequests[0].CreatedAt != 900 {
+				t.Fatal("native refresh did not supersede the original episode with a fresh deadline", fresh)
 			}
 			state, err := local.Open(context.Background(), l.worker.config.StateDir)
 			if err != nil {

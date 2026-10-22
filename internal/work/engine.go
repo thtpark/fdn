@@ -227,6 +227,12 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	}
 	status.Mode = c.Mode
+	if handled, err := e.authenticationControl(ctx, c); err != nil {
+		return status, err
+	} else if handled {
+		status.State = "authentication-refreshed"
+		return status, nil
+	}
 	if c.Mode == "manual" && (!manual || !me.Founder) {
 		status.State = "manual"
 		if manual && !me.Founder {
@@ -476,6 +482,9 @@ func (e *Engine) selectProvider(ctx context.Context, c config.Worker, name, mode
 		request, err := e.requestAuthentication(ctx, c, name, task)
 		if err != nil {
 			return health, model, err
+		}
+		if request.State == "expired" {
+			return health, model, domain.Fail(domain.Prerequisite, "provider login is required; protected sign-in request "+request.ID+" expired; Founder must explicitly request a fresh sign-in notice")
 		}
 		return health, model, domain.Fail(domain.Prerequisite, "provider login is required; protected sign-in request "+request.ID+" was delivered and awaits human action")
 	}

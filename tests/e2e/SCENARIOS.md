@@ -168,6 +168,30 @@ go test -race -count=1 ./internal/domain ./internal/provider \
   -run '^(TestEligibleApproverUsesCurrentRoleAndNamedIndependentPolicy|TestVerificationDecisionRequiresReviewedOutcome)$'
 ```
 
+## AUTH: expiring sign-in requests and explicit Founder refresh
+
+These cases use synthetic provider health and isolated local state. They do not
+perform provider login, expose device codes, open credential UI or certify live
+vendor authentication. The business fixtures prove server authorization and
+controller durability, not native multi-UID isolation.
+
+| ID | Automated test | Expected result |
+| --- | --- | --- |
+| `AUTH-007` | `TestAuthenticationRefreshAPIFounderOnlyAndPrivate`, `TestAuthenticationMessageAPIRejectsForgedControlsAndExpiry`, `TestAuthenticationRefreshAPIRejectsProtectedRequestFields` and `TestAuthenticationRefreshAPIRequiresBoundTLS` in [API tests](../../internal/api/authentication_test.go) | Raw API enforces Founder/recipient identity, protected DTO ownership, bounded input and bound TLS. |
+| `AUTH-008` | `TestAuthenticationOperationsReplayAfterExpiry`, `TestAuthenticationLegacySendReplayDoesNotRenewDeadline`, `TestAuthenticationExpiryProjectsLegacyWithoutMutatingEvidence`, `TestAuthenticationReceiptsCannotReviveExpiredHandoffs` and `TestAuthenticationInboxFiltersBeforePagination` in [server tests](../../internal/foundation/authentication_test.go) | Server-clock boundary, immutable legacy/exact replay, receipt nonrevival and correct filtered pagination. |
+| `AUTH-001` | `TestAuthenticationExpiryProjectsLegacyRequestsWithoutRenewal` in [worker tests](../../internal/work/authentication_test.go) | Exact 900-second boundary; legacy original timestamp, pending delivery expiry, no automatic renewal, real resolution retained. |
+| `AUTH-002` | `TestAuthenticationExpiryWaitsForFounderAndSupersedesExactlyOnce` in [integration tests](../integration/authentication_expiry_test.go) | Local/message deadlines agree; repeated expiry polls stay blocked; explicit Founder refresh supersedes once and survives restart. |
+| `AUTH-003` | `TestFounderSignInRefreshWorksWhilePausedWithoutResumingOrInference` in [integration tests](../integration/authentication_expiry_test.go) | Target checks requested provider in manual mode; explicit missing auth alone generates a notice; healthy/unknown status does not; no inference/session/resume. |
+| `AUTH-004` | `TestFounderAuthenticationRefreshDeliveryLostAckReusesPreparedEpisode` and `TestFounderAuthenticationRefreshReceiptLostAckDoesNotRepeatNotification` in [integration tests](../integration/authentication_expiry_test.go) | Unavailable/lost-ack delivery and receipt recovery preserve one episode, deadline and message operation across restart. |
+| `AUTH-005` | `TestLegacySignInInstructionsRequireFounderRefreshWithoutRewritingOldOperations` in [legacy test](../integration/autonomy_notice_test.go) | Upgrade alone expires old episodes instead of notifying again; Founder explicitly supersedes without rewriting historical messages. |
+| `AUTH-006` | `TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference` in [native tests](authentication_test.go) | Both providers: compiled CLI Founder refresh queues while offline, exact replay retains one control, non-Founder is denied, restart produces one fresh protected notice without model invocation. |
+
+```sh
+go test -race -count=1 ./internal/domain ./internal/foundation ./internal/api ./internal/work ./internal/identityservice -run 'Authentication|OrdinaryRoutes'
+go test -race -count=1 -tags=integration ./tests/integration -run 'Authentication|SignIn|LegacySignIn'
+go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference$'
+```
+
 ## Security boundary cases: source suites verified, final acceptance pending
 
 The following cases are linked to tests in

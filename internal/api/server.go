@@ -217,6 +217,9 @@ func (s *Server) routes() {
 	body(s, "POST /v1/agents/{id}/mode", false, func(r *http.Request, a domain.Agent, q domain.ModeRequest) (domain.Agent, error) {
 		return s.Store.SetMode(r.Context(), a.ID, r.PathValue("id"), q)
 	})
+	body(s, "POST /v1/agents/{id}/authentication", false, func(r *http.Request, a domain.Agent, q domain.AuthenticationRefreshRequest) (domain.Message, error) {
+		return s.Store.RequestAuthentication(r.Context(), a.ID, r.PathValue("id"), q)
+	})
 	read(s, "GET /v1/assistance", func(r *http.Request, a domain.Agent) ([]domain.AssistanceGrant, error) {
 		return s.Store.AssistanceList(r.Context(), a.ID)
 	})
@@ -338,8 +341,21 @@ func (s *Server) routes() {
 	read(s, "GET /v1/tasks/{id}/runs", func(r *http.Request, a domain.Agent) ([]domain.Run, error) {
 		return s.Store.Runs(r.Context(), a.ID, r.PathValue("id"))
 	})
-	body(s, "POST /v1/messages", false, func(r *http.Request, a domain.Agent, q domain.MessageRequest) (domain.Message, error) {
-		return s.Store.SendMessage(r.Context(), a.ID, q)
+	// Retain presence so non-authentication messages cannot supply even a zero expiry.
+	type messageInput struct {
+		domain.MessageRequest
+		ExpiresAt json.RawMessage `json:"expires_at,omitempty"`
+	}
+	body(s, "POST /v1/messages", false, func(r *http.Request, a domain.Agent, q messageInput) (domain.Message, error) {
+		if len(q.ExpiresAt) != 0 {
+			if q.Kind != "authentication" {
+				return domain.Message{}, domain.Fail(domain.Invalid, "only authentication messages may set an expiry")
+			}
+			if err := json.Unmarshal(q.ExpiresAt, &q.MessageRequest.ExpiresAt); err != nil || q.MessageRequest.ExpiresAt == 0 {
+				return domain.Message{}, domain.Fail(domain.Invalid, "authentication message expiry must be a future Unix timestamp")
+			}
+		}
+		return s.Store.SendMessage(r.Context(), a.ID, q.MessageRequest)
 	})
 	read(s, "GET /v1/messages", func(r *http.Request, a domain.Agent) (domain.Page[domain.Message], error) {
 		limit, err := queryLimit(r)

@@ -13,6 +13,7 @@ func TestPublicIdentityStatusAndFounderRevocationRemainOrdinaryRoutes(t *testing
 	}{
 		{http.MethodGet, "/v1/identity/status", true},
 		{http.MethodPost, "/v1/agents/agent_fixture/revoke", true},
+		{http.MethodPost, "/v1/agents/agent_fixture/authentication", true},
 		{http.MethodPost, "/v1/identity/register", true},
 		{http.MethodPost, "/v1/identity/agent_fixture/recover", true},
 		{http.MethodGet, "/v1/identity/owner", false},

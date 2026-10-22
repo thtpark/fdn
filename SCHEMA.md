@@ -78,12 +78,32 @@ existing private-message transaction and immutable local proposal provide
 lost-ack/restart replay, not repeated inference or a new notification each poll.
 
 Delivery failures/missing recipients remain `delivery-pending`; confirmed
-delivery is `requested`, not authentication. Provider readiness observation may
-mark the episode `resolved`; a later real sign-out starts a new episode. Previous
-immutable message/operation evidence remains retained; only its recipient changes
-disposition. Unknown provider status never proves sign-out. No schema migration,
-session consent, mode change, token handling or model invocation is needed to
-send this handoff.
+delivery is `requested`, not authentication. Each episode expires exactly 900
+seconds after creation, including uncertain/undelivered episodes. Expiry projects
+`expired` in local status, stops delivery and never automatically creates another
+notice. Legacy episodes derive the same deadline from original `created_at`;
+upgrading/restarting does not renew or rewrite their immutable proposals.
+Provider readiness observation may mark the episode `resolved`; a later real
+sign-out starts a new episode.
+
+Founder alone may transactionally request a fresh provider/project-scoped check
+through `POST /v1/agents/{id}/authentication`. Its durable urgent private
+`authentication-refresh` message has server-owned typed control data, a 900-second
+expiry, no automatic response request and immutable operation replay. The target
+consumes it under the same local slot, including while Founder-paused: read-only
+provider status either resolves old episodes or creates one fresh notice with
+`supersedes` and `refresh_id`. Unknown/outage status remains pending, never a
+fabricated login request. Exact retries reuse the prepared episode/deliveries.
+Founder/target/project authority is rechecked; ordinary messages cannot forge
+this control. Neither notice nor control starts login/inference, opens a session,
+changes mode or grants spending authority.
+
+The server projects expired pending/deferred authentication messages as `expired`,
+excludes them from the inbox and refuses receipt-based revival. Legacy message
+deadlines derive from original creation; immutable stored body/operation receipts
+remain evidence. Device-code/live-session expiry and persistent assistance grants
+are separate. No SQLite migration or API-contract change is required for these
+additive DTO/local-episode fields.
 
 Private journals and CLI proposal receipts may contain sensitive machine-local
 material. Do not publish or dump them as diagnostic evidence. A local binding or

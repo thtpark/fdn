@@ -12,7 +12,7 @@ import (
 	"github.com/thtpark/fdn/internal/work"
 )
 
-func TestLegacySignInInstructionsAreSupersededOnceWithoutRewritingOldOperations(t *testing.T) {
+func TestLegacySignInInstructionsRequireFounderRefreshWithoutRewritingOldOperations(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
 	x := &authenticationExecutor{authentication: "login-required"}
@@ -27,8 +27,13 @@ func TestLegacySignInInstructionsAreSupersededOnceWithoutRewritingOldOperations(
 	if err := engine.State.Put(ctx, "authentication-requests", []work.AuthenticationRequest{previous}); err != nil {
 		t.Fatal(err)
 	}
-	first := requireAuthenticationBlock(t, engine, domain.Prerequisite).AuthenticationRequests[0]
-	if first.ID == previous.ID || first.Supersedes != previous.ID || first.FormatVersion != 2 {
+	expired := requireAuthenticationBlock(t, engine, domain.Prerequisite).AuthenticationRequests[0]
+	if expired.ID != previous.ID || expired.State != "expired" || expired.ExpiresAt != previous.CreatedAt+900 {
+		t.Fatal("legacy request was renewed instead of expiring from its original timestamp", expired)
+	}
+	founderAuthenticationRefresh(t, h, "codex", "")
+	first := requireAuthenticationRefresh(t, engine).AuthenticationRequests[0]
+	if first.ID == previous.ID || first.Supersedes != previous.ID || first.FormatVersion != 3 {
 		t.Fatal("old human-target workflow was not superseded explicitly", first)
 	}
 	for range 2 {
