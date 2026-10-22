@@ -370,7 +370,7 @@ func TestLaunchPreservesRunnerEnvironmentArgumentsAndReplay(t *testing.T) {
 		t.Fatal("replay duplicated the application", string(launches), err)
 	}
 	placement, err := os.ReadFile(filepath.Join(f.home, "placement.calls"))
-	if err != nil || !strings.Contains(string(placement), "windowmove\n--sync\n--\n101\n1312\n32\n") {
+	if err != nil || !strings.Contains(string(placement), "windowmove\n--sync\n--\n101\n1344\n64\n") {
 		t.Fatal("selected screen placement was not requested", err)
 	}
 	if _, err := os.Stat(filepath.Join(f.home, "not-created")); !errors.Is(err, os.ErrNotExist) {
