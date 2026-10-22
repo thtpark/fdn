@@ -15,8 +15,12 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 2. Classify the blocker: transport/trust, login, current approval/specification,
    workspace permission/identity, occupied slot, retry/backoff, journal/outbox,
    maintenance or unproven interactive cleanup. Do not replace it with a default
-   success/empty-work explanation. Sign-in requests expire after 15 minutes and
-   do not renew on polling/restart. Founder can use `agent request-sign-in AGENT
+   success/empty-work explanation. A new requested task/reply/mention/manual
+   action must escalate sign-in/permission blockers to active Founder and current
+   relevant delegates, even when initial onboarding or an older notice expired.
+   Inspect authentication_requests/permission_requests and real delivery state.
+   Sign-in requests expire after 15 minutes and do not renew on unchanged
+   polling/restart. Founder can use `agent request-sign-in AGENT
    --input FILE` with provider/reason and optional matching project_id to request
    a fresh check/notice, even while the target remains paused. The control also
    expires in 15 minutes; preserve/reuse its exact operation after uncertainty.

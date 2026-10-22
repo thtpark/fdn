@@ -192,6 +192,29 @@ go test -race -count=1 -tags=integration ./tests/integration -run 'Authenticatio
 go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference$'
 ```
 
+## HELP: requested work blocked by sign-in or permissions
+
+Fresh requested actions can request help despite an expired older notice. Stable
+poll/restart retries do not renew an unchanged action, start login/inference,
+grant permissions, change mode or bypass an uncertain invocation/run fence.
+
+| ID | Automated test | Expected result |
+| --- | --- | --- |
+| `HELP-001` | `TestRequestedTaskEscalatesBeforeOnboardingDespiteExpiredNotice` in [integration tests](../integration/requested_help_test.go) | A todo assignment reaches Founder and current delegate before onboarding; distinct same-project tasks do not suppress or repeatedly supersede each other. |
+| `HELP-002` | `TestRequestedMessageAndExplicitWorkRearmSignInWithoutIdleSpam` and `TestRequestedTaskHelpLostAcknowledgementReplaysSameScopedNotice` in [integration tests](../integration/requested_help_test.go) | A requested reply/new explicit operation asks again; exact retry, restart and lost acknowledgement reuse one action/episode/message. |
+| `HELP-003` | `TestRequestedPermissionBlockEscalatesWithoutGrantingWorkspaceAccess` in [integration tests](../integration/requested_help_test.go) | Disabled workspace help reaches both authorities exactly once; no tools are enabled and no model runs. |
+| `HELP-004` | `TestProviderSignOutDuringWorkEscalatesWithoutBypassingRecovery` in [integration tests](../integration/requested_help_test.go) | Fresh readiness after text/coding failure detects rejected credentials and notifies both authorities; uncertainty/failed-report/retry fences remain. |
+| `HELP-005` | `TestNativeRequestedTaskEscalatesSignInBeforeOnboarding` in [native tests](requested_help_test.go) | Both compiled provider-role fixtures publish one task/project-scoped notice before onboarding and preserve it across restart without inference. |
+
+```sh
+go test -race -count=1 -tags=integration ./tests/integration -run 'Requested|ProviderSignOut'
+go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeRequestedTaskEscalatesSignInBeforeOnboarding$'
+```
+
+These are isolated fixture results, not live provider sign-in, new VM deployment
+or permission approval. Missing authentication can prevent semantic questions;
+help delivery is deterministic and does not need a model to ask for access.
+
 ## Security boundary cases: source suites verified, final acceptance pending
 
 The following cases are linked to tests in

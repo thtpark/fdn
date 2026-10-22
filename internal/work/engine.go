@@ -59,6 +59,7 @@ type Status struct {
 	UpdatedAt              int64                   `json:"updated_at"`
 	AuthenticationRequests []AuthenticationRequest `json:"authentication_requests"`
 	ModeControl            *ModeControl            `json:"mode_control,omitempty"`
+	PermissionRequests     []PermissionRequest     `json:"permission_requests"`
 }
 
 type Launch struct {
@@ -72,6 +73,7 @@ type Launch struct {
 	Message       *domain.Message     `json:"message,omitempty"`
 	Attention     *domain.Attention   `json:"attention,omitempty"`
 	InventoryHash string              `json:"inventory_hash,omitempty"`
+	ActionKey     string              `json:"action_key,omitempty"`
 	Continuation  *provider.Reply     `json:"continuation,omitempty"`
 }
 
@@ -125,6 +127,10 @@ func (e *Engine) Status(ctx context.Context) (Status, error) {
 	if err != nil {
 		return status, err
 	}
+	status.PermissionRequests, err = e.permissionRequests(ctx)
+	if err != nil {
+		return status, err
+	}
 	inventory, err := e.State.Inventory(ctx)
 	if err != nil {
 		if domain.AsFault(err).Code != domain.Prerequisite {
@@ -165,6 +171,11 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 			err = errors.Join(err, readErr)
 		} else {
 			status.AuthenticationRequests = requests
+		}
+		if requests, readErr := e.permissionRequests(saveCtx); readErr != nil {
+			err = errors.Join(err, readErr)
+		} else {
+			status.PermissionRequests = requests
 		}
 		var control ModeControl
 		if found, readErr := e.State.Get(saveCtx, "automation-control", &control); readErr != nil {
@@ -271,6 +282,9 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	}
 	if !found || reviewed != inventory.Hash() {
+		if err := e.requestedAuthentication(ctx, c, me); err != nil {
+			return status, err
+		}
 		launch, err := e.launch(ctx, "onboarding", nil)
 		if err != nil {
 			return status, err
@@ -330,8 +344,11 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		}
 		acted, actionErr := e.prepare(ctx, c, task, manual)
 		if actionErr != nil {
+			if permissionFailure(actionErr) {
+				actionErr = e.permissionBlocked(ctx, c, Launch{Task: &task}, "task-authority", actionErr)
+			}
 			fault := domain.AsFault(actionErr)
-			if slices.Contains([]domain.Code{domain.Prerequisite, domain.Conflict, domain.NotFound}, fault.Code) {
+			if slices.Contains([]domain.Code{domain.Prerequisite, domain.Conflict, domain.NotFound, domain.Denied}, fault.Code) {
 				status.Blockers = append(status.Blockers, Blocker{TaskID: task.ID, Code: fault.Code, Reason: fault.Message})
 				continue
 			}
@@ -349,6 +366,9 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 	}
 	for _, task := range reviews {
 		if err := e.verify(ctx, c, me, task, manual); err != nil {
+			if permissionFailure(err) {
+				err = e.permissionBlocked(ctx, c, Launch{Task: &task}, "task-authority", err)
+			}
 			fault := domain.AsFault(err)
 			if slices.Contains([]domain.Code{domain.Prerequisite, domain.Conflict, domain.NotFound, domain.Denied}, fault.Code) {
 				status.Blockers = append(status.Blockers, Blocker{TaskID: task.ID, Code: fault.Code, Reason: fault.Message})
@@ -473,6 +493,9 @@ func (e *Engine) selected(ctx context.Context, c config.Worker, task *domain.Tas
 func (e *Engine) selectProvider(ctx context.Context, c config.Worker, name, model string, task *domain.Task) (provider.Health, string, error) {
 	health, err := e.Executor.Check(ctx, name)
 	if err != nil {
+		if permissionFailure(err) {
+			err = e.permissionBlocked(ctx, c, Launch{Task: task}, "provider-permission", err)
+		}
 		return health, model, err
 	}
 	if health.Authentication != "authenticated" && health.Authentication != "credentials-present-unverified" {
@@ -517,6 +540,7 @@ func (e *Engine) newJournal(launch Launch, health provider.Health, model string)
 }
 
 func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manual bool) (local.Journal, error) {
+	ctx, launch = actionContext(ctx, launch)
 	health, model, err := e.selected(ctx, c, launch.Task)
 	if err != nil {
 		return local.Journal{}, err
@@ -554,7 +578,8 @@ func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journ
 	defer stop()
 	if err != nil {
 		j.State, j.Problem = "uncertain", "text invocation interrupted/invalid; explicit retry requires confirming its process stopped"
-		return errors.Join(err, e.State.SaveJournal(saveCtx, *j))
+		saveErr := e.State.SaveJournal(saveCtx, *j)
+		return errors.Join(err, saveErr, e.invocationBlocked(saveCtx, c, *j, launch, err))
 	}
 	data, err := json.Marshal(reply)
 	if err != nil {
@@ -562,6 +587,9 @@ func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journ
 	}
 	j.Reply, j.State = data, "reply-prepared"
 	if err := e.State.SaveJournal(saveCtx, *j); err != nil {
+		return err
+	}
+	if err := e.resolvePermission(saveCtx, launch.ActionKey, "provider-permission"); err != nil {
 		return err
 	}
 	return e.applyText(saveCtx, j, launch, reply)
@@ -612,10 +640,18 @@ func checkCleanup(err error) bool { var failure *process.CleanupError; return er
 func (e *Engine) workspace(ctx context.Context, c config.Worker, task domain.Task) (domain.Task, local.Binding, error) {
 	if task.WorkspaceRef != "" {
 		binding, err := e.State.Workspace(ctx, task.WorkspaceRef)
+		if err != nil {
+			err = e.permissionBlocked(ctx, c, Launch{Task: &task}, "workspace", err)
+		} else {
+			err = e.resolvePermission(ctx, requestedAction(ctx, Launch{Task: &task}), "workspace")
+		}
 		return task, binding, err
 	}
 	binding, err := e.projectWorkspace(ctx, c, task.ProjectID)
 	if err != nil {
+		return task, binding, e.permissionBlocked(ctx, c, Launch{Task: &task}, "workspace", err)
+	}
+	if err := e.resolvePermission(ctx, requestedAction(ctx, Launch{Task: &task}), "workspace"); err != nil {
 		return task, binding, err
 	}
 	task, err = e.taskChange(ctx, task, domain.NewID("op"), "workspace", "worker prepared an owned reusable local workspace", func(r *domain.TaskChange) { r.WorkspaceRef = binding.Ref })

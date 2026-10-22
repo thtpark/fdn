@@ -58,7 +58,8 @@ func (e *Engine) prepare(ctx context.Context, c config.Worker, task domain.Task,
 				return false, domain.Fail(domain.Prerequisite, "retry backoff has not elapsed")
 			}
 			if task.UnsafeRetry && (task.RetryApproval == nil || task.RetryApproval.SpecGeneration != task.SpecGeneration || task.RetryApproval.ProjectEpoch != project.Epoch || task.RetryApproval.RunID != task.LastRunID || task.RetryApproval.Attempt != task.Attempts+1) {
-				return false, domain.Fail(domain.Prerequisite, "exact unsafe-retry approval is required")
+				cause := domain.Fail(domain.Prerequisite, "exact unsafe-retry approval is required")
+				return false, e.permissionBlocked(ctx, c, launch, "retry-approval", cause)
 			}
 			if task.Failures >= task.RetryPolicy.MaxRetries+1 {
 				return false, domain.Fail(domain.Prerequisite, "approved failure retry budget is exhausted")
@@ -70,6 +71,9 @@ func (e *Engine) prepare(ctx context.Context, c config.Worker, task domain.Task,
 	if ready || task.Waiting != nil {
 		if ready {
 			if _, err := e.State.Workspace(ctx, task.WorkspaceRef); err != nil {
+				return false, e.permissionBlocked(ctx, c, launch, "workspace", err)
+			}
+			if err := e.resolvePermission(ctx, requestedAction(ctx, launch), "workspace"); err != nil {
 				return false, err
 			}
 		}

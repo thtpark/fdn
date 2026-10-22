@@ -28,6 +28,7 @@ func (e *Engine) execute(ctx context.Context, c config.Worker, task domain.Task,
 }
 
 func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, launch Launch, manual bool) error {
+	ctx, launch = actionContext(ctx, launch)
 	verification := launch.Phase == domain.VerificationRun
 	var binding local.Binding
 	var err error
@@ -37,6 +38,9 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 		binding, err = e.State.Workspace(ctx, task.WorkspaceRef)
 	}
 	if err != nil {
+		return e.permissionBlocked(ctx, c, launch, "workspace", err)
+	}
+	if err := e.resolvePermission(ctx, launch.ActionKey, "workspace"); err != nil {
 		return err
 	}
 	var health provider.Health
@@ -104,7 +108,8 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	defer stop()
 	if checkCleanup(invokeErr) {
 		j.State, j.Problem = "uncertain", "provider process-tree cleanup is unproven; confirm it stopped before recovery"
-		return errors.Join(invokeErr, e.State.SaveJournal(saveCtx, j))
+		saveErr := e.State.SaveJournal(saveCtx, j)
+		return errors.Join(invokeErr, saveErr, e.invocationBlocked(saveCtx, c, j, launch, invokeErr))
 	}
 	if invokeErr != nil {
 		outcome := "failed"
@@ -115,13 +120,14 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 		}
 		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
 			SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(j), Outcome: outcome, Summary: summary, Checkpoint: j.ID, SafeToRetry: !verification && j.PID == 0}
+		helpErr := e.invocationBlocked(saveCtx, c, j, launch, invokeErr)
 		if err := e.queueReport(saveCtx, &j); err != nil {
-			return errors.Join(invokeErr, err)
+			return errors.Join(invokeErr, err, helpErr)
 		}
 		if err := e.flushReports(saveCtx); err != nil {
-			return err
+			return errors.Join(err, helpErr)
 		}
-		return domain.Fail(domain.Provider, "provider failed or stopped; a fenced failure report was recorded, not completion")
+		return errors.Join(domain.Fail(domain.Provider, "provider failed or stopped; a fenced failure report was recorded, not completion"), helpErr)
 	}
 	validReply := reply.Decision == "" && validExecutionOutcome(reply.Outcome)
 	if verification {
@@ -143,6 +149,9 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	}
 	j.State = "reply-prepared"
 	if err := e.State.SaveJournal(saveCtx, j); err != nil {
+		return err
+	}
+	if err := e.resolvePermission(saveCtx, launch.ActionKey, "provider-permission"); err != nil {
 		return err
 	}
 	return e.finishExecution(saveCtx, &j, launch, reply)
