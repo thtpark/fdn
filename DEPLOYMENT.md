@@ -399,6 +399,63 @@ local manual pause is blocked rather than silently resumed; Founder explicitly
 reconciles it. Old servers without authoritative mode/identity metadata cannot
 run a new worker.
 
+## Read-only worker and reply diagnostics
+
+Use the existing enrolled identity and private configuration:
+
+```sh
+agent-cli --config /PRIVATE/agent.json agent diagnose AGENT_ID
+agent-cli --config /PRIVATE/agent.json message diagnose MESSAGE_ID
+agent-cli --config /PRIVATE/agent.json work status
+agent-cli --config /PRIVATE/agent.json service status
+```
+
+General agent diagnosis is Founder/self only; project delegation alone does not
+grant it. A message diagnosis is private to its sender/recipient, even when
+Founder asks. Both diagnose commands accept exactly one ID and fetch saved
+observations without provider probes or actions. Use scoped alert messages for
+delegate triage, not another conversation's message IDs or private worker data.
+
+Inspect `health`, observation/receipt age, effective mode/provider/model and
+configured `preferred_provider`, timestamped authentication readiness,
+phase/action/start/deadline, separate loop/progress clocks, pending reports,
+blockers and safe timestamped component problem codes. Sequence counts phase
+transitions, not polling; a fresh snapshot can keep the same sequence. Sequence
+0 before a first controller step remains unknown, not healthy. Idle polling and
+heartbeats do not prove task progress. A finished login command is not a readiness
+observation; a current observation for one provider does not authenticate another.
+Unknown/stale data needs the reported inspection step, not a green fallback.
+
+Workers piggyback optional version-1 health on their 30-second heartbeat; old
+heartbeat bodies and the `Agent` result remain compatible. The server's non-AI
+watchdog runs without worker cooperation, including for manual Founder. Defaults
+are 90 seconds without heartbeat/report, a phase deadline plus 30 seconds, and
+120 seconds for an eligible unexplained queued requested reply. Founder pause,
+normal idle, no requested response and work within its declared deadline are not
+stuck failures. Differentiate no requested response, queued/shared-slot waiting,
+generating, blocked, awaiting delivery and handled through observed lifecycle
+`state`, not lower-level `stage`. For example, `state:"generating"` and
+`stage:"invoking"` can appear while the provider invocation is still pending,
+with a worker heartbeat reporting the matching action/deadline; blocked recipient
+observations use `state:"blocked"`, `stage:"recipient"`. Neither field proves an
+authoritative receipt or AI completion. A handled receipt alone does not establish
+an AI reply; inspect the private conversation and actual receipt when authorized.
+
+Protected health alerts/recovery notices are ordinary server-created private
+messages with `response_requested:false`. They route to active Founder/current
+task delegates only where scoped, dedupe by incident/cause/action, survive
+polling/restart and notify observed recovery. They cannot be forged through
+`message send`. Health incidents are independent of 15-minute sign-in notices:
+monitoring does not renew those notices or start login, a session, inference,
+retry, resume or recovery. After sign-in, Founder pause, open/uncertain sessions,
+uncertain invocation, a different selected/required provider and permission/report
+blockers still require their own authorized resolution. Never erase journals,
+clear fences or reboot active work to make a health check pass.
+
+If Foundation itself is down, its watchdog cannot guarantee detection/delivery.
+Keep native service/process and outside control-plane monitoring; no successful
+local diagnostic or fixture result is live Agent1/deployment qualification.
+
 ## Providers and protected handoffs
 
 Install exact approved versions or explicitly update through the CLI. Managed
@@ -645,7 +702,8 @@ needs an explicit coordinated rotation, never automatic trust regeneration.
 ## Diagnose identity state and recover
 
 Start with `doctor`, `agent identity`, `service status`, `work status`, current
-mode, protected identity-service/proxy health and redacted native logs. Verify
+mode, authorized `agent diagnose AGENT_ID`/`message diagnose MESSAGE_ID`,
+protected identity-service/proxy health and redacted native logs. Verify
 actual peer UID/group, certificate purpose/instance/agent/key/owner generations
 and host/CA pins without reading private keys. A singleton conflict is a live
 owner to inspect, not a stale file to delete. A restart may reconcile prepared

@@ -60,6 +60,7 @@ type Status struct {
 	AuthenticationRequests []AuthenticationRequest `json:"authentication_requests"`
 	ModeControl            *ModeControl            `json:"mode_control,omitempty"`
 	PermissionRequests     []PermissionRequest     `json:"permission_requests"`
+	Health                 *domain.WorkerHealth    `json:"health,omitempty"`
 }
 
 type Launch struct {
@@ -131,6 +132,10 @@ func (e *Engine) Status(ctx context.Context) (Status, error) {
 	if err != nil {
 		return status, err
 	}
+	status.Health, err = e.health(ctx)
+	if err != nil {
+		return status, err
+	}
 	inventory, err := e.State.Inventory(ctx)
 	if err != nil {
 		if domain.AsFault(err).Code != domain.Prerequisite {
@@ -183,6 +188,11 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		} else if found {
 			status.ModeControl = &control
 		}
+		if health, readErr := e.health(saveCtx); readErr != nil {
+			err = errors.Join(err, readErr)
+		} else {
+			status.Health = health
+		}
 		if err != nil {
 			status.State = "blocked"
 			fault := domain.AsFault(err)
@@ -195,10 +205,21 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	}
 	defer func() { err = errors.Join(err, slot.Close()) }()
+	defer func() {
+		saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		err = errors.Join(err, e.finishHealth(saveCtx, status, err))
+	}()
+	if err := e.beginHealth(ctx, c); err != nil {
+		return status, err
+	}
 	if e.Client.Credential.AgentID == "" {
 		return status, domain.Fail(domain.Prerequisite, "enroll this worker before starting work")
 	}
 	if err := e.State.BindIdentity(ctx, e.Client.Credential.AgentID); err != nil {
+		return status, errors.Join(err, e.blockHealth(ctx, "identity-unavailable"))
+	}
+	if err := e.phaseHealth(ctx, "reconciling", nil, "", 120, false); err != nil {
 		return status, err
 	}
 	if handled, err := e.reconcile(ctx, manual); err != nil {
@@ -214,7 +235,7 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	}
 	if maintenance.Active {
-		return status, domain.Fail(domain.Prerequisite, "maintenance hold blocks new work and sessions")
+		return status, errors.Join(domain.Fail(domain.Prerequisite, "maintenance hold blocks new work and sessions"), e.blockHealth(ctx, "maintenance"))
 	}
 	var sessionFence struct {
 		Active bool   `json:"active"`
@@ -224,7 +245,10 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	}
 	if sessionFence.Active {
-		return status, domain.Fail(domain.Prerequisite, "an interrupted interactive session requires explicit stopped-process recovery")
+		return status, errors.Join(domain.Fail(domain.Prerequisite, "an interrupted interactive session requires explicit stopped-process recovery"), e.blockHealth(ctx, "session-fence"))
+	}
+	if err := e.phaseHealth(ctx, "checking", nil, "", 120, false); err != nil {
+		return status, err
 	}
 	me, err := api.Call[domain.Agent](ctx, e.Client, http.MethodGet, "/v1/me", nil)
 	if err != nil {
@@ -257,7 +281,7 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 	}
 	if len(owned) != 0 {
 		status.TaskID = owned[0].ID
-		return status, domain.Fail(domain.Prerequisite, "an active server claim has no reconciled local invocation; confirm original processes stopped and obtain an explicit fenced release")
+		return status, errors.Join(domain.Fail(domain.Prerequisite, "an active server claim has no reconciled local invocation; confirm original processes stopped and obtain an explicit fenced release"), e.blockHealth(ctx, "unreconciled-claim"))
 	}
 	inventory, err := e.State.Inventory(ctx)
 	if err != nil {
@@ -491,16 +515,28 @@ func (e *Engine) selected(ctx context.Context, c config.Worker, task *domain.Tas
 }
 
 func (e *Engine) selectProvider(ctx context.Context, c config.Worker, name, model string, task *domain.Task) (provider.Health, string, error) {
+	if err := e.phaseHealth(ctx, "provider-check", nil, "", 60, false); err != nil {
+		return provider.Health{}, model, err
+	}
 	health, err := e.Executor.Check(ctx, name)
+	observedErr := e.providerHealth(ctx, name, model, health, err)
 	if err != nil {
+		blocker := "provider-unavailable"
 		if permissionFailure(err) {
+			blocker = "provider-permission"
 			err = e.permissionBlocked(ctx, c, Launch{Task: task}, "provider-permission", err)
 		}
-		return health, model, err
+		return health, model, errors.Join(err, observedErr, e.blockHealth(ctx, blocker))
+	}
+	if observedErr != nil {
+		return health, model, observedErr
 	}
 	if health.Authentication != "authenticated" && health.Authentication != "credentials-present-unverified" {
 		if health.Authentication != "login-required" && health.Authentication != "credentials-rejected" {
-			return health, model, domain.Fail(domain.Prerequisite, "provider authentication is unknown; inspect provider status without starting inference")
+			return health, model, errors.Join(domain.Fail(domain.Prerequisite, "provider authentication is unknown; inspect provider status without starting inference"), e.blockHealth(ctx, "authentication-unknown"))
+		}
+		if err := e.blockHealth(ctx, "authentication-required"); err != nil {
+			return health, model, err
 		}
 		request, err := e.requestAuthentication(ctx, c, name, task)
 		if err != nil {
@@ -515,7 +551,7 @@ func (e *Engine) selectProvider(ctx context.Context, c config.Worker, name, mode
 		return health, model, err
 	}
 	if model != "" && len(health.Models) > 0 && !slices.Contains(health.Models, model) {
-		return health, model, domain.Fail(domain.Prerequisite, "configured required model is absent from the fresh provider catalog")
+		return health, model, errors.Join(domain.Fail(domain.Prerequisite, "configured required model is absent from the fresh provider catalog"), e.blockHealth(ctx, "provider-model-unavailable"))
 	}
 	return health, model, nil
 }
@@ -541,6 +577,9 @@ func (e *Engine) newJournal(launch Launch, health provider.Health, model string)
 
 func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manual bool) (local.Journal, error) {
 	ctx, launch = actionContext(ctx, launch)
+	if err := e.phaseHealth(ctx, "preparing", &launch, "", 120, false); err != nil {
+		return local.Journal{}, err
+	}
 	health, model, err := e.selected(ctx, c, launch.Task)
 	if err != nil {
 		return local.Journal{}, err
@@ -559,6 +598,9 @@ func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manua
 func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journal, launch Launch, path string, manual bool) error {
 	prompt, err := invocationPrompt(j.Context)
 	if err != nil {
+		return err
+	}
+	if err := e.phaseHealth(ctx, "invoking", &launch, j.ID, min(c.InvocationTimeoutSeconds, 300), true); err != nil {
 		return err
 	}
 	j.State = "invoking"
@@ -632,7 +674,10 @@ func (e *Engine) taskChange(ctx context.Context, task domain.Task, operation, ki
 
 func (e *Engine) done(ctx context.Context, j *local.Journal) error {
 	j.State = "done"
-	return e.State.SaveJournal(ctx, *j)
+	if err := e.State.SaveJournal(ctx, *j); err != nil {
+		return err
+	}
+	return e.completedHealth(ctx)
 }
 
 func checkCleanup(err error) bool { var failure *process.CleanupError; return errors.As(err, &failure) }
@@ -675,6 +720,9 @@ func (e *Engine) projectWorkspace(ctx context.Context, c config.Worker, projectI
 
 func (e *Engine) recordProblem(ctx context.Context, key string, err error) {
 	fault := domain.AsFault(err)
+	if saveErr := e.observeProblem(ctx, key, err); saveErr != nil {
+		e.Log.Error("cannot persist worker health diagnostic", "component", healthComponent(key), "code", domain.AsFault(saveErr).Code)
+	}
 	if saveErr := e.State.Put(ctx, key, fault); saveErr != nil {
 		e.Log.Error("cannot persist worker diagnostic", "error", saveErr)
 	}

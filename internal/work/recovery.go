@@ -18,9 +18,12 @@ func (e *Engine) flushReports(ctx context.Context) error {
 		return err
 	}
 	for _, item := range items {
+		if err := e.phaseHealth(ctx, "reporting", nil, "", 120, false); err != nil {
+			return err
+		}
 		var outcome domain.ReportOutcome
 		if err := e.Client.Request(ctx, item.Method, item.Path, item.Body, &outcome); err != nil {
-			return err
+			return errors.Join(err, e.blockHealth(ctx, "report-pending"))
 		}
 		receipt := ReportReceipt{TaskID: outcome.Task.ID, RunID: outcome.Run.ID, Accepted: outcome.Accepted, Stale: outcome.Stale, State: outcome.Run.State}
 		if err := e.State.Put(ctx, "last-report", receipt); err != nil {
@@ -47,6 +50,9 @@ func (e *Engine) flushReports(ctx context.Context) error {
 		if err := e.State.Acknowledge(ctx, item.OperationID); err != nil {
 			return err
 		}
+		if err := e.completedHealth(ctx); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -68,12 +74,16 @@ func (e *Engine) reconcile(ctx context.Context, manual bool) (bool, error) {
 		return false, err
 	}
 	if len(items) > 0 {
+		if err := e.phaseHealth(ctx, "reporting", nil, "", 120, false); err != nil {
+			return false, err
+		}
 		return true, e.flushReports(ctx)
 	}
 	for _, j := range journals {
 		switch j.State {
 		case "invoking", "uncertain":
-			return false, domain.Fail(domain.Prerequisite, "interrupted invocation "+j.ID+" is fenced; confirm all of its processes stopped and use work recover")
+			healthErr := e.journalHealth(ctx, j, "blocked")
+			return false, errors.Join(domain.Fail(domain.Prerequisite, "interrupted invocation "+j.ID+" is fenced; confirm all of its processes stopped and use work recover"), healthErr, e.blockHealth(ctx, "invocation-uncertain"))
 		case "claim-prepared":
 			if j.Claim == nil {
 				return false, domain.Fail(domain.Internal, "prepared claim is missing its exact request")

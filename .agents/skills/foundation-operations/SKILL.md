@@ -1,6 +1,6 @@
 ---
 name: foundation-operations
-description: "Use when checking Foundation or identity-proxy health, diagnosing blocked workers or duplicate-owner bans, recovering fresh identity keys, pausing automation, reconciling runs/sessions, managing private knowledge, backing up SQLite/trust, renewing TLS, or planning a state-preserving upgrade."
+description: "Use when checking Foundation or identity-proxy health, diagnosing blocked workers, stuck agents, private reply progress or duplicate-owner bans, recovering fresh identity keys, pausing automation, reconciling runs/sessions, managing private knowledge, backing up SQLite/trust, renewing TLS, or planning a state-preserving upgrade."
 ---
 
 # Operate and recover without hiding uncertainty
@@ -11,7 +11,17 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 1. Resolve actual role/account/HOME/configuration/version/identity/authority.
    Start read-only: `doctor`, `status`, `agent identity`, `service status`,
    `mode show`, `work status`, relevant task/discussion/run/session, protected
-   identity-service health and native manager state.
+   identity-service health and native manager state. Use `agent diagnose AGENT_ID`
+   for Founder/self only, and `message diagnose MESSAGE_ID` only as that message's
+   sender/recipient; delegation alone grants no general diagnostics. These commands
+   fetch saved observations, not provider probes/actions. Inspect local `health`,
+   server receipt/observation age, effective provider/model versus preferred reply
+   provider, authentication observation time, phase/deadline and separate loop/
+   progress clocks. Idle polls/heartbeats are not task progress; missing/stale data
+   is not healthy. Defaults: heartbeat/report missing 90s, deadline grace 30s,
+   eligible unexplained queued reply 120s. Pause, ordinary idle, no requested
+   response and in-deadline work are not stuck failures. Handled receipt is not
+   proof of an AI reply. Foundation-down detection needs native/outside monitoring.
 2. Classify the blocker: transport/trust, login, current approval/specification,
    workspace permission/identity, occupied slot, retry/backoff, journal/outbox,
    maintenance or unproven interactive cleanup. Do not replace it with a default
@@ -29,6 +39,14 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    showing its sign-in screen/public verification link to the authorized human
    is permitted, not itself a privacy violation. Keep credentials, one-time codes
    and secret-bearing URLs in the protected human flow, not model/shared logs.
+   Protected health alerts/recovery notices are server-created private messages,
+   response_requested=false, scoped to active Founder/current task delegates and
+   deduped durably by incident/cause/action. They never renew sign-in notices or
+   start login/session/inference/retry/resume/recovery. After login, preserve and
+   inspect Founder pause, open/uncertain session, uncertain invocation, different
+   selected/required provider and permission/report blockers; auth resolves only
+   its own observation. Never publish unrelated message references, private
+   journals, raw errors, paths or credentials as diagnostic evidence.
 3. Preserve private state, original operation/proposal, exact generations,
    provider version and local evidence. Service startup/registration accepted
    does not prove final health. A singleton conflict is an owner to inspect,

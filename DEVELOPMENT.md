@@ -81,6 +81,25 @@ Git-host fixtures rather than add task-title, provider or repository branches
 to production policy. All providers must prove non-prompting local
 approval behavior before enabling coding; text calls must remain tool-disabled.
 
+### Observation-only diagnostics
+
+Worker health piggybacks version 1 on the existing heartbeat; it does not grant
+mode/work/retry/recovery authority or require a new SQLite migration. Keep phase
+transition sequence, fresh snapshot time, loop liveness and real work progress
+separate; repeated idle steps must not advance progress. Include effective
+provider/model versus configured reply preference and timestamped actual auth
+observations, not a sign-in command's exit status. Project delegates receive
+scoped server-created health messages, not general access to another agent or
+unrelated private message diagnostics. Redact private journals/raw errors/paths.
+
+Focused CLI regressions cover typed bodyless GET routes, strict arity, existing
+enrollment and error envelopes, unknown/stale observations without a healthy
+fallback, offline help and command discovery. Run them with embedded guidance
+contracts using `go test -race -count=1 . ./internal/cli`. Server/watchdog and
+worker semantics need their owning package tests; CLI fixtures do not prove
+live Agent1 recovery, external outage detection, provider auth or deployment.
+See [TEST_PLAN.md](TEST_PLAN.md#diagnostics-cli-and-guidance-acceptance).
+
 ## Schema and compatibility changes
 
 Server, local-worker and guidance formats have separate responsibilities.

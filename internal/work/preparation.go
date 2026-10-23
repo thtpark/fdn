@@ -42,6 +42,9 @@ func (e *Engine) prepare(ctx context.Context, c config.Worker, task domain.Task,
 	if err != nil {
 		return false, err
 	}
+	if err := e.phaseHealth(ctx, "preparing", &launch, "", 120, false); err != nil {
+		return false, err
+	}
 	project := *launch.Project
 	if project.Archived {
 		return false, domain.Fail(domain.Prerequisite, "project is archived")
@@ -55,7 +58,7 @@ func (e *Engine) prepare(ctx context.Context, c config.Worker, task domain.Task,
 			}
 		case "retry":
 			if task.NextAttemptAt > e.Now().Unix() {
-				return false, domain.Fail(domain.Prerequisite, "retry backoff has not elapsed")
+				return false, errors.Join(domain.Fail(domain.Prerequisite, "retry backoff has not elapsed"), e.blockHealth(ctx, "retry-wait"))
 			}
 			if task.UnsafeRetry && (task.RetryApproval == nil || task.RetryApproval.SpecGeneration != task.SpecGeneration || task.RetryApproval.ProjectEpoch != project.Epoch || task.RetryApproval.RunID != task.LastRunID || task.RetryApproval.Attempt != task.Attempts+1) {
 				cause := domain.Fail(domain.Prerequisite, "exact unsafe-retry approval is required")
@@ -100,7 +103,7 @@ func (e *Engine) prepare(ctx context.Context, c config.Worker, task domain.Task,
 			return false, err
 		}
 		if prep.SignoffSpec == task.SpecGeneration && prep.SignoffEpoch == project.Epoch {
-			return false, domain.Fail(domain.Prerequisite, "current specification awaits authorized readiness sign-off")
+			return false, errors.Join(domain.Fail(domain.Prerequisite, "current specification awaits authorized readiness sign-off"), e.blockHealth(ctx, "approval-required"))
 		}
 		if err := e.requestSignoff(ctx, task, project); err != nil {
 			return false, err
@@ -136,6 +139,9 @@ func hasAnswers(task domain.Task, entries []domain.Entry) bool {
 }
 
 func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch, reply provider.Reply) (err error) {
+	if err := e.phaseHealth(ctx, "applying", &launch, j.ID, 30, true); err != nil {
+		return err
+	}
 	defer func() {
 		if err != nil && slices.Contains([]domain.Code{domain.Conflict, domain.Denied, domain.NotFound, domain.Invalid}, domain.AsFault(err).Code) {
 			j.State, j.Problem = "stale", "prepared text decision could not apply to the current context; evidence retained"

@@ -101,7 +101,7 @@ func requireArgs(args []string, count int) error {
 
 func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "agent requires list, show, register, recover, identity, revoke, mode or request-sign-in")
+		return nil, domain.Fail(domain.Invalid, "agent requires list, show, diagnose, register, recover, identity, revoke, mode or request-sign-in")
 	}
 	if args[0] == "register" || args[0] == "recover" || args[0] == "identity" {
 		return a.identityCommand(ctx, r, args)
@@ -117,6 +117,16 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 			return nil, err
 		}
 		return api.Call[domain.Agent](ctx, r.client, "GET", api.Path("agents", args[1]), nil)
+	}
+	if args[0] == "diagnose" {
+		id, tail, err := idArgs(args[1:])
+		if err != nil {
+			return nil, err
+		}
+		if err := requireArgs(tail, 0); err != nil {
+			return nil, err
+		}
+		return api.Call[domain.AgentDiagnostics](ctx, r.client, "GET", api.Path("agents", id, "diagnostics"), nil)
 	}
 	if args[0] == "request-sign-in" {
 		id, tail, err := idArgs(args[1:])
@@ -361,6 +371,15 @@ func (a *app) messageCommand(ctx context.Context, r *resources, args []string) (
 			return nil, err
 		}
 		return api.Call[domain.Message](ctx, r.client, "GET", api.Path("messages", args[1]), nil)
+	case "diagnose":
+		id, tail, err := idArgs(args[1:])
+		if err != nil {
+			return nil, err
+		}
+		if err := requireArgs(tail, 0); err != nil {
+			return nil, err
+		}
+		return api.Call[domain.MessageDiagnostics](ctx, r.client, "GET", api.Path("messages", id, "diagnostics"), nil)
 	case "inbox":
 		fs := flag.NewFlagSet("message inbox", flag.ContinueOnError)
 		cursor := fs.String("cursor", "", "cursor")

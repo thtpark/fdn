@@ -56,6 +56,7 @@ their tests; planned/unimplemented cases must not be described as covered.
 | Change | Minimum related cases |
 | --- | --- |
 | DTO/input/CLI | Unknown/protected fields, bounded UTF-8 input, exact JSON envelope/exit code, every implemented leaf's offline help |
+| Diagnostics CLI/guidance | Typed bodyless GET routes, exact one-ID arity, existing config/enrollment/identity matching, unchanged server errors/exit codes, explicit stale/unknown data with no healthy fallback, executable discovery/help and embedded command/catalog/skill contracts |
 | Identity registration/recovery | Signed public-key possession, Founder-only registration, explicit original-agent migration, canonical-key/request/account/UID uniqueness, exact activation challenge/replay, retired generations, no legacy bearer runtime, fresh-key recovery and root-local-only Founder recovery |
 | Tasks/policy | Named/independent eligibility, project epochs, invalidation, status gates, concurrent stale revisions, exact execution/verification claims/reports; verifier's current spec/result/discussion/epoch, independent own-provider selection, shared server slot, atomic feedback/rework approval, revoked authority/Founder pause and no self-acceptance |
 | Discussions/messages | Creator-only edits, literal mention/body generation, requested answers, private recipients, no automatic protected replies |
@@ -104,6 +105,84 @@ authenticated private GitHub CLI configurations. The normal suites cannot run
 live writes, even with inherited opt-in variables. That optional boundary check
 is not a live-provider or end-to-end Foundation qualification and is not implied
 by passing fixture tests.
+
+## Diagnostics CLI and guidance acceptance
+
+Focused source-only checks:
+
+```sh
+go test -race -count=1 . ./internal/cli
+```
+
+Actually run on 2026-10-22 with Go 1.27.1 on darwin/arm64, in the version 0.2.6
+working tree based on `1fec1419`: both packages passed. This is focused
+CLI/guidance evidence only; it does not complete the server/worker feature's
+coordinated acceptance.
+
+`TestDiagnosticsCLIReadOnlyTypedRoutes` exercises both diagnostics endpoints
+through the CLI's normal configuration/client path and a test-local Unix proxy,
+preserving phase/deadline/progress, provider preference/model/authentication
+timestamps, component problems and blocked/stale/unknown/handled observations.
+It preserves observed lifecycle `state` separately from lower-level `stage`,
+including generating/invoking and blocked/recipient, without inferring a receipt
+or AI completion. Offline message help checks the same distinction.
+`TestDiagnosticsCLIPreservesErrorsWithoutHealthyFallback` checks denied/not-found/
+unavailable, incompatible API and malformed DTO responses with no retry/probe or
+success fallback. `TestDiagnosticsCLIRequiresExistingEnrollment` rejects missing
+configuration/enrollment, retired bearer and mismatched identity before diagnosis.
+`TestDiagnosticsCLIRejectsUnexpectedArityBeforeRequests` rejects missing/extra IDs
+and unsupported flags/input. `TestDiagnosticsCLIOfflineHelpAndDiscovery` and
+`TestEveryCLILeafHasOfflineHelp` check executable discovery without enrollment.
+
+The root guidance tests verify source/catalog hashes, skill frontmatter/links,
+complete documented commands, both skill-discovery locations, preserved HOME
+instructions/unrelated skills, tampering refusal, embedded native/Debian guide
+content and bounded explicit prompt context. These are synthetic source fixtures,
+not server watchdog/privacy acceptance, integration/e2e, full-suite, live Agent1,
+provider-authentication, deployment or release qualification. No new e2e scenario
+family is claimed by these CLI tests.
+
+## Worker health unit and integration acceptance
+
+On 2026-10-22 the coordinator reported the implemented deterministic cases in
+`tests/integration/health_work_test.go` passing. Exact runnable selectors:
+
+```sh
+go test -race -count=1 -tags=integration ./tests/integration \
+  -run '^(TestWorkerHeartbeatPublishesLiveReplyWithoutWaitingForInference|TestSignedInWorkerExplainsSessionFenceWithoutRetryingOrClearingIt)$'
+```
+
+- `TestWorkerHeartbeatPublishesLiveReplyWithoutWaitingForInference` exercises an
+  isolated real worker `Serve`/watch/heartbeat path while its deterministic
+  provider invocation remains pending. Founder diagnostics expose `invoking`,
+  the matching message action/deadline and an unfinished step; private message
+  body/provider path stay redacted. Message diagnostics report lifecycle
+  `state:"generating"`, not completion. Releasing the fixture invocation records
+  progress and a handled receipt without a second invocation.
+- `TestSignedInWorkerExplainsSessionFenceWithoutRetryingOrClearingIt` exercises
+  a signed-in worker step with a retained session fence, publishes its heartbeat
+  and reads Founder/message diagnostics. The fence remains visible and intact,
+  the reply is blocked without inference/retry, and an information-only message
+  remains `not-requested`. Sign-in or diagnosis does not clear recovery evidence.
+
+The coordinator also reported the implemented `TestWorkerHealth` unit family in
+`internal/work/health_test.go` passing. Reproduce it with:
+
+```sh
+go test -race -count=1 ./internal/work -run '^TestWorkerHealth'
+```
+
+That family covers in-flight phase snapshots, idle polls not counting as
+progress, timestamped/redacted/resolved component errors, sign-in preserving
+Founder pause/uncertain invocation fences, stable repeated-blocker timing,
+successful reply progress, safe provider metadata/old-fence observations and
+unsupported local formats failing without overwriting retained evidence.
+
+These are coordinator-reported deterministic source unit/integration results,
+separate from the CLI/guidance checks above. The fixtures use no real credentials
+or paid inference. They do not qualify e2e, live Agent1/vendor authentication,
+native-service/multi-UID deployment, control-plane outage detection, the full
+suite or a release.
 
 ## Software-first identity security acceptance
 

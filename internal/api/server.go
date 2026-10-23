@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"strconv"
+	"time"
 	"unicode/utf8"
 
 	"github.com/thtpark/fdn/internal/config"
@@ -32,6 +33,7 @@ type Server struct {
 	Relay          *relay.Broker
 	mux            *http.ServeMux
 	identity       *identityServer
+	health         *healthMonitor
 	authentication func(*http.Request) (domain.Agent, error)
 }
 
@@ -46,6 +48,8 @@ func New(store *foundation.Store, log *slog.Logger) (*Server, error) {
 	s.identity = newIdentityServer(s)
 	s.routes()
 	s.identityRoutes()
+	s.healthRoutes()
+	s.health = s.startHealthMonitor(15*time.Second, 10*time.Second)
 	return s, nil
 }
 
@@ -63,6 +67,7 @@ func NewAuthenticated(store *foundation.Store, log *slog.Logger, authenticate fu
 }
 
 func (s *Server) Close() error {
+	s.health.close()
 	s.identity.close()
 	return s.Relay.Close()
 }
@@ -257,8 +262,8 @@ func (s *Server) routes() {
 	read(s, "GET /v1/agents", func(r *http.Request, a domain.Agent) ([]domain.Agent, error) {
 		return s.Store.Agents(r.Context(), a.ID)
 	})
-	body(s, "POST /v1/heartbeat", false, func(r *http.Request, a domain.Agent, _ domain.Command) (domain.Agent, error) {
-		return s.Store.Heartbeat(r.Context(), a.ID)
+	body(s, "POST /v1/heartbeat", false, func(r *http.Request, a domain.Agent, q domain.HeartbeatRequest) (domain.Agent, error) {
+		return s.Store.HeartbeatWithHealth(r.Context(), a.ID, q.Health)
 	})
 	body(s, "POST /v1/agents/{id}/revoke", false, func(r *http.Request, a domain.Agent, q domain.AgentRequest) (domain.Agent, error) {
 		result, err := s.Store.Revoke(r.Context(), a.ID, r.PathValue("id"), q)

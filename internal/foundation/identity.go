@@ -163,24 +163,7 @@ func (s *Store) Me(ctx context.Context, actor string) (domain.Agent, error) {
 }
 
 func (s *Store) Heartbeat(ctx context.Context, actor string) (domain.Agent, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return domain.Agent{}, err
-	}
-	defer tx.Rollback()
-	a, err := s.actor(ctx, tx, actor)
-	if err != nil {
-		return a, err
-	}
-	a.LastSeen = s.timestamp()
-	data, err := encode(a)
-	if err != nil {
-		return a, err
-	}
-	if _, err := tx.ExecContext(ctx, "UPDATE agents SET data = ? WHERE id = ?", data, a.ID); err != nil {
-		return a, err
-	}
-	return a, tx.Commit()
+	return s.HeartbeatWithHealth(ctx, actor, nil)
 }
 
 func (s *Store) Revoke(ctx context.Context, actor, target string, req domain.AgentRequest) (domain.Agent, error) {

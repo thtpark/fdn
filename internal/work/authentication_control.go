@@ -71,6 +71,9 @@ func (e *Engine) applyAuthenticationControl(ctx context.Context, c config.Worker
 	}
 	if !prepared {
 		health, err := e.Executor.Check(ctx, control.Provider)
+		if observedErr := e.providerHealth(ctx, control.Provider, "", health, err); observedErr != nil {
+			return observedErr
+		}
 		if err != nil {
 			return err
 		}

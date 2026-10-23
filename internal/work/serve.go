@@ -50,8 +50,9 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 		case sessionErr := <-sessionDone:
 			sessionDone = nil
 			if sessionErr == nil {
-				return domain.Fail(domain.Internal, "interactive-session supervisor stopped unexpectedly")
+				sessionErr = domain.Fail(domain.Internal, "interactive-session supervisor stopped unexpectedly")
 			}
+			e.recordProblem(context.WithoutCancel(ctx), "session-problem", sessionErr)
 			return sessionErr
 		case <-wake:
 		case <-timer.C:
@@ -62,6 +63,7 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 			timer.Reset(time.Second)
 			continue
 		}
+		e.clearProblem(ctx, "configuration-problem")
 		me, modeErr := api.Call[domain.Agent](ctx, e.Client, "GET", "/v1/me", nil)
 		if modeErr == nil {
 			c, modeErr = e.applyMode(ctx, c, me)
@@ -73,16 +75,23 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 			timer.Reset(time.Duration(c.PollSeconds) * time.Second)
 			continue
 		}
+		e.clearProblem(ctx, "mode-control-problem")
 		if c.Mode == "ai" && c.AutomaticProviderUpdates && e.Now().Sub(lastUpdate) > time.Hour {
 			lastUpdate = e.Now()
 			if manager, ok := e.Executor.(*provider.Manager); ok {
 				if updateErr := manager.MaybeUpdate(ctx); updateErr != nil {
 					e.recordProblem(context.WithoutCancel(ctx), "provider-update-problem", updateErr)
+				} else {
+					e.clearProblem(ctx, "provider-update-problem")
 				}
 			}
 		}
-		if _, stepErr := e.Step(ctx, false); stepErr != nil && ctx.Err() == nil {
-			e.recordProblem(context.WithoutCancel(ctx), "last-problem", stepErr)
+		if _, stepErr := e.Step(ctx, false); stepErr != nil {
+			if ctx.Err() == nil {
+				e.recordProblem(context.WithoutCancel(ctx), "last-problem", stepErr)
+			}
+		} else {
+			e.clearProblem(ctx, "last-problem")
 		}
 		timer.Reset(time.Duration(c.PollSeconds) * time.Second)
 	}
@@ -110,20 +119,30 @@ func (e *Engine) watch(ctx context.Context, wake chan<- struct{}) {
 		case <-ticker.C:
 			if c, err := e.currentConfig(); err != nil {
 				e.recordProblem(ctx, "configuration-problem", err)
-			} else if c.Mode != lastMode {
-				lastMode = c.Mode
-				select {
-				case wake <- struct{}{}:
-				default:
+			} else {
+				e.clearProblem(ctx, "configuration-problem")
+				if c.Mode != lastMode {
+					lastMode = c.Mode
+					select {
+					case wake <- struct{}{}:
+					default:
+					}
 				}
 			}
 			if e.Now().Sub(lastHeartbeat) >= 30*time.Second {
-				if _, err := api.Call[domain.Agent](ctx, e.Client, "POST", "/v1/heartbeat", domain.Command{}); err != nil {
+				health, healthErr := e.health(ctx)
+				if healthErr != nil {
+					e.recordProblem(ctx, "heartbeat-problem", healthErr)
+				}
+				if _, err := api.Call[domain.Agent](ctx, e.Client, "POST", "/v1/heartbeat", domain.HeartbeatRequest{Health: health}); err != nil {
 					if ctx.Err() == nil {
 						e.recordProblem(ctx, "heartbeat-problem", err)
 					}
 				} else {
 					lastHeartbeat = e.Now()
+					if healthErr == nil {
+						e.clearProblem(ctx, "heartbeat-problem")
+					}
 				}
 			}
 			path := "/v1/events?limit=100"
@@ -158,6 +177,7 @@ func (e *Engine) watch(ctx context.Context, wake chan<- struct{}) {
 						e.recordProblem(ctx, "mode-control-problem", err)
 						continue
 					}
+					e.clearProblem(ctx, "mode-control-problem")
 				}
 				if err := e.State.Put(ctx, "pending-wake", page.Items[len(page.Items)-1].Sequence); err != nil {
 					e.recordProblem(ctx, "watch-problem", err)
@@ -190,6 +210,7 @@ func (e *Engine) watch(ctx context.Context, wake chan<- struct{}) {
 				default:
 				}
 			}
+			e.clearProblem(ctx, "watch-problem")
 		}
 	}
 }
