@@ -70,6 +70,7 @@ type Status struct {
 	PermissionRequests     []PermissionRequest     `json:"permission_requests"`
 	Health                 *domain.WorkerHealth    `json:"health,omitempty"`
 	TextResponseBlocks     []TextResponseBlock     `json:"text_response_blocks"`
+	ActivityText           string                  `json:"activity_text"`
 }
 
 type Launch struct {
@@ -96,10 +97,11 @@ type Engine struct {
 	Log        *slog.Logger
 	Now        func() time.Time
 	configMu   sync.RWMutex
+	statusWake chan struct{}
 }
 
 func New(c config.Worker, path string, client *api.Client, state *local.State, executor provider.Executor) *Engine {
-	return &Engine{Config: c, ConfigPath: path, Client: client, State: state, Executor: executor, Log: slog.Default(), Now: time.Now}
+	return &Engine{Config: c, ConfigPath: path, Client: client, State: state, Executor: executor, Log: slog.Default(), Now: time.Now, statusWake: make(chan struct{}, 1)}
 }
 
 func (e *Engine) currentConfig() (config.Worker, error) {
@@ -146,6 +148,10 @@ func (e *Engine) Status(ctx context.Context) (Status, error) {
 		return status, err
 	}
 	status.TextResponseBlocks, err = e.textResponseBlocks(ctx)
+	if err != nil {
+		return status, err
+	}
+	status.ActivityText, err = e.activityText(ctx, status.Health)
 	if err != nil {
 		return status, err
 	}
@@ -210,6 +216,11 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 			err = errors.Join(err, readErr)
 		} else {
 			status.TextResponseBlocks = blocks
+		}
+		if text, readErr := e.activityText(saveCtx, status.Health); readErr != nil {
+			err = errors.Join(err, readErr)
+		} else {
+			status.ActivityText = text
 		}
 		if err != nil {
 			status.State = "blocked"

@@ -26,9 +26,9 @@ var ordinaryRoutes = map[string][]string{
 	},
 	http.MethodPost: {
 		"/v1/identity/register", "/v1/identity/*/recover",
-		"/v1/heartbeat", "/v1/agents/*/screens", "/v1/agents/*/mode", "/v1/agents/*/revoke", "/v1/agents/*/authentication", "/v1/agents/*/diagnostics", "/v1/agents/*/repairs", "/v1/agent-operations/*/result", "/v1/projects", "/v1/projects/*/change", "/v1/project-creation-grants", "/v1/projects/*/delegates",
+		"/v1/heartbeat", "/v1/agents/*/screens", "/v1/agents/*/mode", "/v1/agents/*/revoke", "/v1/agents/*/authentication", "/v1/agents/*/diagnostics", "/v1/agents/*/repairs", "/v1/agents/*/status", "/v1/agent-operations/*/result", "/v1/projects", "/v1/projects/*/change", "/v1/project-creation-grants", "/v1/projects/*/delegates",
 		"/v1/tasks", "/v1/tasks/*/change", "/v1/tasks/*/entries", "/v1/tasks/*/claim", "/v1/tasks/*/report", "/v1/entries/*", "/v1/attention/*",
-		"/v1/messages", "/v1/messages/*/receipt", "/v1/sessions", "/v1/sessions/*", "/v1/assistance", "/v1/assistance/requests", "/v1/assistance/*/revoke",
+		"/v1/messages", "/v1/messages/*/receipt", "/v1/messages/*/read", "/v1/sessions", "/v1/sessions/*", "/v1/assistance", "/v1/assistance/requests", "/v1/assistance/*/revoke",
 	},
 }
 
@@ -72,7 +72,7 @@ func ordinaryPath(method string, u *url.URL) bool {
 						return false
 					}
 				}
-			case "/v1/agent-operations/*", "/v1/agent-operations/*/result", "/v1/agents/*/diagnostics", "/v1/agents/*/repairs":
+			case "/v1/agent-operations/*", "/v1/agent-operations/*/result", "/v1/agents/*/diagnostics", "/v1/agents/*/repairs", "/v1/messages/*/read", "/v1/agents/*/status":
 				return u.RawQuery == ""
 			}
 			return true

@@ -155,11 +155,26 @@ func (s *Store) Agents(ctx context.Context, actor string) ([]domain.Agent, error
 	if err != nil {
 		return nil, err
 	}
-	return scanJSON[domain.Agent](rows)
+	agents, err := scanJSON[domain.Agent](rows)
+	if err != nil {
+		return nil, err
+	}
+	now := s.timestamp()
+	for i := range agents {
+		agents[i], err = s.projectAgentStatus(ctx, s.db, agents[i], now)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return agents, nil
 }
 
 func (s *Store) Me(ctx context.Context, actor string) (domain.Agent, error) {
-	return s.actor(ctx, s.db, actor)
+	a, err := s.actor(ctx, s.db, actor)
+	if err != nil {
+		return a, err
+	}
+	return s.projectAgentStatus(ctx, s.db, a, s.timestamp())
 }
 
 func (s *Store) Heartbeat(ctx context.Context, actor string) (domain.Agent, error) {

@@ -27,8 +27,18 @@ func TestPublicIdentityStatusAndFounderRevocationRemainOrdinaryRoutes(t *testing
 		{http.MethodGet, "/v1/agents/agent_fixture/screens", true},
 		{http.MethodGet, "/v1/agents/agent_fixture/diagnostics", true},
 		{http.MethodGet, "/v1/messages/message_fixture/diagnostics", true},
+		{http.MethodPost, "/v1/messages/message_fixture/read", true},
+		{http.MethodGet, "/v1/messages/message_fixture/read", false},
+		{http.MethodPut, "/v1/messages/message_fixture/read", false},
+		{http.MethodPost, "/v1/messages/message_fixture/read/extra", false},
+		{http.MethodPost, "/v1/messages/message_fixture/read?read_at=1", false},
 		{http.MethodPost, "/v1/agents/agent_fixture/diagnostics", true},
 		{http.MethodPost, "/v1/agents/agent_fixture/repairs", true},
+		{http.MethodPost, "/v1/agents/agent_fixture/status", true},
+		{http.MethodGet, "/v1/agents/agent_fixture/status", false},
+		{http.MethodPut, "/v1/agents/agent_fixture/status", false},
+		{http.MethodPost, "/v1/agents/agent_fixture/status/extra", false},
+		{http.MethodPost, "/v1/agents/agent_fixture/status?force=true", false},
 		{http.MethodGet, "/v1/agent-operations", true},
 		{http.MethodGet, "/v1/agent-operations?limit=10&cursor=opaque_cursor", true},
 		{http.MethodGet, "/v1/agent-operations/message_fixture", true},
@@ -106,10 +116,12 @@ func TestWorkerProxyForwardsExactDiagnosticAndOperationRoutes(t *testing.T) {
 	defer client.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	publicText := "Running local tests"
 	for _, item := range []struct {
 		method, path string
 		body         any
 	}{
+		{http.MethodPost, "/v1/agents/agent_fixture/status", domain.AgentStatusRequest{Command: domain.Command{OperationID: "status-fixture"}, Text: &publicText}},
 		{http.MethodGet, "/v1/agents/agent_fixture/diagnostics", nil},
 		{http.MethodGet, "/v1/messages/message_fixture/diagnostics", nil},
 		{http.MethodGet, "/v1/agent-operations?limit=10&cursor=opaque_cursor", nil},
@@ -117,6 +129,7 @@ func TestWorkerProxyForwardsExactDiagnosticAndOperationRoutes(t *testing.T) {
 		{http.MethodPost, "/v1/agents/agent_fixture/diagnostics", domain.DiagnosticRefreshRequest{Command: domain.Command{OperationID: "refresh-fixture"}, Reason: "Founder requested fresh diagnostics"}},
 		{http.MethodPost, "/v1/agents/agent_fixture/repairs", domain.SessionRecoveryRequest{Command: domain.Command{OperationID: "repair-fixture"}, SessionID: "session_fixture", ExpectedFence: domain.Hash("exact fixture fence"), Reason: "Recover observed closed session"}},
 		{http.MethodPost, "/v1/agent-operations/message_fixture/result", domain.AgentOperationReport{Command: domain.Command{OperationID: "result-fixture"}, State: "refreshed", Result: &domain.AgentOperationResult{Code: "observed", CapturedAt: 1800000001, ModeAtCheck: "manual"}}},
+		{http.MethodPost, "/v1/messages/message_fixture/read", domain.MessageReadRequest{Command: domain.Command{OperationID: "read-fixture"}}},
 	} {
 		t.Run(item.method+item.path, func(t *testing.T) {
 			var body []byte

@@ -116,104 +116,107 @@ func (e *Engine) watch(ctx context.Context, wake chan<- struct{}) {
 		return
 	}
 	for {
+		forceStatus := false
 		select {
 		case <-ctx.Done():
 			return
+		case <-e.statusWake:
+			forceStatus = true
 		case <-ticker.C:
-			if c, err := e.currentConfig(); err != nil {
-				e.recordProblem(ctx, "configuration-problem", err)
-			} else {
-				e.clearProblem(ctx, "configuration-problem")
-				if c.Mode != lastMode {
-					lastMode = c.Mode
-					select {
-					case wake <- struct{}{}:
-					default:
-					}
-				}
-			}
-			if e.Now().Sub(lastHeartbeat) >= 30*time.Second {
-				health, healthErr := e.health(ctx)
-				if healthErr != nil {
-					e.recordProblem(ctx, "heartbeat-problem", healthErr)
-				}
-				if _, err := api.Call[domain.Agent](ctx, e.Client, "POST", "/v1/heartbeat", domain.HeartbeatRequest{Health: health}); err != nil {
-					if ctx.Err() == nil {
-						e.recordProblem(ctx, "heartbeat-problem", err)
-					}
-				} else {
-					lastHeartbeat = e.Now()
-					if healthErr == nil {
-						e.clearProblem(ctx, "heartbeat-problem")
-					}
-				}
-			}
-			path := "/v1/events?limit=100"
-			if cursor != "" {
-				path += "&since=" + cursor
-			}
-			page, err := api.Call[domain.Page[domain.Event]](ctx, e.Client, "GET", path, nil)
-			if err != nil {
-				if ctx.Err() == nil {
-					e.recordProblem(ctx, "watch-problem", err)
-				}
-				continue
-			}
-			if len(page.Items) > 0 {
-				modeChanged := false
-				for _, event := range page.Items {
-					if event.Topic == "agent-mode" && event.SourceID == e.Client.Credential.AgentID {
-						modeChanged = true
-					}
-				}
-				if modeChanged {
-					me, err := api.Call[domain.Agent](ctx, e.Client, "GET", "/v1/me", nil)
-					if err == nil {
-						c, loadErr := e.currentConfig()
-						if loadErr != nil {
-							err = loadErr
-						} else {
-							_, err = e.applyMode(ctx, c, me)
-						}
-					}
-					if err != nil {
-						e.recordProblem(ctx, "mode-control-problem", err)
-						continue
-					}
-					e.clearProblem(ctx, "mode-control-problem")
-				}
-				if err := e.State.Put(ctx, "pending-wake", page.Items[len(page.Items)-1].Sequence); err != nil {
-					e.recordProblem(ctx, "watch-problem", err)
-					continue
-				}
+		}
+		if c, err := e.currentConfig(); err != nil {
+			e.recordProblem(ctx, "configuration-problem", err)
+		} else {
+			e.clearProblem(ctx, "configuration-problem")
+			if c.Mode != lastMode {
+				lastMode = c.Mode
 				select {
 				case wake <- struct{}{}:
 				default:
 				}
 			}
-			if err := e.State.Put(ctx, "daemon-watch-cursor", page.NextCursor); err != nil {
+		}
+		if forceStatus || e.Now().Sub(lastHeartbeat) >= 30*time.Second {
+			health, healthErr := e.health(ctx)
+			if healthErr != nil {
+				e.recordProblem(ctx, "heartbeat-problem", healthErr)
+			}
+			if _, err := api.Call[domain.Agent](ctx, e.Client, "POST", "/v1/heartbeat", domain.HeartbeatRequest{Health: health}); err != nil {
+				if ctx.Err() == nil {
+					e.recordProblem(ctx, "heartbeat-problem", err)
+				}
+			} else {
+				lastHeartbeat = e.Now()
+				if healthErr == nil {
+					e.clearProblem(ctx, "heartbeat-problem")
+				}
+			}
+		}
+		path := "/v1/events?limit=100"
+		if cursor != "" {
+			path += "&since=" + cursor
+		}
+		page, err := api.Call[domain.Page[domain.Event]](ctx, e.Client, "GET", path, nil)
+		if err != nil {
+			if ctx.Err() == nil {
+				e.recordProblem(ctx, "watch-problem", err)
+			}
+			continue
+		}
+		if len(page.Items) > 0 {
+			modeChanged := false
+			for _, event := range page.Items {
+				if event.Topic == "agent-mode" && event.SourceID == e.Client.Credential.AgentID {
+					modeChanged = true
+				}
+			}
+			if modeChanged {
+				me, err := api.Call[domain.Agent](ctx, e.Client, "GET", "/v1/me", nil)
+				if err == nil {
+					c, loadErr := e.currentConfig()
+					if loadErr != nil {
+						err = loadErr
+					} else {
+						_, err = e.applyMode(ctx, c, me)
+					}
+				}
+				if err != nil {
+					e.recordProblem(ctx, "mode-control-problem", err)
+					continue
+				}
+				e.clearProblem(ctx, "mode-control-problem")
+			}
+			if err := e.State.Put(ctx, "pending-wake", page.Items[len(page.Items)-1].Sequence); err != nil {
 				e.recordProblem(ctx, "watch-problem", err)
 				continue
 			}
-			cursor = page.NextCursor
-			inbox, err := api.Call[domain.Page[domain.Message]](ctx, e.Client, "GET", "/v1/messages?urgent=true&limit=1", nil)
-			if err != nil {
-				if ctx.Err() == nil {
-					e.recordProblem(ctx, "watch-problem", err)
-				}
+			select {
+			case wake <- struct{}{}:
+			default:
+			}
+		}
+		if err := e.State.Put(ctx, "daemon-watch-cursor", page.NextCursor); err != nil {
+			e.recordProblem(ctx, "watch-problem", err)
+			continue
+		}
+		cursor = page.NextCursor
+		inbox, err := api.Call[domain.Page[domain.Message]](ctx, e.Client, "GET", "/v1/messages?urgent=true&limit=1", nil)
+		if err != nil {
+			if ctx.Err() == nil {
+				e.recordProblem(ctx, "watch-problem", err)
+			}
+			continue
+		}
+		if len(inbox.Items) > 0 {
+			if err := e.State.Put(ctx, "pending-urgent-message", inbox.Items[0].ID); err != nil {
+				e.recordProblem(ctx, "watch-problem", err)
 				continue
 			}
-			if len(inbox.Items) > 0 {
-				if err := e.State.Put(ctx, "pending-urgent-message", inbox.Items[0].ID); err != nil {
-					e.recordProblem(ctx, "watch-problem", err)
-					continue
-				}
-				select {
-				case wake <- struct{}{}:
-				default:
-				}
+			select {
+			case wake <- struct{}{}:
+			default:
 			}
-			e.clearProblem(ctx, "watch-problem")
 		}
+		e.clearProblem(ctx, "watch-problem")
 	}
 }

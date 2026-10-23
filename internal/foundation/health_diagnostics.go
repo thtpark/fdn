@@ -311,6 +311,11 @@ func (s *Store) AgentDiagnostics(ctx context.Context, actor, target string) (dom
 		return domain.AgentDiagnostics{}, err
 	}
 	d := assessment.diagnostics
+	public, err := s.projectAgentStatus(ctx, tx, agent, d.ObservedAt)
+	if err != nil {
+		return d, err
+	}
+	d.Status = public.Status
 	incident, err := healthSetting[healthEpisode](ctx, tx, healthIncidentKey+target)
 	if err != nil {
 		return d, err
@@ -360,7 +365,7 @@ func (s *Store) MessageDiagnostics(ctx context.Context, actor, id string) (domai
 		return domain.MessageDiagnostics{}, domain.Fail(domain.Denied, "message diagnostics are private to the message parties")
 	}
 	now := s.timestamp()
-	d := domain.MessageDiagnostics{MessageID: m.ID, RecipientID: m.RecipientID, ResponseRequested: m.ResponseRequest, ObservedAt: now}
+	d := domain.MessageDiagnostics{MessageID: m.ID, RecipientID: m.RecipientID, ReadAt: m.ReadAt, ResponseRequested: m.ResponseRequest, ObservedAt: now}
 	set := func(state, stage, reason, next string) (domain.MessageDiagnostics, error) {
 		d.State, d.Stage, d.Reason, d.NextAction = state, stage, reason, next
 		return d, nil

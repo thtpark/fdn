@@ -35,6 +35,7 @@ type Reply struct {
 	AnswerIDs          []string   `json:"answer_ids"`
 	SafeToRetry        bool       `json:"safe_to_retry"`
 	Checkpoint         string     `json:"checkpoint,omitempty"`
+	MessageRead        bool       `json:"message_read,omitempty"`
 }
 
 func (r Reply) Validate() error {

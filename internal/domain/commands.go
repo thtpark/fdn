@@ -138,6 +138,10 @@ type MessageReceipt struct {
 	State string `json:"state"`
 }
 
+type MessageReadRequest struct {
+	Command
+}
+
 type SessionRequest struct {
 	Command
 	TargetID        string `json:"target_id"`

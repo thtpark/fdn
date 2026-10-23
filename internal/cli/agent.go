@@ -101,7 +101,7 @@ func requireArgs(args []string, count int) error {
 
 func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "agent requires list, show, diagnose, repair, operation, register, recover, identity, revoke, mode or request-sign-in")
+		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, repair, operation, register, recover, identity, revoke, mode or request-sign-in")
 	}
 	if args[0] == "register" || args[0] == "recover" || args[0] == "identity" {
 		return a.identityCommand(ctx, r, args)
@@ -164,6 +164,16 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 			return nil, err
 		}
 		return agentOperationOutcome(operation)
+	}
+	if args[0] == "status" {
+		var req domain.AgentStatusRequest
+		if err := a.input(args[1:], &req); err != nil {
+			return nil, err
+		}
+		if err := a.metadata(&req.Command); err != nil {
+			return nil, err
+		}
+		return a.write(ctx, r, api.Path("agents", r.client.Credential.AgentID, "status"), req, "")
 	}
 	if args[0] == "request-sign-in" {
 		id, tail, err := idArgs(args[1:])
@@ -430,6 +440,15 @@ func (a *app) messageCommand(ctx context.Context, r *resources, args []string) (
 			return nil, err
 		}
 		return api.Call[domain.Message](ctx, r.client, "GET", api.Path("messages", args[1]), nil)
+	case "read":
+		if err := requireArgs(args, 2); err != nil {
+			return nil, err
+		}
+		req := domain.MessageReadRequest{}
+		if err := a.metadata(&req.Command); err != nil {
+			return nil, err
+		}
+		return a.write(ctx, r, api.Path("messages", args[1], "read"), req, "")
 	case "diagnose":
 		id, tail, err := idArgs(args[1:])
 		if err != nil {

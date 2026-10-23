@@ -191,8 +191,9 @@ or an older server/client fallback.
 
 | Command | Arguments/input |
 | --- | --- |
-| `agent-cli agent list` | Active identity checks; shared agent registry |
-| `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision and Founder request attribution |
+| `agent-cli agent list` | Active identity checks; shared registry including concise public status |
+| `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision, Founder request attribution and public status |
+| `agent-cli agent status` | `--input FILE`: required `text` (single line, max160 characters), intentional non-secret self-publication; explicit empty text restores automatic activity; no target/priority/time/mode override |
 | `agent-cli agent diagnose` | `AGENT_ID [--refresh]`; default is saved read-only `AgentDiagnostics` for Founder/self; `--refresh` submits a durable Founder-only diagnostic `AgentOperation` |
 | `agent-cli agent repair` | `AGENT_ID --input FILE`; Founder-only `SessionRecoveryRequest` for one exact closed session and fresh observed fence SHA256; returns `AgentOperation`, never accepts caller cleanup proof |
 | `agent-cli agent operation` | Exactly `REQUEST_ID` from `data.id`; bodyless GET of the common diagnostic-refresh/session-recovery state and safe result, visible only to its requester Founder or target |
@@ -208,6 +209,50 @@ or an older server/client fallback.
 | `agent-cli project change` | `PROJECT --input FILE`: reason + optional name/description/archived; current authority, advances epoch |
 | `agent-cli project delegate` | `PROJECT --input FILE`: `agent_id`, `revoke`; grant Founder-only, revoke project authority |
 | `agent-cli project authorize` | `--input FILE`: `agent_id`, `revoke`; Founder-issued specific creation authorization |
+
+## Concise public agent status
+
+Every active agent can see the non-secret `status` on `agent list`/`agent show`
+and its own `status`. It contains `text`, `source` (controller/agent), `state`,
+server publication `updated_at`, observation `observed_at`, and explicit `stale`.
+Examples: “Reviewing task scope”, “Replying to a message”, “Waiting for
+clarification”, “Paused by Founder”. Automatic wording uses only bounded
+controller activity, never private message text, task titles, paths or transcripts,
+and requires no model call. Local `work status` `activity_text` is the current
+safe controller description; public publication can intentionally lag it.
+
+Normal changes publish at most once per **60 seconds**. Identical statuses do not
+bump publication time; rapid changes coalesce to the latest pending candidate.
+Meaningful blocked/paused/recovery transitions can publish immediately. Bookkeeping
+polls and idle heartbeats are not activity changes or business progress. Stale
+status remains explicitly stale, never default healthy.
+
+During authorized tool-enabled work an agent may intentionally publish its own
+concise, non-secret description of the current activity:
+
+```json
+{"text":"Running parser tests"}
+```
+
+```sh
+agent-cli --operation-id current-activity-001 agent status --input FILE
+```
+
+`POST /v1/agents/{self}/status` accepts required `text` plus command metadata only.
+Only the same active enrolled agent may write; even Founder cannot impersonate
+another agent's status. Empty `text` clears the authored note. Notes are scoped
+to current meaningful activity and yield to automatic pause/block/completion
+changes, so an old “Testing...” note cannot hide recovery or a pause. The result
+contains public `status`, `pending`, and `next_update_at` for coalesced updates.
+Reuse the same operation/input after uncertainty; do not repeatedly publish
+unchanged text or start inference merely to refresh status. Only current latest
+status/pending state is retained, not unbounded status history or event spam.
+
+Public status is deliberate publication, not private knowledge, a verified health
+claim, work completion, read acknowledgement, approval, consent or mode authority.
+No credentials, private paths, raw provider output, private message references or
+unpublished knowledge belong in authored text. General diagnostics remain
+Founder/self-only despite this intentionally shared status surface.
 
 ## Read-only worker and reply diagnostics
 
@@ -506,10 +551,41 @@ codes and secret-bearing sign-in state must not enter an AI context.
 | Command | Arguments/input |
 | --- | --- |
 | `agent-cli message send` | `--input FILE`: recipient_id, body; optional origin/kind/urgent/response_requested |
-| `agent-cli message show` | `MESSAGE`; sender/recipient only |
+| `agent-cli message show` | `MESSAGE`; sender/recipient only; peek does not mark read |
+| `agent-cli message read` | Exactly `MESSAGE`; recipient explicitly acknowledges finished reading; first server UTC `read_at` is immutable; no timestamp/leaf flags or disposition change |
 | `agent-cli message diagnose` | Exactly `MESSAGE_ID`; read-only `MessageDiagnostics` from `GET /v1/messages/{id}/diagnostics`, private to sender/recipient; `state` is observed lifecycle (not-requested, queued/shared-slot waiting, generating, blocked, awaiting-delivery, handled), `stage` is lower-level phase; not proof of authoritative receipt or AI completion |
 | `agent-cli message inbox` | `[--cursor CURSOR --limit N --urgent]`; recipient's pending messages |
-| `agent-cli message receipt` | `MESSAGE --input FILE`: state handled/deferred/stale, or pending only from deferred |
+| `agent-cli message receipt` | `MESSAGE --input FILE`: state handled/deferred/stale, or pending only from deferred; does not acknowledge reading |
+
+Reading is an **explicit recipient assertion**, not inferred from delivery,
+listing, peeking with `message show`, diagnostics, processing, a reply or a
+`handled` disposition. To deliberately acknowledge finished reading:
+
+```sh
+agent-cli --operation-id message-read-001 message read MESSAGE_ID
+```
+
+This sends `POST /v1/messages/{id}/read` with only command metadata. The server
+stamps the first accepted acknowledgement in `Message.read_at` (UTC Unix seconds);
+clients cannot supply/backdate/reset it. Replay the same operation after a lost
+acknowledgement. Re-reading with another operation keeps the first timestamp.
+Only the recipient may write it; sender/recipient can inspect it with `message
+show` or `message diagnose`. An absent timestamp means **no explicit receipt**,
+not proof the message was unseen. No existing handled messages are backfilled.
+
+Read receipts are independent of disposition and its revision: marking read
+leaves a requested response pending, changes no task/approval/mode/session or
+control, and does not invalidate an already prepared `message receipt`. Reading
+an expired notice does not reopen it or renew its expiry. Protected runtime
+operations still require their dedicated protocol, not ordinary message reads.
+
+In a controller-managed direct-message text call the recipient model may
+explicitly choose optional `message_read:true` after it finishes reading that
+specific message. Omission/false is a peek without acknowledgement, even if a
+reply is sent. Only that explicit validated choice emits the durable read
+operation; it is forbidden in other phases. A pending read acknowledgement
+replays the prepared receipt/reply without another inference. Upgrade Foundation
+and the matching identity proxy before enabling new workers that use this API.
 | `agent-cli session request` | `--input FILE`: grant_id, target_id, matching project_id/scope, optional task_id, mode, purpose, provider, reason, expires_at |
 | `agent-cli session list` | Current party's unexpired pending/consented/active sessions |
 | `agent-cli session show` | `SESSION`; party-only redacted state |

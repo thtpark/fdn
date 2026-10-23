@@ -104,6 +104,17 @@ func TestRejectedTextResponseRetainsEvidenceFencesOnlyActionAndAllowsExactRetry(
 	}
 }
 
+func TestExplicitReadDecisionIsScopedToDirectMessagePhase(t *testing.T) {
+	if err := validateTextPhase(Launch{Phase: "message"}, provider.Reply{Outcome: "responded", MessageRead: true}); err != nil {
+		t.Fatal("recipient explicit read choice was rejected", err)
+	}
+	for _, item := range []struct{ phase, outcome string }{{"scope", "clear"}, {"onboarding", "reviewed"}, {"attention", "responded"}, {"research", "researched"}} {
+		if err := validateTextPhase(Launch{Phase: item.phase}, provider.Reply{Outcome: item.outcome, MessageRead: true}); err == nil || domain.AsFault(err).Code != domain.Provider {
+			t.Fatal("another phase acknowledged reading an unrelated message", item, err)
+		}
+	}
+}
+
 func TestTextResponseSemanticFenceChangesOnlyWithRealInputContext(t *testing.T) {
 	launch := Launch{Phase: "scope", Task: &domain.Task{ID: "task_exact", SpecGeneration: 1, DiscussionGeneration: 2}, Project: &domain.Project{Epoch: 1}}
 	first := textActionHash(launch)

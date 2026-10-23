@@ -223,6 +223,9 @@ func (s *Server) routes() {
 	body(s, "POST /v1/agents/{id}/mode", false, func(r *http.Request, a domain.Agent, q domain.ModeRequest) (domain.Agent, error) {
 		return s.Store.SetMode(r.Context(), a.ID, r.PathValue("id"), q)
 	})
+	body(s, "POST /v1/agents/{id}/status", false, func(r *http.Request, a domain.Agent, q domain.AgentStatusRequest) (domain.AgentStatusReceipt, error) {
+		return s.Store.PublishAgentStatus(r.Context(), a.ID, r.PathValue("id"), q)
+	})
 	body(s, "POST /v1/agents/{id}/authentication", false, func(r *http.Request, a domain.Agent, q domain.AuthenticationRefreshRequest) (domain.Message, error) {
 		return s.Store.RequestAuthentication(r.Context(), a.ID, r.PathValue("id"), q)
 	})
@@ -384,6 +387,9 @@ func (s *Server) routes() {
 	})
 	read(s, "GET /v1/messages/{id}", func(r *http.Request, a domain.Agent) (domain.Message, error) {
 		return s.Store.Message(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/messages/{id}/read", false, func(r *http.Request, a domain.Agent, q domain.MessageReadRequest) (domain.Message, error) {
+		return s.Store.ReadMessage(r.Context(), a.ID, r.PathValue("id"), q)
 	})
 	body(s, "POST /v1/messages/{id}/receipt", false, func(r *http.Request, a domain.Agent, q domain.MessageReceipt) (domain.Message, error) {
 		return s.Store.ReceiveMessage(r.Context(), a.ID, r.PathValue("id"), q)

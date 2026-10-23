@@ -36,10 +36,10 @@ type app struct {
 
 var AgentCommands = []string{
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
-	"agent list", "agent diagnose", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
+	"agent list", "agent status", "agent diagnose", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "mention list", "mention acknowledge", "watch",
-	"message send", "message show", "message diagnose", "message inbox", "message receipt", "session request", "session list", "session show", "session change", "session open",
+	"message send", "message show", "message read", "message diagnose", "message inbox", "message receipt", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
@@ -123,8 +123,12 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 				usage = "agent repair AGENT_ID --input FILE; Founder-only exact closed-session recovery using session_id, expected_fence SHA256 from a fresh diagnostic operation and a nonsecret reason; target independently requires durable native cleanup proof; no acknowledge-stopped, journal retry, native restart or mode change; inspect agent operation REQUEST_ID"
 			case "agent operation":
 				usage = "agent operation REQUEST_ID; read-only common state/outcome for diagnostic refresh and session recovery, visible to requester Founder or target; queued/checking is not fresh success; no leaf flags"
+			case "agent status":
+				usage = "agent status --input FILE; publish your own concise non-secret team-visible text (max160 characters), or explicit empty text to restore automatic activity;60-second normal coalescing, unchanged text suppressed, important controller transitions immediate; no target, priority, mode or timestamp override"
+			case "message read":
+				usage = "message read MESSAGE_ID; recipient-only explicit acknowledgement after finishing reading; records immutable first server read_at without changing disposition/revision; show, inbox, diagnostics and replies never mark automatically; no timestamp or leaf flags"
 			case "message diagnose":
-				usage = "message diagnose MESSAGE_ID; read-only observed lifecycle (state) and phase (stage) for sender/recipient; not proof of authoritative receipt or AI completion"
+				usage = "message diagnose MESSAGE_ID; read-only observed lifecycle (state), phase (stage) and explicit read_at for sender/recipient; not proof of authoritative receipt or AI completion; absent read_at means no explicit reading acknowledgement, not proof the message was unseen"
 			}
 			return a.emit(map[string]any{"command": key, "usage": usage}, nil)
 		}

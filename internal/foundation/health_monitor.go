@@ -101,12 +101,19 @@ func (s *Store) sweepAgentHealth(ctx context.Context, id string) error {
 		return err
 	}
 	now := s.timestamp()
+	report, err := healthSetting[healthReport](ctx, tx, healthReportKey+id)
+	if err != nil {
+		return err
+	}
+	if err := s.observeAgentHealthStatus(ctx, tx, agent, report, now); err != nil {
+		return err
+	}
 	assessment, err := s.assessHealth(ctx, tx, agent, now)
 	if err != nil {
 		return err
 	}
 	if agent.Founder && !assessment.reported {
-		return nil
+		return tx.Commit()
 	}
 	episode, err := healthSetting[healthEpisode](ctx, tx, healthIncidentKey+id)
 	if err != nil {

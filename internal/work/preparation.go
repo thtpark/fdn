@@ -54,13 +54,16 @@ func (e *Engine) prepare(ctx context.Context, c config.Worker, task domain.Task,
 		switch task.Waiting.Kind {
 		case "clarification":
 			if !hasAnswers(task, launch.Discussion) {
-				return false, domain.Fail(domain.Prerequisite, "awaiting replies from the requested respondents")
+				return false, errors.Join(domain.Fail(domain.Prerequisite, "awaiting replies from the requested respondents"), e.waitingActivity(ctx, "clarification"))
 			}
 		case "retry":
 			if task.NextAttemptAt > e.Now().Unix() {
 				return false, errors.Join(domain.Fail(domain.Prerequisite, "retry backoff has not elapsed"), e.blockHealth(ctx, "retry-wait"))
 			}
 			if task.UnsafeRetry && (task.RetryApproval == nil || task.RetryApproval.SpecGeneration != task.SpecGeneration || task.RetryApproval.ProjectEpoch != project.Epoch || task.RetryApproval.RunID != task.LastRunID || task.RetryApproval.Attempt != task.Attempts+1) {
+				if err := e.waitingActivity(ctx, "retry"); err != nil {
+					return false, err
+				}
 				cause := domain.Fail(domain.Prerequisite, "exact unsafe-retry approval is required")
 				return false, e.permissionBlocked(ctx, c, launch, "retry-approval", cause)
 			}
@@ -292,6 +295,11 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 				return e.done(ctx, j)
 			}
 			return domain.Fail(domain.Conflict, "message disposition changed during response")
+		}
+		if reply.MessageRead {
+			if _, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", source.ID, "read"), domain.MessageReadRequest{Command: domain.Command{OperationID: j.ID + ".read"}}); err != nil {
+				return errors.Join(domain.Fail(domain.Prerequisite, "explicit message read acknowledgement remains pending; reconcile the exact receipt without another model call"), err)
+			}
 		}
 		if _, err := commit[domain.Message](ctx, e, "POST", "/v1/messages", domain.MessageRequest{Command: domain.Command{OperationID: j.ID + ".reply"}, RecipientID: source.SenderID, Body: neutralMentions(reply.Summary), Origin: "ai", Kind: "direct"}); err != nil {
 			return err

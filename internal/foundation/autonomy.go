@@ -11,11 +11,15 @@ func (s *Store) Agent(ctx context.Context, actor, id string) (domain.Agent, erro
 	if _, err := s.actor(ctx, s.db, actor); err != nil {
 		return domain.Agent{}, err
 	}
-	return get[domain.Agent](ctx, s.db, "agents", id)
+	a, err := get[domain.Agent](ctx, s.db, "agents", id)
+	if err != nil {
+		return a, err
+	}
+	return s.projectAgentStatus(ctx, s.db, a, s.timestamp())
 }
 
 func (s *Store) SetMode(ctx context.Context, actor, id string, req domain.ModeRequest) (domain.Agent, error) {
-	return mutate(ctx, s, actor, "agent.mode:"+id, req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.Agent, error) {
+	target, err := mutate(ctx, s, actor, "agent.mode:"+id, req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.Agent, error) {
 		if !a.Founder {
 			return domain.Agent{}, domain.Fail(domain.Denied, "only Founder may explicitly pause or resume an agent; delegates cannot change automation mode")
 		}
@@ -44,6 +48,13 @@ func (s *Store) SetMode(ctx context.Context, actor, id string, req domain.ModeRe
 		if err := s.history(ctx, tx, target.ID, a.ID, "mode", target, req.Reason); err != nil {
 			return target, err
 		}
+		if err := s.observeAgentStatusMode(ctx, tx, target, s.timestamp()); err != nil {
+			return target, err
+		}
 		return target, s.event(ctx, tx, "agent-mode", target.ID, "", "")
 	})
+	if err != nil {
+		return target, err
+	}
+	return s.projectAgentStatus(ctx, s.db, target, s.timestamp())
 }

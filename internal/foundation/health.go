@@ -130,6 +130,13 @@ func (s *Store) commitHealthHeartbeat(ctx context.Context, tx *sql.Tx, a domain.
 	if err := saveIdentityAgent(ctx, tx, a); err != nil {
 		return a, err
 	}
+	if err := s.observeAgentHealthStatus(ctx, tx, a, report, now); err != nil {
+		return a, err
+	}
+	a, err := s.projectAgentStatus(ctx, tx, a, now)
+	if err != nil {
+		return a, err
+	}
 	return a, tx.Commit()
 }
 

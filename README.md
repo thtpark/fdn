@@ -485,11 +485,11 @@ it does not scan networks or publish addresses/identifiers.
 | Group | Leaves |
 | --- | --- |
 | Setup | `config init/show/set`, `connect`, `status`, `doctor`, `mode show/set`, `preferences show/set` |
-| Identity/projects | `agent list/revoke/register/recover/identity`, `project create/list/show/change/delegate/authorize` |
+| Identity/projects | `agent list/status/revoke/register/recover/identity`, `project create/list/show/change/delegate/authorize`; status is concise non-secret team-visible activity |
 | Founder control / retained access | `agent show/diagnose/repair/operation/mode/request-sign-in`, `assistance grant/list/show/revoke/open` |
 | Tasks | `task create/list/show/change/history/runs` |
 | Collaboration | `comment add/edit`, `worklog add`, `discussion list`, `mention list/acknowledge`, `watch [--once]` |
-| Private communication | `message send/show/diagnose/inbox/receipt`, `session request/list/show/change/open` |
+| Private communication | `message send/show/read/diagnose/inbox/receipt`, `session request/list/show/change/open`; explicit recipient `read` records the first read acknowledgement, peeking does not |
 | Local state | `knowledge put/list/show/history`, `inventory refresh/show`, `workspace bind/list/enable/disable` |
 | Providers/work | `provider status/install/update/login/link/exec`, `work prompt/status/run/recover` |
 | Native manager | `service plan/install/status`; installation requires explicit `--apply` |
