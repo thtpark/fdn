@@ -45,18 +45,70 @@ and their owners are checked. Default private directory/file permissions are
 | `runs` | Immutable execution/verification claim identity and stopped/result projection, provider/model, attempt, ownership-token hash; verification additionally binds result/discussion generations and project epoch |
 | `entries` | Creator-owned comment/worklog, body generation/revision, task/reply references, mentions; server-only run/spec/result/decision provenance on verification feedback |
 | `attention` | Recipient/entry/body-generation receipt: pending, handled, deferred or stale |
-| `messages` | Immutable private payload, recipient disposition/revision, urgency and declared origin/kind; protected server-only `agent-operation` controls/results are excluded from ordinary inbox/receipt mutation |
+| `messages` | Immutable private payload, explicit recipient `read_at`, independent disposition/revision, urgency and declared origin/kind; protected server-only `agent-operation` controls/results are excluded from ordinary inbox/read/disposition mutation |
 | `sessions` | Private requester/target/project scope, mode/purpose, explicit-open flag, consent state, expiry/revision |
 | `assistance_grants` | Persistent requester/target, mode/purpose/provider/project scope; Founder issuance/revocation, active/revision/attribution; no connection-lifetime coupling |
 | `histories` | Latest three snapshots per mutable source, global sequence, authenticated actor, action, reason, time |
 | `events` | Shared change sequence and topic/source/task/project references; no private message payloads |
 | `operations` | Actor + operation ID, exact request fingerprint, bounded result reference/receipt |
 | `audit` | Durable accepted/denied operation outcomes, actor, action and time |
-| `settings` | Reserved service-owned settings, including bounded per-agent latest worker-health report/incident; no client authority projection |
+| `settings` | Reserved service-owned settings, including bounded per-agent latest worker-health report/incident and concise public status/pending publication; no client authority projection |
 
 The authoritative definitions are in `internal/foundation/store.go` and the DTOs
 in `internal/domain/`. Source records, runs, events and audit receipts are not
 automatically bounded by the three-snapshot rule; see [CAPACITY.md](CAPACITY.md).
+
+### Concise team-visible agent activity
+
+`Agent.status` is a read projection of the current generation's bounded latest
+publication, not an authoritative agent edit/revision. All active registered
+viewers can see its concise non-secret text/source/state, server publication and
+observation timestamps, and stale flag. General diagnostic and message privacy
+remain unchanged. Self-only `POST /v1/agents/{id}/status` accepts command metadata
+and required one-line `text` up to160 Unicode characters; there is no Founder
+impersonation, source/priority/time/mode override or inferred authority.
+
+Controller summaries come from allowlisted activity labels and state, never
+raw/private provider/context content. Optional `WorkerHealth.activity` preserves
+actual scope/acceptance/execution/verification/message intent; legacy empty
+activity remains compatible with coarse summaries. Local health updates request
+prompt existing heartbeat publication for meaningful critical changes, without
+extra inference. Bookkeeping phase changes do not create status churn.
+
+Server-owned per-agent status state retains the current generation, latest
+meaningful automatic summary, optional activity-scoped authored note, latest
+pending candidate, and publication budget. Normal publication is once per60
+seconds, unchanged text is suppressed, and intervening changes coalesce last-wins.
+Meaningful blocked/paused/recovery transitions may bypass that ordinary interval.
+The existing bounded monitor flushes due publications; read endpoints do not
+mutate or flush state. A note cannot outlive its semantic activity to conceal a
+pause/block/completion. Identity recovery fences old status/note/pending data.
+
+Status changes do not advance authoritative agent mode/revision, business progress
+or task completion, and cannot grant work/read/session/spending authority. Missing
+or stale observations are not healthy status. No SQL migration is required;
+normal immutable operation/audit retention remains separate from bounded status
+state. Authored status is explicit team publication and must contain no private
+paths, credentials, message content/references or unpublished knowledge.
+
+### Explicit private-message reading
+
+`Message.read_at` is absent until the recipient deliberately submits a read
+acknowledgement. `POST /v1/messages/{id}/read` accepts command metadata only and
+checks the current authenticated recipient transactionally. The first accepted
+server UTC Unix timestamp is immutable across new read operations or exact
+operation replay. Sender/recipient reads and message diagnostics expose it; a
+sender, unrelated agent or declared service origin cannot set it for someone else.
+
+No GET, inbox polling, model context selection, response or handled/deferred/stale
+disposition automatically sets this field. Optional model `message_read:true` is
+an explicit direct-message choice, not a processing side effect; omission/false
+leaves it unset. Read acknowledgement is independent of message state/revision,
+so concurrent disposition receipts commute without losing either observation.
+It never means task approval, comprehension, verified response or session consent.
+Expired notices retain their expiry/state. Protected agent operations are not
+ordinary messages for this endpoint. Existing JSON rows decode as no explicit
+receipt; no SQL migration or historical backfill occurs.
 
 ### Worker tables
 

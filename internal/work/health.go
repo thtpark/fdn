@@ -31,8 +31,9 @@ var healthVersionPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.+_-]{0,127
 var healthModelPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._:/+-]{0,255}$`)
 
 type workerHealthState struct {
-	Health      domain.WorkerHealth `json:"health"`
-	StepBlocker string              `json:"step_blocker,omitempty"`
+	Health      domain.WorkerHealth    `json:"health"`
+	StepBlocker string                 `json:"step_blocker,omitempty"`
+	LastStatus  domain.ActivitySummary `json:"last_status,omitempty"`
 }
 
 // The work slot serializes phase writers; watch diagnostics use separate keys.
@@ -60,7 +61,21 @@ func (e *Engine) changeHealth(ctx context.Context, change func(*workerHealthStat
 	state.Health.Version = domain.WorkerHealthVersion
 	state.Health.Sequence++
 	state.Health.ObservedAt = e.Now().UTC().Unix()
-	return e.State.Put(ctx, workerHealthKey, state)
+	meaningful := domain.SummarizeActivity(state.Health)
+	urgent := domain.ImportantStatusChange(state.LastStatus, meaningful)
+	if meaningful.Text != "" {
+		state.LastStatus = meaningful
+	}
+	if err := e.State.Put(ctx, workerHealthKey, state); err != nil {
+		return err
+	}
+	if urgent {
+		select {
+		case e.statusWake <- struct{}{}:
+		default:
+		}
+	}
+	return nil
 }
 
 func (e *Engine) beginHealth(ctx context.Context, c config.Worker) error {
@@ -104,6 +119,9 @@ func (e *Engine) phaseHealth(ctx context.Context, phase string, launch *Launch, 
 		}
 		if launch != nil {
 			h.ActionKind, h.ActionID, h.TaskID = healthAction(*launch)
+			if progress || h.Blocker == "" || h.Activity == "" {
+				h.Activity = launch.Phase
+			}
 		}
 		if journalID != "" {
 			h.JournalID = journalID
@@ -126,6 +144,17 @@ func (e *Engine) blockHealth(ctx context.Context, blocker string) error {
 			h.BlockedSinceAt = e.Now().UTC().Unix()
 		}
 		h.Blocker, state.StepBlocker = blocker, blocker
+	})
+}
+
+func (e *Engine) waitingActivity(ctx context.Context, activity string) error {
+	return e.changeHealth(ctx, func(state *workerHealthState) {
+		h := &state.Health
+		h.Activity = activity
+		if h.Blocker != "work-prerequisite" || h.BlockedSinceAt == 0 {
+			h.BlockedSinceAt = e.Now().UTC().Unix()
+		}
+		h.Blocker, state.StepBlocker = "work-prerequisite", "work-prerequisite"
 	})
 }
 
@@ -168,16 +197,16 @@ func (e *Engine) finishHealth(ctx context.Context, status Status, stepErr error)
 			}
 			h.Phase = "blocked"
 		case status.State == "manual" || status.Mode == "manual":
-			h.Phase, blocker = "paused", "founder-paused"
+			h.Phase, h.Activity, blocker = "paused", "paused", "founder-paused"
 		case status.State == "session-pending":
-			h.Phase, blocker = "session", "session-active"
+			h.Phase, h.Activity, blocker = "session", "session", "session-active"
 		case status.State == "blocked":
 			h.Phase = "blocked"
 			if blocker == "" {
 				blocker = "work-prerequisite"
 			}
 		default:
-			h.Phase, blocker = "idle", ""
+			h.Phase, h.Activity, blocker = "idle", "idle", ""
 		}
 		if h.Phase != "blocked" && h.Phase != "session" {
 			h.ActionKind, h.ActionID, h.TaskID, h.JournalID = "", "", "", ""
@@ -307,6 +336,22 @@ func (e *Engine) health(ctx context.Context) (*domain.WorkerHealth, error) {
 	}
 	h.ObservedAt = e.Now().UTC().Unix()
 	return &h, nil
+}
+
+func (e *Engine) activityText(ctx context.Context, health *domain.WorkerHealth) (string, error) {
+	if health != nil {
+		if summary := domain.SummarizeActivity(*health); summary.Text != "" {
+			return summary.Text, nil
+		}
+	}
+	var state workerHealthState
+	if _, err := e.State.Get(ctx, workerHealthKey, &state); err != nil {
+		return "", err
+	}
+	if state.LastStatus.Text != "" {
+		return state.LastStatus.Text, nil
+	}
+	return "No activity observed yet", nil
 }
 
 func (e *Engine) journalHealth(ctx context.Context, j local.Journal, phase string) error {

@@ -28,6 +28,12 @@ func resultReceipt(value any) ([]byte, error) {
 	switch v := value.(type) {
 	case domain.Agent:
 		ref = storedResult{Kind: "agents", ID: v.ID}
+	case agentStatusResult:
+		data, err := json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		ref = storedResult{Kind: "agent-status", ID: v.Receipt.AgentID, Value: data}
 	case domain.Invitation:
 		ref = storedResult{Kind: "invitations", ID: v.ID}
 	case domain.Project:
@@ -70,7 +76,7 @@ func resultReceipt(value any) ([]byte, error) {
 	return json.Marshal(ref)
 }
 
-func replayResult[T any](ctx context.Context, tx *sql.Tx, data []byte) (T, error) {
+func replayResult[T any](ctx context.Context, tx *sql.Tx, actor string, data []byte) (T, error) {
 	var zero T
 	var ref storedResult
 	if err := json.Unmarshal(data, &ref); err != nil {
@@ -81,6 +87,8 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, data []byte) (T, error
 	switch ref.Kind {
 	case "agents":
 		value, err = get[domain.Agent](ctx, tx, ref.Kind, ref.ID)
+	case "agent-status":
+		value, err = replayAgentStatus(ctx, tx, actor, ref)
 	case "invitations":
 		value, err = get[domain.Invitation](ctx, tx, ref.Kind, ref.ID)
 	case "projects":

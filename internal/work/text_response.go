@@ -70,6 +70,9 @@ func validateTextPhase(launch Launch, reply provider.Reply) error {
 	if reply.Decision != "" || !slices.Contains(allowed, reply.Outcome) {
 		return domain.Fail(domain.Provider, "text response does not match phase "+launch.Phase+"; required outcome: "+strings.Join(allowed, "/"))
 	}
+	if reply.MessageRead && launch.Phase != "message" {
+		return domain.Fail(domain.Provider, "explicit message read acknowledgement is allowed only for the supplied direct message")
+	}
 	if slices.Contains([]string{"onboarding", "message", "attention"}, launch.Phase) && len(reply.Questions) != 0 {
 		return domain.Fail(domain.Provider, "text response questions are not supported in phase "+launch.Phase)
 	}

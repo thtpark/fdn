@@ -106,6 +106,41 @@ live writes, even with inherited opt-in variables. That optional boundary check
 is not a live-provider or end-to-end Foundation qualification and is not implied
 by passing fixture tests.
 
+## Concise public activity status
+
+```sh
+go test -race -count=1 ./internal/domain ./internal/foundation ./internal/api ./internal/cli ./internal/identityservice ./internal/work
+go test -race -count=1 -tags integration ./tests/integration -run 'Test(PublicAgentActivityIsReadableThrottledAndPrivateByConstruction|AgentStatusRawAPICannotSpoofOtherAgentOrAuthority)$'
+```
+
+Deterministic checks cover generic safe controller wording/legacy activity,
+local readable activity/no fake progress, critical wake suppression on unchanged
+polls, self-only publication and public roster visibility,160-character/single-line
+input and protected-field boundaries,60-second coalescing/last-wins/unchanged
+publication timestamps, immediate meaningful block/pause/recovery, scoped authored
+notes/clear/invalidation, server-clock freshness and generation/stale/restart
+fences. Real local server/worker/proxy fixtures verify message context never leaks
+into public status and no extra model call is made just for reporting. All tests
+use disposable state and synthetic providers; no live deployment or native fleet
+capacity claim is implied.
+
+## Explicit message read-receipt regressions
+
+```sh
+go test -race -count=1 ./internal/foundation ./internal/cli ./internal/identityservice ./internal/work
+go test -race -count=1 -tags integration ./tests/integration -run 'Test(ControllerMarksReadOnlyForExplicitRecipientDecision|ExplicitReadLostAckReplaysWithoutAnotherModelCall|MessageReadRawAPIEnforcesRecipientAndProtectedTimestamp)$'
+```
+
+Coverage distinguishes explicit recipient acknowledgement from inbox/show/
+diagnostics/context selection, a reply or handled disposition. It checks
+recipient-only raw API authority, no caller-provided/backdated timestamp,
+immutable first server read_at across operations/replay, safe concurrent read and
+disposition without revision invalidation, expired/protected control boundaries,
+CLI peeks producing only GETs, strict explicit command input, actual Unix-proxy
+method/depth/query/header forwarding, and explicit model choice versus omitted/
+false. Lost read acknowledgements retain the prepared response and replay without
+another inference; no legacy backfill or live-provider qualification is claimed.
+
 ## Tool-disabled response-contract regressions
 
 ```sh

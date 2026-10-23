@@ -34,6 +34,9 @@ func ValidateWorkerHealth(h WorkerHealth) error {
 	if !slices.Contains([]string{"unknown", "checking", "reconciling", "provider-check", "preparing", "invoking", "applying", "reporting", "idle", "paused", "blocked", "session"}, h.Phase) {
 		return Fail(Invalid, "health phase is unsupported")
 	}
+	if !slices.Contains([]string{"", "onboarding", "scope", "acceptance", "preflight", "execution", "verification", "message", "attention", "research", "idle", "paused", "session", "clarification", "approval", "retry"}, h.Activity) {
+		return Fail(Invalid, "health activity is unsupported")
+	}
 	if !slices.Contains([]string{"", "onboarding", "message", "attention", "task", "research"}, h.ActionKind) || !slices.Contains([]string{"", "onboarding", "message", "attention", "task", "research"}, h.LastActionKind) {
 		return Fail(Invalid, "health action kind is unsupported")
 	}

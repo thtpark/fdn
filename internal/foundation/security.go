@@ -123,6 +123,9 @@ func identityConstraint(err error) error {
 }
 
 func saveIdentity(ctx context.Context, tx *sql.Tx, identity domain.AgentIdentity) error {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM settings WHERE key=? AND json_extract(value,'$.generation')!=?", agentStatusKey+identity.AgentID, identity.Generation); err != nil {
+		return err
+	}
 	data, err := encode(identity)
 	if err != nil {
 		return err
@@ -134,6 +137,7 @@ ON CONFLICT(id) DO UPDATE SET data=excluded.data,ssh_user=excluded.ssh_user,uid=
 }
 
 func saveIdentityAgent(ctx context.Context, tx *sql.Tx, agent domain.Agent) error {
+	agent.Status = nil
 	data, err := encode(agent)
 	if err != nil {
 		return err

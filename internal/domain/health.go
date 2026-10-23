@@ -21,6 +21,7 @@ type WorkerHealth struct {
 	Authentication           string          `json:"authentication"`
 	AuthenticationObservedAt int64           `json:"authentication_observed_at,omitempty"`
 	Phase                    string          `json:"phase"`
+	Activity                 string          `json:"activity,omitempty"`
 	PhaseStartedAt           int64           `json:"phase_started_at"`
 	DeadlineAt               int64           `json:"deadline_at,omitempty"`
 	LastProgressAt           int64           `json:"last_progress_at,omitempty"`
@@ -63,25 +64,27 @@ type HealthIncident struct {
 }
 
 type AgentDiagnostics struct {
-	AgentID        string          `json:"agent_id"`
-	Name           string          `json:"name"`
-	Mode           string          `json:"mode"`
-	State          string          `json:"state"`
-	LastSeen       int64           `json:"last_seen"`
-	ReceivedAt     int64           `json:"received_at,omitempty"`
-	ObservedAt     int64           `json:"observed_at"`
-	Stale          bool            `json:"stale"`
-	Health         *WorkerHealth   `json:"health,omitempty"`
-	PendingReplies int             `json:"pending_replies"`
-	OldestReplyAt  int64           `json:"oldest_reply_at,omitempty"`
-	Reason         string          `json:"reason"`
-	NextAction     string          `json:"next_action"`
-	Incident       *HealthIncident `json:"incident,omitempty"`
+	AgentID        string           `json:"agent_id"`
+	Name           string           `json:"name"`
+	Mode           string           `json:"mode"`
+	State          string           `json:"state"`
+	LastSeen       int64            `json:"last_seen"`
+	ReceivedAt     int64            `json:"received_at,omitempty"`
+	ObservedAt     int64            `json:"observed_at"`
+	Stale          bool             `json:"stale"`
+	Health         *WorkerHealth    `json:"health,omitempty"`
+	PendingReplies int              `json:"pending_replies"`
+	OldestReplyAt  int64            `json:"oldest_reply_at,omitempty"`
+	Reason         string           `json:"reason"`
+	NextAction     string           `json:"next_action"`
+	Incident       *HealthIncident  `json:"incident,omitempty"`
+	Status         *AgentTextStatus `json:"status,omitempty"`
 }
 
 type MessageDiagnostics struct {
 	MessageID         string `json:"message_id"`
 	RecipientID       string `json:"recipient_id"`
+	ReadAt            int64  `json:"read_at,omitempty"`
 	ResponseRequested bool   `json:"response_requested"`
 	State             string `json:"state"`
 	Stage             string `json:"stage"`

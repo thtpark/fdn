@@ -62,21 +62,22 @@ type Command struct {
 }
 
 type Agent struct {
-	ID              string   `json:"id"`
-	Name            string   `json:"name"`
-	Founder         bool     `json:"founder"`
-	Active          bool     `json:"active"`
-	Banned          bool     `json:"banned,omitempty"`
-	BanReason       string   `json:"ban_reason,omitempty"`
-	SponsorID       string   `json:"sponsor_id,omitempty"`
-	CreatedAt       int64    `json:"created_at"`
-	LastSeen        int64    `json:"last_seen"`
-	Revision        int64    `json:"revision"`
-	Mode            string   `json:"mode"`
-	ModeRequestedBy string   `json:"mode_requested_by,omitempty"`
-	ModeReason      string   `json:"mode_reason,omitempty"`
-	ModeChangedAt   int64    `json:"mode_changed_at,omitempty"`
-	Screens         []Screen `json:"screens,omitempty"`
+	ID              string           `json:"id"`
+	Name            string           `json:"name"`
+	Founder         bool             `json:"founder"`
+	Active          bool             `json:"active"`
+	Banned          bool             `json:"banned,omitempty"`
+	BanReason       string           `json:"ban_reason,omitempty"`
+	SponsorID       string           `json:"sponsor_id,omitempty"`
+	CreatedAt       int64            `json:"created_at"`
+	LastSeen        int64            `json:"last_seen"`
+	Revision        int64            `json:"revision"`
+	Mode            string           `json:"mode"`
+	ModeRequestedBy string           `json:"mode_requested_by,omitempty"`
+	ModeReason      string           `json:"mode_reason,omitempty"`
+	ModeChangedAt   int64            `json:"mode_changed_at,omitempty"`
+	Screens         []Screen         `json:"screens,omitempty"`
+	Status          *AgentTextStatus `json:"status,omitempty"`
 }
 
 type Invitation struct {
@@ -311,6 +312,7 @@ type Message struct {
 	ResponseRequest       bool                   `json:"response_requested"`
 	State                 string                 `json:"state"`
 	CreatedAt             int64                  `json:"created_at"`
+	ReadAt                int64                  `json:"read_at,omitempty"`
 	ExpiresAt             int64                  `json:"expires_at,omitempty"`
 	Revision              int64                  `json:"revision"`
 	AuthenticationRefresh *AuthenticationRefresh `json:"authentication_refresh,omitempty"`

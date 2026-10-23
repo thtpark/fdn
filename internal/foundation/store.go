@@ -136,7 +136,7 @@ func transact[T any](ctx context.Context, s *Store, actor, action, op string, re
 				return zero, err
 			}
 		}
-		return replayResult[T](ctx, tx, previous)
+		return replayResult[T](ctx, tx, actor, previous)
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return zero, err

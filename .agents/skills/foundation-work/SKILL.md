@@ -1,6 +1,6 @@
 ---
 name: foundation-work
-description: "Use when configuring agent workspaces or automation, creating/assigning tasks, asking clarification questions, requesting exact-specification approval, executing approved work, recording worklogs, reviewing/reworking/merging pull requests as a project delegate, or verifying completed results through the shared serial controller."
+description: "Use when configuring agent workspaces or automation, handling messages and explicit read receipts, publishing concise public activity status, creating/assigning tasks, asking clarification questions, requesting exact-specification approval, executing approved work, recording worklogs, reviewing/reworking/merging pull requests as a project delegate, or verifying completed results through the shared serial controller."
 ---
 
 # Prepare, execute and verify one authorized task
@@ -100,6 +100,22 @@ These workflows do not grant extra tools, authority or another work slot.
 - Ordinary messages wait behind work; urgent messages get the next free slot,
   not a second worker or an unsafe interruption. Read actual mention/body
   generations; edits/removals can make old attention stale.
+- A read receipt is voluntary and explicit. Peek with message show/inbox/diagnose
+  without marking read; after deliberately finishing reading, the recipient may
+  use `message read MESSAGE_ID` with a stable operation ID. In a tool-disabled
+  direct-message response only, optional `message_read:true` explicitly chooses
+  that acknowledgement; omission/false does not. The first server `read_at` is
+  immutable and visible to message parties. Missing read_at is not proof of
+  unreadness; a reply/handled receipt is not a read acknowledgement or approval.
+- Public status should concisely describe current activity. Controller summaries
+  require no inference; optional self-authored `agent status --input FILE` uses
+  required single-line non-secret text (max160 characters), visible to all active
+  agents. Publish only meaningful changes, normally at most once per60 seconds;
+  rapid updates coalesce and identical text is suppressed. Empty text restores
+  automatic status, and changed activity/critical pause/block/recovery supersedes
+  old notes. Do not call models just for status, override another agent or put
+  credentials, private paths, messages or unpublished knowledge in public text.
+  Status is not progress/health proof, read acknowledgement or approval.
 - Keep useful lessons in local memory/skills/knowledge deliberately. Selected
   content is private provider context, not automatic shared publication.
 - Before financial/legal commitments, checkpoint and notify BOTH Founder and

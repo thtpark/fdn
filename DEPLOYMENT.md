@@ -399,6 +399,66 @@ local manual pause is blocked rather than silently resumed; Founder explicitly
 reconciles it. Old servers without authoritative mode/identity metadata cannot
 run a new worker.
 
+## Concise public activity status
+
+Use `agent list`, `agent show AGENT_ID` or the current caller's `status` to inspect
+`status.text`, source/state, publication/observation timestamps and stale flag.
+All active agents can see this intentional non-secret publication; it does not
+broaden private diagnostics/messages or certify health/completion. Local `work
+status` also provides immediate safe `activity_text` while publication is
+coalesced.
+
+Controller summaries require no inference: “Reviewing task scope”, “Replying to a
+message”, “Waiting for clarification”, “Paused by Founder”. Normal text changes
+publish no more than once per60 seconds, unchanged text is suppressed and rapid
+changes coalesce to the latest. Meaningful blocked/paused/recovery transitions
+can publish promptly through the existing health transport/monitor. Bookkeeping
+polls and idle heartbeats do not indicate business progress.
+
+For deliberate self-authored progress during authorized tool-enabled work:
+
+```json
+{"text":"Checking parser edge cases"}
+```
+
+```sh
+agent-cli --config /PRIVATE/agent.json --operation-id progress-001 \
+  agent status --input FILE
+```
+
+Only the same enrolled agent may publish; no target/priority/time/mode override
+exists, including for Founder. Keep text single-line, concise (max160 characters)
+and safe for the whole team. Empty text restores automatic wording. Authored notes
+are scoped to current activity and cannot hide a later pause/block/completion.
+`pending`/`next_update_at` is throttled publication, not a failed model/task call.
+Do not repeatedly publish identical text, call models just for status, or disclose
+credentials, private paths, message details or raw logs. Status does not grant
+permissions, acknowledge reading, or resume automation. Preserve missing/stale
+observations and use authorized diagnostics for the real blocker.
+
+## Explicit message read acknowledgements
+
+Peeking is not acknowledging reading. `message show`, `message inbox`,
+`message diagnose`, delivery and reply handling remain passive with respect to
+`read_at`. When the recipient deliberately finishes reading, use its own enrolled
+identity and a stable operation:
+
+```sh
+agent-cli --config /PRIVATE/recipient-agent.json \
+  --operation-id message-read-001 message read MESSAGE_ID
+```
+
+The first server UTC read timestamp appears to the message parties in `message
+show`/`message diagnose`; no timestamp means no explicit acknowledgement, not
+proof of unreadness. No timestamp input, reset, sender override, state change,
+reply request or historical backfill exists. A tool-disabled direct-message model
+can explicitly return optional `message_read:true`; omitted/false stays a peek,
+even when it sends a reply. The controller must not manufacture that decision.
+Install the server/read endpoint and matched identity proxy before updated
+workers; a lost acknowledgement retains/replays the exact prepared result rather
+than triggering another model call. This is not task approval, comprehension or
+session consent.
+
 ## Read-only worker and reply diagnostics
 
 Use the existing enrolled identity and private configuration:

@@ -135,11 +135,11 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 		}
 		return errors.Join(domain.Fail(domain.Provider, "provider failed or stopped; a fenced failure report was recorded, not completion"), helpErr)
 	}
-	validReply := reply.Decision == "" && validExecutionOutcome(reply.Outcome)
+	validReply := reply.Decision == "" && !reply.MessageRead && validExecutionOutcome(reply.Outcome)
 	if verification {
 		decision := reply.Outcome == "reviewed" && (reply.Decision == "accept" || reply.Decision == "rework") && len(reply.Evidence) > 0
 		stopped := (reply.Outcome == "paused" || reply.Outcome == "failed") && reply.Decision == ""
-		validReply = (decision || stopped) && len(reply.Questions) == 0 && len(reply.AnswerIDs) == 0 && !reply.SafeToRetry
+		validReply = (decision || stopped) && len(reply.Questions) == 0 && len(reply.AnswerIDs) == 0 && !reply.SafeToRetry && !reply.MessageRead
 	}
 	if reply.Description != nil || reply.AcceptanceCriteria != nil || !validReply {
 		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
