@@ -103,6 +103,7 @@ type Journal struct {
 	PID                  int                   `json:"pid,omitempty"`
 	CreatedAt            int64                 `json:"created_at"`
 	Problem              string                `json:"problem,omitempty"`
+	TextActionHash       string                `json:"text_action_hash,omitempty"`
 }
 
 func (s *State) SaveJournal(ctx context.Context, j Journal) error {
@@ -118,7 +119,7 @@ ON CONFLICT(id) DO UPDATE SET data=excluded.data,state=excluded.state`, j.ID, da
 func (s *State) Journals(ctx context.Context, pending bool) ([]Journal, error) {
 	query := "SELECT data FROM journals"
 	if pending {
-		query += " WHERE state NOT IN ('done','stale','abandoned')"
+		query += " WHERE state NOT IN ('done','stale','abandoned','reply-rejected')"
 	}
 	query += " ORDER BY created_at,id"
 	rows, err := s.db.QueryContext(ctx, query)

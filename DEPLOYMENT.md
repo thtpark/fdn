@@ -464,6 +464,26 @@ If Foundation itself is down, its watchdog cannot guarantee detection/delivery.
 Keep native service/process and outside control-plane monitoring; no successful
 local diagnostic or fixture result is live Agent1/deployment qualification.
 
+### Phase-invalid task reviews and independent inbox progress
+
+A provider can finish a tool-disabled scope review yet return the wrong outcome
+(e.g. `reviewed`, which belongs to onboarding/verification, instead of
+`clear`/`blocked`/`paused`). This is a response-contract failure, not sign-out or
+proof that execution occurred. The controller preserves the original response
+and exposes its `reply-rejected` journal in `work status` `text_response_blocks`.
+It sends a protected `provider-response` notice and fences that semantic action
+without indefinitely replaying it or blocking unrelated requested replies.
+
+Inspect the exact private journal reference and current work. Only after native
+confirmation that its owned processes stopped, an authorized operator can use
+`agent-cli work recover --journal EXACT_INVOCATION --acknowledge-stopped` for one
+explicit fresh review authorization. Preserve rejected evidence; do not coerce
+outcomes, delete state or change a task merely to make the fence disappear.
+Founder session repair does not recover journals or authorize this retry. Keep
+mode and existing task/spending approvals unchanged. A restarted poll/new work-run
+operation is not fresh retry authority, and uncertain/possibly applied work keeps
+its original stricter fence.
+
 ### Founder refresh and exact closed-session recovery
 
 Use the existing Founder configuration; no keys or credentials move to the target:

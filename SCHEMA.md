@@ -68,6 +68,20 @@ automatically bounded by the three-snapshot rule; see [CAPACITY.md](CAPACITY.md)
 | `journals` | Durable invocation/claim/reply/report state, pinned provider/model/version, private context and evidence |
 | `outbox` | Immutable report operation/method/path/body awaiting remote acknowledgement |
 
+A fully returned tool-disabled reply that violates its phase outcome contract is
+stored as `reply-rejected`; its original context, reply and prompt hash remain
+private and unchanged. This terminal admission state is committed atomically
+with a `kv` text-response fence keyed by phase and semantic requested inputs,
+not a caller's new operation ID. It does not occupy the global pending-invocation
+slot or silently authorize another model call. Unrelated inbox/attention items
+can continue. An exact local `work recover --journal ... --acknowledge-stopped`
+may atomically mark that original journal abandoned and its same-action fence
+retry-authorized; it cannot clear a later rejection or grant execution retry
+approval. Current specification/discussion/attention/project context distinguishes
+legitimately new work. Unknown/partly applied/uncertain state is not discarded.
+No SQL migration is needed: local SQL remains 1. Older binaries do not understand
+the new pending-state exclusion and must fail closed rather than reset evidence.
+
 Authentication requests keep one current local episode per provider/project and
 requested-action key (empty action/project for otherwise idle onboarding). Task
 specification/discussion/result/run context, a requested direct reply, a mention,

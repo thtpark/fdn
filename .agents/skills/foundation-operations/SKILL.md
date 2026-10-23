@@ -66,7 +66,15 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    remains separate: after confirming all owned processes stopped, use exact
    `work recover --journal INVOCATION --acknowledge-stopped` or the exact
    `--session SESSION` variant. Retain rejected/stale evidence; neither path
-   grants a new attempt or revives an old approval.
+   grants a new execution attempt or revives an old approval. A fully returned
+   tool-disabled reply with the wrong phase outcome is `reply-rejected`, exposed
+   by `work status` `text_response_blocks` and a protected `provider-response`
+   notice. Scope/acceptance/preflight require clear/blocked/paused, not reviewed.
+   The exact semantic action stays fenced without blocking unrelated inbox work;
+   polling, restart and a new work-run operation never authorize another model
+   call. Exact native journal recovery can authorize a fresh text review after
+   stopped-process confirmation. Never coerce the retained reply or clear an
+   uncertain/possibly applied decision under this rule.
 7. Manage private notes through `knowledge put/list/show/history`; use current
    revision, explicit selection/archive and useful consolidation. `inventory
    refresh` is native read-only observation, not a network scan or proof of OS/

@@ -36,7 +36,7 @@ func permissionContext(actionKey, requirement string) error {
 	if domain.CheckText(actionKey, "opaque action key", 512, true) != nil || strings.ContainsAny(actionKey, "/\\ \r\n\t") {
 		return domain.Fail(domain.Invalid, "permission help requires a bounded opaque action key, not a path or description")
 	}
-	if !slices.Contains([]string{"workspace", "provider-permission", "task-authority", "retry-approval"}, requirement) {
+	if !slices.Contains([]string{"workspace", "provider-permission", "task-authority", "retry-approval", "provider-response"}, requirement) {
 		return domain.Fail(domain.Invalid, "unsupported permission-help capability category")
 	}
 	return nil
@@ -111,6 +111,12 @@ func permissionMessage(request PermissionRequest) string {
 		body += "On the target computer, an authorized local OS operator can inspect agent-cli workspace list privately. Explicit owned-directory tool permission uses agent-cli workspace bind --path OWNED_DIR --allow-tools; an existing disabled binding requires agent-cli workspace enable REF, not a replacement binding. Paths and binding details remain local.\n"
 	case "provider-permission":
 		body += "Inspect agent-cli provider status and agent-cli guide show COMMANDS.md without inference. Required provider/tool or OS permissions must be arranged by an authorized local OS operator using the supported provider/native procedures; there is no generic Foundation OS-permission grant. Do not use inference or login as a permission probe.\n"
+	case "provider-response":
+		body += "The provider returned a tool-disabled response that does not match its controller phase. The original reply is retained and was not accepted as task approval or execution. This exact action will not call the model again on unchanged polling, restart or a new work-run operation; unrelated actions can continue.\n"
+		journal := strings.TrimPrefix(request.ActionKey, "text-response:")
+		if strings.HasPrefix(journal, "invocation_") && domain.ValidOperation(journal) {
+			body += "After native confirmation that the exact owned process tree stopped, an authorized operator can inspect work status text_response_blocks and explicitly authorize a fresh review with agent-cli work recover --journal " + journal + " --acknowledge-stopped. Do not coerce the rejected response or reset execution retry authority.\n"
+		}
 	case "task-authority":
 		if request.ProjectID != "" {
 			body += "Founder can deliberately grant current project delegation with agent-cli project delegate " + request.ProjectID + " --input FILE. Current project authority can explicitly assign work through agent-cli task change " + request.TaskID + " --input FILE with kind assign; eligible approvers must separately use the same task change command with kind approve and the exact current spec_generation after readiness.\n"
