@@ -81,6 +81,9 @@ func (s *Store) Message(ctx context.Context, actor, id string) (domain.Message, 
 	if m.SenderID != actor && m.RecipientID != actor {
 		return domain.Message{}, domain.Fail(domain.Denied, "message is private to its sender and recipient")
 	}
+	if m.Kind == "agent-operation" || m.AgentOperation != nil {
+		return domain.Message{}, domain.Fail(domain.Denied, "protected runtime controls require the agent-operation endpoint")
+	}
 	return messageAt(m, s.timestamp()), nil
 }
 
@@ -103,6 +106,7 @@ func (s *Store) Inbox(ctx context.Context, actor, cursor string, limit int, urge
 	}
 	now := s.timestamp()
 	query := `SELECT data FROM messages WHERE recipient_id = ? AND state = 'pending' AND id > ?
+AND COALESCE(json_extract(data, '$.kind'), '') <> 'agent-operation'
 AND ((COALESCE(json_extract(data, '$.kind'), '') NOT IN ('authentication', 'authentication-refresh', 'permission')
 AND NOT (COALESCE(json_extract(data, '$.kind'), '') = 'session' AND COALESCE(json_extract(data, '$.origin'), '') = 'service' AND substr(id, 1, 13) = 'message_help_'))
 OR COALESCE(NULLIF(json_extract(data, '$.expires_at'), 0), json_extract(data, '$.created_at') + ?) > ?)`
@@ -135,6 +139,9 @@ func (s *Store) ReceiveMessage(ctx context.Context, actor, id string, req domain
 		}
 		if m.RecipientID != a.ID {
 			return m, domain.Fail(domain.Denied, "only the recipient changes disposition")
+		}
+		if m.Kind == "agent-operation" || m.AgentOperation != nil {
+			return domain.Message{}, domain.Fail(domain.Denied, "ordinary receipts cannot change a protected agent operation")
 		}
 		if err := expect(m.Revision, req.ExpectedRevision); err != nil {
 			return m, err

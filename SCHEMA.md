@@ -45,7 +45,7 @@ and their owners are checked. Default private directory/file permissions are
 | `runs` | Immutable execution/verification claim identity and stopped/result projection, provider/model, attempt, ownership-token hash; verification additionally binds result/discussion generations and project epoch |
 | `entries` | Creator-owned comment/worklog, body generation/revision, task/reply references, mentions; server-only run/spec/result/decision provenance on verification feedback |
 | `attention` | Recipient/entry/body-generation receipt: pending, handled, deferred or stale |
-| `messages` | Immutable private payload, recipient disposition/revision, urgency and declared origin/kind |
+| `messages` | Immutable private payload, recipient disposition/revision, urgency and declared origin/kind; protected server-only `agent-operation` controls/results are excluded from ordinary inbox/receipt mutation |
 | `sessions` | Private requester/target/project scope, mode/purpose, explicit-open flag, consent state, expiry/revision |
 | `assistance_grants` | Persistent requester/target, mode/purpose/provider/project scope; Founder issuance/revocation, active/revision/attribution; no connection-lifetime coupling |
 | `histories` | Latest three snapshots per mutable source, global sequence, authenticated actor, action, reason, time |
@@ -190,6 +190,79 @@ and never renews them. Diagnostics/alerts do not start login/session/inference,
 retry, resume or recovery. Founder pause, open/uncertain session, uncertain
 invocation, a different selected/required provider and permission/report blockers
 remain visible after login; authentication resolves only its own observation.
+
+## Founder diagnostic refresh and exact session recovery
+
+`AgentOperation` version **1** is a durable non-inference control for
+`diagnostics` or `session-recovery`. Founder alone creates it through
+`POST /v1/agents/{id}/diagnostics` (`DiagnosticRefreshRequest`) or
+`POST /v1/agents/{id}/repairs` (`SessionRecoveryRequest`). Creation command
+metadata requires a stable `operation_id` and no optimistic revision. The
+server binds immutable requester/target key generations, reason and creation
+plus exactly 900 seconds of lifespan; a repair also binds exact `session_id` and
+canonical lowercase SHA256 `expected_fence`. It cannot extend authentication
+notices, provider credentials, session consent, task approvals or grants.
+
+`created_at` and immutable `expires_at` are server-clock values. Every projected
+operation includes dynamic `server_observed_at` in the same clock; this value is
+excluded from the immutable operation fingerprint and never renews the control.
+Results retain `captured_at`, a conservative server-time capture bound derived
+from a fresh authenticated server response plus monotonic request-start/round-trip
+timing, independently of target UTC. On-time outcomes use the server receipt's
+`finished_at`; late results require prior `checking` and `captured_at` at or after
+`started_at` and strictly before `expires_at`. Target `AgentInspection.observed_at`,
+provider `observed_at` and health timestamps retain their own UTC observations,
+including skew. They are not compared with the server deadline for authority;
+never subtract target UTC from it or normalize evidence to make a result current.
+Immutable report/result replay retains the original capture bound and automation
+eligibility; the read projection may suppress `automation_may_resume` for current
+manual/expired state without rewriting that retained report.
+
+Protected server-only `agent-operation` message data has
+`response_requested:false`; ordinary message creation cannot forge it, ordinary
+inbox consumption cannot turn it into a prompt, and receipt writes cannot settle
+it. The requester Founder and exact target may read only their own operation via
+`GET /v1/agent-operations/{id}`. This is not a Founder bypass for unrelated private
+messages/sessions. The target's dedicated list
+`GET /v1/agent-operations?limit=N&cursor=CURSOR` returns only its nonexpired
+queued/checking controls; only that target may report safe typed results to
+`POST /v1/agent-operations/{id}/result`. Current identities/generations and
+operation expiry are rechecked. Exact submission/report retries retain their
+original request fingerprints and receipts.
+
+States are `queued`, `checking`, `refreshed`, `recovered`, `rejected`,
+`operator-required` and `expired`. A queued offline/dead daemon is not fresh
+success; the server cannot restart it through this API. Results carry only safe
+`code`, server-anchored `captured_at`, `mode_at_check`, `automation_may_resume`
+and `AgentInspection` observation:
+health, separately timestamped provider observation, exact session-fence
+observation and slot state. They never publish raw stdout/errors, process
+arguments, credentials, transcripts or workspace paths. A provider value of
+`credentials-present-unverified` does not prove vendor usability; `ready` remains
+an observation, not an inference or completed work. Health/phase and provider
+observations keep independent timestamps rather than overwriting an in-flight
+work phase.
+
+The independent worker control loop handles controls while paused, fenced or
+busy, without provider inference or ordinary model/slot admission. Refresh is
+bounded read-only collection, not sign-in/help renewal. Repair mutations require
+the shared `work.lock`, exact server-confirmed terminal session, exact current
+raw-fence fingerprint and existing durable native `Fence.CleanupProven` proof.
+New fence instances have a generation nonce; retained old fence bytes/evidence
+are not rewritten to make them eligible. Target mutation and final local receipt
+commit atomically. An uncertain network response replays the stored result,
+never a second clearing of a newer fence.
+
+Initial recovery refuses old/unproven cleanup as `operator-required`: a caller's
+`acknowledge_stopped`/proof assertion and absence/name/PID scans are not evidence.
+Changed fences, stale generations, active sessions and occupied slots fail
+closed. No arbitrary process stop, journal/inference retry, identity recovery,
+native restart, evidence erasure, session open, mode change or authority grant
+is implied. Retained legacy Agent1 state may still need explicit authorized
+native inspection and exact local stopped-process recovery. Existing approved
+`ai` work may resume only when independent fences permit; Founder pause remains
+paused. `recovered`/automation eligibility is not actual work progress: inspect
+the common operation, then read agent diagnostics again.
 
 ## IDs, versions and clocks
 
@@ -365,6 +438,9 @@ SQLite schema 1 and its private knowledge/bindings/journals/outbox are preserved
 | Recover Founder | Root-only private Unix maintenance channel; never an agent gateway or ordinary API |
 | Pause/resume global agent mode | Founder only, including its own mode; delegates/targets cannot override |
 | Read general agent diagnostics | Founder or that same agent; delegates receive only appropriately scoped health alerts |
+| Request diagnostic refresh / exact closed-session repair | Founder only; no caller proof, mode change, retry or native restart authority |
+| Read an agent operation | Its requester Founder or exact target, not arbitrary session/message access |
+| List pending / report an agent operation | Exact target only, with current identities/generations and immutable expiry |
 | Read private message diagnostics | Message sender/recipient only; no Founder bypass |
 | Issue/revoke persistent assistance | Founder only; scope is explicit and the requester may be an agent |
 | Create a project | Founder, or specific creation authorization consumed by creation |

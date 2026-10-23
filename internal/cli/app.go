@@ -36,7 +36,7 @@ type app struct {
 
 var AgentCommands = []string{
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
-	"agent list", "agent diagnose", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
+	"agent list", "agent diagnose", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "mention list", "mention acknowledge", "watch",
 	"message send", "message show", "message diagnose", "message inbox", "message receipt", "session request", "session list", "session show", "session change", "session open",
@@ -118,7 +118,11 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
 			case "agent diagnose":
-				usage = "agent diagnose AGENT_ID; read-only latest observations for Founder or self; no provider probes or actions"
+				usage = "agent diagnose AGENT_ID [--refresh]; default is read-only latest saved observations for Founder or self; --refresh queues a Founder-only check with a fixed 15-minute lifespan, not fresh success; inspect agent operation REQUEST_ID; no login, inference or mode change"
+			case "agent repair":
+				usage = "agent repair AGENT_ID --input FILE; Founder-only exact closed-session recovery using session_id, expected_fence SHA256 from a fresh diagnostic operation and a nonsecret reason; target independently requires durable native cleanup proof; no acknowledge-stopped, journal retry, native restart or mode change; inspect agent operation REQUEST_ID"
+			case "agent operation":
+				usage = "agent operation REQUEST_ID; read-only common state/outcome for diagnostic refresh and session recovery, visible to requester Founder or target; queued/checking is not fresh success; no leaf flags"
 			case "message diagnose":
 				usage = "message diagnose MESSAGE_ID; read-only observed lifecycle (state) and phase (stage) for sender/recipient; not proof of authoritative receipt or AI completion"
 			}

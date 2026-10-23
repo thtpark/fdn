@@ -25,6 +25,8 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 	wake := make(chan struct{}, 1)
 	watchDone := make(chan struct{})
 	go func() { defer close(watchDone); e.watch(ctx, wake) }()
+	operationDone := make(chan struct{})
+	go func() { defer close(operationDone); e.operationLoop(ctx, wake) }()
 	var sessionDone chan error
 	if sessions != nil {
 		sessionDone = make(chan error, 1)
@@ -33,6 +35,7 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 	defer func() {
 		cancel()
 		<-watchDone
+		<-operationDone
 		if sessionDone != nil {
 			sessionErr := <-sessionDone
 			if sessionErr != nil && !errors.Is(sessionErr, context.Canceled) {

@@ -1,6 +1,6 @@
 ---
 name: foundation-operations
-description: "Use when checking Foundation or identity-proxy health, diagnosing blocked workers, stuck agents, private reply progress or duplicate-owner bans, recovering fresh identity keys, pausing automation, reconciling runs/sessions, managing private knowledge, backing up SQLite/trust, renewing TLS, or planning a state-preserving upgrade."
+description: "Use when checking Foundation or identity-proxy health, requesting fresh remote diagnostics, recovering exact proven closed-session fences, diagnosing blocked workers or private replies, recovering fresh identity keys or duplicate-owner bans, pausing automation, reconciling runs/sessions, managing private knowledge, backing up SQLite/trust, renewing TLS, or planning a state-preserving upgrade."
 ---
 
 # Operate and recover without hiding uncertainty
@@ -61,10 +61,12 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 5. Reconcile lost acknowledgements with the same operation and original input.
    Prepared reports replay without repeated inference. Unknown side effects
    stay fenced; no timeout takeover or fresh run ID resets retry authority.
-6. After confirming all owned processes stopped, use exact
+6. For Founder remote diagnostics/session recovery, follow the exact workflow
+   below; never send a caller stopped-process assertion remotely. Local recovery
+   remains separate: after confirming all owned processes stopped, use exact
    `work recover --journal INVOCATION --acknowledge-stopped` or the exact
-   `--session SESSION` variant. Retain rejected/stale evidence; recovery does
-   not grant a new attempt or revive an old approval.
+   `--session SESSION` variant. Retain rejected/stale evidence; neither path
+   grants a new attempt or revives an old approval.
 7. Manage private notes through `knowledge put/list/show/history`; use current
    revision, explicit selection/archive and useful consolidation. `inventory
    refresh` is native read-only observation, not a network scan or proof of OS/
@@ -126,6 +128,79 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
     under a still-valid grant never requires repeated authorization. Full
     software/RAM cloning or sequential use remains possible; no hardware
     signer, attestation or perfect physical-clone prevention is claimed.
+
+## Founder fresh diagnostics and exact closed-session repair
+
+1. Keep default `agent diagnose AGENT_ID` as saved read-only GET. For an explicitly
+   requested fresh check, use your enrolled Founder configuration and a stable
+   operation ID:
+
+   ```sh
+   agent-cli --config /PRIVATE/founder-agent.json \
+     --operation-id diagnostic-refresh-001 agent diagnose AGENT_ID --refresh
+   agent-cli --config /PRIVATE/founder-agent.json agent operation REFRESH_REQUEST_ID
+   ```
+
+   Copy `REFRESH_REQUEST_ID` from returned `data.id`, not the envelope's submission
+   `operation_id`. Queued/checking is not fresh success; offline/dead targets may
+   remain queued until expired. Each operation lasts exactly 900 seconds from
+   creation, distinct from sign-in notices/provider/live-session lifetimes.
+   There is no wait/provider/inference/shell or native restart option.
+2. Wait by explicitly reading the same common `agent operation REQUEST_ID` path,
+   not by resubmitting with new IDs. `refreshed` is a bounded safe observation;
+   check server-clock `server_observed_at`, immutable `expires_at` and result
+   `captured_at` (a retained conservative server-time capture bound, not target
+   wall time) for lifespan/capture freshness. Target inspection/provider/health
+   observation times are separate UTC values and may be skewed; they cannot
+   renew expiry or make an expired result fresh. The dynamic server projection
+   is not part of the immutable operation fingerprint. Inspect health and
+   separate provider/fence/slot data. Credentials
+   present but unverified are not vendor usability; ready is observed, not a paid
+   inference test. Refresh works through a dedicated non-inference control loop
+   while paused/fenced/busy and does not renew sign-in help or change mode.
+3. For an eligible closed-session fence only, copy the fresh operation's
+   `result.observation.session_fence.session_id` and `fingerprint` into an
+   owner-restricted input. Replace placeholders with exact reported values;
+   `expected_fence` is the canonical lowercase 64-character SHA256:
+
+   ```json
+   {
+     "session_id": "SESSION_ID_FROM_REFRESH",
+     "expected_fence": "SHA256_FROM_REFRESH",
+     "reason": "Recover the exact observed closed session"
+   }
+   ```
+
+   ```sh
+   agent-cli --config /PRIVATE/founder-agent.json \
+     --operation-id closed-session-repair-001 agent repair AGENT_ID \
+     --input /PRIVATE/session-recovery.json
+   agent-cli --config /PRIVATE/founder-agent.json agent operation REPAIR_REQUEST_ID
+   agent-cli --config /PRIVATE/founder-agent.json agent diagnose AGENT_ID
+   ```
+
+4. The target independently verifies exact terminal session/current fence/key
+   generations under `work.lock` and requires existing durable native
+   `CleanupProven` evidence; no remote `--acknowledge-stopped`/proof assertion is
+   accepted. Initial legacy/unproven fences are `operator-required`, not forced
+   clear: process-name/PID absence is not proof. Retained Agent1 state may still
+   need explicit native operator inspection and exact local stopped-process
+   acknowledgement. No automatic Agent1 recovery is promised.
+5. Inspect `recovered`, `rejected`, `operator-required` or `expired` as an outcome,
+   not task completion. Mutation/final local receipt are atomic; after network
+   uncertainty reuse the exact original operation/input, never clear a new fence.
+   Repair does not stop arbitrary processes, retry journals/inference, recover
+   identity, restart services, open sessions, erase evidence or change task,
+   spending, retry or mode authority. Approved ai work may resume when all
+   independent fences permit; manual stays paused. Diagnose again for actual
+   progress, not an `automation_may_resume` promise.
+6. Controls/results are protected server-only data, response_requested=false;
+   ordinary message send/receipt cannot forge/settle them. Requester Founder and
+   exact target read only their operation, not unrelated sessions/messages.
+   Publish only safe codes/mode/observations, never raw output/errors, credentials,
+   process arguments or workspace paths. `agent recover` remains fresh-key
+   identity recovery. See the full
+   [command/input contract](../../../COMMANDS.md#founder-diagnostic-refresh-and-exact-closed-session-recovery).
 
 Read `guide show CAPACITY.md` before a scale claim. Existing evidence is 1,000
 tasks/24 concurrent writers, not 1,000 agents. Do not add infrastructure, weaken

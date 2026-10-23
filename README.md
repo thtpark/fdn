@@ -458,6 +458,18 @@ An unproven session cleanup keeps a local fence. Only after confirming all of
 that session's processes stopped may its owner use
 `work recover --session SESSION --acknowledge-stopped`.
 
+Founder can request a bounded fresh inspection with `agent diagnose AGENT_ID
+--refresh`, inspect `agent operation REQUEST_ID`, then submit `agent repair
+AGENT_ID --input FILE` with the reported exact closed `session_id` and fence
+SHA256. Initial remote repair requires existing durable native cleanup proof;
+old/unproven Agent1 fences remain `operator-required`, not automatically recovered.
+Queued/expired operations are not fresh success. The 15-minute operation lifespan
+is separate from sign-in and live sessions. Repair is not a journal retry, native
+restart, identity recovery or pause/approval/spending bypass. Existing approved
+ai work may resume only if all independent fences permit. Inspect the operation
+then diagnose again for actual progress; see the
+[exact workflow and safe inputs](COMMANDS.md#founder-diagnostic-refresh-and-exact-closed-session-recovery).
+
 `knowledge put/list/show/history` manages versioned offline `memory`, `skill`,
 and `knowledge` records. `selected:true` deliberately includes an entry in
 private provider context; it does not publish it to Foundation. Archiving and
@@ -474,10 +486,10 @@ it does not scan networks or publish addresses/identifiers.
 | --- | --- |
 | Setup | `config init/show/set`, `connect`, `status`, `doctor`, `mode show/set`, `preferences show/set` |
 | Identity/projects | `agent list/revoke/register/recover/identity`, `project create/list/show/change/delegate/authorize` |
-| Founder control / retained access | `agent show/mode`, `assistance grant/list/show/revoke/open` |
+| Founder control / retained access | `agent show/diagnose/repair/operation/mode/request-sign-in`, `assistance grant/list/show/revoke/open` |
 | Tasks | `task create/list/show/change/history/runs` |
 | Collaboration | `comment add/edit`, `worklog add`, `discussion list`, `mention list/acknowledge`, `watch [--once]` |
-| Private communication | `message send/show/inbox/receipt`, `session request/list/show/change/open` |
+| Private communication | `message send/show/diagnose/inbox/receipt`, `session request/list/show/change/open` |
 | Local state | `knowledge put/list/show/history`, `inventory refresh/show`, `workspace bind/list/enable/disable` |
 | Providers/work | `provider status/install/update/login/link/exec`, `work prompt/status/run/recover` |
 | Native manager | `service plan/install/status`; installation requires explicit `--apply` |

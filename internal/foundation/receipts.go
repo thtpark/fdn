@@ -40,6 +40,8 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "entries", ID: v.ID}
 	case domain.Message:
 		ref = storedResult{Kind: "messages", ID: v.ID}
+	case domain.AgentOperation:
+		ref = storedResult{Kind: "agent-operation", ID: v.ID}
 	case domain.Session:
 		ref = storedResult{Kind: "sessions", ID: v.ID}
 	case domain.AssistanceGrant:
@@ -91,6 +93,8 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, data []byte) (T, error
 		value, err = get[domain.Entry](ctx, tx, ref.Kind, ref.ID)
 	case "messages":
 		value, err = get[domain.Message](ctx, tx, ref.Kind, ref.ID)
+	case "agent-operation":
+		value, err = getAgentOperation(ctx, tx, ref.ID)
 	case "sessions":
 		value, err = get[domain.Session](ctx, tx, ref.Kind, ref.ID)
 	case "assistance_grants":

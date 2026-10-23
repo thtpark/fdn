@@ -41,6 +41,18 @@ The checkout's root documents are canonical; no old source tree is required.
 6. Update command/reference/skill behavior together. Skills need matching names,
    meaningful trigger descriptions and complete current procedures. Documentation
    must distinguish implemented capability, planned work and evidence limits.
+   Keep cached diagnosis bodyless/read-only; Founder `diagnose --refresh` and
+   exact closed-session `repair --input` share durable `agent operation` results.
+   No queued/expired success claim, remote stopped-process assertion, journal/
+   inference retry or native restart is implied. Recovery needs current exact
+   fence/generations, terminal session and existing durable native cleanup proof
+   under work.lock, with atomic mutation/receipt; old unproven fences require an
+   operator. Keep dynamic server_observed_at outside immutable fingerprints and
+   retained conservative server-time captured_at separate from skewable target
+   UTC observations; use fresh server response plus monotonic request-start/RTT
+   timing for capture/expiry, not target wall time.
+   Preserve raw private evidence and test narrow real Unix-proxy method/depth/
+   query/header boundaries without forwarding caller identity.
 7. Use the smallest related tests, then `bash scripts/test.sh all`. Independent
    selectors are static, unit, integration, e2e and stress. Tests use isolated
    state/HOME/ports and deterministic providers; no VM, container, root/host

@@ -5,7 +5,7 @@ import (
 	"slices"
 )
 
-const MaxHealthProblems = 8
+const MaxHealthProblems = 9
 const MaxHealthPendingReports = 1024
 const maxHealthTimestamp int64 = 253402300799
 const maxHealthDeadlineSeconds int64 = 7 * 24 * 60 * 60
@@ -69,7 +69,7 @@ func ValidateWorkerHealth(h WorkerHealth) error {
 	}
 	seen := map[string]bool{}
 	for _, p := range h.Problems {
-		if !slices.Contains([]string{"configuration", "mode-control", "provider-update", "controller", "watch", "heartbeat", "connection", "session"}, p.Component) || seen[p.Component] {
+		if !slices.Contains([]string{"configuration", "mode-control", "provider-update", "controller", "watch", "heartbeat", "connection", "session", "control"}, p.Component) || seen[p.Component] {
 			return Fail(Invalid, "health problem components must be supported and unique")
 		}
 		seen[p.Component] = true

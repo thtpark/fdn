@@ -83,6 +83,39 @@ CLI/guidance acceptance is limited to the focused source checks documented in
 regressions are separate, and no live Agent1, deployment, inference or release
 qualification is implied.
 
+## Founder on-demand inspection and exact closed-session recovery
+
+The source adds `agent diagnose AGENT --refresh` and
+`agent repair AGENT --input FILE`, with one common
+`agent operation REQUEST_ID` state/result lookup. Unflagged diagnosis remains
+saved read-only GET, and `agent recover` remains identity recovery. Founder-only
+version-1 controls bind requester/target generations and immutable 900-second
+expiry; protected server-only messages/results cannot be forged through ordinary
+message send/receipt and do not become model prompts. Queued/checking/offline or
+expired controls are not fresh success. Operation lifespan is separate from
+provider/sign-in-notice/live-session deadlines. Dynamic `server_observed_at` and
+server-anchored result `captured_at` distinguish server capture/expiry from target
+inspection/provider/health UTC observations; skew cannot renew control authority.
+The dynamic server projection is excluded from immutable fingerprints.
+
+The dedicated non-inference worker loop performs bounded safe refresh checks
+while paused/fenced/busy. Provider observation remains separate from in-flight
+health; credentials present but unverified do not prove usability, and ready is
+observed rather than inference-tested. Exact recovery requires the current
+server-confirmed terminal session/fence SHA256, current generations, shared
+`work.lock` and pre-existing durable native `CleanupProven` evidence, with atomic
+local mutation/receipt and exact result replay after network uncertainty.
+
+Old/unproven fences initially return `operator-required`; native operator action
+may still be needed for retained Agent1 state. No name/PID absence proof,
+arbitrary process stop, journal/inference retry, pause bypass, identity recovery,
+evidence erasure, session open, sign-in renewal, native restart or new spending/
+task authority is provided. Already-approved ai work may resume only when all
+independent fences permit; inspect operation then diagnostics for actual progress.
+CLI/proxy/guidance fixture checks are separate from server/worker acceptance and
+from live Agent1, native deployment, release or vendor qualification. No deployment
+or version bump is part of this source-only work.
+
 ## Current acceptance gate: software-first identity security
 
 API/schema contract **2**, server SQL migration **3** and preserved local SQL

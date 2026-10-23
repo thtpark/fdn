@@ -90,6 +90,7 @@ type Fence struct {
 	Active        bool   `json:"active"`
 	ID            string `json:"id"`
 	CleanupProven bool   `json:"cleanup_proven,omitempty"`
+	Generation    string `json:"generation,omitempty"`
 }
 
 func (m *Manager) Run(ctx context.Context) error {
@@ -165,7 +166,7 @@ func (m *Manager) start(ctx context.Context, session domain.Session) (err error)
 	if fence.Active {
 		return domain.Fail(domain.Prerequisite, "an earlier interactive session remains fenced")
 	}
-	if err := m.State.Put(ctx, "session-fence", Fence{Active: true, ID: session.ID}); err != nil {
+	if err := m.State.Put(ctx, "session-fence", Fence{Active: true, ID: session.ID, Generation: domain.NewID("fence")}); err != nil {
 		return err
 	}
 	sessionCtx, cancel := context.WithDeadline(ctx, time.Unix(session.ExpiresAt, 0))
