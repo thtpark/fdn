@@ -29,6 +29,9 @@ func (e *Engine) execute(ctx context.Context, c config.Worker, task domain.Task,
 
 func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, launch Launch, manual bool) error {
 	ctx, launch = actionContext(ctx, launch)
+	if err := e.phaseHealth(ctx, "preparing", &launch, "", 120, false); err != nil {
+		return err
+	}
 	verification := launch.Phase == domain.VerificationRun
 	var binding local.Binding
 	var err error
@@ -84,6 +87,9 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	}
 	if _, err := e.State.Workspace(ctx, binding.Ref); err != nil {
 		return e.notStarted(ctx, &j, "workspace authorization changed before provider launch")
+	}
+	if err := e.phaseHealth(ctx, "invoking", &launch, j.ID, min(binding.TimeoutSeconds, c.InvocationTimeoutSeconds), true); err != nil {
+		return err
 	}
 	j.State = "invoking"
 	if err := e.State.SaveJournal(ctx, j); err != nil {
@@ -200,6 +206,9 @@ func (e *Engine) guardTask(ctx context.Context, cancel context.CancelCauseFunc, 
 }
 
 func (e *Engine) finishExecution(ctx context.Context, j *local.Journal, launch Launch, reply provider.Reply) error {
+	if err := e.phaseHealth(ctx, "applying", &launch, j.ID, 30, true); err != nil {
+		return err
+	}
 	if launch.Task == nil {
 		return domain.Fail(domain.Internal, "coding invocation omitted its task context")
 	}
@@ -259,6 +268,9 @@ func (e *Engine) notStarted(ctx context.Context, j *local.Journal, reason string
 func (e *Engine) queueReport(ctx context.Context, j *local.Journal) error {
 	if j.Report == nil {
 		return domain.Fail(domain.Internal, "report proposal is missing")
+	}
+	if err := e.journalHealth(ctx, *j, "reporting"); err != nil {
+		return err
 	}
 	j.State = "report-prepared"
 	if err := e.State.SaveJournal(ctx, *j); err != nil {

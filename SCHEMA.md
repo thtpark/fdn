@@ -52,7 +52,7 @@ and their owners are checked. Default private directory/file permissions are
 | `events` | Shared change sequence and topic/source/task/project references; no private message payloads |
 | `operations` | Actor + operation ID, exact request fingerprint, bounded result reference/receipt |
 | `audit` | Durable accepted/denied operation outcomes, actor, action and time |
-| `settings` | Reserved service-owned settings; no client authority projection |
+| `settings` | Reserved service-owned settings, including bounded per-agent latest worker-health report/incident; no client authority projection |
 
 The authoritative definitions are in `internal/foundation/store.go` and the DTOs
 in `internal/domain/`. Source records, runs, events and audit receipts are not
@@ -124,6 +124,72 @@ failed-run evidence, retry approvals and the one-slot fence remain intact.
 Private journals and CLI proposal receipts may contain sensitive machine-local
 material. Do not publish or dump them as diagnostic evidence. A local binding or
 knowledge selection never grants shared project authority.
+
+## Observed worker health and reply diagnostics
+
+`POST /v1/heartbeat` accepts `HeartbeatRequest` with optional version-1
+`WorkerHealth` and returns the same `Agent` as before. Workers piggyback reports
+on the existing 30-second heartbeat; old command-only bodies remain accepted.
+Latest report and incident are bounded per-agent service-owned `settings`, not
+new tables or client-writable authority. API/schema stays **2**, server SQL
+**3**, local SQL **1**; no new SQLite migration is introduced.
+
+Reports carry their version/sequence/observation time, effective mode,
+provider/version/model, configured `preferred_provider`, authentication readiness
+and its own observation time, phase/action/start/deadline, separate loop-step/
+progress clocks, pending report count, safe blocker and component problem codes
+with first/last/resolved times. Effective task/control provider can differ from
+the preferred reply provider; one provider's login does not make the other ready.
+Sequence counts phase transitions. A fresh `observed_at` may advance with the
+same sequence and changed component problems; it is not a progress claim.
+Sequence 0 before the first controller step is valid unknown-phase diagnostic
+data. Repeated idle steps never advance `last_progress_at`.
+
+Safe provider versions match `^[a-zA-Z0-9][a-zA-Z0-9.+_-]{0,127}$` or are
+empty; workers reduce unsafe observed versions to unknown/empty. Safe models
+match `^[a-zA-Z0-9][a-zA-Z0-9._:/+-]{0,255}$` or are empty; workers clear unsafe
+model labels. Report validation rejects labels outside these forms. These bounded
+labels must never smuggle raw provider output or private paths.
+An idle heartbeat/poll advances liveness, not task progress. A login command's
+success is not an actual authentication observation. Local work/service status
+includes a live `health` snapshot; server diagnostics describe the last received
+report, its age and any uncertainty, not a fresh remote provider probe.
+
+The service-owned background watchdog runs without AI/worker cooperation,
+including for manual Founder. Default missing-heartbeat/report thresholds are
+90 seconds; phase deadlines have 30 seconds of grace; an eligible unexplained
+queued requested reply has 120 seconds. Manual pause, no requested response,
+normal idle and a long-running action still inside its deadline are not stuck
+failures. A recent heartbeat does not make a stale report current. Unknown,
+missing or stale observations remain explicit with a safe reason and next
+inspection action. Foundation cannot guarantee detection of its own outage;
+native/outside monitoring remains necessary.
+
+`GET /v1/agents/{id}/diagnostics` returns `AgentDiagnostics` to Founder or self
+only. A delegate does not acquire general agent diagnosis.
+`GET /v1/messages/{id}/diagnostics` returns `MessageDiagnostics` strictly to that
+message's sender/recipient, with no Founder bypass. Its `state` is observed
+lifecycle: `not-requested`, `queued` (including shared-slot waiting), `generating`,
+`blocked`, `awaiting-delivery`, `handled` and retained receipt dispositions.
+`stage` is the lower-level pipeline phase: `receipt`, `recipient`, `reporting`,
+`scheduling` or the active reply's safe phase. For example, `state:"generating"`
+with `stage:"invoking"` can be visible while the provider invocation is still
+pending; `state:"blocked"` can have `stage:"recipient"`. These observations are
+not authoritative receipt or AI completion evidence. A handled receipt alone
+does not prove an AI reply. General diagnostics must not reveal unrelated private
+message references, private journals, raw errors, paths or credentials.
+
+Diagnostic GETs do not sweep incidents or write server state; monitoring is the
+background watchdog's responsibility. Health alerts are protected server-created
+ordinary private messages with
+`response_requested:false`; normal message send cannot forge them. They route
+to active Founder and current task-project delegates only where scoped, dedupe
+by incident/cause/action, persist across polling/restart and notify observed
+recovery. Incident visibility is independent of 15-minute authentication notices
+and never renews them. Diagnostics/alerts do not start login/session/inference,
+retry, resume or recovery. Founder pause, open/uncertain session, uncertain
+invocation, a different selected/required provider and permission/report blockers
+remain visible after login; authentication resolves only its own observation.
 
 ## IDs, versions and clocks
 
@@ -298,6 +364,8 @@ SQLite schema 1 and its private knowledge/bindings/journals/outbox are preserved
 | Recover a non-Founder identity | Active Founder, fresh signed keypairs and explicit reason/epoch transition |
 | Recover Founder | Root-only private Unix maintenance channel; never an agent gateway or ordinary API |
 | Pause/resume global agent mode | Founder only, including its own mode; delegates/targets cannot override |
+| Read general agent diagnostics | Founder or that same agent; delegates receive only appropriately scoped health alerts |
+| Read private message diagnostics | Message sender/recipient only; no Founder bypass |
 | Issue/revoke persistent assistance | Founder only; scope is explicit and the requester may be an agent |
 | Create a project | Founder, or specific creation authorization consumed by creation |
 | Grant a delegate | Founder |

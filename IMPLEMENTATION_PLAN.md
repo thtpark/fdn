@@ -57,6 +57,32 @@ enrollment, project/task creation, authorized assignment/readiness, approved
 execution and separate verification. Missing provider authentication remains an
 explicit prerequisite, not success or an empty-work result.
 
+## Read-only worker health and stuck-work diagnostics
+
+The supported inspection leaves are `agent-cli agent diagnose AGENT_ID` and
+`agent-cli message diagnose MESSAGE_ID`, using typed authenticated read-only
+endpoints. General agent diagnosis is Founder/self; message diagnosis remains
+strictly party-private. Local work/service status includes a timestamped `health`
+snapshot, with effective provider/model versus configured reply preference,
+phase/deadline and separate liveness/progress clocks. Missing/stale/unknown data
+and non-authentication blockers remain visible, including after sign-in.
+
+Workers optionally piggyback version-1 observations on existing 30-second
+heartbeats; old bodies and the `Agent` response remain compatible. Bounded
+service-owned latest-report/incident settings need no new migration (API/schema
+2, server SQL 3, local SQL 1). The non-AI server watchdog monitors missing
+heartbeat/report (90 seconds), deadline plus grace (30 seconds) and eligible
+unexplained queued replies (120 seconds), including manual Founder. It does not
+classify pause/no-response-requested/idle/in-deadline work as stuck. Protected
+scoped alert/recovery messages persist and dedupe independently of 15-minute
+sign-in notices; none of this starts login/session/inference/retry/resume/recovery.
+Native/outside monitoring is still required for a Foundation outage.
+
+CLI/guidance acceptance is limited to the focused source checks documented in
+[TEST_PLAN.md](TEST_PLAN.md#diagnostics-cli-and-guidance-acceptance). Server/worker
+regressions are separate, and no live Agent1, deployment, inference or release
+qualification is implied.
+
 ## Current acceptance gate: software-first identity security
 
 API/schema contract **2**, server SQL migration **3** and preserved local SQL
@@ -162,7 +188,9 @@ offline/restart contention are verified through direct API and worker tests.
   backup restore drills and installation/rollback on exact platform versions.
 - Signing/notarization/attestations require explicit policy, trust and tooling.
   They are not supplied by a checksum or a green functional test.
-- Establish metrics, alerting, capacity limits and release evidence retention.
+- Qualify operational metrics/alerting, capacity limits and release evidence
+  retention; the implemented worker-health watchdog does not replace native/
+  outside monitoring when Foundation is down.
 
 Exit: independently reproducible/source-bound packages, measured capacity and
 recovery, current platform/provider/security evidence, and explicit unresolved

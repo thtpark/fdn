@@ -36,10 +36,10 @@ type app struct {
 
 var AgentCommands = []string{
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
-	"agent list", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
+	"agent list", "agent diagnose", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "mention list", "mention acknowledge", "watch",
-	"message send", "message show", "message inbox", "message receipt", "session request", "session list", "session show", "session change", "session open",
+	"message send", "message show", "message diagnose", "message inbox", "message receipt", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
@@ -115,7 +115,14 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			if !valid {
 				return a.emit(nil, domain.Fail(domain.Invalid, "unknown command"))
 			}
-			return a.emit(map[string]any{"command": key, "usage": "see README command reference; JSON changes require a reason and current generations"}, nil)
+			usage := "see README command reference; JSON changes require a reason and current generations"
+			switch key {
+			case "agent diagnose":
+				usage = "agent diagnose AGENT_ID; read-only latest observations for Founder or self; no provider probes or actions"
+			case "message diagnose":
+				usage = "message diagnose MESSAGE_ID; read-only observed lifecycle (state) and phase (stage) for sender/recipient; not proof of authoritative receipt or AI completion"
+			}
+			return a.emit(map[string]any{"command": key, "usage": usage}, nil)
 		}
 	}
 	if a.configFile == "" && tail[0] != "guide" {

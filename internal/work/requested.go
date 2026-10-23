@@ -107,6 +107,9 @@ func (e *Engine) requestedAuthentication(ctx context.Context, c config.Worker, m
 	var blocked error
 	for _, launch := range launches {
 		actionCtx, launch := actionContext(ctx, launch)
+		if err := e.phaseHealth(actionCtx, "preparing", &launch, "", 120, false); err != nil {
+			return err
+		}
 		providers := []string{c.Provider}
 		if launch.Phase != domain.VerificationRun && launch.Task != nil && launch.Task.Provider != "" && launch.Task.Provider != c.Provider {
 			providers = append(providers, launch.Task.Provider)
@@ -133,8 +136,18 @@ func (e *Engine) permissionBlocked(ctx context.Context, c config.Worker, launch 
 	if key == "" {
 		key = "local:" + requirement
 	}
+	blocker := "work-prerequisite"
+	switch requirement {
+	case "workspace":
+		blocker = "workspace-permission"
+	case "provider-permission":
+		blocker = "provider-permission"
+	case "retry-approval":
+		blocker = "approval-required"
+	}
+	healthErr := e.blockHealth(ctx, blocker)
 	_, err := e.requestPermission(ctx, c, launch.Task, key, requirement)
-	return helpEscalated{errors.Join(cause, err)}
+	return helpEscalated{errors.Join(cause, err, healthErr)}
 }
 
 func permissionFailure(err error) bool {
@@ -144,6 +157,9 @@ func permissionFailure(err error) bool {
 func (e *Engine) invocationBlocked(ctx context.Context, c config.Worker, j local.Journal, launch Launch, cause error) error {
 	ctx, launch = actionContext(ctx, launch)
 	health, err := e.Executor.Check(ctx, j.Provider)
+	if observedErr := e.providerHealth(ctx, j.Provider, j.Model, health, err); observedErr != nil {
+		return observedErr
+	}
 	if err != nil {
 		if permissionFailure(err) {
 			return e.permissionBlocked(ctx, c, launch, "provider-permission", err)

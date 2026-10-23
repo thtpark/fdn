@@ -77,7 +77,7 @@ over another user's files. It never enrolls/authenticates or enables work.
 | `fdn-service service plan` | `--input OPTIONS`; render native Foundation definition without registering |
 | `fdn-service service install` | `--input OPTIONS --apply`; explicit OS-administrator registration/start |
 | `agent-service serve` | Native enrolled worker, guidance installation, one daemon, private state/tunnels/controller/session supervision |
-| `agent-service status` | Read-only local daemon/work/journal/fence status |
+| `agent-service status` | Read-only local daemon/work/journal/fence status and timestamped `health` observations |
 
 ## Worker setup and native services
 
@@ -95,7 +95,7 @@ over another user's files. It never enrolls/authenticates or enables work.
 | `agent-cli preferences set` | `--input FILE`, optional `provider`/`model`; provider change clears old model |
 | `agent-cli service plan` | `--input OPTIONS`; render native worker definition |
 | `agent-cli service install` | `--input OPTIONS --apply`; own-account native registration/start |
-| `agent-cli service status` | Same local status without requiring network |
+| `agent-cli service status` | Same local status, including `health`, without requiring network |
 
 Configuration patches accept only `poll_seconds` (1-3600),
 `invocation_timeout_seconds` (1-86400), `research_interval_hours` (12 or 24),
@@ -193,6 +193,7 @@ or an older server/client fallback.
 | --- | --- |
 | `agent-cli agent list` | Active identity checks; shared agent registry |
 | `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision and Founder request attribution |
+| `agent-cli agent diagnose` | Exactly `AGENT_ID`; read-only `AgentDiagnostics` from `GET /v1/agents/{id}/diagnostics`; Founder or that same agent only |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
 | `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban still includes Founder |
@@ -205,6 +206,46 @@ or an older server/client fallback.
 | `agent-cli project change` | `PROJECT --input FILE`: reason + optional name/description/archived; current authority, advances epoch |
 | `agent-cli project delegate` | `PROJECT --input FILE`: `agent_id`, `revoke`; grant Founder-only, revoke project authority |
 | `agent-cli project authorize` | `--input FILE`: `agent_id`, `revoke`; Founder-issued specific creation authorization |
+
+## Read-only worker and reply diagnostics
+
+```sh
+agent-cli --config /PRIVATE/agent.json agent diagnose AGENT_ID
+agent-cli --config /PRIVATE/agent.json message diagnose MESSAGE_ID
+```
+
+Each command accepts exactly one ID and no leaf flags/input. They use the existing
+authenticated identity proxy and JSON/error envelope; they retrieve observations,
+not a fresh provider probe, login, session, inference, retry, resume or recovery.
+General agent diagnosis is Founder/self only; project delegation alone does not
+grant it. Message diagnosis is always sender/recipient-private, without a Founder
+bypass. Unrelated private message references, journals, raw errors, paths and
+credentials must not appear in diagnostics.
+
+`MessageDiagnostics.state` is the observed reply lifecycle; `stage` is its
+lower-level phase. For example, `state:"generating"` with `stage:"invoking"`
+means an invocation is still pending, not an authoritative receipt or completed
+AI reply. `state:"blocked"` can have `stage:"recipient"`. Inspect actual private
+message/receipt evidence separately; do not treat a phase as lifecycle completion.
+
+`work status`, `service status` and `agent-service status` include a local `health`
+snapshot: effective mode/provider/model, configured `preferred_provider` and
+timestamped authentication observation, phase/action/start/deadline, separate
+loop/progress clocks, pending report count, safe blockers and timestamped
+component problem codes. Idle polling/heartbeats are not task progress.
+Unknown/missing/stale data includes a reason and next inspection step, not a
+healthy fallback. A successful login exit is not authentication readiness.
+A worker can publish `invoking` with the matching action/deadline before the
+provider invocation returns; that heartbeat does not assert AI completion.
+
+Workers optionally send version-1 health on the existing 30-second heartbeat.
+The server watchdog needs no AI or worker cooperation and also monitors manual
+Founder. Defaults are 90 seconds without heartbeat/report, 30 seconds beyond a
+phase deadline, and 120 seconds for an eligible unexplained queued reply.
+Manual pause, no requested response, ordinary idle and work inside its declared
+deadline are not stuck failures. A Foundation outage still needs native/outside
+monitoring. See [SCHEMA.md](SCHEMA.md#observed-worker-health-and-reply-diagnostics)
+and [DEPLOYMENT.md](DEPLOYMENT.md#read-only-worker-and-reply-diagnostics).
 
 ## Tasks, approvals and run projections
 
@@ -352,6 +393,7 @@ codes and secret-bearing sign-in state must not enter an AI context.
 | --- | --- |
 | `agent-cli message send` | `--input FILE`: recipient_id, body; optional origin/kind/urgent/response_requested |
 | `agent-cli message show` | `MESSAGE`; sender/recipient only |
+| `agent-cli message diagnose` | Exactly `MESSAGE_ID`; read-only `MessageDiagnostics` from `GET /v1/messages/{id}/diagnostics`, private to sender/recipient; `state` is observed lifecycle (not-requested, queued/shared-slot waiting, generating, blocked, awaiting-delivery, handled), `stage` is lower-level phase; not proof of authoritative receipt or AI completion |
 | `agent-cli message inbox` | `[--cursor CURSOR --limit N --urgent]`; recipient's pending messages |
 | `agent-cli message receipt` | `MESSAGE --input FILE`: state handled/deferred/stale, or pending only from deferred |
 | `agent-cli session request` | `--input FILE`: grant_id, target_id, matching project_id/scope, optional task_id, mode, purpose, provider, reason, expires_at |
@@ -362,7 +404,12 @@ codes and secret-bearing sign-in state must not enter an AI context.
 
 Message origin defaults to human (a declared label, not attestation); kind
 defaults to direct. Kinds authentication/permission/session cannot request automatic
-responses. A protected handoff body may contain public generic verification
+responses. Server-created protected health alerts/recovery notices also have
+`response_requested:false`; ordinary `message send` cannot forge them. Their
+durable incident/cause/action deduplication and recovery notifications are
+independent of 15-minute authentication notices and never renew sign-in notices
+or start login/session/inference/retry/resume/recovery. A protected handoff body
+may contain public generic verification
 URLs, non-secret instructions and references/actions/expiry. It must not contain
 a token, one-time code, private/secret-bearing authentication URL or an unredacted
 credential transcript/screenshot. Authorized human-visible sign-in screens/links
@@ -412,7 +459,7 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 | `agent-cli provider link` | Repair/install this account's stable codex/copilot launchers and login PATH without downloading, authenticating or running a provider |
 | `agent-cli provider exec` | `--provider NAME -- NATIVE_ARGUMENTS`; resolve the active managed version, preserve native output/exit status; interactive commands require a human terminal and the shared local slot |
 | `agent-cli work prompt` | Shared prompt and version-matched operating guidance; no task claim or inference |
-| `agent-cli work status` | Read-only local state, blockers, pending invocations/reports, session fence and durable authentication request/delivery references |
+| `agent-cli work status` | Read-only local state, live `health` phase/deadline/progress/authentication observations and safe timestamped component diagnostics, blockers, pending invocations/reports, session fence and durable authentication request/delivery references |
 | `agent-cli work run` | One bounded manual controller step; same prompt/authority/slot as service |
 | `agent-cli work recover` | Exactly one `--journal INVOCATION` or `--session SESSION`, plus `--acknowledge-stopped` after confirming owned processes stopped |
 
@@ -561,6 +608,15 @@ and streams. Recovery needs fresh keypairs and explicit generation/epoch
 transition; it never approves resuming uncertain work. Software/RAM clones and
 sequential use remain possible; no hardware signing or attestation is claimed.
 
+Read-only diagnostic routes are `GET /v1/agents/{id}/diagnostics`
+(`domain.AgentDiagnostics`, Founder/self) and `GET /v1/messages/{id}/diagnostics`
+(`domain.MessageDiagnostics`, message parties). `POST /v1/heartbeat` accepts
+`domain.HeartbeatRequest`: existing command metadata plus optional version-1
+`health`. Legacy bodies remain accepted and the result remains `domain.Agent`.
+Latest reports/incidents use bounded service-owned settings, with no new SQLite
+migration or change to API/schema 2, server SQL 3 or local SQL 1.
+
 Exact routes/DTOs are in `internal/api/server.go`, `internal/api/identity.go`,
-`internal/domain/commands.go` and `internal/domain/identity.go`;
+`internal/domain/commands.go`, `internal/domain/identity.go` and
+`internal/domain/health.go`;
 [SCHEMA.md](SCHEMA.md) describes their invariants and qualification limits.

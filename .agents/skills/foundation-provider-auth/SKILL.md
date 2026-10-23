@@ -1,6 +1,6 @@
 ---
 name: foundation-provider-auth
-description: "Use when installing/updating Codex or Copilot, checking provider readiness, arranging headless/device-code human sign-in, displaying authorized sign-in screens/public verification links, renewing expired sign-in requests through Founder, preparing an authorized tmux/VNC assistance session, or diagnosing expired consent without exposing credentials or starting inference."
+description: "Use when installing/updating Codex or Copilot, checking provider readiness or post-login stalls, arranging headless/device-code human sign-in, displaying authorized sign-in screens/public verification links, renewing expired sign-in requests through Founder, preparing an authorized tmux/VNC assistance session, or diagnosing expired consent without exposing credentials or starting inference."
 ---
 
 # Provider readiness and protected authentication
@@ -11,7 +11,12 @@ model and authorized inference.
 
 1. Resolve the worker's actual account/HOME/configuration/identity and mode.
    Inspect `provider status --provider NAME`, `preferences show`, `work status`
-   and session state. These probes do not authorize paid inference.
+   and session state. These probes do not authorize paid inference. To read saved
+   observations without another probe, use `agent diagnose AGENT_ID` as Founder/
+   self, or `message diagnose MESSAGE_ID` as that message's sender/recipient only.
+   Inspect `health` observation age and effective provider/model versus configured
+   preferred reply provider; unknown/stale data is not ready. A handled receipt
+   alone does not prove an AI reply or successful authentication.
    A controller observing explicit login-required/rejected status automatically
    sends a durable protected request to the active Founder and current relevant
    project delegates, before onboarding if needed and without AI inference.
@@ -116,6 +121,13 @@ model and authorized inference.
     A finished login command and Codex credentials-present-unverified do not
     prove live vendor usability. Respect task-required provider/model; unknown
     cost/catalog quality is not permission for paid probes or guessed ranking.
+    Keep Founder pause, shared-slot/open/uncertain session, uncertain invocation,
+    different selected/required provider and permission/pending-report blockers
+    visible after login. Idle polls/heartbeats are not task progress. Server-created
+    protected health incident/recovery messages request no automatic reply and are
+    independent of 15-minute sign-in notices: they do not renew notices or start
+    login/session/inference/retry/resume/recovery. Resolve each blocker only through
+    its existing authorized workflow.
 
 Provider references: [Codex headless authentication](https://developers.openai.com/codex/auth/#login-on-headless-devices)
 and [Copilot login options](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#copilot-login-options).
