@@ -142,6 +142,7 @@ func TestHealthSignedInPauseSessionAndUncertainFences(t *testing.T) {
 			}
 			h := observedHealth(f.now.Unix())
 			h.Phase, h.Blocker, h.BlockedSinceAt = "blocked", blocker, h.ObservedAt
+			h.Problems = []domain.HealthProblem{{Component: "controller", Code: domain.Prerequisite, FirstSeenAt: h.ObservedAt, LastSeenAt: h.ObservedAt}}
 			publishHealth(t, f.s, f.worker.ID, h)
 			sweepHealth(t, f.s)
 			d := diagnoseHealth(t, f.s, f.founder.ID, f.worker.ID)
