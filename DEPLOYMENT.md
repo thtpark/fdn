@@ -410,6 +410,11 @@ agent-cli --config /PRIVATE/agent.json work status
 agent-cli --config /PRIVATE/agent.json service status
 ```
 
+The private identity proxy must forward both diagnostic GET routes. Upgrade and
+restart the matching `agent-identity` service as well as the CLI/runner; an older
+proxy's route denial is not a provider sign-in failure. Never work around it by
+relaxing transport controls or copying identity credentials.
+
 General agent diagnosis is Founder/self only; project delegation alone does not
 grant it. A message diagnosis is private to its sender/recipient, even when
 Founder asks. Both diagnose commands accept exactly one ID and fetch saved
