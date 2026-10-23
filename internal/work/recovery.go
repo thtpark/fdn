@@ -144,26 +144,24 @@ func (e *Engine) Recover(ctx context.Context, id string, acknowledgeStopped bool
 		return err
 	}
 	defer slot.Close()
-	journals, err := e.State.Journals(ctx, true)
+	j, err := e.State.Journal(ctx, id)
 	if err != nil {
 		return err
 	}
-	for _, j := range journals {
-		if j.ID == id {
-			if j.State != "invoking" && j.State != "uncertain" && j.State != "reply-prepared" && j.State != "applying" {
-				return domain.Fail(domain.Prerequisite, "journal is not awaiting explicit recovery")
-			}
-			if (j.Kind == domain.ExecutionRun || j.Kind == domain.VerificationRun) && j.RunID != "" {
-				j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".recovery-report"}, RunID: j.RunID, Token: j.Token, SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(j),
-					Outcome: "interrupted", Summary: "operator explicitly acknowledged the interrupted process tree stopped; side effects remain uncertain", Checkpoint: j.ID}
-				if err := e.queueReport(ctx, &j); err != nil {
-					return err
-				}
-				return e.flushReports(ctx)
-			}
-			j.State, j.Problem = "abandoned", "operator acknowledged stopped processes and explicitly authorized a fresh text review"
-			return e.State.SaveJournal(ctx, j)
-		}
+	if j.State == "reply-rejected" {
+		return e.recoverTextResponse(ctx, &j)
 	}
-	return domain.Fail(domain.NotFound, "pending invocation not found")
+	if j.State != "invoking" && j.State != "uncertain" && j.State != "reply-prepared" && j.State != "applying" {
+		return domain.Fail(domain.Prerequisite, "journal is not awaiting explicit recovery")
+	}
+	if (j.Kind == domain.ExecutionRun || j.Kind == domain.VerificationRun) && j.RunID != "" {
+		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".recovery-report"}, RunID: j.RunID, Token: j.Token, SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(j),
+			Outcome: "interrupted", Summary: "operator explicitly acknowledged the interrupted process tree stopped; side effects remain uncertain", Checkpoint: j.ID}
+		if err := e.queueReport(ctx, &j); err != nil {
+			return err
+		}
+		return e.flushReports(ctx)
+	}
+	j.State, j.Problem = "abandoned", "operator acknowledged stopped processes and explicitly authorized a fresh text review"
+	return e.State.SaveJournal(ctx, j)
 }

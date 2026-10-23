@@ -139,6 +139,12 @@ func hasAnswers(task domain.Task, entries []domain.Entry) bool {
 }
 
 func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch, reply provider.Reply) (err error) {
+	if err := validateTextPhase(launch, reply); err != nil {
+		if domain.AsFault(err).Code == domain.Provider {
+			return e.rejectTextResponse(ctx, j, launch, err)
+		}
+		return err
+	}
 	if err := e.phaseHealth(ctx, "applying", &launch, j.ID, 30, true); err != nil {
 		return err
 	}

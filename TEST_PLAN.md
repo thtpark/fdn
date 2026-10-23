@@ -106,6 +106,22 @@ live writes, even with inherited opt-in variables. That optional boundary check
 is not a live-provider or end-to-end Foundation qualification and is not implied
 by passing fixture tests.
 
+## Tool-disabled response-contract regressions
+
+```sh
+go test -race -count=1 ./internal/local ./internal/work
+go test -race -count=1 -tags integration ./tests/integration -run 'Test(RejectedScopeReplyDoesNotPoisonInboxOrRepeatInference|RejectedMessageDoesNotStarveAnotherRequestedReply)$'
+```
+
+These deterministic source tests cover explicit phase outcomes, `reviewed` being
+invalid for scope/acceptance/preflight, preservation of raw private reply/prompt
+references, atomic rejection/retry fencing and rollback, cached deployment reply
+reconciliation, unchanged polls/restarts/new manual operation IDs causing no new
+inference, unrelated requested messages continuing, and exact stopped-process
+acknowledgement permitting a fresh tool-disabled review without task approval or
+execution. Possibly applying/uncertain decisions remain fenced. Fixtures do not
+certify live provider quality or substitute for native cleanup confirmation.
+
 ## Diagnostics CLI and guidance acceptance
 
 Focused source-only checks:

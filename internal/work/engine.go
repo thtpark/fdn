@@ -38,7 +38,15 @@ func invocationPrompt(context []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return base + "\nFDN_CONTEXT_JSON\n" + string(context), nil
+	var launch Launch
+	if err := json.Unmarshal(context, &launch); err != nil {
+		return "", err
+	}
+	contract, err := phasePrompt(launch.Phase)
+	if err != nil {
+		return "", err
+	}
+	return base + "\n" + contract + "\nFDN_CONTEXT_JSON\n" + string(context), nil
 }
 
 type Blocker struct {
@@ -61,6 +69,7 @@ type Status struct {
 	ModeControl            *ModeControl            `json:"mode_control,omitempty"`
 	PermissionRequests     []PermissionRequest     `json:"permission_requests"`
 	Health                 *domain.WorkerHealth    `json:"health,omitempty"`
+	TextResponseBlocks     []TextResponseBlock     `json:"text_response_blocks"`
 }
 
 type Launch struct {
@@ -136,6 +145,10 @@ func (e *Engine) Status(ctx context.Context) (Status, error) {
 	if err != nil {
 		return status, err
 	}
+	status.TextResponseBlocks, err = e.textResponseBlocks(ctx)
+	if err != nil {
+		return status, err
+	}
 	inventory, err := e.State.Inventory(ctx)
 	if err != nil {
 		if domain.AsFault(err).Code != domain.Prerequisite {
@@ -192,6 +205,11 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 			err = errors.Join(err, readErr)
 		} else {
 			status.Health = health
+		}
+		if blocks, readErr := e.textResponseBlocks(saveCtx); readErr != nil {
+			err = errors.Join(err, readErr)
+		} else {
+			status.TextResponseBlocks = blocks
 		}
 		if err != nil {
 			status.State = "blocked"
@@ -578,6 +596,9 @@ func (e *Engine) newJournal(launch Launch, health provider.Health, model string)
 func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manual bool) (local.Journal, error) {
 	ctx, launch = actionContext(ctx, launch)
 	if err := e.phaseHealth(ctx, "preparing", &launch, "", 120, false); err != nil {
+		return local.Journal{}, err
+	}
+	if err := e.textResponseBlocked(ctx, c, launch); err != nil {
 		return local.Journal{}, err
 	}
 	health, model, err := e.selected(ctx, c, launch.Task)

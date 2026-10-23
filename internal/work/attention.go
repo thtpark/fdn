@@ -2,6 +2,8 @@ package work
 
 import (
 	"context"
+	"errors"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -36,6 +38,10 @@ func (e *Engine) messages(ctx context.Context, c config.Worker, urgent, manual b
 			}
 			launch.Message = &message
 			_, err = e.text(ctx, c, launch, manual)
+			var fenced textResponseFenced
+			if errors.As(err, &fenced) {
+				continue
+			}
 			return true, err
 		}
 		cursor = page.NextCursor
@@ -46,25 +52,38 @@ func (e *Engine) messages(ctx context.Context, c config.Worker, urgent, manual b
 }
 
 func (e *Engine) attention(ctx context.Context, c config.Worker, manual bool) (bool, error) {
-	page, err := api.Call[domain.Page[domain.Attention]](ctx, e.Client, "GET", "/v1/attention?limit=1", nil)
-	if err != nil {
-		return false, err
+	cursor := ""
+	for {
+		path := "/v1/attention?limit=200"
+		if cursor != "" {
+			path += "&cursor=" + url.QueryEscape(cursor)
+		}
+		page, err := api.Call[domain.Page[domain.Attention]](ctx, e.Client, "GET", path, nil)
+		if err != nil {
+			return false, err
+		}
+		for _, item := range page.Items {
+			task, err := api.Call[domain.Task](ctx, e.Client, "GET", api.Path("tasks", item.TaskID), nil)
+			if err != nil {
+				return false, err
+			}
+			launch, err := e.launch(ctx, "attention", &task)
+			if err != nil {
+				return false, err
+			}
+			launch.Attention = &item
+			_, err = e.text(ctx, c, launch, manual)
+			var fenced textResponseFenced
+			if errors.As(err, &fenced) {
+				continue
+			}
+			return true, err
+		}
+		cursor = page.NextCursor
+		if cursor == "" {
+			return false, nil
+		}
 	}
-	if len(page.Items) == 0 {
-		return false, nil
-	}
-	item := page.Items[0]
-	task, err := api.Call[domain.Task](ctx, e.Client, "GET", api.Path("tasks", item.TaskID), nil)
-	if err != nil {
-		return false, err
-	}
-	launch, err := e.launch(ctx, "attention", &task)
-	if err != nil {
-		return false, err
-	}
-	launch.Attention = &item
-	_, err = e.text(ctx, c, launch, manual)
-	return true, err
 }
 
 func (e *Engine) acknowledgeReviewFeedback(ctx context.Context, j *local.Journal, launch Launch, task domain.Task) error {
