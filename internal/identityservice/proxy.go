@@ -19,9 +19,9 @@ type peerContextKey struct{}
 
 var ordinaryRoutes = map[string][]string{
 	http.MethodGet: {
-		"/healthz", "/v1/me", "/v1/identity/status", "/v1/agents", "/v1/agents/*", "/v1/agents/*/screens", "/v1/ownership", "/v1/projects", "/v1/projects/*",
+		"/healthz", "/v1/me", "/v1/identity/status", "/v1/agents", "/v1/agents/*", "/v1/agents/*/screens", "/v1/agents/*/diagnostics", "/v1/ownership", "/v1/projects", "/v1/projects/*",
 		"/v1/tasks", "/v1/tasks/*", "/v1/tasks/*/entries", "/v1/tasks/*/runs", "/v1/history/*", "/v1/attention", "/v1/events",
-		"/v1/messages", "/v1/messages/*", "/v1/sessions", "/v1/sessions/*", "/v1/sessions/*/relay/requester", "/v1/sessions/*/relay/target",
+		"/v1/messages", "/v1/messages/*", "/v1/messages/*/diagnostics", "/v1/sessions", "/v1/sessions/*", "/v1/sessions/*/relay/requester", "/v1/sessions/*/relay/target",
 		"/v1/assistance", "/v1/assistance/*",
 	},
 	http.MethodPost: {

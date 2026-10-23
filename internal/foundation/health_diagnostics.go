@@ -220,6 +220,10 @@ func (s *Store) assessHealth(ctx context.Context, q queryer, a domain.Agent, now
 		if problem.ResolvedAt != 0 {
 			continue
 		}
+		// The controller fault also records the same step's concrete safety blocker.
+		if problem.Component == "controller" && h.Blocker != "" && h.Blocker != "controller-error" && h.Blocker != "work-prerequisite" {
+			continue
+		}
 		result, _ := set("blocked", problem.Component+"-error", "Inspect the safe "+problem.Component+" diagnostic code "+string(problem.Code)+" locally; no model, retry or recovery was started.", true, healthSince(report, problem.FirstSeenAt))
 		result.cause += ":" + string(problem.Code)
 		return result, nil
