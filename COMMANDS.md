@@ -575,7 +575,27 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 | `agent-cli work prompt` | Shared prompt and version-matched operating guidance; no task claim or inference |
 | `agent-cli work status` | Read-only local state, live `health` phase/deadline/progress/authentication observations and safe timestamped component diagnostics, blockers, pending invocations/reports, session fence and durable authentication request/delivery references |
 | `agent-cli work run` | One bounded manual controller step; same prompt/authority/slot as service |
-| `agent-cli work recover` | Exactly one `--journal INVOCATION` or `--session SESSION`, plus `--acknowledge-stopped` after confirming owned processes stopped |
+| `agent-cli work recover` | Exactly one `--journal INVOCATION` or `--session SESSION`, plus `--acknowledge-stopped` after confirming owned processes stopped; an exact rejected text journal authorizes a fresh review, never an execution retry |
+
+Tool-disabled scope, acceptance and preflight replies require `clear`, `blocked`
+or `paused`; `reviewed` is not a preparation outcome. Each prompt pins the current
+phase and its allowed outcomes. A fully returned but phase-invalid text reply is
+retained as `reply-rejected` with an atomic semantic-action fence, rather than
+replayed forever at global admission. `work status` exposes bounded
+`text_response_blocks` summaries with the exact journal/phase/task references.
+Unrelated messages and work can continue, but the rejected action never starts
+another model call merely because of polling, restart or a new `work run`
+operation ID. Changed specification/discussion/attention context is distinct
+work; do not edit context just to bypass a response fence.
+
+A protected `provider-response` permission notice reaches Founder and relevant
+current delegates without inference. After inspecting the private retained reply
+and confirming its owned processes stopped, an authorized native operator may use
+`work recover --journal EXACT_INVOCATION --acknowledge-stopped` to atomically
+retain the old reply and authorize a fresh text review. The controller never
+coerces `reviewed` into `clear`, invents approval, resets execution retries or
+remotely accepts a stopped-process assertion. Uncertain invocations and possibly
+partially applied decisions remain fenced under their existing recovery rules.
 
 When an ai-mode or explicitly invoked controller observes `login-required` or
 `credentials-rejected`, it sends a protected `authentication` message to the
@@ -623,7 +643,8 @@ a new operation when appropriate. Retry the same operation/input after a lost
 acknowledgement; a new intentional refresh needs a new operation ID.
 
 `work status` also exposes `permission_requests`: protected help requests for
-workspace/tool permission, provider access, task authority or exact retry approval.
+workspace/tool permission, provider access, phase-invalid text responses
+(`provider-response`), task authority or exact retry approval.
 They identify the requested action and route to active Founder/current project
 delegates without inference. Delivery uncertainty remains pending; retries reuse
 their exact proposals. A new requested action or an observed resolution followed

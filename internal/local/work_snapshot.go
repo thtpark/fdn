@@ -36,7 +36,7 @@ func (s *State) WorkSnapshot(ctx context.Context, keys []string) (WorkSnapshot, 
 		}
 		snapshot.Values[key] = json.RawMessage(data)
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT data FROM journals WHERE state NOT IN ('done','stale','abandoned') ORDER BY created_at,id")
+	rows, err := tx.QueryContext(ctx, "SELECT data FROM journals WHERE state NOT IN ('done','stale','abandoned','reply-rejected') ORDER BY created_at,id")
 	if err != nil {
 		return snapshot, err
 	}
