@@ -410,15 +410,18 @@ agent-cli --config /PRIVATE/agent.json work status
 agent-cli --config /PRIVATE/agent.json service status
 ```
 
-The private identity proxy must forward both diagnostic GET routes. Upgrade and
-restart the matching `agent-identity` service as well as the CLI/runner; an older
-proxy's route denial is not a provider sign-in failure. Never work around it by
-relaxing transport controls or copying identity credentials.
+The private identity proxy must forward both diagnostic GET routes and the exact
+Founder/target operation routes described below. An authorized future rollout
+must include the matching `agent-identity` service as well as CLI/runner/server;
+an older proxy's route denial is not a provider sign-in failure. Never work around
+it by relaxing transport controls or copying identity credentials. These source
+changes alone do not deploy or restart any service.
 
 General agent diagnosis is Founder/self only; project delegation alone does not
 grant it. A message diagnosis is private to its sender/recipient, even when
-Founder asks. Both diagnose commands accept exactly one ID and fetch saved
-observations without provider probes or actions. Use scoped alert messages for
+Founder asks. Both default diagnose commands accept exactly one ID and fetch saved
+observations without provider probes or actions; only agent diagnosis additionally
+accepts the explicit Founder-only `--refresh` write below. Use scoped alert messages for
 delegate triage, not another conversation's message IDs or private worker data.
 
 Inspect `health`, observation/receipt age, effective mode/provider/model and
@@ -460,6 +463,88 @@ clear fences or reboot active work to make a health check pass.
 If Foundation itself is down, its watchdog cannot guarantee detection/delivery.
 Keep native service/process and outside control-plane monitoring; no successful
 local diagnostic or fixture result is live Agent1/deployment qualification.
+
+### Founder refresh and exact closed-session recovery
+
+Use the existing Founder configuration; no keys or credentials move to the target:
+
+```sh
+agent-cli --config /PRIVATE/founder-agent.json \
+  --operation-id diagnostic-refresh-001 agent diagnose AGENT_ID --refresh
+agent-cli --config /PRIVATE/founder-agent.json agent operation REFRESH_REQUEST_ID
+```
+
+Submission returns a durable operation, initially `queued`, not a fresh successful
+check. `REFRESH_REQUEST_ID` is the returned `data.id`, not the envelope's stable
+write `operation_id`. Both refresh and repair use the same `agent operation`
+lookup; there is no wait/provider/inference/shell option or separate inspect path.
+`checking` is still pending; `refreshed` is a bounded safe observation,
+`recovered` is exact fence retirement, and `rejected`, `operator-required` or
+`expired` require following the safe result rather than claiming recovery.
+Every operation expires at its immutable server-clock creation time plus 900
+seconds. `server_observed_at` projects current server time on lookup;
+`result.captured_at` retains a conservative server-time capture bound from a fresh
+server response and monotonic request-start/round-trip timing, separate from target
+UTC inspection/provider/health observations. Use the server-clock capture/expiry
+fields, not skewed target observation times, for operation freshness/lifespan.
+Reading an operation never renews it or changes its immutable fingerprint. These
+clocks are distinct from sign-in-notice expiry, provider readiness and live-session
+lifetimes. Offline/dead daemons can leave the operation queued until expired;
+there is no remote native restart authority.
+
+The independent non-inference worker control loop handles controls even while
+paused/fenced/busy, without normal model admission. Provider observation is
+freshly timestamped separately from in-flight health/phase. Credentials present
+but unverified do not establish vendor usability; `ready` is an observation,
+not a paid inference or work-progress test. Refresh renews no sign-in notice,
+starts no login/session/model and changes no mode or grants.
+
+For a reported closed-session fence, inspect the fresh operation's
+`result.observation.session_fence`. Copy the exact `session_id` and `fingerprint`
+into a private JSON input (`expected_fence` is the copied lowercase SHA256):
+
+```json
+{
+  "session_id": "SESSION_ID_FROM_REFRESH",
+  "expected_fence": "SHA256_FROM_REFRESH",
+  "reason": "Recover the exact observed closed session"
+}
+```
+
+```sh
+agent-cli --config /PRIVATE/founder-agent.json \
+  --operation-id closed-session-repair-001 agent repair AGENT_ID \
+  --input /PRIVATE/session-recovery.json
+agent-cli --config /PRIVATE/founder-agent.json agent operation REPAIR_REQUEST_ID
+agent-cli --config /PRIVATE/founder-agent.json agent diagnose AGENT_ID
+```
+
+The target independently rechecks the exact current fence, key generations,
+server-confirmed terminal session and free shared `work.lock`, using existing
+durable native `CleanupProven` evidence. No remote `--acknowledge-stopped` or
+caller assertion of proof is accepted. Clearing the matching eligible fence and
+recording the final local receipt are atomic; network uncertainty replays that
+receipt, not another mutation. Keep the original operation ID/input unchanged.
+
+**Initial limitation:** old/unproven `CleanupProven:false` fences return
+`operator-required`. Process absence/name/PID scans are not substituted for native
+proof. The original Agent1 fence may still require explicit authorized native
+inspection and the existing exact local session stopped-process acknowledgement;
+this feature does not promise automatic recovery. It does not clear journals,
+retry inference, stop arbitrary processes, erase evidence, recover identity or
+restart a native service. Active sessions, busy slots, changed fingerprints and
+stale generations fail closed. `agent recover` still means fresh-key identity
+recovery.
+
+Recovery never bypasses Founder pause or changes task/spending/retry authority.
+Previously approved `ai` work may resume only if all independent fences permit;
+manual remains manual. After the operation finishes, diagnose again and observe
+actual progress rather than interpreting `automation_may_resume` as execution.
+Protected server-only controls/results (`response_requested:false`) cannot be
+forged/settled by ordinary message send/receipt and confer no unrelated private
+session/message access. Safe results omit stdout/raw errors, process arguments,
+credentials and workspace paths. See the complete
+[command contract](COMMANDS.md#founder-diagnostic-refresh-and-exact-closed-session-recovery).
 
 ## Providers and protected handoffs
 

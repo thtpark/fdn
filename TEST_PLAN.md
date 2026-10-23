@@ -56,7 +56,7 @@ their tests; planned/unimplemented cases must not be described as covered.
 | Change | Minimum related cases |
 | --- | --- |
 | DTO/input/CLI | Unknown/protected fields, bounded UTF-8 input, exact JSON envelope/exit code, every implemented leaf's offline help |
-| Diagnostics CLI/guidance | Typed bodyless GET routes, exact one-ID arity, existing config/enrollment/identity matching, unchanged server errors/exit codes, explicit stale/unknown data with no healthy fallback, executable discovery/help and embedded command/catalog/skill contracts |
+| Diagnostics CLI/guidance | Typed bodyless cached GET, explicit durable Founder refresh/repair with exact replay, strict arity/flags/private-field rejection, common operation states without freshness fallback, real Unix-proxy exact method/depth/query/header bounds, existing config/enrollment/identity matching, executable help and embedded command/catalog/skill contracts |
 | Identity registration/recovery | Signed public-key possession, Founder-only registration, explicit original-agent migration, canonical-key/request/account/UID uniqueness, exact activation challenge/replay, retired generations, no legacy bearer runtime, fresh-key recovery and root-local-only Founder recovery |
 | Tasks/policy | Named/independent eligibility, project epochs, invalidation, status gates, concurrent stale revisions, exact execution/verification claims/reports; verifier's current spec/result/discussion/epoch, independent own-provider selection, shared server slot, atomic feedback/rework approval, revoked authority/Founder pause and no self-acceptance |
 | Discussions/messages | Creator-only edits, literal mention/body generation, requested answers, private recipients, no automatic protected replies |
@@ -141,6 +141,65 @@ content and bounded explicit prompt context. These are synthetic source fixtures
 not server watchdog/privacy acceptance, integration/e2e, full-suite, live Agent1,
 provider-authentication, deployment or release qualification. No new e2e scenario
 family is claimed by these CLI tests.
+
+## Founder operation CLI, Unix-proxy and guidance acceptance
+
+Focused source-only selectors for the diagnostic refresh and exact closed-session
+repair additions:
+
+```sh
+go test -race -count=1 . ./internal/cli
+go test -race -count=1 ./internal/identityservice \
+  -run '^(TestWorkerProxy|TestPublicIdentityStatusAndFounderRevocationRemainOrdinaryRoutes|TestOrdinaryProxyRoutePolicyFailsClosed|TestKernelPeerCredentialsCannotBeOverriddenByHTTPIdentityHeaders)'
+```
+
+Actually run on 2026-10-22 with Go 1.27.1 on darwin/arm64 in the uncommitted
+version 0.2.8 tree based on `692d2314`: root guidance, CLI and the selected
+identity-service proxy race cases passed. Scratch/state stayed inside the
+checkout. This is scoped source-fixture evidence, not coordinated full-suite or
+live recovery/deployment acceptance.
+
+`TestAgentOperationCLIRefreshUsesDurableWriteAndExactReplay` verifies the fixed
+nonsecret diagnostic request, immutable local CLI proposal, same-byte lost-ack
+replay and conflict on target rebinding. Repair fixtures read a private input,
+replay exact bytes, reject changed fence under the same operation ID and use the
+same common bodyless operation lookup. Cached diagnosis remains a saved
+bodyless GET without a write proposal. Configured and PATH provider sentinels
+fail if the CLI invokes a provider; these tests use no login or paid inference.
+The `TestAgentOperationCLI` family checks all seven result states (including
+queued/expired and unverified credentials without a freshness/usability fallback),
+strict unsupported flags/arity, private/caller-proof JSON fields, typed replies
+that do not echo private extras, incomplete/future outcome refusal, server error
+preservation and offline help/discovery. Root guidance tests validate current
+command coverage, skills/frontmatter, links/hashes, preservation/discovery and
+explicit bounded prompt context. The narrow clock-field follow-up updates these
+safe result fixtures to preserve projected `server_observed_at` and server-anchored
+`captured_at` separately from target inspection/provider UTC observations ahead
+or behind by one day; the expired fixture uses the server-clock deadline.
+Caller repair input cannot provide either protected clock field. The clock-field
+CLI/guidance and selected proxy race reruns passed on the same toolchain/platform.
+These are serialization/preservation fixtures only. The coordinator separately
+reported the paused/fenced proven/legacy recovery, blocked-inference and target
+UTC +/-1-hour integration passing in 27.3s, plus local/remote/work race suites.
+Those results exercise the server validation and conservative monotonic
+request-start/round-trip capture bound; final coordinated all-suite acceptance
+remains pending, with no live/native recovery or deployment qualification.
+
+`TestWorkerProxyForwardsExactDiagnosticAndOperationRoutes` uses the actual
+identity-service Unix listener, real kernel peer check and ordinary owner-client
+path to forward exact diagnostic GET/POST, repair POST, operation list/detail GET
+and result POST method/path/query/body. It strips forged caller identity/private
+headers and upstream private metadata. Denial fixtures exercise wrong methods,
+message-diagnostic writes, deeper paths, unsupported/duplicate queries, escaped
+paths and identity/native controls without forwarding. The fake upstream owner/
+cryptography fixture is not a native separate-UID/mTLS deployment qualification;
+the CLI-only Unix fixture is not this private proxy regression.
+
+These checks do not establish server authorization, native cleanup/recovery
+mutation, dedicated worker-loop acceptance, live Agent1 recovery, vendor usability,
+native service restart/deployment or full-suite/release qualification. The initial
+feature intentionally leaves old unproven fences operator-required. Source-only
+implementation and actual results must be reported separately from those limits.
 
 ## Worker health unit and integration acceptance
 

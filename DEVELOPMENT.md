@@ -81,7 +81,7 @@ Git-host fixtures rather than add task-title, provider or repository branches
 to production policy. All providers must prove non-prompting local
 approval behavior before enabling coding; text calls must remain tool-disabled.
 
-### Observation-only diagnostics
+### Saved diagnostics and bounded Founder controls
 
 Worker health piggybacks version 1 on the existing heartbeat; it does not grant
 mode/work/retry/recovery authority or require a new SQLite migration. Keep phase
@@ -99,6 +99,30 @@ contracts using `go test -race -count=1 . ./internal/cli`. Server/watchdog and
 worker semantics need their owning package tests; CLI fixtures do not prove
 live Agent1 recovery, external outage detection, provider auth or deployment.
 See [TEST_PLAN.md](TEST_PLAN.md#diagnostics-cli-and-guidance-acceptance).
+
+Keep `agent diagnose AGENT` as bodyless cached GET; only explicit `--refresh`
+submits a durable Founder-only operation through the existing CLI proposal path.
+`agent repair AGENT --input FILE` binds exact session/fresh fence SHA256, not a
+remote stopped-process assertion. Both use `agent operation REQUEST_ID` for
+safe eventual state/results. Queued/checking/offline/expired is not fresh success.
+The operation's fixed 900-second server-clock lifespan is separate from
+authentication and session lifetimes. Keep dynamic `server_observed_at` outside
+immutable fingerprints, and the retained conservative server-time result
+`captured_at` separate from skewable target inspection/provider/health UTC
+observations. Derive the bound from a fresh server response and monotonic
+request-start/round-trip timing, not target wall time. Source changes do not
+imply deployment or a version bump.
+
+The independent non-inference worker control loop must remain responsive while
+paused/fenced/busy without overwriting in-flight health/phase. Recovery is exact
+terminal-session, current-generation/current-fence and existing native
+`CleanupProven` only, under `work.lock` with atomic mutation/receipt replay.
+Legacy/unproven fences require an operator, not force, process-name/PID absence,
+evidence erasure or a guessed native restart. A recovered fence does not change
+mode/approval/spending/retry authority or promise Agent1 resumed. Test strict
+input/flags, immutable replay, protected control/result privacy, real Unix-proxy
+method/depth/query/header boundaries and embedded help/guidance. Keep raw output,
+errors, credentials, process arguments and workspace paths out of safe results.
 
 ## Schema and compatibility changes
 

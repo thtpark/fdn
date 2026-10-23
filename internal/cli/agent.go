@@ -101,7 +101,7 @@ func requireArgs(args []string, count int) error {
 
 func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "agent requires list, show, diagnose, register, recover, identity, revoke, mode or request-sign-in")
+		return nil, domain.Fail(domain.Invalid, "agent requires list, show, diagnose, repair, operation, register, recover, identity, revoke, mode or request-sign-in")
 	}
 	if args[0] == "register" || args[0] == "recover" || args[0] == "identity" {
 		return a.identityCommand(ctx, r, args)
@@ -123,10 +123,47 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 		if err != nil {
 			return nil, err
 		}
+		fs := flag.NewFlagSet("agent diagnose", flag.ContinueOnError)
+		refresh := fs.Bool("refresh", false, "queue a Founder-authorized fresh diagnostic check")
+		if err := parse(fs, tail); err != nil {
+			return nil, err
+		}
+		if !*refresh {
+			return api.Call[domain.AgentDiagnostics](ctx, r.client, "GET", api.Path("agents", id, "diagnostics"), nil)
+		}
+		req := domain.DiagnosticRefreshRequest{Reason: "Founder requested fresh diagnostics"}
+		if err := a.metadata(&req.Command); err != nil {
+			return nil, err
+		}
+		return a.writeAgentOperation(ctx, r, api.Path("agents", id, "diagnostics"), req)
+	}
+	if args[0] == "repair" {
+		id, tail, err := idArgs(args[1:])
+		if err != nil {
+			return nil, err
+		}
+		var req domain.SessionRecoveryRequest
+		if err := a.input(tail, &req); err != nil {
+			return nil, err
+		}
+		if err := a.metadata(&req.Command); err != nil {
+			return nil, err
+		}
+		return a.writeAgentOperation(ctx, r, api.Path("agents", id, "repairs"), req)
+	}
+	if args[0] == "operation" {
+		id, tail, err := idArgs(args[1:])
+		if err != nil {
+			return nil, err
+		}
 		if err := requireArgs(tail, 0); err != nil {
 			return nil, err
 		}
-		return api.Call[domain.AgentDiagnostics](ctx, r.client, "GET", api.Path("agents", id, "diagnostics"), nil)
+		operation, err := api.Call[domain.AgentOperation](ctx, r.client, "GET", api.Path("agent-operations", id), nil)
+		if err != nil {
+			return nil, err
+		}
+		return agentOperationOutcome(operation)
 	}
 	if args[0] == "request-sign-in" {
 		id, tail, err := idArgs(args[1:])
@@ -167,6 +204,28 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 		return a.write(ctx, r, api.Path("agents", args[1], "revoke"), req, "")
 	}
 	return nil, domain.Fail(domain.Invalid, "unknown agent command")
+}
+
+func (a *app) writeAgentOperation(ctx context.Context, r *resources, path string, input any) (domain.AgentOperation, error) {
+	data, err := a.write(ctx, r, path, input, "")
+	if err != nil {
+		return domain.AgentOperation{}, err
+	}
+	var operation domain.AgentOperation
+	if err := json.Unmarshal(data, &operation); err != nil {
+		return domain.AgentOperation{}, domain.Fail(domain.Internal, "invalid agent-operation response from Foundation")
+	}
+	return agentOperationOutcome(operation)
+}
+
+func agentOperationOutcome(operation domain.AgentOperation) (domain.AgentOperation, error) {
+	if operation.ID == "" || operation.State == "" || operation.Version == 0 {
+		return domain.AgentOperation{}, domain.Fail(domain.Internal, "incomplete agent-operation response from Foundation")
+	}
+	if operation.Version != domain.AgentOperationVersion {
+		return domain.AgentOperation{}, domain.Fail(domain.Prerequisite, "agent-operation version is incompatible")
+	}
+	return operation, nil
 }
 
 func (a *app) projectCommand(ctx context.Context, r *resources, args []string) (any, error) {

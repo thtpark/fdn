@@ -314,6 +314,7 @@ type Message struct {
 	ExpiresAt             int64                  `json:"expires_at,omitempty"`
 	Revision              int64                  `json:"revision"`
 	AuthenticationRefresh *AuthenticationRefresh `json:"authentication_refresh,omitempty"`
+	AgentOperation        *AgentOperation        `json:"agent_operation,omitempty"`
 }
 
 type Session struct {

@@ -49,6 +49,7 @@ func New(store *foundation.Store, log *slog.Logger) (*Server, error) {
 	s.routes()
 	s.identityRoutes()
 	s.healthRoutes()
+	s.agentOperationRoutes()
 	s.health = s.startHealthMonitor(15*time.Second, 10*time.Second)
 	return s, nil
 }

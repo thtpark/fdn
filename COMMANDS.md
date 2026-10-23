@@ -193,7 +193,9 @@ or an older server/client fallback.
 | --- | --- |
 | `agent-cli agent list` | Active identity checks; shared agent registry |
 | `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision and Founder request attribution |
-| `agent-cli agent diagnose` | Exactly `AGENT_ID`; read-only `AgentDiagnostics` from `GET /v1/agents/{id}/diagnostics`; Founder or that same agent only |
+| `agent-cli agent diagnose` | `AGENT_ID [--refresh]`; default is saved read-only `AgentDiagnostics` for Founder/self; `--refresh` submits a durable Founder-only diagnostic `AgentOperation` |
+| `agent-cli agent repair` | `AGENT_ID --input FILE`; Founder-only `SessionRecoveryRequest` for one exact closed session and fresh observed fence SHA256; returns `AgentOperation`, never accepts caller cleanup proof |
+| `agent-cli agent operation` | Exactly `REQUEST_ID` from `data.id`; bodyless GET of the common diagnostic-refresh/session-recovery state and safe result, visible only to its requester Founder or target |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
 | `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban still includes Founder |
@@ -214,9 +216,11 @@ agent-cli --config /PRIVATE/agent.json agent diagnose AGENT_ID
 agent-cli --config /PRIVATE/agent.json message diagnose MESSAGE_ID
 ```
 
-Each command accepts exactly one ID and no leaf flags/input. They use the existing
-authenticated identity proxy and JSON/error envelope; they retrieve observations,
-not a fresh provider probe, login, session, inference, retry, resume or recovery.
+Without `--refresh`, agent diagnosis accepts exactly one ID and no input; message
+diagnosis accepts exactly one ID and no leaf flags/input. These bodyless GETs use
+the existing authenticated identity proxy and JSON/error envelope; they retrieve
+saved observations, not a fresh provider probe, login, session, inference, retry,
+resume or recovery. The explicit Founder refresh below is a separate durable write.
 General agent diagnosis is Founder/self only; project delegation alone does not
 grant it. Message diagnosis is always sender/recipient-private, without a Founder
 bypass. Unrelated private message references, journals, raw errors, paths and
@@ -246,6 +250,116 @@ Manual pause, no requested response, ordinary idle and work inside its declared
 deadline are not stuck failures. A Foundation outage still needs native/outside
 monitoring. See [SCHEMA.md](SCHEMA.md#observed-worker-health-and-reply-diagnostics)
 and [DEPLOYMENT.md](DEPLOYMENT.md#read-only-worker-and-reply-diagnostics).
+
+## Founder diagnostic refresh and exact closed-session recovery
+
+Only the authenticated Founder may submit these controls. `agent recover` remains
+fresh-key identity recovery; `agent repair` is not identity recovery, journal or
+inference retry, a native service restart, or arbitrary process control.
+
+```sh
+agent-cli --config /PRIVATE/founder-agent.json \
+  --operation-id diagnostic-refresh-001 agent diagnose AGENT_ID --refresh
+agent-cli --config /PRIVATE/founder-agent.json agent operation REFRESH_REQUEST_ID
+```
+
+`--refresh` sends `DiagnosticRefreshRequest` through the normal durable CLI write
+proposal to `POST /v1/agents/{id}/diagnostics`, with command metadata and fixed
+nonsecret reason `Founder requested fresh diagnostics`. The returned operation's
+`id` (the envelope's `data.id`) is `REFRESH_REQUEST_ID`; it is
+different from the stable submission `operation_id`. Reuse the original operation
+ID and exact command/input after an uncertain write. There is no `--wait`,
+provider, inference or shell option, nor a separate inspect command.
+
+`agent operation REQUEST_ID` uses a bodyless
+`GET /v1/agent-operations/{id}` for both kinds of operation:
+
+| State | Meaning |
+| --- | --- |
+| `queued` | Durably accepted, not yet checked; no fresh observation or recovery claim |
+| `checking` | Target has started checking; not successful completion |
+| `refreshed` | A bounded read-only inspection was recorded; examine server-anchored `captured_at`, separate target observation times and the result code |
+| `recovered` | The exact eligible session fence was retired with a durable local receipt; not proof work progressed or finished |
+| `rejected` | Current identity/generation, session, busy-slot or fence precondition failed; no requested recovery |
+| `operator-required` | Proof is absent/ambiguous or native action is needed; retained evidence must not be forced clear |
+| `expired` | The fixed 900-second operation lifespan elapsed; no new check/recovery is authorized |
+
+A queued offline/dead target is not fresh success. A dedicated non-inference
+worker control loop can inspect while paused, busy or fenced, but cannot revive
+a dead daemon. The fixed 15 minutes is the operation's immutable lifespan, not
+an extension of sign-in notices, provider authentication or live sessions.
+
+Operation `created_at`/`expires_at` use the server clock. `server_observed_at` is
+the server's current-time projection on lookup; reading it does not renew expiry
+or change the immutable operation fingerprint. `result.captured_at` is a retained
+conservative server-time capture bound, derived from a fresh authenticated server
+response and monotonic request-start/round-trip timing, not target UTC. Use these
+server-clock fields for operation lifespan/capture freshness, not the target's
+`result.observation.observed_at`, provider `observed_at` or health timestamps.
+Those target-clock observations can be ahead/behind the server and remain visible
+as reported; they cannot extend the deadline or turn an expired operation fresh.
+
+Provider observations remain separate from the current health/phase snapshot.
+`credentials-present-unverified` is not vendor usability; even `ready` is a
+read-only observation, not a successful paid inference or a promise of progress.
+
+After a `refreshed` result, inspect
+`data.result.observation.session_fence`. Copy its exact `session_id` and
+`fingerprint` into an owner-restricted repair input as `session_id` and
+`expected_fence`. Replace the placeholders below with the reported values;
+`expected_fence` must be the canonical lowercase 64-character SHA256, not a
+PID/name/path or a guessed token. If the fence is absent, changed, active or
+unproven, do not manufacture proof.
+
+```json
+{
+  "session_id": "SESSION_ID_FROM_REFRESH",
+  "expected_fence": "SHA256_FROM_REFRESH",
+  "reason": "Recover the exact observed closed session"
+}
+```
+
+```sh
+agent-cli --config /PRIVATE/founder-agent.json \
+  --operation-id closed-session-repair-001 agent repair AGENT_ID \
+  --input /PRIVATE/session-recovery.json
+agent-cli --config /PRIVATE/founder-agent.json agent operation REPAIR_REQUEST_ID
+agent-cli --config /PRIVATE/founder-agent.json agent diagnose AGENT_ID
+```
+
+Repair sends `SessionRecoveryRequest` (command metadata plus those three fields)
+to `POST /v1/agents/{id}/repairs`. No `--acknowledge-stopped` flag or JSON
+`cleanup_proven`, proof, PID/process arguments, workspace path, credentials,
+result or protected identity fields are accepted. The target independently
+requires the exact server-confirmed terminal session and exact current raw-fence
+SHA256 under the shared `work.lock`, plus its existing durable native
+`CleanupProven` evidence. Mutation and final local receipt are atomic; lost
+network acknowledgements replay the same result without clearing a second fence.
+
+The initial implementation refuses old `CleanupProven:false`/legacy fences as
+`operator-required`; absence of a process name/PID is not cleanup proof. It never
+stops arbitrary processes or rewrites/clears retained evidence to manufacture
+eligibility. The original Agent1 fence may still need explicit native operator
+inspection and the existing exact local stopped-process acknowledgement.
+A different generation, changed fence, active session or occupied slot cannot be
+forced through. No automatic Agent1 recovery is promised.
+
+Successful repair changes no global mode, task approval, retry/spending authority,
+sign-in notice or assistance grant, and opens no session. Existing approved
+`ai` work may resume when all its independent fences permit; a Founder pause
+remains paused. Inspect the operation, then diagnose again for actual progress.
+Neither `recovered` nor `automation_may_resume` proves work ran.
+
+Operation version 1 binds requester/target key generations. Controls/results are
+protected server-only `agent-operation` message data with
+`response_requested:false`, excluded from the ordinary inbox. Ordinary message
+send/receipt cannot forge or settle them. Only the requester Founder and exact
+target can read their own operation, with no general access to unrelated private
+messages or sessions. Results contain safe code, mode, automation eligibility,
+health, provider/fence observations and slot state only: no raw stdout/errors,
+process arguments, credentials, transcripts or workspace paths. The private
+identity proxy narrowly forwards the exact control routes; it does not grant
+authority or forward caller-supplied identity headers.
 
 ## Tasks, approvals and run projections
 
@@ -594,7 +708,7 @@ request headers and JSON cannot supply a different principal.
 Ordinary families: `/me`, `/agents`, `/heartbeat`, `/identity/register`,
 `/identity/status`, `/identity/AGENT/recover`, `/projects`,
 `/project-creation-grants`, `/tasks`, `/entries`, `/attention`, `/events`,
-`/ownership`, `/messages`, `/sessions`. Registration/recovery is Founder-only;
+`/ownership`, `/messages`, `/sessions`, `/agent-operations`. Registration/recovery is Founder-only;
 Founder recovery is root-only private Unix maintenance, never one of these
 agent routes. Entity changes use dedicated POST suffixes; claims/reports are
 controller operations, not generic CLI write escapes. Relays recheck current
@@ -616,7 +730,16 @@ Read-only diagnostic routes are `GET /v1/agents/{id}/diagnostics`
 Latest reports/incidents use bounded service-owned settings, with no new SQLite
 migration or change to API/schema 2, server SQL 3 or local SQL 1.
 
+Founder control writes are `POST /v1/agents/{id}/diagnostics` and
+`POST /v1/agents/{id}/repairs`. The target's dedicated control consumer uses
+`GET /v1/agent-operations?limit=N&cursor=CURSOR` for its queued/checking nonexpired
+operations and `POST /v1/agent-operations/{id}/result` for its own safe typed
+reports. Requester Founder/target lookup uses `GET /v1/agent-operations/{id}`.
+The proxy accepts only these exact methods/depths; the list accepts only
+`limit`/`cursor`, while detail/control routes accept no query extras. Transport,
+certificate, native root/service controls and deeper write paths remain denied.
+
 Exact routes/DTOs are in `internal/api/server.go`, `internal/api/identity.go`,
-`internal/domain/commands.go`, `internal/domain/identity.go` and
-`internal/domain/health.go`;
+`internal/domain/commands.go`, `internal/domain/identity.go`,
+`internal/domain/agent_operations.go` and `internal/domain/health.go`;
 [SCHEMA.md](SCHEMA.md) describes their invariants and qualification limits.
