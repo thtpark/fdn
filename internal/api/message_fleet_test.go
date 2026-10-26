@@ -35,14 +35,16 @@ import (
 )
 
 func TestMessageFleetProtobufPushFixture(t *testing.T) {
-	runMessageFleet(t, 8, 2)
+	// Functional CI uses arbitrary hardware and too few samples for fleet SLOs.
+	// The explicit 1,000-identity profile retains every approved latency gate.
+	runMessageFleet(t, 8, 2, false)
 }
 
 func TestMessageFleet1000ProtobufPushAcceptance(t *testing.T) {
 	if os.Getenv("FDN_MESSAGE_FLEET") != "1" {
 		t.Skip("set FDN_MESSAGE_FLEET=1 for the isolated 1,000-identity S7 acceptance profile")
 	}
-	runMessageFleet(t, 1000, 128)
+	runMessageFleet(t, 1000, 128, true)
 }
 
 type messageFleetDelivery struct {
@@ -109,7 +111,7 @@ type messageFleet struct {
 	problems       []error
 }
 
-func runMessageFleet(t *testing.T, identities, samples int) {
+func runMessageFleet(t *testing.T, identities, samples int, qualify bool) {
 	t.Helper()
 	if identities < 3*samples || samples < 1 {
 		t.Fatal("fleet profile needs separate senders, recipients, and cancellation subscribers")
@@ -165,7 +167,13 @@ func runMessageFleet(t *testing.T, identities, samples int) {
 		t.Fatal("idle transport pings incremented business/discovery handlers")
 	}
 	f.assertPending(identities)
-	messageFleetQuantiles(t, "idle_transport_ping", idlePings, 0, time.Second)
+	controlLimit := time.Duration(0)
+	updateP95, updateP99 := time.Duration(0), time.Duration(0)
+	if qualify {
+		controlLimit = time.Second
+		updateP95, updateP99 = 250*time.Millisecond, time.Second
+	}
+	messageFleetQuantiles(t, "idle_transport_ping", idlePings, 0, controlLimit)
 
 	if err := messageFleetParallel(samples, 16, func(index int) error {
 		p := f.peers[2*samples+index]
@@ -340,10 +348,10 @@ func runMessageFleet(t *testing.T, identities, samples int) {
 		identities-2*samples, f.pending.Load(), elapsed.Round(time.Microsecond))
 	t.Logf("timed_counts=%s (only committed commands and post-delivery resubscriptions; no periodic business discovery)",
 		messageFleetCounts(messageFleetCountDelta(timedCounts, windowCounts)))
-	messageFleetQuantiles(t, "submission_to_delivered_scoped_update", delays, 250*time.Millisecond, time.Second)
+	messageFleetQuantiles(t, "submission_to_delivered_scoped_update", delays, updateP95, updateP99)
 	messageFleetQuantiles(t, "submission_to_committed_command_ack", commandAcks, 0, 0)
-	messageFleetQuantiles(t, "remote_subscription_cancel_ack", cancellations, 0, time.Second)
-	messageFleetQuantiles(t, "mixed_priority_transport_ping", controlPings, 0, time.Second)
+	messageFleetQuantiles(t, "remote_subscription_cancel_ack", cancellations, 0, controlLimit)
+	messageFleetQuantiles(t, "mixed_priority_transport_ping", controlPings, 0, controlLimit)
 	messageFleetResources(t, "steady-state")
 
 	first := mutations[0]

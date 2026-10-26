@@ -50,6 +50,23 @@ func (e *Engine) defaultHealth() domain.WorkerHealth {
 	return newWorkerHealth(e.Config)
 }
 
+// Dynamic fences may appear and recover between safety ticks without a stored
+// phase transition. Compare the observed projection as well as persisted state.
+func (e *Engine) observeProjectedActivity(health *domain.WorkerHealth) bool {
+	if health == nil {
+		return false
+	}
+	activity := domain.SummarizeActivity(*health)
+	if activity.Text == "" {
+		return false
+	}
+	e.projectionMu.Lock()
+	defer e.projectionMu.Unlock()
+	changed := e.projection != activity
+	e.projection = activity
+	return changed
+}
+
 func (e *Engine) changeHealth(ctx context.Context, change func(*workerHealthState)) error {
 	state := workerHealthState{Health: e.defaultHealth()}
 	if found, err := e.State.Get(ctx, workerHealthKey, &state); err != nil {
