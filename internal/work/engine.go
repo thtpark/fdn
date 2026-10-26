@@ -98,6 +98,8 @@ type Engine struct {
 	Now           func() time.Time
 	configMu      sync.RWMutex
 	statusWake    chan struct{}
+	projectionMu  sync.Mutex
+	projection    domain.ActivitySummary
 	healthWake    chan struct{}
 	controlWake   chan struct{}
 	updateMu      sync.Mutex

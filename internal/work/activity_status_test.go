@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/remote"
 )
 
 func TestActivityWakeSuppressesNormalAndUnchangedWorkPolling(t *testing.T) {
@@ -74,5 +75,52 @@ func TestUnobservedLocalActivityDoesNotPretendHealthy(t *testing.T) {
 	status, err := e.Status(context.Background())
 	if err != nil || status.ActivityText != "No activity observed yet" {
 		t.Fatal("missing activity became success", status, err)
+	}
+}
+
+func TestProjectedFenceRecoveryIsObservedWithoutAStoredPhaseChange(t *testing.T) {
+	e, _ := healthEngine(t)
+	ctx := context.Background()
+	if err := e.beginHealth(ctx, e.Config); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.finishHealth(ctx, Status{State: "idle", Mode: "ai"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.State.Put(ctx, "session-fence", remote.Fence{}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := e.localSafetyFingerprint(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	health, err := e.health(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.observeProjectedActivity(health)
+	if err := e.State.Put(ctx, "session-fence", remote.Fence{Active: true, ID: "session_transient"}); err != nil {
+		t.Fatal(err)
+	}
+	blocked, err := e.health(ctx)
+	if err != nil || blocked.Blocker != "session-fence" || !e.observeProjectedActivity(blocked) {
+		t.Fatal("transient projected fence was not observed", blocked, err)
+	}
+	if err := e.State.Put(ctx, "session-fence", remote.Fence{}); err != nil {
+		t.Fatal(err)
+	}
+	after, err := e.localSafetyFingerprint(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before != after {
+		t.Fatal("fixture did not restore the same local safety fingerprint")
+	}
+	recovered, err := e.health(ctx)
+	if err != nil || recovered.Blocker != "" || !e.observeProjectedActivity(recovered) {
+		t.Fatal("projected recovery disappeared between local observations", recovered, err)
+	}
+	if e.observeProjectedActivity(recovered) {
+		t.Fatal("unchanged idle projection created status churn")
 	}
 }

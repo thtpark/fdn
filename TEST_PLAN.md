@@ -46,6 +46,9 @@ principal binding. It measures real mutations/delivery, unrelated idle
 subscribers, replay, privacy and resource cleanup, not merely echo messages.
 Compare instrumented race and uninstrumented timings separately and retain
 failed runs; do not relax thresholds or turn a harness into native fleet proof.
+The eight-identity unit fixture checks functional invariants and reports timing,
+but does not apply a fleet p95 to four samples on arbitrary shared CI hardware.
+Only the explicit 1,000-identity acceptance profile enforces the approved SLOs.
 
 Wire regressions cover bounded malformed frames/collections, exact integers and
 presence, protocol refusal, blocked-handler ping/cancel, typed faults and
@@ -63,6 +66,8 @@ Native-source tests cover real Unix/mTLS admission and owner control, protected
 maintenance/provisioning, actual SSH stdio adapters and cleanup. Worker tests
 cover busy/paused controls, prompt status/health, due-only retries and durable
 cursor/pending generations. Full independent suites remain required.
+Projected local fence recovery must also converge when an entire fence
+transition occurs between safety ticks without changing the stored work phase.
 
 Observed on 2026-10-25 for the 0.3.0 worktree based on `ae390a55`, Go 1.27.1,
 darwin/arm64: `bash scripts/test.sh all` passed every independent suite. The

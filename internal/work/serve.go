@@ -263,6 +263,7 @@ func (e *Engine) heartbeatLoop(ctx context.Context) {
 		transition.Stop()
 		pending = nil
 		health, healthErr := e.health(ctx)
+		e.observeProjectedActivity(health)
 		if healthErr != nil {
 			e.recordProblem(ctx, "heartbeat-problem", healthErr)
 		}
@@ -345,6 +346,12 @@ func (e *Engine) observeLocal(ctx context.Context, wake chan<- struct{}, session
 			continue
 		}
 		e.clearProblem(ctx, "configuration-problem")
+		health, healthErr := e.health(ctx)
+		if healthErr != nil {
+			e.recordProblem(ctx, "heartbeat-problem", healthErr)
+		} else if e.observeProjectedActivity(health) {
+			signalUpdate(e.healthWake)
+		}
 		if current == previous {
 			continue
 		}
