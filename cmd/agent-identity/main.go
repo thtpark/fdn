@@ -25,18 +25,29 @@ agent-identity --config PRIVATE_CONFIG prepare --name NAME --output PUBLIC_FILE
 agent-identity --config PRIVATE_CONFIG connect --profile APPROVED_PUBLIC_PROFILE
 agent-identity --config PRIVATE_CONFIG serve
 
-Run as the dedicated, non-root identity account, never the tool-runner UID.
+Run as the existing installing user, without sudo or a new OS account.
+The identity service and tool runner share that user's UID and HOME.
+The local OS username is independent of the enrolled Foundation agent name.
 prepare/connect are offline operations: stop this identity service first.
 prepare retains one device and exports public material only; exact retries reuse it.
+New registration derives the Foundation SSH username from the lowercase agent name,
+replacing separator runs with '-' (for example Agent1 -> agent1). It must fit a
+non-root OS username of at most 32 characters; collisions fail, never adopt accounts.
+This is the Foundation-host login, not a requirement to rename the local user.
+Existing Foundation account names/UIDs remain unchanged, including during recovery.
 connect requires an integrity-protected public profile with pinned CA/known_hosts
 and this device's provisioned SSH account. No bearer credentials are accepted.
 serve exposes a peer-checked Unix worker proxy, never private keys or control APIs.
-service plan is read-only; install/status require explicit native administrator execution.
-Install never creates/adopts accounts: provision the exact plan's UID/GID/HOME,
-managed comment/RealName markers, no-login identity shell and one-way worker group
-membership first. It registers only the named identity daemon and runner service.
+The user owns its keys; process separation is lifecycle organization, not isolation
+from the user's tools. Keep private state/configuration and IPC owner-only.
+service plan is read-only; install requires --apply as the existing installing user.
+User/UID/GID/HOME options default from the actual OS account, not an agent name.
+Both services use that user's systemd manager or macOS GUI LaunchAgents.
+No users/groups, no-login shells, system daemons or privileged user switching.
+Legacy split-account options require explicit stopped migration, retaining all keys,
+profiles, runner state and fences. No automatic ownership transfer or key rotation.
 Recovery: stop the service; preserve its old private StateDir and all runner state.
-Use a new empty 0700 StateDir inside the same identity HOME, keep the stable private
+Use a new empty 0700 StateDir inside the same user's HOME, keep the stable private
 config file/IPC endpoint, prepare a fresh public request, obtain explicit recovery,
 then connect its new approved profile and restart. Never delete runner journals,
 reuse old keys, or rotate automatically during normal reconnect/restart.
@@ -98,6 +109,7 @@ func runWithServiceFactory(ctx context.Context, args []string, stdout, stderr io
 	if err := config.Read(*configFile, &c); err != nil {
 		return result(stdout, nil, err)
 	}
+	c = c.WithCurrentUser()
 	if err := identityservice.CheckNativeAccount(c); err != nil {
 		return result(stdout, nil, err)
 	}

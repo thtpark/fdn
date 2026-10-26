@@ -125,6 +125,12 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 				usage = "agent operation REQUEST_ID; read-only common state/outcome for diagnostic refresh and session recovery, visible to requester Founder or target; queued/checking is not fresh success; no leaf flags"
 			case "agent status":
 				usage = "agent status --input FILE; publish your own concise non-secret team-visible text (max160 characters), or explicit empty text to restore automatic activity;60-second normal coalescing, unchanged text suppressed, important controller transitions immediate; no target, priority, mode or timestamp override"
+			case "comment add", "comment edit", "worklog add":
+				usage = key + " ID --input FILE; body mentions accept @{NAME} (case-insensitive active agent name) or @{AGENT_ID}; names must be unambiguous, recipients are stored as agent IDs, and self/duplicate mentions are excluded; only comments create attention; edits require the creator and current revision"
+			case "mention list":
+				usage = "mention list [--cursor CURSOR --limit N]; pending comment mentions addressed to your agent ID, including those written as @{NAME}; mentioning is not assignment or authority"
+			case "mention acknowledge":
+				usage = "mention acknowledge COMMENT --input FILE; acknowledge your exact current mention generation with state handled/deferred; edited or removed mentions cannot be acknowledged using an old generation"
 			case "message read":
 				usage = "message read MESSAGE_ID; recipient-only explicit acknowledgement after finishing reading; records immutable first server read_at without changing disposition/revision; show, inbox, diagnostics and replies never mark automatically; no timestamp or leaf flags"
 			case "message diagnose":

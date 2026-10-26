@@ -61,7 +61,7 @@ func runService(ctx context.Context, args []string, output io.Writer, factory se
 	input := flags.String("input", "", "protected public identity-service installation options")
 	apply := false
 	if command == "install" {
-		flags.BoolVar(&apply, "apply", false, "explicit native administrator apply")
+		flags.BoolVar(&apply, "apply", false, "explicit native current-user service registration")
 	}
 	if flags.Parse(args[1:]) != nil || flags.NArg() != 0 || *input == "" || *input == "-" {
 		return result(output, nil, domain.Fail(domain.Invalid, "service lifecycle requires --input OPTIONS and no extra arguments; install also requires --apply"))
@@ -75,6 +75,10 @@ func runService(ctx context.Context, args []string, output io.Writer, factory se
 	}
 	var options platform.IdentityServiceOptions
 	if err := config.Decode(data, &options); err != nil {
+		return result(output, nil, err)
+	}
+	options, err = platform.ResolveIdentityServiceUser(options)
+	if err != nil {
 		return result(output, nil, err)
 	}
 	plan, err := platform.RenderIdentityServices(options)

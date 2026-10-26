@@ -393,10 +393,10 @@ func TestNativeBinariesPhaseOneThroughFive(t *testing.T) {
 			if len(runs) != 1 || runs[0].Provider != name || runs[0].Model != "fixture-model" {
 				t.Fatal("run attribution/model was lost")
 			}
-			commentRaw := l.cli(t, l.worker, []string{"comment", "add", task.ID, "--input", "-"}, domain.EntryRequest{Body: "Please verify @{" + l.founder.agent.ID + "}."})
+			commentRaw := l.cli(t, l.worker, []string{"comment", "add", task.ID, "--input", "-"}, domain.EntryRequest{Body: "Please verify @{" + l.founder.agent.Name + "}."})
 			var entry domain.Entry
-			if err := json.Unmarshal(commentRaw, &entry); err != nil {
-				t.Fatal(err)
+			if err := json.Unmarshal(commentRaw, &entry); err != nil || len(entry.Mentions) != 1 || entry.Mentions[0] != l.founder.agent.ID {
+				t.Fatal("name mention did not resolve to the recipient ID", entry.Mentions, err)
 			}
 			l.cli(t, l.founder, []string{"mention", "acknowledge", entry.ID, "--input", "-"}, domain.AttentionRequest{Generation: entry.Generation, State: "handled"})
 			current = l.task(t, task.ID)

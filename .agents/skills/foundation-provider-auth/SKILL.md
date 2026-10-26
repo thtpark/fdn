@@ -61,9 +61,12 @@ login, inference, a session, or another worker.
    Login may unlock automatic inference: only Founder may explicitly request a
    pause/resume through `agent mode AGENT --input FILE`, with mode/reason.
    Targets/delegates cannot self-set manual or resume a Founder pause.
-4. Provider credentials stay in the runner's dedicated account. Foundation
-   SSH/authentication keys and device/owner certificates stay in the distinct
-   protected identity-service account; providers use only its local Unix proxy.
+4. Provider credentials and Foundation identity state belong to the same
+   existing installing user. Keep SSH/authentication keys and certificates in
+   private identity state, separate from provider files and model/shared output.
+   Normal Foundation requests use the local owner-only Unix proxy; process
+   separation does not isolate keys from that user's tools. Do not create an
+   account or rename the local user to match the enrolled agent name.
    Provider sign-in is not signed Foundation registration, identity recovery or
    authority to share an SSH account. Never read/copy another account's provider
    auth or identity state, ask for a token/password in chat, or publish a

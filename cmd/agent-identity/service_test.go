@@ -43,11 +43,13 @@ func serviceOptionsFile(t *testing.T) (string, platform.IdentityServiceOptions) 
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(root) })
-	o := platform.IdentityServiceOptions{OS: "linux", Name: "agent1", IdentityUser: "fdni_agent1", IdentityUID: 1101, IdentityGID: 1101,
-		WorkerUser: "fdnw_agent1", WorkerUID: 1102, WorkerGID: 1102, IdentityBinary: "/opt/fdn/agent-identity", WorkerBinary: "/opt/fdn/agent-service",
-		IdentityConfig: "/var/lib/fdn-identity/agent1/identity.json", WorkerConfig: "/home/fdnw_agent1/.config/fdn/agent.json",
-		StateDir: "/var/lib/fdn-identity/agent1/state", WorkerStateDir: "/home/fdnw_agent1/.local/state/fdn", IdentityHome: "/var/lib/fdn-identity/agent1", WorkerHome: "/home/fdnw_agent1",
-		SocketDir: "/run/fdn-agent1", IdentityDefinition: "/etc/systemd/system/fdn-identity-agent1.service", WorkerDefinition: "/home/fdnw_agent1/.config/systemd/user/fdn-worker-agent1.service"}
+	o := platform.IdentityServiceOptions{OS: "linux", Name: "agent1", User: "alice", UID: 1102, GID: 100, Home: "/home/alice",
+		IdentityBinary: "/opt/fdn/agent-identity", WorkerBinary: "/opt/fdn/agent-service",
+		IdentityConfig: "/home/alice/.config/fdn/identity.json", WorkerConfig: "/home/alice/.config/fdn/agent.json",
+		StateDir: "/home/alice/.local/state/fdn-identity", WorkerStateDir: "/home/alice/.local/state/fdn",
+		SocketDir:          "/home/alice/.local/state/fdn-ipc",
+		IdentityDefinition: "/home/alice/.config/systemd/user/fdn-identity-agent1.service",
+		WorkerDefinition:   "/home/alice/.config/systemd/user/fdn-worker-agent1.service"}
 	file := filepath.Join(root, "options.json")
 	if err := config.Write(file, o); err != nil {
 		t.Fatal(err)
@@ -75,8 +77,9 @@ func TestIdentityServiceLifecycleCLIPlansWithoutPrivateConfigAndAppliesOnlyExpli
 		t.Fatal(err)
 	}
 	var plan platform.IdentityServicePlan
-	if err := json.Unmarshal(envelope.Data, &plan); err != nil || plan.Accounts[0].Marker != "fdn-identity=agent1" || plan.Accounts[1].UID != options.WorkerUID {
-		t.Fatal("plan omitted exact account prerequisites", err)
+	if err := json.Unmarshal(envelope.Data, &plan); err != nil || len(plan.Accounts) != 1 || !plan.Accounts[0].Existing ||
+		plan.Accounts[0].Name != "alice" || plan.Accounts[0].UID != options.UID {
+		t.Fatal("plan did not retain the independently named installing user", err)
 	}
 	output.Reset()
 	if code := runWithServiceFactory(context.Background(), []string{"service", "install", "--input", file}, &output, &stderr, factory); code != 4 || called != 0 {
@@ -117,13 +120,13 @@ func TestIdentityServiceLifecycleCLIRejectsUnknownOptionsFlagsAndUIDBypasses(t *
 			t.Fatal("native lifecycle accepted unsupported flags, arbitrary commands or account bypass", args, code)
 		}
 	}
-	options.WorkerUID = options.IdentityUID
+	options.IdentityUser = "legacy-identity-user"
 	if err := config.Write(file, options); err != nil {
 		t.Fatal(err)
 	}
 	output.Reset()
-	if code := runWithServiceFactory(context.Background(), []string{"service", "install", "--input", file, "--apply"}, &output, &stderr, factory); code != 2 || called {
-		t.Fatal("same-UID native service options were accepted", code)
+	if code := runWithServiceFactory(context.Background(), []string{"service", "install", "--input", file, "--apply"}, &output, &stderr, factory); code != 6 || called {
+		t.Fatal("legacy split-account service options silently created/adopted accounts", code)
 	}
 	if err := os.WriteFile(file, []byte(`{"os":"linux","test_uid":0}`), 0600); err != nil {
 		t.Fatal(err)

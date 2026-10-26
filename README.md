@@ -187,8 +187,11 @@ retains the same request/identity/keys; retry it exactly rather than resetting.
 
 ## Register a worker and attach its runner
 
-Each computer, including Founder, needs a separate identity-service UID/HOME and
-provider runner UID/HOME. The protected identity account prepares its own keys:
+Each computer, including Founder, uses the existing installing user for identity,
+runner and providers. Do not create another OS account/group or rename that user.
+The local username is independent of the enrolled agent name: existing `alice`
+can enroll as `Agent1`. As that user, prepare private identity configuration/state
+under HOME and prepare its keys:
 
 ```sh
 agent-identity --config /PRIVATE/identity.json prepare \
@@ -202,7 +205,7 @@ agent-cli agent register --input /PUBLIC/agent-request.json \
   --output /PUBLIC/agent-profile.json
 ```
 
-After authenticated public-profile transfer, as that target's identity account
+After authenticated public-profile transfer, as that same existing user
 with its identity service stopped for the offline profile operation:
 
 ```sh
@@ -213,19 +216,21 @@ agent-identity --config /PRIVATE/identity.json serve
 
 `serve` performs key-bound activation and maintains the device-authenticated
 binary owner-control session. Founder uses its operator-assembled profile the same way.
-Run only the runner CLI/provider service as the distinct runner account:
+Run the runner CLI/provider service as that **same user**:
 
 ```sh
 agent-cli --config "$HOME/.config/fdn/agent.json" config init \
-  --state "$HOME/.local/share/fdn" --identity-socket /run/fdn-agent/identity.sock
+  --state "$HOME/.local/share/fdn" --identity-socket "$HOME/.local/state/fdn-ipc/identity.sock"
 agent-cli --config "$HOME/.config/fdn/agent.json" connect
 agent-cli agent identity
 agent-cli doctor
 ```
 
-The local socket is absolute, identity-owned and peer-checked. The runner keeps
-only public AgentID; it never receives long-term keys, device/owner certificates
-or bearer invitations. Founder initially uses manual mode; regular agents use
+The local socket is absolute, user-owned 0600 under a private 0700 parent and
+peer-checked. The runner's public binding contains only AgentID; ordinary IPC
+does not export private keys/certificates. That user nevertheless owns its keys:
+separate processes organize lifecycle, not isolation from its own tools.
+Founder initially uses manual mode; regular agents use
 server-controlled ai. Provider sign-in remains separate from enrollment.
 
 For a designated original existing non-Founder, Founder first uses
@@ -501,8 +506,8 @@ it does not scan networks or publish addresses/identifiers.
 | Local state | `knowledge put/list/show/history`, `inventory refresh/show`, `workspace bind/list/enable/disable` |
 | Providers/work | `provider status/install/update/login/link/exec`, `work prompt/status/run/recover` |
 | Native manager | `service plan/install/status`; installation requires explicit `--apply` |
-| Protected identity account | `agent-identity --config PRIVATE_CONFIG prepare/connect/serve`; offline `--help`, not a runner or guide command |
-| Paired identity/runner manager | `agent-identity service plan/install/status --input OPTIONS`; no `--config`; plan is read-only, install needs native root plus `--apply`, status native root |
+| Same-user identity process | `agent-identity --config PRIVATE_CONFIG prepare/connect/serve`; offline `--help`, not a guide command |
+| Paired identity/runner manager | `agent-identity service plan/install/status --input OPTIONS`; no `--config`; current-user defaults, plan read-only, install needs explicit `--apply`, no root or new accounts |
 | Offline guide (`agent-cli`, `agent-service`, `fdn-service`) | `guide list/show/install` |
 
 Discussion/comment edits require the creator's current revision; there is no
@@ -541,13 +546,15 @@ preserving CA pins and identities. An interrupted renewal retains its exact
 pair; complete it before serving. Expired CA trust requires an explicit
 operator-coordinated rotation, not silent regeneration.
 
-For the protected worker pair, `agent-identity service plan --input OPTIONS`
-is read-only without configuration/enrollment. Native-root `agent-identity
+For the same-user worker pair, `agent-identity service plan --input OPTIONS`
+is read-only without configuration/enrollment. Current-user `agent-identity
 service install --input OPTIONS --apply` and `service status --input OPTIONS`
-use the exact preprovisioned accounts/groups/markers/private configurations and
-fixed native definition paths; they never create/adopt accounts. Linux pairs
-an identity system unit with the actual runner user manager; macOS pairs an
-identity LaunchDaemon with the actual runner GUI LaunchAgent. See
+use that existing user's private configurations and fixed user-definition paths.
+They never create users/groups, change HOME mode or switch users with sudo.
+Both Linux units use the existing `systemctl --user` manager; both macOS
+services are GUI LaunchAgents for the same user. Windows native adapters remain
+unimplemented. Legacy split-account options require explicit stopped migration
+while retaining keys and all runner state. See
 [DEPLOYMENT.md](DEPLOYMENT.md#native-identity-and-runner-services) for complete
 options/prerequisites and explicitly unperformed native qualification.
 
@@ -560,9 +567,9 @@ its reviewed ingress supplementary group and writable socket directories;
 see [DEPLOYMENT.md](DEPLOYMENT.md). Accounts/configuration must already be
 prepared. Only the separately authorized root helper reconciles the managed
 SSH namespace; ordinary services are not general-purpose root/SSH/firewall/
-desktop administration. Use one protected identity-service registration and one
-separate runner registration per computer, never a same-UID pair. On Linux,
-invoke runner service registration as its dedicated account with its
+desktop administration. Use one identity-service process and one runner process
+per computer under the same existing user. On Linux, invoke user-service
+registration as that actual user with its
 active user manager (`XDG_RUNTIME_DIR` and, where set,
 `DBUS_SESSION_BUS_ADDRESS`). These two bus variables are passed only to the
 user-service registration commands; provider processes do not inherit them.

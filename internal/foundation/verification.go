@@ -73,9 +73,9 @@ func (s *Store) reportVerification(ctx context.Context, tx *sql.Tx, a domain.Age
 		}
 		entry := domain.Entry{ID: domain.NewID("comment"), TaskID: t.ID, Kind: "comment", Body: body,
 			Review:   &domain.ReviewReference{RunID: run.ID, SpecGeneration: run.SpecGeneration, ResultGeneration: run.ResultGeneration, Decision: req.Decision},
-			AuthorID: a.ID, Mentions: ExtractMentions(body, a.ID), Generation: 1, Revision: 1,
+			AuthorID: a.ID, Generation: 1, Revision: 1,
 			CreatedAt: s.timestamp(), UpdatedAt: s.timestamp()}
-		if err := s.saveEntry(ctx, tx, entry, a.ID, "verification"); err != nil {
+		if err := s.saveEntry(ctx, tx, &entry, a.ID, "verification"); err != nil {
 			return outcome, err
 		}
 		t, err = get[domain.Task](ctx, tx, "tasks", t.ID)

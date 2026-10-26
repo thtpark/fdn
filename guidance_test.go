@@ -84,6 +84,37 @@ func TestGuideCatalogSkillsLinksAndCurrentCommands(t *testing.T) {
 	}
 }
 
+func TestGuideDocumentsCurrentUserWorkerOwnership(t *testing.T) {
+	for file, fragments := range map[string][]string{
+		"AGENTS.md":     {"existing installing user", "Do not create another OS user"},
+		"SCHEMA.md":     {"the same existing non-root user", "worker_uid", "worker_gid", "trust boundary"},
+		"COMMANDS.md":   {"existing installing user", "without sudo or new users/groups"},
+		"DEPLOYMENT.md": {"local user", "without sudo", "no hidden account"},
+		"README.md":     {"same user", "Windows native adapters remain unimplemented"},
+		".agents/skills/foundation-install/SKILL.md":       {"existing installing user", "systemctl --user", "Legacy split-account options"},
+		".agents/skills/foundation-enroll/SKILL.md":        {"existing installing user", "local worker uses its existing OS user"},
+		".agents/skills/foundation-work/SKILL.md":          {"existing installing user owns all worker state"},
+		".agents/skills/foundation-provider-auth/SKILL.md": {"same existing installing user", "process separation does not isolate keys"},
+		".agents/skills/foundation-operations/SKILL.md":    {"existing installing user", "Legacy split-account settings"},
+		".agents/skills/foundation-develop/SKILL.md":       {"current-user OPTIONS", "no new worker account/group"},
+	} {
+		data, err := guidance.Read(file)
+		if err != nil {
+			t.Fatal(file, err)
+		}
+		text := strings.Join(strings.Fields(string(data)), " ")
+		for _, fragment := range fragments {
+			if !strings.Contains(text, fragment) {
+				t.Fatal("embedded guide lost the current-user ownership contract", file, fragment)
+			}
+		}
+	}
+	context, err := guidance.WorkContext()
+	if err != nil || !strings.Contains(context, "owns all worker state") {
+		t.Fatal("controller prompts did not receive the current-user ownership contract", err)
+	}
+}
+
 func TestInstallPreservesInstructionsUnrelatedSkillsAndIdempotency(t *testing.T) {
 	home := filepath.Join(t.TempDir(), "home")
 	if err := os.Mkdir(home, 0755); err != nil {

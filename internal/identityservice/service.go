@@ -36,6 +36,7 @@ type ownerLease struct {
 }
 
 func New(c config.IdentityService, options Options) (*Service, error) {
+	c = c.WithCurrentUser()
 	if err := validateSettings(c); err != nil {
 		return nil, err
 	}
@@ -60,7 +61,7 @@ func (s *Service) Serve(ctx context.Context) error {
 }
 
 // ServeWithBoundary is the embedding/test seam. Native serving has no flag or
-// configuration switch replacing account isolation or kernel peer checks.
+// configuration switch replacing kernel peer checks.
 func (s *Service) ServeWithBoundary(ctx context.Context, boundary Boundary) error {
 	if boundary == nil {
 		return domain.Fail(domain.Invalid, "identity IPC boundary is required")

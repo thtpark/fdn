@@ -28,32 +28,22 @@ type Boundary interface {
 
 type NativeBoundary struct{}
 
-// CheckNativeAccount forbids the provider account and root from owning a native
-// identity service. Privileged installation is a separate administrator action.
+// CheckNativeAccount binds native identity and runner processes to the same user.
 func CheckNativeAccount(c config.IdentityService) error {
+	c = c.WithCurrentUser()
 	if err := validateSettings(c); err != nil {
 		return err
 	}
-	if os.Geteuid() == 0 || c.WorkerUID == 0 || os.Geteuid() == c.WorkerUID {
-		return domain.Fail(domain.Denied, "identity service must run as a dedicated non-root account distinct from the tool-runner UID")
+	if os.Geteuid() == 0 || os.Getuid() != os.Geteuid() || c.WorkerUID != os.Geteuid() || c.WorkerGID != os.Getegid() {
+		return domain.Fail(domain.Denied, "identity service and worker must run as the same existing non-root user; legacy split-account state needs explicit migration, not account creation or automatic key transfer")
 	}
 	return nil
 }
 
 func (NativeBoundary) Listen(c config.IdentityService) (net.Listener, error) {
+	c = c.WithCurrentUser()
 	if err := CheckNativeAccount(c); err != nil {
 		return nil, err
-	}
-	groups, err := os.Getgroups()
-	if err != nil {
-		return nil, domain.Fail(domain.Denied, "cannot verify identity account IPC group membership")
-	}
-	member := os.Getegid() == c.WorkerGID
-	for _, group := range groups {
-		member = member || group == c.WorkerGID
-	}
-	if !member {
-		return nil, domain.Fail(domain.Denied, "identity account must already belong to the configured worker group to publish IPC")
 	}
 	if err := secure.Dir(c.StateDir); err != nil {
 		return nil, err
@@ -62,27 +52,16 @@ func (NativeBoundary) Listen(c config.IdentityService) (net.Listener, error) {
 	if err := checkAncestors(dir); err != nil {
 		return nil, err
 	}
-	created := false
-	if err := os.Mkdir(dir, 0710); err == nil {
-		created = true
-	} else if !errors.Is(err, os.ErrExist) {
+	if err := secure.Dir(dir); err != nil {
 		return nil, err
-	}
-	if created {
-		if err := os.Chown(dir, -1, c.WorkerGID); err != nil {
-			return nil, err
-		}
-		if err := os.Chmod(dir, 0710); err != nil {
-			return nil, err
-		}
 	}
 	info, err := os.Lstat(dir)
 	if err != nil {
 		return nil, err
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0710 || int(stat.Gid) != c.WorkerGID {
-		return nil, domain.Fail(domain.Denied, "identity socket directory must be identity-owned 0710 with the configured worker group")
+	if !ok || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0700 || int(stat.Uid) != c.WorkerUID {
+		return nil, domain.Fail(domain.Denied, "identity socket directory must be owned by the installing user with mode 0700")
 	}
 	if err := secure.CheckOwner(info); err != nil {
 		return nil, err
@@ -107,12 +86,7 @@ func (NativeBoundary) Listen(c config.IdentityService) (net.Listener, error) {
 		return nil, err
 	}
 	listener.SetUnlinkOnClose(false)
-	if err := os.Chown(c.Socket, -1, c.WorkerGID); err != nil {
-		listener.Close()
-		os.Remove(c.Socket)
-		return nil, err
-	}
-	if err := os.Chmod(c.Socket, 0660); err != nil {
+	if err := os.Chmod(c.Socket, 0600); err != nil {
 		listener.Close()
 		os.Remove(c.Socket)
 		return nil, err

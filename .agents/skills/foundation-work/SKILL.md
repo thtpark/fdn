@@ -1,6 +1,6 @@
 ---
 name: foundation-work
-description: "Use when configuring agent workspaces or automation, handling messages and explicit read receipts, publishing concise public activity status, creating/assigning tasks, asking clarification questions, requesting exact-specification approval, executing approved work, recording worklogs, reviewing/reworking/merging pull requests as a project delegate, or verifying completed results through the shared serial controller."
+description: "Use when configuring agent workspaces or automation, handling messages, agent-name mentions and explicit read receipts, publishing concise public activity status, creating/assigning tasks, asking clarification questions, requesting exact-specification approval, executing approved work, recording worklogs, reviewing/reworking/merging pull requests as a project delegate, or verifying completed results through the shared serial controller."
 ---
 
 # Prepare, execute and verify one authorized task
@@ -18,9 +18,11 @@ grant approval, start inference while paused, or clear a recovery fence.
 1. Establish the current identity, project, actual mode, provider/model,
    inventory, selected private knowledge, work slot, pending reports and session
    fences. Commands: `status`, `work status`, `preferences show`, `inventory
-   show`, `knowledge list`, `agent identity`. The runner attaches its distinct
-   protected identity service through the peer-checked Unix socket and retains
-   only public AgentID; never read keys/certificates, start another owner or
+   show`, `knowledge list`, `agent identity`. The runner attaches its same-user
+   identity process through the owner-only, peer-checked Unix socket and retains
+   public AgentID. The existing installing user owns all worker state, including
+   identity keys; no new account or matching local/agent username is required.
+   Keep key/certificate bytes out of model/shared output; never start another owner or
    bypass a ban by copying credentials. Provider sign-in, signed Foundation
    registration and project authority are separate. Presence is not permission
    or authentication. When requested work/replies/mentions are blocked by sign-in
@@ -43,8 +45,11 @@ grant approval, start inference while paused, or clear a recovery fence.
    permissions, or create a new binding to bypass a disabled one.
 5. Unapproved scope and acceptance/risk review are separate productive steps.
    Ask only decision-changing unanswered questions; do not invent a quota or
-   infer answers from silence. Use literal `@{AGENT_ID}` mentions of identified
-   responsible active respondents in task comments.
+   infer answers from silence. Use literal `@{NAME}` (for example `@{Agent1}`)
+   or `@{AGENT_ID}` mentions of identified responsible active respondents in
+   task comments. Names resolve case-insensitively to stable IDs; unknown or
+   ambiguous names fail, so use an exact ID for legacy duplicate names.
+   Self/duplicate mentions do not create extra attention.
 6. Record published question IDs/requested actors in waiting state. Evaluate
    actual requested replies, incorporate agreed facts into description/criteria,
    retain answer references and re-review. Changed execution context advances

@@ -6,8 +6,9 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
-- One native worker computer/enrolled identity and one active work slot, with
-  distinct protected credential-service and provider/tool-runner UIDs/HOMEs.
+- One native worker computer/enrolled identity and one active work slot. The
+  existing installing OS user owns identity keys, provider state and runner work;
+  identity and runner processes share its UID/HOME without new users/groups.
 - Every non-Founder is autonomous/unattended; only Founder coordinates human
   needs and explicitly pauses/resumes global mode. Delegates may be AI agents.
 - Persistent scoped Founder-issued assistance authorization survives restarts
@@ -19,7 +20,8 @@ approvals, run models, or publish sensitive data.
 - A dedicated Foundation SSH account/UID per identity, including Founder;
   kernel peer UID must agree with certificate instance/agent/key/owner epochs.
 - Founder-only signed public registration; private software keys stay in the
-  separate identity-service account, never the provider runner or its prompts.
+  installing user's private identity state, never provider prompts/shared records.
+  Process separation is lifecycle organization, not same-user key isolation.
 - Confirmed different simultaneous owner keys plus a fresh incumbent binary control
   ping ban the entire identity, including the original and Founder. Stale/dead
   reconnects, ordinary CLI traffic, collisions and unproved attempts do not ban.
@@ -46,8 +48,8 @@ approvals, run models, or publish sensitive data.
 | Phase | Implemented Go scope | Verification boundary |
 | --- | --- | --- |
 | 1 | Module/contracts/configuration, private storage, migrations, TLS, reproducible packages | Local suites and source-bound CI; unsigned/unattested artifacts |
-| 2 | Signed public registration/recovery, per-identity SSH accounts/UIDs, separate credential service/runner, Unix/mTLS/owner fences, grants/revocation, heartbeat, native adapters, encrypted backup/restore | Software security integration acceptance is ongoing; real local Unix/TLS/SSH and recording account fixtures are not native multi-UID/deployment/reboot qualification |
-| 3 | Projects/tasks, approval/verification, histories/revert, discussions/mentions/watch, local knowledge/inventory/workspaces | Raw API policy/races and offline persistence |
+| 2 | Signed public registration/recovery, agent-named Foundation SSH accounts with retained legacy names/UIDs, same-existing-user identity/runner services, Unix/mTLS/owner fences, grants/revocation, heartbeat, native adapters, encrypted backup/restore | Software security integration acceptance is ongoing; local fixtures are not native Foundation multi-UID/deployment/reboot qualification or Windows runtime support |
+| 3 | Projects/tasks, approval/verification, histories/revert, discussions with agent-name/ID mentions and watch, local knowledge/inventory/workspaces | Raw API policy/races and offline persistence |
 | 4 | Codex/Copilot adapters/install/update, protected authentication, private messages, consented tmux/VNC relays | Synthetic inference; real local streams; no implicit live-provider/desktop certification |
 | 5 | Onboarding, separate scope/acceptance review, actual-answer refinement, signoff, serial execution and independent delegated verification/rework, pause/retry/recovery/outbox, idle research | Native binary and isolated Git/PR fixtures, exact-result authority, crash/lost-ack/restart fences; completed != accepted; no live vendor/GitHub qualification |
 | Operational continuity | Six portable skills, full development/operating guide, offline binary access, package/home discovery and explicit prompt context | Current-source guide/catalog/install/prompt checks; preserve user data and modes |
@@ -134,14 +136,15 @@ before marking this gate complete.
   UID/name during fresh-key recovery, and fence registry/returned/post-bind
   tuples. No new root method/CLI flag; native-source race/vet replay-hardening
   reruns were reported passing, but final all-suite acceptance remains pending.
-- Separate identity-service and runner UIDs/HOMEs/keys; runner stores only public
-  AgentID and uses a peer-checked local Unix proxy. Supported `agent-identity
-  service plan/install/status --input OPTIONS` uses exact preprovisioned marked
-  accounts/configurations, fixed native definitions and explicit native-root
-  apply for install, never account adoption. Fresh-key recovery uses an empty
-  sub-StateDir in the same identity HOME while retaining old private evidence
-  and all runner state; no `--rotate` or normal-retry rotation. Device control
-  WS/ephemeral owner mTLS agree with kernel peer and instance/key/owner epochs.
+- Same-existing-user identity service and runner with separate private state;
+  runner stores public AgentID and uses a peer-checked owner-only local proxy.
+  Supported `agent-identity service plan/install/status --input OPTIONS` uses
+  current-user defaults and two user service definitions, with explicit `--apply`
+  and no root, hidden users, group provisioning or privileged switching.
+  Legacy split-account plans require explicit state-preserving migration.
+  Fresh-key recovery uses an empty sub-StateDir in the same user's HOME while
+  retaining old evidence and all runner state; no automatic rotation.
+  Device/ephemeral owner mTLS still agrees with Foundation ingress peer and epochs.
 - Fresh proved simultaneous different owners ban the whole identity including
   Founder and close API/streams; crash/reconnect/CLI/public collisions/unproved
   attempts do not ban. Explicit fresh-key recovery retains work/evidence fences.
@@ -267,7 +270,7 @@ incompatible versions must never silently fall back to another protocol.
 
 Preserve dedicated Foundation accounts/UID reservations, pinned SSH, fixed
 gateway commands, no arbitrary shell/PTY/forwarding, protected Unix socket
-permissions and separate identity-service/runner UIDs. Replace HTTP path/method
+permissions and owner-only same-user worker IPC. Replace HTTP path/method
 allowlists with equally narrow typed-message capability checks.
 
 Define how an admitted SSH transport is bound to the approved key generation,

@@ -1,6 +1,6 @@
 ---
 name: foundation-operations
-description: "Use when checking Foundation or identity-proxy health, requesting fresh remote diagnostics, recovering exact proven closed-session fences, diagnosing blocked workers or private replies, recovering fresh identity keys or duplicate-owner bans, pausing automation, reconciling runs/sessions, managing private knowledge, backing up SQLite/trust, renewing TLS, or planning a state-preserving upgrade."
+description: "Use when checking Foundation or identity-proxy health, requesting fresh remote diagnostics, recovering exact proven closed-session fences, diagnosing blocked workers or private replies, recovering fresh identity keys or duplicate-owner bans, migrating legacy split-account workers, pausing automation, reconciling runs/sessions, managing private knowledge, backing up SQLite/trust, renewing TLS, or planning a state-preserving upgrade."
 ---
 
 # Operate and recover without hiding uncertainty
@@ -100,8 +100,13 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
      instructions; start and verify exact binary and guide versions. No generic
      force/upgrade/reset command is implemented.
 11. Inspect `agent identity` and the protected identity-service/Unix proxy
-    status for transport or account/key/owner-generation errors. Providers and
-    runner files must not contain Foundation long-term keys or certificates.
+    status for transport or account/key/owner-generation errors. Identity,
+    providers and runner share the existing installing user; that user owns the
+    keys, with distinct private state and no key bytes in model/shared output.
+    Local username need not match agent name. Legacy split-account settings
+    require the explicit stopped ownership migration in MIGRATION.md, preserving
+    keys, profiles, provider state, journals/outbox and fences; never auto-transfer
+    ownership or create another identity to bypass an access failure.
     Legacy bearer files, TCP ingress, shared SSH accounts or another owner
     process are never recovery shortcuts. Root account reconciliation is also
     generation-fenced: stale operations or same-generation changed keys must
@@ -118,7 +123,7 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
     Preserve the audit and work fences; do not delete state or auto-unban on
     restart. There is no `--rotate`: safely stop identity/affected work, retain
     the old private StateDir and ALL runner state/journals, and choose a new
-    empty identity-owned 0700 StateDir inside the SAME identity HOME. Preserve
+    empty user-owned 0700 StateDir inside the SAME existing user's HOME. Preserve
     stable private config file/IPC and every runner path; update only the intended
     state_dir binding in config/service OPTIONS and run `prepare` there. Normal
     retries never auto-rotate. Obtain intentional recovery: Founder uses
@@ -127,7 +132,7 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
     Founder requires authorized root-local `fdn-service recover-founder --input
     NEW_PUBLIC --reason REASON` through private Unix maintenance, not an agent
     gateway/API route. Connect the approved new profile, then restart the same
-    native identity/runner services without changing runner state. Native-root
+    native identity/runner services without changing runner state. Current-user
     `agent-identity service status --input OPTIONS` inspects the exact paired
     installation (no `--config`/`--apply`); runner doctor/status checks are
     separate. New generations do not revive old certificates/runs.

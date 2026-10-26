@@ -146,9 +146,9 @@ func TestPayloadTransportAndUpdateDTOs(t *testing.T) {
 		domain.RelayWritten{Written: 4096},
 		domain.AccountState("active"), account, []domain.ManagedAccount{account},
 		domain.AccountProvisionRequest{
-			AgentID: "agent_1", PublicKey: "test-public-key", Generation: math.MaxInt64, Reactivate: true,
+			AgentID: "agent_1", Username: "agent1", PublicKey: "test-public-key", Generation: math.MaxInt64, Reactivate: true,
 		},
-		domain.AccountDisableRequest{AgentID: "agent_1", Generation: math.MaxInt64},
+		domain.AccountDisableRequest{AgentID: "agent_1", Username: "agent1", Generation: math.MaxInt64},
 		update, []domain.Update{update}, []domain.Update{}, []domain.Update(nil),
 		domain.Page[domain.Update]{Items: []domain.Update{update}, NextCursor: "test_cursor"},
 		domain.Page[domain.Update]{Items: []domain.Update{}}, domain.Page[domain.Update]{},

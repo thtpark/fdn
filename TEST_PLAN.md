@@ -76,6 +76,65 @@ measurements, retained failed runs, root-cause corrections and native evidence
 limits are in [CAPACITY.md](CAPACITY.md). This does not claim a release,
 deployment, Linux runtime CI, 1,000 native SSH accounts or hardware assurance.
 
+## Agent-based accounts and name mentions
+
+Focused source regressions:
+
+```sh
+go test -race -count=1 . ./internal/domain ./internal/foundation ./internal/platform ./internal/cli ./internal/message ./cmd/agent-identity
+go run ./tools/protocol --check
+go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeBinariesPhaseOneThroughFive$'
+```
+
+- Username normalization checks lowercase agent names, separators, exact
+  32-character bounds and rejection of root, empty, numeric-leading,
+  multiline and unusable names.
+- New signed registrations reserve normalized names; collisions roll back
+  partial agents/keys. Existing ID-derived names survive reopen, binding and
+  fresh-key recovery. Named and legacy root inventories coexist without a reset.
+- Recording and actual Unix/protobuf account-helper tests cover the exact
+  approved username, returned-name mismatch, no unmanaged adoption, retained
+  UID/name/generation, named never-provisioned tombstones, stale requests and
+  changed-name rejection before OS tools. Foundation account naming remains
+  independent of the existing worker's local OS username.
+- Name/ID mention tests cover case-insensitive and spaced names, canonical
+  sorted/deduplicated IDs, self-exclusion, unchanged body, replay after a name
+  becomes ambiguous, atomic unknown/ambiguous-name create/edit failures,
+  inactive names, legacy ID compatibility, blocking answers and stale receipts.
+  Worklogs do not create attention. Compiled-binary e2e submits a name mention
+  and acknowledges the resulting ID-bound attention item.
+- Offline CLI help and embedded skill/catalog/link/hash/home-preservation tests
+  document the same contract. No source fixture creates host accounts,
+  registers host services or qualifies a native deployment.
+
+## Existing-user worker ownership
+
+```sh
+go test -race -count=1 . ./internal/config ./internal/identityservice ./internal/platform ./cmd/agent-identity
+CGO_ENABLED=0 go test -count=1 ./internal/platform -run '^TestIdentityServiceUserDefaultsIgnoreClaimedEnvironment$'
+```
+
+Current-user regressions prove:
+
+- One existing OS account/HOME owns both processes and all worker state,
+  independently of enrolled agent name. Defaults resolve the actual OS user
+  rather than claimed environment values and work in CGO-free macOS builds.
+- Both Linux definitions use the user manager; both macOS definitions are
+  current-user GUI LaunchAgents. No root/system worker service, sudo, runuser,
+  hidden account, named group, managed marker or no-login shell is required.
+  Missing existing user-manager/login prerequisites fail before writes.
+- Real owner-only Unix IPC accepts that same user with omitted UID/GID defaults,
+  refuses a foreign peer and retains one owner across ordinary CLI traffic.
+  The user can read its own key files; this is not same-user key isolation.
+- Actual-user file fixtures preserve an existing 0755 HOME, user-owned binaries,
+  exact-retry service files, private keys and runner evidence. A legacy 0710 IPC
+  parent is rejected, not silently chmodded. Split-account OPTIONS and explicit
+  foreign private UID/GID settings fail before automatic key/state transfer.
+- Recovery, private route allowlists, certificates, duplicate-owner proofs,
+  server generation fences and runner journals remain covered separately.
+  Recording manager/file fixtures do not perform host service registration,
+  cross-UID administrator migration or Windows runtime qualification.
+
 ## Documented test cases
 
 The [test-case catalog](tests/e2e/SCENARIOS.md#test-case-catalog) records the
@@ -119,8 +178,8 @@ their tests; planned/unimplemented cases must not be described as covered.
 | Autonomous control | Only Founder pauses/resumes; target/delegate/offline overrides denied; event-driven cancellation and server claim gate; version-1 server migration preserves identity; legacy unexplained manual pause fails closed |
 | Persistent assistance | Only Founder issues/revokes; exact requester/target/purpose/mode/provider/project; no-project authentication bootstrap; target prepares unattended without local consent; disconnect/restart/expiry retains grant; role/identity/revocation closes streams; delegate is not assumed human |
 | Native identity/ingress | Recording account adapters/in-process SSH, unique UID/account/key reservations, positive per-account generation on typed root provision/disable; stale/same-generation-key-change rejection before OS calls, exact replay, never-provisioned disable tombstones, higher-generation fresh-key UID/name preservation and pre/returned/post-bind/current registry tuple checks; no arbitrary commands/PTY/forwarding, wrong-peer/pin/certificate rejection, private root maintenance outside agent gateway; no host users/sshd/services changed |
-| Owner/runner isolation | Device versus ephemeral owner certificate purposes, instance/agent/key/owner-generation agreement, kernel peer UID checks, runner cannot read keys or use control routes, one local proxy owner across CLI traffic; confirmed distinct live owner proofs plus fresh incumbent binary ping ban original and contender including Founder, while stale crash/reconnect/unproved attempts do not; ban cancels API/streams, recovery keeps work fenced |
-| Native services | Recording adapters by default, distinct non-root identity-service and runner UIDs/HOMEs, system identity service versus runner user service/GUI agent, raw scalar systemd paths, user-bus environment only for registration, Linux parser without starting a service |
+| Owner/current-user boundary | Device versus ephemeral owner certificate purposes, instance/agent/key/owner-generation agreement, kernel peer UID checks and owner-only IPC, same-user key ownership but no private/control export over ordinary IPC, one local owner across CLI traffic; confirmed distinct live owner proofs plus fresh incumbent binary ping ban original and contender including Founder, while stale crash/reconnect/unproved attempts do not; ban cancels API/streams, recovery keeps work fenced |
+| Native services | Recording adapters by default, one existing installing user/HOME with independent agent name, both user systemd services/macOS LaunchAgents, unchanged HOME/groups/shell, no root/sudo/runuser/new account requirements, private 0700/0600 IPC, explicit legacy migration refusal and retained state, raw scalar systemd paths, user-bus environment only for registration |
 | Guidance/docs | Valid skill names/frontmatter/descriptions; local links/command coverage; no legacy checkout dependency; hashes/version completeness; preserve home instructions/unrelated skills; prompt inclusion; isolated homes; native and Debian guide content |
 | Release/install | Merged-release-only event/commit guards, pinned Actions, two matching builds including agent-identity, native/worker binary lists and executable bytes/modes, all four archive binaries allowed/required/activated, missing identity payload denied before prefix changes, Debian parent directories and real unprivileged extraction with executable hashes, trusted manifest, immutable/idempotent installation and state preservation |
 
@@ -381,21 +440,21 @@ Source-level regression areas, without claiming a current passing result:
 - `internal/ingress`, `internal/transport`: actual peer UID, controlled Unix
   sockets, exact forced selectors, no forwarding/arbitrary commands, pinned
   native/in-process SSH, cancellation and observable cleanup errors.
-- `internal/identityservice`: public-only preparation/profile retry, key/runner
-  UID isolation, socket-peer checks, one owner across CLI traffic, fresh WS ping,
+- `internal/identityservice`: public-only preparation/profile retry, same-user
+  key ownership, owner-only socket/peer checks, one owner across CLI traffic, fresh binary ping,
   proactive device renewal with the same per-start ephemeral owner, owner
   certificate rotation and expiry/denial stream cancellation without fallback.
-- `internal/platform`: recording account provisioning/retirement, native
-  identity-system-service versus runner-user-service plans and paired lifecycle
-  preflight/status/install. Cover exact UID/GID/HOME/group/managed markers,
-  preexisting private configurations/socket bindings, fixed native paths and
-  arguments, explicit apply/root/OS guards, real-runner manager privilege drop
-  and interrupted registration without account adoption or host changes.
+- `internal/platform`: recording Foundation account provisioning/retirement,
+  same-existing-user identity/runner plans and paired lifecycle
+  preflight/status/install. Cover actual user defaults, independent agent names,
+  unchanged HOME/groups, preexisting private configurations/socket bindings,
+  fixed user native paths/arguments, explicit apply/current-user/OS guards,
+  no privileged switching and interrupted registration without host changes.
 - `cmd/agent-identity`: offline service plan/help without `--config`/enrollment,
   explicit install apply, native status and rejected lifecycle/private-command
   flag mixing. `internal/identityservice` recovery fixtures preserve old private
   state and all runner state while fresh preparation uses an empty sub-StateDir
-  in the same identity HOME; normal retry never rotates keys.
+  in the same existing user's HOME; normal retry never rotates keys.
 - `tests/integration/identity*_test.go`: raw Unix/TLS boundary, certificate/UID
   mismatch, signed activation, Founder-only registration, fresh owner proof,
   stale/crash versus confirmed simultaneous owners, ban including Founder and

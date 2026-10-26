@@ -91,7 +91,7 @@ func inside(parent, child string) bool {
 func validateSettings(c config.IdentityService) error {
 	if !filepath.IsAbs(c.StateDir) || !filepath.IsAbs(c.Socket) || c.WorkerUID < 0 || c.WorkerGID < 0 ||
 		strings.ContainsAny(c.StateDir+c.Socket, "\x00\r\n") || filepath.Clean(c.StateDir) != c.StateDir || filepath.Clean(c.Socket) != c.Socket {
-		return domain.Fail(domain.Invalid, "identity service needs clean absolute paths and explicit worker UID/GID")
+		return domain.Fail(domain.Invalid, "identity service needs clean absolute paths and nonnegative optional current-user UID/GID")
 	}
 	if inside(c.StateDir, c.Socket) || inside(filepath.Dir(c.Socket), c.StateDir) {
 		return domain.Fail(domain.Denied, "identity private state and worker-accessible socket directory must be separate")
@@ -100,7 +100,7 @@ func validateSettings(c config.IdentityService) error {
 }
 
 // checkAncestors rejects symlink and writable-parent substitution of private
-// state or the socket directory. Neither path may be controlled by the worker.
+// state or the socket directory by other users. The worker owns both.
 func checkAncestors(path string) error {
 	for parent := filepath.Dir(path); ; parent = filepath.Dir(parent) {
 		info, err := os.Lstat(parent)

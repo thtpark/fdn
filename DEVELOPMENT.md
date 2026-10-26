@@ -51,7 +51,7 @@ computer. Do not run test services against an existing Foundation/state director
 | Worker durability | `internal/local/`, `internal/work/` | Identity binding, knowledge, inventory, workspace authorization, serial controller, journals/outbox |
 | Provider/process boundary | `internal/provider/`, `internal/process/` | Capability/auth probes, staged updates, stdin prompts, cancellation and bounded private output |
 | Human sessions | `internal/remote/`, `internal/relay/` | Explicit open + consent, expiring relays, native endpoint/viewer control |
-| Native deployment | `internal/platform/`, `cmd/agent-identity/`, `internal/distribution/`, `tools/package/`, `scripts/` | Exact preprovisioned two-UID service plan/install/status, fixed native definitions/privilege drops, recording lifecycle tests, deterministic packages and trusted installation |
+| Native deployment | `internal/platform/`, `cmd/agent-identity/`, `internal/distribution/`, `tools/package/`, `scripts/` | Existing-user paired service plan/install/status, user systemd/LaunchAgents, recording lifecycle tests, deterministic packages and trusted installation |
 | Embedded guidance | Root guidance package, `.agents/skills/`, root Markdown | Same versioned knowledge in source, binaries, packages, prompts and worker homes |
 
 Keep policy in the server's transactions, not just friendly CLI validation.
@@ -155,9 +155,19 @@ Read [SCHEMA.md](SCHEMA.md) before changing either database.
   `agent register --existing-agent`; the runner then uses `connect --migrate`.
   A legacy Founder needs the root-local recovery route before it can register
   others. Preserve worker SQLite 1, knowledge, journals, outbox and bindings.
-- Keep long-term keys in the identity-service UID, never provider context or the
-  runner HOME. Validate kernel peer UID against certificate instance/agent/key/
+- Keep long-term keys in private state owned by the existing installing user,
+  never provider prompts or shared output. The runner and identity process use
+  the same UID/HOME; no new local account/group or UID-based key compartment is
+  required. Test current-user defaults independently of the enrolled agent name,
+  unchanged HOME permissions, private 0700/0600 IPC, user native-manager calls
+  without sudo/runuser and explicit state-preserving legacy migration refusal.
+  Validate Foundation ingress peer UID against certificate instance/agent/key/
   owner generations and recheck the fence inside authoritative transactions.
+  New SSH account names use the shared agent-name normalization; existing
+  reserved names/UIDs never change. The server supplies the approved username
+  to the root helper, which rejects changed names and unmanaged account adoption.
+  Resolve literal name mentions transactionally into stable recipient IDs;
+  retain original bodies, exact-replay recipients and body-generation receipts.
   The root provisioner is a fixed local account operation surface, not a root
   command runner; the forced SSH gateway selects only API or join stdio.
   Root provision/disable RPCs carry positive identity key generation, retained

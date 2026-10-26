@@ -30,14 +30,8 @@ func TestIdentityNativeScreenConfigurationAllowsRunnerAuthorityForLifecycle(t *t
 		t.Fatal(err)
 	}
 	o := identityOptions()
-	o.WorkerUID, o.WorkerGID = os.Geteuid(), os.Geteuid()
-	if o.WorkerUID == o.IdentityUID {
-		o.IdentityUID++
-	}
-	if o.WorkerGID == o.IdentityGID {
-		o.IdentityGID++
-	}
-	identity := config.IdentityService{StateDir: o.StateDir, Socket: filepath.Join(o.SocketDir, "i.sock"), WorkerUID: o.WorkerUID, WorkerGID: o.WorkerGID}
+	o.UID, o.GID = os.Geteuid(), os.Getegid()
+	identity := config.IdentityService{StateDir: o.StateDir, Socket: filepath.Join(o.SocketDir, "i.sock"), WorkerUID: o.UID, WorkerGID: o.GID}
 	worker := config.DefaultWorker(o.WorkerStateDir)
 	worker.IdentitySocket = identity.Socket
 	worker.Screens = []config.Screen{{ID: "runner", Name: "Runner screen", Scope: "screen", Width: 1440, Height: 900,
@@ -80,12 +74,12 @@ func TestIdentityNativeScreenConfigurationRejectsInspectorOwnedAuthority(t *test
 		t.Fatal(err)
 	}
 	o := identityOptions()
-	o.WorkerUID, o.WorkerGID = 1004, 1004
-	if o.WorkerUID == os.Geteuid() {
-		o.WorkerUID++
-		o.WorkerGID++
+	o.UID, o.GID = 1004, 1004
+	if o.UID == os.Geteuid() {
+		o.UID++
+		o.GID++
 	}
-	identity := config.IdentityService{StateDir: o.StateDir, Socket: filepath.Join(o.SocketDir, "i.sock"), WorkerUID: o.WorkerUID, WorkerGID: o.WorkerGID}
+	identity := config.IdentityService{StateDir: o.StateDir, Socket: filepath.Join(o.SocketDir, "i.sock"), WorkerUID: o.UID, WorkerGID: o.GID}
 	worker := config.DefaultWorker(o.WorkerStateDir)
 	worker.IdentitySocket = identity.Socket
 	worker.Screens = []config.Screen{{ID: "runner", Name: "Runner screen", Scope: "screen", Width: 1440, Height: 900,

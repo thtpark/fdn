@@ -110,53 +110,67 @@ from the approved public profile; its SSH commands select only Unix API/join
 stdio targets, never local/remote TCP port forwarding.
 See [DEPLOYMENT.md](DEPLOYMENT.md).
 
-### Protected identity service (different UID)
+### Identity service (existing installing user)
 
 | Command | Arguments / boundary |
 | --- | --- |
 | `agent-identity prepare` | Global `--config PRIVATE_CONFIG`, then `--name NAME --output PUBLIC_FILE`; retain private software SSH/authentication keypairs and export a signed public-only request; exact retry reuses the request |
 | `agent-identity connect` | Global `--config PRIVATE_CONFIG`, then `--profile APPROVED_PUBLIC_PROFILE`; validate/store the provisioned public profile against this account's prepared keys |
 | `agent-identity serve` | Global `--config PRIVATE_CONFIG`; maintain pinned SSH, activation, device-authenticated owner control and peer-checked local runner proxy |
-| `agent-identity service plan` | `--input OPTIONS`; read-only two-account/native-definition plan, no configuration, enrollment or root execution required |
-| `agent-identity service install` | `--input OPTIONS --apply`; explicit native root registration of the identity daemon and distinct runner service, never account creation/adoption |
-| `agent-identity service status` | `--input OPTIONS`; native root inspection of that exact two-service installation, no `--apply` |
+| `agent-identity service plan` | `--input OPTIONS`; read-only current-user/two-process native-definition plan, no configuration, enrollment or root execution required |
+| `agent-identity service install` | `--input OPTIONS --apply`; register both processes as the existing installing user, without sudo or new users/groups |
+| `agent-identity service status` | `--input OPTIONS`; inspect that current user's exact two-service installation, no root or `--apply` |
 
 The three `service` leaves take an integrity-protected options **file**, not stdin
 or `--config`. Their `OPTIONS` is `platform.IdentityServiceOptions`, distinct
 from the single-role options below:
 
 - Selection: `os` (`linux`/`darwin`), `name`.
-- Accounts: `identity_user`, `identity_uid`, `identity_gid`, `worker_user`,
-  `worker_uid`, `worker_gid`; distinct non-root users and distinct positive
-  UID/GID pairs, with primary group names matching their account names.
+- Existing user: optional `user`, `uid`, `gid`, `home`, defaulting to the actual
+  OS account, not `$USER`/`$HOME` claims or the enrolled agent name. Installation
+  and status require these to match the current non-root user. No account/group
+  creation, special group name, managed marker or no-login shell is required.
 - Absolute paths: `identity_binary`, `worker_binary`, `identity_config`,
-  `worker_config`, `state_dir`, `worker_state_dir`, `identity_home`, `worker_home`,
+  `worker_config`, `state_dir`, `worker_state_dir`,
   `socket_dir`, `identity_definition`, `worker_definition`.
 
-Preprovision exact accounts/HOMEs/groups, managed comment/RealName markers
-`fdn-identity=NAME` and `fdn-runner=NAME`, a no-login identity shell, and one-way
-identity membership in the worker group. The runner cannot join identity/root
-groups. Missing/mismatched accounts fail as prerequisite/conflict, not adoption
-or a same-UID fallback. Both 0600 configurations must already exist under their
-own private 0700 HOMEs; the runner's socket binding and all plan paths must agree.
-Paired binaries must be immutable `agent-identity`/`agent-service` in the same
+Prepare both 0600 configurations and distinct 0700 identity/runner state under
+the existing user's HOME. IPC is a separate 0700 directory with a 0600 socket.
+The existing HOME mode, groups, shell and account are not changed. Legacy
+`identity_user`/`identity_uid`/`identity_gid`/`identity_home` and corresponding
+`worker_*` account selectors are rejected with explicit migration guidance.
+The installer never moves keys or state across users automatically.
+Paired binaries must be protected `agent-identity`/`agent-service` in the same
 binary directory. Native definition paths and manager details are in
 [DEPLOYMENT.md](DEPLOYMENT.md#native-identity-and-runner-services).
 
 `agent-identity --help` is offline. There is no identity `config init` leaf:
-authorized native setup supplies an identity-owned 0600 configuration, separate
-0700 key state, explicit runner UID/GID and an absolute socket in a separate
-identity-owned 0710 runner-group IPC directory. Private `prepare`/`connect`/`serve`
-execution rejects root and an identity UID equal to the runner UID. Stop the
+authorized setup supplies a user-owned 0600 configuration, separate 0700 key
+state and an absolute socket in a separate user-owned 0700 IPC directory.
+Private configuration `worker_uid`/`worker_gid` may be omitted/zero to use the
+current user; explicit foreign values require migration. Native execution
+rejects root or a different runner UID/GID, not the same user. Stop the
 identity service before offline `prepare`/`connect`. Its proxy does not export
-private keys, signing operations, owner control or certificates to providers.
+private keys, signing operations, owner control or certificates over IPC.
+The user nevertheless owns those private files; process separation is not a
+security boundary against same-user tools.
 The public profile contains `identity`, `url`, `ca`, `ssh_host`, `ssh_port` and
 `known_hosts`; approve its integrity even though its contents are not secret.
 
+New identity registration derives the Foundation SSH username from the agent
+name: lowercase, replace runs outside ASCII `a-z`, `0-9`, `_`, `-` with `-`,
+and remove outer `-`. The single-line name must yield a non-root username
+matching `[a-z_][a-z0-9_-]{0,31}`; invalid results and collisions fail rather
+than truncate, hash or adopt an existing account. `Agent1` uses `agent1` on
+Foundation even when the existing local user is `alice`. The profile's
+`identity.ssh_user` reports the reserved login. Existing account names/UIDs
+and fresh-key recovery bindings do not change. OS access remains independent
+of the display name and Foundation project authority.
+
 There is **no `--rotate` flag**. For explicit fresh-key recovery, stop the
 service, preserve its old private StateDir and **all runner state/journals**,
-then choose a new empty identity-owned 0700 StateDir inside the **same identity
-HOME**. Keep the private config file path/IPC and all runner paths stable;
+then choose a new empty user-owned 0700 StateDir inside the **same user's HOME**.
+Keep the private config file path/IPC and all runner paths stable;
 update only the intended `state_dir` binding in that config and service OPTIONS.
 Run private `prepare` in the new state, obtain Founder/root recovery, connect
 its newly approved public profile and restart the named native services. Normal
@@ -168,7 +182,8 @@ keys. See [DEPLOYMENT.md](DEPLOYMENT.md#diagnose-identity-state-and-recover).
 The `fdn-service service` and `agent-cli service` commands retain their separate
 `platform.Options` contract; do not pass paired identity-service options here.
 Fields: `os` (linux/darwin), `role` (foundation/agent), absolute
-`binary`, `config_file`, `state_dir`, `home`, `definition`, and dedicated `user`.
+`binary`, `config_file`, `state_dir`, `home`, `definition`, and `user` (existing
+installing user for workers; dedicated unprivileged server user for Foundation).
 Native Linux Foundation installation also requires `ingress_group` (the approved
 ingress-only group name) and `ingress_dirs` (the one/two actual API/join parent
 directories). They render `SupplementaryGroups` and the additional
@@ -471,9 +486,15 @@ Example current signoff (substitute the actual generation):
 | `agent-cli mention acknowledge` | `COMMENT --input FILE`: exact generation, state handled/deferred |
 | `agent-cli watch` | `[--project ID --task ID --since CURSOR --limit N --once]`; bounded pages or NDJSON stream/checkpoint |
 
-Literal mentions use `@{AGENT_ID}` with the complete actual agent ID substituted.
-Only literal current body mentions produce attention. Removed/edited/self
-mentions do not confer authority. Cursors are actor/query-bound; pages are
+Literal mentions accept `@{Agent1}` by agent name (case-insensitive), or
+`@{AGENT_ID}` with the complete actual ID substituted. Names with spaces work
+inside the braces. Unknown/inactive names fail as not-found and ambiguous names
+fail as conflict; use the exact ID to disambiguate legacy duplicate names.
+The body stays as authored; returned `mentions` contains sorted, deduplicated
+AgentIDs, excluding self. Exact operation replay retains the original recipients.
+Comments create attention; worklogs retain mention metadata without attention.
+Removed/edited mentions stale old-generation receipts. Mentions never confer
+authority or assignment. Cursors are actor/query-bound; pages are
 limited to 1-200. Watch delivery is at least once; inspect sequence/cursor rather
 than assuming exactly-once processing.
 

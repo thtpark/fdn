@@ -5,24 +5,60 @@ import (
 	"database/sql"
 	"regexp"
 	"slices"
+	"strings"
 
 	"github.com/thtpark/fdn/internal/domain"
 )
 
-var mentionPattern = regexp.MustCompile(`@\{(agent_[0-9a-f]{32})\}`)
+var (
+	mentionPattern   = regexp.MustCompile(`@\{([^{}\r\n]{1,128})\}`)
+	mentionIDPattern = regexp.MustCompile(`^agent_[0-9a-f]{32}$`)
+)
 
-func ExtractMentions(body, author string) []string {
+func resolveMentions(ctx context.Context, tx *sql.Tx, body, author string) ([]string, error) {
 	out := []string{}
+	var names map[string][]string
 	for _, match := range mentionPattern.FindAllStringSubmatch(body, -1) {
-		if match[1] != author && !slices.Contains(out, match[1]) {
-			out = append(out, match[1])
+		id := match[1]
+		if !mentionIDPattern.MatchString(id) {
+			if names == nil {
+				rows, err := tx.QueryContext(ctx, "SELECT data FROM agents WHERE active = 1")
+				if err != nil {
+					return nil, err
+				}
+				agents, err := scanJSON[domain.Agent](rows)
+				if err != nil {
+					return nil, err
+				}
+				names = make(map[string][]string, len(agents))
+				for _, agent := range agents {
+					key := strings.ToLower(agent.Name)
+					names[key] = append(names[key], agent.ID)
+				}
+			}
+			matches := names[strings.ToLower(id)]
+			if len(matches) == 0 {
+				return nil, domain.Fail(domain.NotFound, "mentioned agent name is not active or does not exist; use an active agent name or agent ID")
+			}
+			if len(matches) != 1 {
+				return nil, domain.Fail(domain.Conflict, "mentioned agent name is ambiguous; use the agent ID")
+			}
+			id = matches[0]
+		}
+		if id != author && !slices.Contains(out, id) {
+			out = append(out, id)
 		}
 	}
 	slices.Sort(out)
-	return out
+	return out, nil
 }
 
-func (s *Store) saveEntry(ctx context.Context, tx *sql.Tx, entry domain.Entry, actor, action string) error {
+func (s *Store) saveEntry(ctx context.Context, tx *sql.Tx, entry *domain.Entry, actor, action string) error {
+	mentions, err := resolveMentions(ctx, tx, entry.Body, entry.AuthorID)
+	if err != nil {
+		return err
+	}
+	entry.Mentions = mentions
 	data, err := encode(entry)
 	if err != nil {
 		return err
@@ -87,9 +123,12 @@ func (s *Store) CreateEntry(ctx context.Context, actor, taskID string, req domai
 			}
 		}
 		e = domain.Entry{ID: domain.NewID(req.Kind), TaskID: taskID, Kind: req.Kind, Body: req.Body,
-			ParentID: req.ParentID, AuthorID: a.ID, Mentions: ExtractMentions(req.Body, a.ID), Generation: 1, Revision: 1,
+			ParentID: req.ParentID, AuthorID: a.ID, Generation: 1, Revision: 1,
 			CreatedAt: s.timestamp(), UpdatedAt: s.timestamp()}
-		return e, s.saveEntry(ctx, tx, e, a.ID, "create")
+		if err := s.saveEntry(ctx, tx, &e, a.ID, "create"); err != nil {
+			return e, err
+		}
+		return e, nil
 	})
 }
 
@@ -111,10 +150,13 @@ func (s *Store) EditEntry(ctx context.Context, actor, id string, req domain.Entr
 		if err := domain.CheckText(req.Body, "entry body", 65536, true); err != nil {
 			return e, err
 		}
-		e.Body, e.Mentions, e.UpdatedAt = req.Body, ExtractMentions(req.Body, a.ID), s.timestamp()
+		e.Body, e.UpdatedAt = req.Body, s.timestamp()
 		e.Generation++
 		e.Revision++
-		return e, s.saveEntry(ctx, tx, e, a.ID, "edit")
+		if err := s.saveEntry(ctx, tx, &e, a.ID, "edit"); err != nil {
+			return e, err
+		}
+		return e, nil
 	})
 }
 

@@ -118,13 +118,12 @@ func TestNativeIdentitySocketPermissionsAndOwnedCleanup(t *testing.T) {
 		t.Skip("native identity service intentionally forbids root")
 	}
 	f := newFixture(t)
-	f.config.WorkerUID = os.Geteuid() + 1
 	listener, err := (NativeBoundary{}).Listen(f.config)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer listener.Close()
-	for path, mode := range map[string]os.FileMode{filepath.Dir(f.config.Socket): 0710, f.config.Socket: 0660} {
+	for path, mode := range map[string]os.FileMode{filepath.Dir(f.config.Socket): 0700, f.config.Socket: 0600} {
 		info, err := os.Lstat(path)
 		if err != nil || info.Mode().Perm() != mode {
 			t.Fatal("native IPC permissions expose the identity boundary", path, err)
@@ -160,9 +159,41 @@ func TestNativeIdentitySocketPermissionsAndOwnedCleanup(t *testing.T) {
 	}
 	f.config.WorkerGID = missing
 	if _, err := (NativeBoundary{}).Listen(f.config); domain.AsFault(err).Code != domain.Denied {
-		t.Fatal("native serve attempted chgrp without preprovisioned group membership", err)
+		t.Fatal("native serve accepted a legacy foreign worker group", err)
 	}
 	if _, err := os.Lstat(f.config.Socket); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("failed membership preflight published an IPC socket", err)
+	}
+}
+
+func TestNativeIdentityAndWorkerShareTheInstallingUserAndKeepOneOwner(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("native worker service intentionally forbids root")
+	}
+	f := newFixture(t)
+	f.config.WorkerUID, f.config.WorkerGID = 0, 0
+	service, stop := startService(t, f, NativeBoundary{})
+	defer stop()
+	client, err := api.NewLocalClient(config.Worker{IdentitySocket: f.config.Socket})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	for range 3 {
+		var status api.LocalStatus
+		if err := client.Request(context.Background(), "GET", "/local/status", nil, &status); err != nil || !status.Ready ||
+			status.Identity.AgentID != f.profile.Identity.AgentID {
+			t.Fatal("same-user worker could not attach to its enrolled agent", status.Ready, err)
+		}
+	}
+	info, err := os.Lstat(filepath.Join(f.config.StateDir, deviceFile))
+	if err != nil || info.Mode().Perm() != 0600 {
+		t.Fatal("identity state lost private file permissions", err)
+	}
+	if _, err := os.ReadFile(filepath.Join(f.config.StateDir, deviceFile)); err != nil {
+		t.Fatal("the installing user must own and be able to access its identity keys", err)
+	}
+	if f.remote.ownerCalls.Load() != 1 || !service.Status().Ready {
+		t.Fatal("ordinary same-user CLI attachment created another identity owner")
 	}
 }

@@ -370,7 +370,7 @@ func TestManagedAccountRetirementReservationsAndExplicitRecovery(t *testing.T) {
 	manager, system := accountFixture(t)
 	key := accountTestKey(t)
 	account := applyTestAccount(t, manager, accountTestAgent, key)
-	disabled, err := manager.Disable(context.Background(), accountTestAgent, account.Generation+1, true)
+	disabled, err := manager.Disable(context.Background(), AccountDisableRequest{AgentID: accountTestAgent, Generation: account.Generation + 1}, true)
 	if err != nil || disabled.State != AccountDisabled || !system.disabled[account.Username] {
 		t.Fatal(disabled, err)
 	}
@@ -617,7 +617,7 @@ func TestManagedAccountNativeCommandsAreNarrowAndNeverRunHostTools(t *testing.T)
 	manager, _ := accountFixture(t)
 	runner := &accountRecordingRunner{}
 	native := &nativeAccountSystem{options: manager.options, runner: runner}
-	name, _ := AccountUsername(accountTestAgent)
+	name := "agent1"
 	user := manager.desired(ManagedAccount{AgentID: accountTestAgent, Username: name, UID: manager.options.UIDMin})
 	for _, call := range []func() error{
 		func() error {

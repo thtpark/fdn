@@ -58,7 +58,7 @@ closed if the existing Founder is absent or ambiguous. Active Founder then
 explicitly registers the designated original non-Founder request using
 `agent register --input PUBLIC --existing-agent AGENT [--output PROFILE]`.
 That worker's protected identity service uses its own approved public profile;
-its distinct runner uses `connect --migrate` to replace only the matching old
+its same-user runner uses `connect --migrate` to replace only the matching old
 credential with public AgentID. Knowledge, bindings, journals, outbox, work
 fences and mode remain retained; no credentials or HOME are copied from another
 identity. New workers fail closed against missing authority/identity metadata.
@@ -74,6 +74,30 @@ unperformed; software/RAM clones or sequential use cannot be ruled out.
 
 ## Clean binary transport cutover
 
+### Agent-based account names and literal mentions
+
+New identities use an OS-safe lowercase form of the agent name for their
+Foundation SSH account (for example `Agent1` -> `agent1`). The worker uses its
+existing installing user (for example `alice`) for identity, runner and providers;
+the local username is independent of the enrolled name. Existing Foundation
+accounts, including ID-derived `fdna_...`
+names, retain their reserved name/UID during upgrade, reconcile and recovery.
+No OS account is implicitly adopted or renamed. Invalid normalized names and
+collisions fail explicitly, without a truncated/hash-based substitute.
+
+The existing typed root provision/disable messages add the approved `username`
+field with appended protobuf field numbers. Update the helper with the server
+before creating named accounts. Missing username preserves legacy ID-derived
+requests, not a fallback for a conflicting retained name. Root inventory format
+1, API/schema 2, native protocol 2, server SQL4 and local SQL1 remain unchanged.
+
+New/edited bodies accept `@{Agent1}` as well as `@{AGENT_ID}`. Name resolution
+is case-insensitive, active-only and transactional; ambiguous legacy names
+require IDs. Bodies stay unchanged and stored recipients/receipts remain IDs.
+No historical body, mention, operation or attention receipt is rewritten.
+
+### Transport compatibility
+
 Native protocol **2** uses framed protobuf over existing pinned SSH/inner mTLS
 and Unix IPC. HTTP command/query, owner-control, relay and root-helper transport
 is not a compatibility option for native processes. Update all four binaries
@@ -85,6 +109,52 @@ state. Existing logical operation IDs, JSON proposals/journals/outbox, task
 generations and cleanup evidence remain meaningful; wire bytes do not replace
 their logical fingerprints. No data wipe is necessary merely to change encoding.
 Normal cutover does not rotate keys, auto-resume uncertain work or clear fences.
+
+### Migrating legacy split-account workers
+
+New worker installations create no OS users/groups. Both processes use the
+existing installing user's HOME and user manager: Linux `systemctl --user`,
+macOS two LaunchAgents. The user owns its identity keys and provider state;
+there is no same-user key isolation claim. Windows native adapters remain
+unimplemented, not qualified by this ownership change.
+
+Old paired service OPTIONS with identity/worker account selectors fail with a
+prerequisite error before native writes. Explicit private `worker_uid`/`worker_gid`
+values naming another user also fail; omission/zero now means current user.
+Do not fix either failure by resetting state or preparing another identity.
+
+1. Inventory the exact original worker, enrolled AgentID, signed profile,
+   fingerprints, source/version, accounts, HOMEs, service definitions, keys,
+   runner database, journals/outbox, provider state and retained work fences.
+2. Stop/join affected runner work and the old identity owner through the
+   authorized native managers. Never run old and new identity owners together.
+   Retain the old definitions and private evidence for rollback/inspection.
+3. With explicit local administrator authority only where old ownership
+   requires it, transfer the SAME computer's original identity state/profile
+   and runner state into distinct private directories of the chosen existing
+   user's HOME. Preserve file contents, public binding, journals, outbox,
+   knowledge, provider configuration and workspace references. Establish the
+   new owner's 0700/0600 permissions; never copy another computer's identity
+   or expose key bytes. Do not delete the protected original evidence.
+4. Use current-user service OPTIONS and matching private configuration/socket
+   paths. Omit private `worker_uid`/`worker_gid` or set the current user's actual
+   values. Register both per-user services explicitly with `--apply`, without
+   sudo; the old system daemon must remain stopped/disabled by its authorized
+   operator. No automatic account deletion, chown, service takeover or rotation
+   is part of installation.
+5. Verify the original AgentID, profile/key fingerprints, server-side account/
+   generations and private state, then owner connectivity and worker health.
+   This ownership migration needs no new registration or fresh keys unless
+   separately recovering a compromised/banned identity. It grants no task retry,
+   mode change or permission to clear an uncertain fence.
+
+API/schema 2, native protocol 2, server SQL4 and local SQL1 remain unchanged.
+Fixture tests exercise same-user admission, migration refusal and retained state,
+not administrator cross-UID transfer or a completed native host migration.
+Older binaries may still enforce split-account ownership and cannot be assumed
+to run this layout. Native/configuration rollback needs explicit review; retained
+old copies are evidence, not permission to start another owner or resume stale
+journals.
 
 SSH accounts and kernel UID establish the principal, not unrestricted project
 authority. Current mTLS/key/owner-generation proofs remain mandatory: an OS-only
@@ -110,7 +180,7 @@ This also supports the designated first-upgrade keyless legacy Founder without
 an extra target flag or creating a second Founder. Regular identities require
 active Founder's explicit fresh signed-key reapproval. Preserve old identity
 private state and all runner state; fresh preparation uses an empty sub-StateDir
-in the same identity HOME with stable config/IPC. Do not reimport old credentials
+in the same existing user's HOME with stable config/IPC. Do not reimport old credentials
 or auto-provision restored old/empty keys. Root account inventory/SSH policy,
 HOMEs and native services remain separate recovery work; enhanced restore and
 final all-suite acceptance are still pending, native root/group qualification
