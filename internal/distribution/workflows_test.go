@@ -65,6 +65,17 @@ func TestWorkflowTriggersAndIndependentSuites(t *testing.T) {
 		if !exists {
 			t.Fatal("missing independent suite", job)
 		}
+		lockedCompiler := false
+		for _, step := range tests.Jobs["static"].Steps {
+			if strings.Contains(step.Run, "protoc-36.2-linux-x86_64.zip") &&
+				strings.Contains(step.Run, "121f6c7afe1d4d0e3ea6aab9432038599250134cbf4474cb1167d2c7decd4278") &&
+				strings.Contains(step.Run, "sha256sum --check --strict") {
+				lockedCompiler = true
+			}
+		}
+		if !lockedCompiler {
+			t.Fatal("static acceptance does not install its verified locked protobuf compiler")
+		}
 		found := false
 		for _, step := range value.Steps {
 			if step.Run == "bash scripts/test.sh "+suite {

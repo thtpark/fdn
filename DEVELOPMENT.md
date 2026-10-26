@@ -20,6 +20,9 @@ Use Go 1.27 or later. Race tests need the platform race-detector toolchain and C
 compiler; release binaries are CGO-free. OpenSSH, `/bin/sh`, and standard native
 archive tools support local integration/installer checks. Runtime Node/npm and
 provider accounts are not test prerequisites.
+Protocol regeneration/static checks also require protoc 36.2; CI installs its
+checksum-pinned upstream compiler. The Go plugin is built from the module's
+pinned protobuf dependency. No generation or source build runs on deployment targets.
 
 ```sh
 go mod download

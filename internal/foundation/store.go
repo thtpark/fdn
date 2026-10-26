@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thtpark/fdn/internal/database"
@@ -62,6 +63,7 @@ type Store struct {
 	now func() time.Time
 
 	writer          chan struct{}
+	writerWaiters   atomic.Int64
 	closed          chan struct{}
 	updates         updateHub
 	updateFeedID    string
@@ -93,12 +95,16 @@ func (s *Store) beginWrite(ctx context.Context) (*sql.Tx, func(), error) {
 	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
+	s.writerWaiters.Add(1)
 	select {
 	case <-ctx.Done():
+		s.writerWaiters.Add(-1)
 		return nil, nil, ctx.Err()
 	case <-s.closed:
+		s.writerWaiters.Add(-1)
 		return nil, nil, domain.Fail(domain.Unavailable, "update store is closed")
 	case s.writer <- struct{}{}:
+		s.writerWaiters.Add(-1)
 	}
 	release := func() { <-s.writer }
 	if err := ctx.Err(); err != nil {

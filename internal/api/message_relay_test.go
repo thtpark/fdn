@@ -76,8 +76,26 @@ func TestBinaryRelayTransferDeadlineRevocationAndCapabilityIsolation(t *testing.
 	case <-time.After(time.Second):
 		t.Fatal("binary read deadline did not interrupt the active call")
 	}
+	late := []byte("arrived after the local deadline")
+	lateWrite := make(chan error, 1)
+	go func() {
+		_, err := left.Write(late)
+		lateWrite <- err
+	}()
+	select {
+	case err := <-lateWrite:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed-out reader did not retain its bounded remote read")
+	}
 	if err := right.SetReadDeadline(time.Time{}); err != nil {
 		t.Fatal(err)
+	}
+	lateBuffer := make([]byte, len(late))
+	if _, err := io.ReadFull(right, lateBuffer); err != nil || string(lateBuffer) != string(late) {
+		t.Fatal("deadline cancellation discarded bytes consumed remotely", err)
 	}
 	payload := []byte(strings.Repeat("private bytes\n", 10000))
 	written := make(chan error, 1)
