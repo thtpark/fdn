@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"slices"
-	"time"
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
@@ -62,37 +61,26 @@ func (e *Engine) verify(ctx context.Context, c config.Worker, me domain.Agent, t
 	return e.coding(ctx, c, task, launch, manual)
 }
 
-func (e *Engine) guardVerification(ctx context.Context, cancel context.CancelCauseFunc, launch Launch, run domain.Run) {
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			task, err := api.Call[domain.Task](ctx, e.Client, http.MethodGet, api.Path("tasks", launch.Task.ID), nil)
-			if err == nil && (task.ActiveRun == nil || task.ActiveRun.ID != run.ID || task.ActiveRun.StopRequested || task.Status != domain.Completed || task.SpecGeneration != launch.Task.SpecGeneration || task.ResultGeneration != launch.Task.ResultGeneration || task.DiscussionGeneration != launch.Task.DiscussionGeneration) {
-				err = domain.Fail(domain.Conflict, "verification ownership, specification, result or discussion changed")
-			}
-			if err == nil {
-				var project domain.Project
-				project, err = api.Call[domain.Project](ctx, e.Client, http.MethodGet, api.Path("projects", task.ProjectID), nil)
-				if err == nil {
-					var me domain.Agent
-					me, err = api.Call[domain.Agent](ctx, e.Client, http.MethodGet, "/v1/me", nil)
-					if err == nil && (project.Epoch != launch.Project.Epoch || me.Revision != run.AgentRevision || !domain.EligibleApprover(me, project, task, true) || (!me.Founder && me.Mode != "ai")) {
-						err = domain.Fail(domain.Denied, "verification authority or Founder mode authorization changed")
-					}
-				}
-			}
-			if err != nil {
-				if domain.AsFault(err).Code == domain.Unavailable {
-					e.recordProblem(ctx, "connection-problem", err)
-					continue
-				}
-				cancel(err)
-				return
-			}
+func (e *Engine) guardVerification(ctx context.Context, cancel context.CancelCauseFunc, launch Launch, run domain.Run) error {
+	return e.guardAuthority(ctx, cancel, &authoritySubscription{taskID: launch.Task.ID, projectID: launch.Task.ProjectID}, func(ctx context.Context) error {
+		task, err := api.Call[domain.Task](ctx, e.Client, http.MethodGet, api.Path("tasks", launch.Task.ID), nil)
+		if err != nil {
+			return err
 		}
-	}
+		if task.ActiveRun == nil || task.ActiveRun.ID != run.ID || task.ActiveRun.StopRequested || task.Status != domain.Completed || task.SpecGeneration != launch.Task.SpecGeneration || task.ResultGeneration != launch.Task.ResultGeneration || task.DiscussionGeneration != launch.Task.DiscussionGeneration {
+			return domain.Fail(domain.Conflict, "verification ownership, specification, result or discussion changed")
+		}
+		project, err := api.Call[domain.Project](ctx, e.Client, http.MethodGet, api.Path("projects", task.ProjectID), nil)
+		if err != nil {
+			return err
+		}
+		me, err := api.Call[domain.Agent](ctx, e.Client, http.MethodGet, "/v1/me", nil)
+		if err != nil {
+			return err
+		}
+		if me.ID != e.Client.Credential.AgentID || !me.Active || me.Banned || task.AssigneeID == me.ID || project.Archived || project.Epoch != launch.Project.Epoch || me.Revision != run.AgentRevision || !domain.EligibleApprover(me, project, task, true) || (!me.Founder && me.Mode != "ai") {
+			return domain.Fail(domain.Denied, "verification authority or Founder mode authorization changed")
+		}
+		return nil
+	})
 }

@@ -3,20 +3,17 @@ package identityservice
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
+	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/device"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/message"
 	"github.com/thtpark/fdn/internal/pki"
 )
 
@@ -24,91 +21,69 @@ func TestNativeOwnerReadLoopServicesFreshPingsAndPolicyViolation(t *testing.T) {
 	f := newFixture(t)
 	pingResult := make(chan error, 1)
 	reject := make(chan struct{})
+	admitted := make(chan struct{})
 	handlerDone := make(chan struct{})
 	serverCtx, cancelServer := context.WithCancel(context.Background())
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	left, right := net.Pipe()
+	go func() {
 		defer close(handlerDone)
-		connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionDisabled})
-		if err != nil {
-			pingResult <- err
-			return
-		}
-		ctx, cancel := context.WithCancel(serverCtx)
-		requests := make(chan domain.OwnerRequest, 1)
-		readDone := make(chan struct{})
-		go func() {
-			defer close(readDone)
-			for {
-				var request domain.OwnerRequest
-				if wsjson.Read(ctx, connection, &request) != nil {
-					return
-				}
-				select {
-				case requests <- request:
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-		defer func() {
-			cancel()
-			connection.CloseNow()
-			<-readDone
-		}()
 		identity := f.profile.Identity
 		challenge := domain.IdentityChallenge{Nonce: nonce(10001), AgentID: identity.AgentID, InstanceID: identity.InstanceID,
 			Generation: identity.Generation, ExpiresAt: f.now.Add(10 * time.Second).Unix()}
-		if err := wsjson.Write(ctx, connection, challenge); err != nil {
+		connection, err := message.NewSession(serverCtx, left, func(_ context.Context, wire message.Request) ([]byte, error) {
+			if wire.Operation == api.OwnerChallengeOperation {
+				return message.MarshalPayload(challenge)
+			}
+			var request domain.OwnerRequest
+			if err := message.UnmarshalPayload(wire.Payload, &request); err != nil {
+				return nil, err
+			}
+			if request.Nonce != challenge.Nonce {
+				return nil, errors.New("owner did not use the fresh server nonce")
+			}
+			public, err := device.VerifyOwner(request, identity)
+			if err != nil {
+				return nil, err
+			}
+			certificate, err := pki.IssueClient(f.remote.ca.CA, f.remote.ca.CAKey, public, domain.CertificateIdentity{
+				AgentID: identity.AgentID, InstanceID: identity.InstanceID, Generation: identity.Generation,
+				Purpose: "owner", OwnerGeneration: 1}, f.now, 15*time.Minute)
+			if err != nil {
+				return nil, err
+			}
+			next := challenge
+			next.Nonce, next.ExpiresAt = nonce(10002), f.now.Add(15*time.Minute).Unix()
+			close(admitted)
+			return message.MarshalPayload(domain.OwnerCertificate{Certificate: string(certificate), Generation: 1, Challenge: next})
+		})
+		if err != nil {
 			pingResult <- err
 			return
 		}
-		var request domain.OwnerRequest
+		defer connection.Close()
 		select {
-		case request = <-requests:
-		case <-ctx.Done():
-			pingResult <- ctx.Err()
+		case <-admitted:
+		case <-serverCtx.Done():
 			return
 		}
-		if request.Nonce != challenge.Nonce {
-			pingResult <- errors.New("owner did not use the fresh server nonce")
-			return
-		}
-		public, err := device.VerifyOwner(request, identity)
-		if err != nil {
-			pingResult <- err
-			return
-		}
-		certificate, err := pki.IssueClient(f.remote.ca.CA, f.remote.ca.CAKey, public, domain.CertificateIdentity{
-			AgentID: identity.AgentID, InstanceID: identity.InstanceID, Generation: identity.Generation, Purpose: "owner", OwnerGeneration: 1}, f.now, 15*time.Minute)
-		if err != nil {
-			pingResult <- err
-			return
-		}
-		challenge.Nonce, challenge.ExpiresAt = nonce(10002), f.now.Add(15*time.Minute).Unix()
-		if err := wsjson.Write(ctx, connection, domain.OwnerCertificate{Certificate: string(certificate), Generation: 1, Challenge: challenge}); err != nil {
-			pingResult <- err
-			return
-		}
-		pingCtx, pingCancel := context.WithTimeout(ctx, 2*time.Second)
+		pingCtx, pingCancel := context.WithTimeout(serverCtx, 2*time.Second)
 		err = connection.Ping(pingCtx)
 		pingCancel()
 		pingResult <- err
 		select {
 		case <-reject:
-			connection.Close(websocket.StatusPolicyViolation, "identity banned")
-		case <-ctx.Done():
+			_ = connection.Shutdown(domain.Fail(domain.Denied, "identity banned"))
+		case <-serverCtx.Done():
 		}
-	}))
-	defer func() { cancelServer(); server.Close() }()
+	}()
+	defer func() { cancelServer(); left.Close(); right.Close() }()
 	f.remote.owner = func(ctx context.Context) (OwnerStream, error) {
-		connection, response, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(server.URL, "http"), &websocket.DialOptions{HTTPClient: server.Client(), CompressionMode: websocket.CompressionDisabled})
+		client := api.NewMessageClient("fixture://owner", func(context.Context) (net.Conn, error) { return right, nil })
+		connection, err := client.MessageSession(ctx)
 		if err != nil {
-			if response != nil && response.Body != nil {
-				response.Body.Close()
-			}
 			return nil, err
 		}
-		return &nativeOwner{connection: connection, client: &api.Client{HTTP: server.Client()}}, nil
+		return &nativeOwner{connection: connection, client: client, responses: make(chan domain.OwnerCertificate, 1)}, nil
 	}
 	service, stop := startService(t, f, rootlessBoundary{})
 	defer stop()
@@ -118,7 +93,7 @@ func TestNativeOwnerReadLoopServicesFreshPingsAndPolicyViolation(t *testing.T) {
 			t.Fatal("idle owner reader did not answer a fresh server ping", err)
 		}
 	case <-time.After(3 * time.Second):
-		t.Fatal("owner websocket reader abandoned ping servicing")
+		t.Fatal("owner message reader abandoned ping servicing")
 	}
 	close(reject)
 	eventually(t, "policy violation did not become fatal denial", func() bool { return service.Status().Problem == domain.Denied })
@@ -127,14 +102,14 @@ func TestNativeOwnerReadLoopServicesFreshPingsAndPolicyViolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	if err := client.Request(context.Background(), http.MethodGet, "/v1/me", nil, nil); domain.AsFault(err).Code != domain.Denied {
-		t.Fatal("confirmed websocket ban degraded into an unavailable/fallback transport", err)
+	if err := client.Request(context.Background(), "GET", "/v1/me", nil, nil); domain.AsFault(err).Code != domain.Denied {
+		t.Fatal("confirmed owner ban degraded into an unavailable/fallback transport", err)
 	}
 	stop()
 	select {
 	case <-handlerDone:
 	case <-time.After(3 * time.Second):
-		t.Fatal("native websocket handler/read loop survived service cancellation")
+		t.Fatal("native message handler/read loop survived service cancellation")
 	}
 }
 

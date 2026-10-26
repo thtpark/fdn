@@ -7,7 +7,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"net"
-	"net/http"
 	"path/filepath"
 	"sync"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/transport"
 )
 
 var errRenewDevice = errors.New("device certificate renewal is due")
@@ -110,20 +110,13 @@ func (s *Service) ServeWithBoundary(ctx context.Context, boundary Boundary) erro
 	s.profile = profile
 	s.ownerExpiry = time.Time{}
 	s.mu.Unlock()
-	server := &http.Server{Handler: s.handler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second,
-		MaxHeaderBytes: 16 << 10,
-		BaseContext:    func(net.Listener) context.Context { return ctx },
-		ConnContext: func(ctx context.Context, connection net.Conn) context.Context {
-			peer, ok := connection.(*peerConnection)
-			if !ok {
-				return ctx
-			}
-			return context.WithValue(ctx, peerContextKey{}, peer.peer)
-		},
-	}
 	served := make(chan error, 1)
 	go func() {
-		served <- server.Serve(authorizedListener{Listener: listener, boundary: boundary, uid: s.config.WorkerUID, gid: s.config.WorkerGID})
+		served <- transport.ServeConnections(ctx,
+			authorizedListener{Listener: listener, boundary: boundary, uid: s.config.WorkerUID, gid: s.config.WorkerGID},
+			s.serveMessagePeer, func(err error) {
+				s.options.Log.Warn("identity IPC message connection closed", "code", domain.AsFault(err).Code)
+			})
 	}()
 	ownerDone := make(chan struct{})
 	go func() {
@@ -137,12 +130,15 @@ func (s *Service) ServeWithBoundary(ctx context.Context, boundary Boundary) erro
 		served = nil
 	}
 	cancel()
-	closeErr := server.Close()
+	closeErr := listener.Close()
+	if errors.Is(closeErr, net.ErrClosed) {
+		closeErr = nil
+	}
 	if served != nil {
 		serveErr = <-served
 	}
 	<-ownerDone
-	if errors.Is(serveErr, http.ErrServerClosed) || errors.Is(serveErr, net.ErrClosed) {
+	if errors.Is(serveErr, net.ErrClosed) {
 		serveErr = nil
 	}
 	return errors.Join(serveErr, closeErr)
@@ -314,11 +310,15 @@ func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile
 			if err != nil {
 				return err
 			}
-			if client == nil || client.HTTP == nil || client.HTTP.Transport == nil || client.Credential.Token != "" || client.BaseURL != worker.URL {
-				if client != nil && client.HTTP != nil {
+			if client == nil || (!client.IsMessageClient() && (client.HTTP == nil || client.HTTP.Transport == nil)) || client.Credential.Token != "" || client.BaseURL != worker.URL {
+				if client != nil {
 					client.Close()
 				}
 				return domain.Fail(domain.Denied, "owner transport must use pinned trust without bearer credentials")
+			}
+			if _, native := s.options.Remote.(NativeRemote); native && !client.IsMessageClient() {
+				client.Close()
+				return domain.Fail(domain.Denied, "native owner transport requires the binary SSH protocol")
 			}
 			if len(clients) > 0 {
 				clients[0].Close()

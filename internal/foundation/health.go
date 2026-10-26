@@ -59,11 +59,11 @@ func healthIdentity(ctx context.Context, q queryer, a domain.Agent) (int64, bool
 // HeartbeatWithHealth records observations under the authenticated identity fence.
 // It deliberately grants no work, retry, mode or recovery authority.
 func (s *Store) HeartbeatWithHealth(ctx context.Context, actor string, health *domain.WorkerHealth) (domain.Agent, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginWrite(ctx)
 	if err != nil {
 		return domain.Agent{}, err
 	}
-	defer tx.Rollback()
+	defer finish()
 	a, err := s.actor(ctx, tx, actor)
 	if err != nil {
 		return a, err
@@ -137,7 +137,7 @@ func (s *Store) commitHealthHeartbeat(ctx context.Context, tx *sql.Tx, a domain.
 	if err != nil {
 		return a, err
 	}
-	return a, tx.Commit()
+	return a, s.commit(ctx, tx)
 }
 
 func healthTaskRelevant(ctx context.Context, q queryer, a domain.Agent, id string, current bool) (domain.Task, bool, error) {

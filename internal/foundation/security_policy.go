@@ -116,11 +116,11 @@ func (s *Store) banIdentity(ctx context.Context, id string, keyGeneration, owner
 	if err := domain.CheckText(reason, "identity ban reason", 2048, true); err != nil {
 		return err
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginWrite(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer finish()
 	agent, err := get[domain.Agent](ctx, tx, "agents", id)
 	if err != nil {
 		return err
@@ -181,7 +181,7 @@ func (s *Store) banIdentity(ctx context.Context, id string, keyGeneration, owner
 	if err := s.event(ctx, tx, "agent", id, "", ""); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return s.commit(ctx, tx)
 }
 
 func (s *Store) notifyIdentityBan(ctx context.Context, tx *sql.Tx, target string) error {

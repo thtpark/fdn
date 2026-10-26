@@ -207,11 +207,11 @@ func (s *Store) Sessions(ctx context.Context, actor string) ([]domain.Session, e
 }
 
 func (s *Store) RetireSessions(ctx context.Context) error {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginWrite(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer finish()
 	rows, err := tx.QueryContext(ctx, "SELECT data FROM sessions WHERE state IN ('consented','active')")
 	if err != nil {
 		return err
@@ -227,5 +227,5 @@ func (s *Store) RetireSessions(ctx context.Context) error {
 			return err
 		}
 	}
-	return tx.Commit()
+	return s.commit(ctx, tx)
 }

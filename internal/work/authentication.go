@@ -134,6 +134,8 @@ func (e *Engine) requestAuthentication(ctx context.Context, c config.Worker, pro
 }
 
 func (e *Engine) refreshAuthentication(ctx context.Context, c config.Worker, provider string, task *domain.Task, refreshID string) (AuthenticationRequest, error) {
+	e.authMu.Lock()
+	defer e.authMu.Unlock()
 	requests, err := e.authenticationRequests(ctx)
 	if err != nil {
 		return AuthenticationRequest{}, err
@@ -173,7 +175,11 @@ func (e *Engine) refreshAuthentication(ctx context.Context, c config.Worker, pro
 		fault := domain.AsFault(cause)
 		request.Error = &domain.Fault{Code: fault.Code, Retryable: fault.Retryable,
 			Message: fmt.Sprintf("provider sign-in request %s delivery remains pending: %s", request.ID, fault.Message)}
-		return request, errors.Join(request.Error, cause, save())
+		saveErr := save()
+		if saveErr == nil {
+			signalUpdate(e.controlWake)
+		}
+		return request, errors.Join(request.Error, cause, saveErr)
 	}
 	if err := save(); err != nil {
 		return request, err
@@ -245,6 +251,8 @@ func (e *Engine) refreshAuthentication(ctx context.Context, c config.Worker, pro
 }
 
 func (e *Engine) resolveAuthentication(ctx context.Context, provider string) error {
+	e.authMu.Lock()
+	defer e.authMu.Unlock()
 	requests, err := e.authenticationRequests(ctx)
 	if err != nil {
 		return err

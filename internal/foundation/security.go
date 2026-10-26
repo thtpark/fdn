@@ -45,16 +45,16 @@ CREATE TABLE identity_receipts (
 `
 
 func (s *Store) InstanceID(ctx context.Context) (string, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginWrite(ctx)
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback()
+	defer finish()
 	id, err := identityInstance(ctx, tx)
 	if err != nil {
 		return "", err
 	}
-	return id, tx.Commit()
+	return id, s.commit(ctx, tx)
 }
 
 func identityInstance(ctx context.Context, tx *sql.Tx) (string, error) {
@@ -418,11 +418,11 @@ func (s *Store) RegisterIdentity(ctx context.Context, actor string, req domain.R
 
 // BindIdentityAccount accepts only the trusted local provisioner's result.
 func (s *Store) BindIdentityAccount(ctx context.Context, agentID, user string, uid int64, sshFingerprint string) (domain.AgentIdentity, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginWrite(ctx)
 	if err != nil {
 		return domain.AgentIdentity{}, err
 	}
-	defer tx.Rollback()
+	defer finish()
 	identity, err := get[domain.AgentIdentity](ctx, tx, "agent_identities", agentID)
 	if err != nil {
 		return identity, err
@@ -456,7 +456,7 @@ func (s *Store) BindIdentityAccount(ctx context.Context, agentID, user string, u
 		return domain.AgentIdentity{}, err
 	}
 	if identity.UID == uid && (identity.State == "provisioned" || identity.State == "active") {
-		return identity, tx.Commit()
+		return identity, s.commit(ctx, tx)
 	}
 	if identity.State != "pending" || identity.UID != -1 {
 		return domain.AgentIdentity{}, domain.Fail(domain.Conflict, "identity is not awaiting account provisioning")
@@ -471,7 +471,7 @@ func (s *Store) BindIdentityAccount(ctx context.Context, agentID, user string, u
 	if err := s.event(ctx, tx, "agent", agentID, "", ""); err != nil {
 		return identity, err
 	}
-	return identity, tx.Commit()
+	return identity, s.commit(ctx, tx)
 }
 
 func equalIdentityKeys(left, right crypto.PublicKey) bool {

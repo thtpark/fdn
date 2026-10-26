@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
@@ -58,6 +59,7 @@ func (e *Engine) prepare(ctx context.Context, c config.Worker, task domain.Task,
 			}
 		case "retry":
 			if task.NextAttemptAt > e.Now().Unix() {
+				deferWorkUntil(ctx, time.Unix(task.NextAttemptAt, 0))
 				return false, errors.Join(domain.Fail(domain.Prerequisite, "retry backoff has not elapsed"), e.blockHealth(ctx, "retry-wait"))
 			}
 			if task.UnsafeRetry && (task.RetryApproval == nil || task.RetryApproval.SpecGeneration != task.SpecGeneration || task.RetryApproval.ProjectEpoch != project.Epoch || task.RetryApproval.RunID != task.LastRunID || task.RetryApproval.Attempt != task.Attempts+1) {

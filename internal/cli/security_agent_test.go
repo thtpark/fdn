@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/thtpark/fdn/internal/api"
+	"github.com/thtpark/fdn/internal/apitest"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/local"
@@ -33,7 +34,7 @@ func identityAttachmentFixture(t *testing.T, actualID, statusID string, connecte
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := &apitest.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "" {
 			t.Error("runner forwarded a legacy bearer credential")
 		}

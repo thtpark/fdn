@@ -29,7 +29,8 @@ commands.
    the unprivileged server. An authorized root-local account provisioner manages
    only that namespace. Pinned SSH forces `fdn-api`/`fdn-join` stdio into inner
    mTLS Unix ingress, with no arbitrary commands, PTY, forwarding or TCP/bearer
-   bootstrap. Prefer no attached cloud identity. Display attachment is not a
+   bootstrap. Internal transport is protobuf protocol 2, not HTTP/gRPC.
+   Prefer no attached cloud identity. Display attachment is not a
    desktop or consent.
 6. For upgrades, inspect `work status` and native state; stop/join active work
    before replacement. Retain exact mode, identity, credentials, provider homes,
@@ -41,8 +42,11 @@ commands.
    legacy pauses for explicit Founder reconciliation, never silent resumption.
    A restored snapshot quarantines every identity/owner/key epoch; root-private
    fresh Founder recovery retains its ID/history, then Founder reapproves regulars
-   with fresh signed keys. Manifest1/2 migration to SQL3 never reactivates old
+   with fresh signed keys. Manifest1/2 migration to SQL4 never reactivates old
    tokens/certificates, changes mode automatically or resets runner state.
+   The transport cutover requires all four compatible binaries/guide; there is
+   no native HTTP compatibility window. Resolve exact machines/state paths
+   before any separately authorized clean redeployment or destructive action.
 7. As the actual account, run `guide install`. It must preserve unrelated HOME
    instructions/skills; a collision is an actionable conflict, not permission to
    overwrite them. Worker initialization/startup also installs its guide.

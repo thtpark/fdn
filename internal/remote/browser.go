@@ -74,7 +74,7 @@ func AttachBrowserVNC(ctx context.Context, client *api.Client, sessionID string,
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if client == nil || client.HTTP == nil || sessionID == "" || diagnostic == nil {
+	if client == nil || (!client.IsMessageClient() && client.HTTP == nil) || sessionID == "" || diagnostic == nil {
 		return domain.Fail(domain.Invalid, "browser VNC requires a client, session and authorized human diagnostic writer")
 	}
 	address := options.Address

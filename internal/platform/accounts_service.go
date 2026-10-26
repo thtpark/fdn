@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/ingress"
 )
 
@@ -37,17 +38,9 @@ func (c *AccountServiceConfig) Validate() error {
 	return nil
 }
 
-type AccountProvisionRequest struct {
-	AgentID    string `json:"agent_id"`
-	PublicKey  string `json:"public_key"`
-	Generation int64  `json:"generation"`
-	Reactivate bool   `json:"reactivate,omitempty"`
-}
+type AccountProvisionRequest = domain.AccountProvisionRequest
 
-type AccountDisableRequest struct {
-	AgentID    string `json:"agent_id"`
-	Generation int64  `json:"generation"`
-}
+type AccountDisableRequest = domain.AccountDisableRequest
 
 type accountServiceReply struct {
 	Account ManagedAccount `json:"account"`
@@ -129,11 +122,12 @@ func NewAccountHandler(manager *AccountManager, serverUID uint32) http.Handler {
 // AccountClient reaches only a protected root-owned Unix helper socket. There
 // is no URL/network override and redirects are never followed.
 type AccountClient struct {
-	http *http.Client
+	http        *http.Client
+	messageDial func(context.Context) (net.Conn, error)
 }
 
 func NewAccountClient(socket string) (*AccountClient, error) {
-	return newAccountClient(socket, 0)
+	return newMessageAccountClient(socket, 0)
 }
 
 func newAccountClient(socket string, helperUID uint32) (*AccountClient, error) {
@@ -170,7 +164,11 @@ func newAccountClient(socket string, helperUID uint32) (*AccountClient, error) {
 	return &AccountClient{http: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
-func (c *AccountClient) Close() { c.http.CloseIdleConnections() }
+func (c *AccountClient) Close() {
+	if c.http != nil {
+		c.http.CloseIdleConnections()
+	}
+}
 
 func (c *AccountClient) Provision(ctx context.Context, request AccountProvisionRequest) (ManagedAccount, error) {
 	account, err := c.call(ctx, "/v1/accounts/provision", request)
@@ -189,6 +187,9 @@ func (c *AccountClient) Disable(ctx context.Context, agentID string, generation 
 }
 
 func (c *AccountClient) call(ctx context.Context, path string, value any) (ManagedAccount, error) {
+	if c.messageDial != nil {
+		return c.callMessage(ctx, path, value)
+	}
 	data, err := json.Marshal(value)
 	if err != nil {
 		return ManagedAccount{}, err

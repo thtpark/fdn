@@ -136,6 +136,8 @@ func permissionMessage(request PermissionRequest) string {
 }
 
 func (e *Engine) requestPermission(ctx context.Context, c config.Worker, task *domain.Task, actionKey, requirement string) (PermissionRequest, error) {
+	e.permissionMu.Lock()
+	defer e.permissionMu.Unlock()
 	if err := permissionContext(actionKey, requirement); err != nil {
 		return PermissionRequest{}, err
 	}
@@ -197,6 +199,7 @@ func (e *Engine) requestPermission(ctx context.Context, c config.Worker, task *d
 		if err := save(); err != nil {
 			return request, err
 		}
+		signalUpdate(e.controlWake)
 		if request.Error == nil {
 			return request, nil
 		}
@@ -296,6 +299,8 @@ func (e *Engine) requestPermission(ctx context.Context, c config.Worker, task *d
 }
 
 func (e *Engine) resolvePermission(ctx context.Context, actionKey, requirement string) error {
+	e.permissionMu.Lock()
+	defer e.permissionMu.Unlock()
 	if actionKey == "" {
 		return nil
 	}

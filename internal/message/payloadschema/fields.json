@@ -1,0 +1,2712 @@
+{
+  "AccountDisableRequest": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "Generation": {
+      "id": 2,
+      "name": "generation"
+    }
+  },
+  "AccountProvisionRequest": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "Generation": {
+      "id": 3,
+      "name": "generation"
+    },
+    "PublicKey": {
+      "id": 2,
+      "name": "public_key"
+    },
+    "Reactivate": {
+      "id": 4,
+      "name": "reactivate"
+    }
+  },
+  "ActivateIdentityRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Nonce": {
+      "id": 3,
+      "name": "nonce"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Proof": {
+      "id": 4,
+      "name": "proof"
+    }
+  },
+  "ActiveRun": {
+    "AfterStop": {
+      "id": 7,
+      "name": "after_stop"
+    },
+    "AgentID": {
+      "id": 3,
+      "name": "agent_id"
+    },
+    "Attempt": {
+      "id": 5,
+      "name": "attempt"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 2,
+      "name": "kind"
+    },
+    "SpecGeneration": {
+      "id": 4,
+      "name": "spec_generation"
+    },
+    "StopRequested": {
+      "id": 6,
+      "name": "stop_requested"
+    }
+  },
+  "ActivitySummary": {
+    "ContextKey": {
+      "id": 3,
+      "name": "context_key"
+    },
+    "State": {
+      "id": 2,
+      "name": "state"
+    },
+    "Text": {
+      "id": 1,
+      "name": "text"
+    }
+  },
+  "Agent": {
+    "Active": {
+      "id": 4,
+      "name": "active"
+    },
+    "BanReason": {
+      "id": 6,
+      "name": "ban_reason"
+    },
+    "Banned": {
+      "id": 5,
+      "name": "banned"
+    },
+    "CreatedAt": {
+      "id": 8,
+      "name": "created_at"
+    },
+    "Founder": {
+      "id": 3,
+      "name": "founder"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "LastSeen": {
+      "id": 9,
+      "name": "last_seen"
+    },
+    "Mode": {
+      "id": 11,
+      "name": "mode"
+    },
+    "ModeChangedAt": {
+      "id": 14,
+      "name": "mode_changed_at"
+    },
+    "ModeReason": {
+      "id": 13,
+      "name": "mode_reason"
+    },
+    "ModeRequestedBy": {
+      "id": 12,
+      "name": "mode_requested_by"
+    },
+    "Name": {
+      "id": 2,
+      "name": "name"
+    },
+    "Revision": {
+      "id": 10,
+      "name": "revision"
+    },
+    "Screens": {
+      "id": 15,
+      "name": "screens"
+    },
+    "SponsorID": {
+      "id": 7,
+      "name": "sponsor_id"
+    },
+    "Status": {
+      "id": 16,
+      "name": "status"
+    }
+  },
+  "AgentDiagnostics": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "Health": {
+      "id": 9,
+      "name": "health"
+    },
+    "Incident": {
+      "id": 14,
+      "name": "incident"
+    },
+    "LastSeen": {
+      "id": 5,
+      "name": "last_seen"
+    },
+    "Mode": {
+      "id": 3,
+      "name": "mode"
+    },
+    "Name": {
+      "id": 2,
+      "name": "name"
+    },
+    "NextAction": {
+      "id": 13,
+      "name": "next_action"
+    },
+    "ObservedAt": {
+      "id": 7,
+      "name": "observed_at"
+    },
+    "OldestReplyAt": {
+      "id": 11,
+      "name": "oldest_reply_at"
+    },
+    "PendingReplies": {
+      "id": 10,
+      "name": "pending_replies"
+    },
+    "Reason": {
+      "id": 12,
+      "name": "reason"
+    },
+    "ReceivedAt": {
+      "id": 6,
+      "name": "received_at"
+    },
+    "Stale": {
+      "id": 8,
+      "name": "stale"
+    },
+    "State": {
+      "id": 4,
+      "name": "state"
+    },
+    "Status": {
+      "id": 15,
+      "name": "status"
+    }
+  },
+  "AgentIdentity": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "ApprovedBy": {
+      "id": 13,
+      "name": "approved_by"
+    },
+    "Assurance": {
+      "id": 12,
+      "name": "assurance"
+    },
+    "AuthFingerprint": {
+      "id": 9,
+      "name": "auth_fingerprint"
+    },
+    "AuthKey": {
+      "id": 8,
+      "name": "auth_key"
+    },
+    "BanReason": {
+      "id": 14,
+      "name": "ban_reason"
+    },
+    "Generation": {
+      "id": 10,
+      "name": "generation"
+    },
+    "InstanceID": {
+      "id": 2,
+      "name": "instance_id"
+    },
+    "OwnerGeneration": {
+      "id": 15,
+      "name": "owner_generation"
+    },
+    "OwnerKey": {
+      "id": 16,
+      "name": "owner_key"
+    },
+    "RequestID": {
+      "id": 3,
+      "name": "request_id"
+    },
+    "SSHFingerprint": {
+      "id": 7,
+      "name": "ssh_fingerprint"
+    },
+    "SSHKey": {
+      "id": 6,
+      "name": "ssh_key"
+    },
+    "SSHUser": {
+      "id": 4,
+      "name": "ssh_user"
+    },
+    "State": {
+      "id": 11,
+      "name": "state"
+    },
+    "UID": {
+      "id": 5,
+      "name": "uid"
+    }
+  },
+  "AgentInspection": {
+    "Health": {
+      "id": 2,
+      "name": "health"
+    },
+    "ObservedAt": {
+      "id": 1,
+      "name": "observed_at"
+    },
+    "Provider": {
+      "id": 3,
+      "name": "provider"
+    },
+    "SessionFence": {
+      "id": 4,
+      "name": "session_fence"
+    },
+    "WorkSlot": {
+      "id": 5,
+      "name": "work_slot"
+    }
+  },
+  "AgentOperation": {
+    "CreatedAt": {
+      "id": 13,
+      "name": "created_at"
+    },
+    "ExpectedFence": {
+      "id": 12,
+      "name": "expected_fence"
+    },
+    "ExpiresAt": {
+      "id": 14,
+      "name": "expires_at"
+    },
+    "FinishedAt": {
+      "id": 16,
+      "name": "finished_at"
+    },
+    "ID": {
+      "id": 2,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 4,
+      "name": "kind"
+    },
+    "Reason": {
+      "id": 10,
+      "name": "reason"
+    },
+    "RequesterGeneration": {
+      "id": 7,
+      "name": "requester_generation"
+    },
+    "RequesterID": {
+      "id": 5,
+      "name": "requester_id"
+    },
+    "Result": {
+      "id": 18,
+      "name": "result"
+    },
+    "Revision": {
+      "id": 3,
+      "name": "revision"
+    },
+    "ServerObservedAt": {
+      "id": 17,
+      "name": "server_observed_at"
+    },
+    "SessionID": {
+      "id": 11,
+      "name": "session_id"
+    },
+    "StartedAt": {
+      "id": 15,
+      "name": "started_at"
+    },
+    "State": {
+      "id": 9,
+      "name": "state"
+    },
+    "TargetGeneration": {
+      "id": 8,
+      "name": "target_generation"
+    },
+    "TargetID": {
+      "id": 6,
+      "name": "target_id"
+    },
+    "Version": {
+      "id": 1,
+      "name": "version"
+    }
+  },
+  "AgentOperationReport": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Result": {
+      "id": 4,
+      "name": "result"
+    },
+    "State": {
+      "id": 3,
+      "name": "state"
+    }
+  },
+  "AgentOperationResult": {
+    "AutomationMayResume": {
+      "id": 4,
+      "name": "automation_may_resume"
+    },
+    "CapturedAt": {
+      "id": 2,
+      "name": "captured_at"
+    },
+    "Code": {
+      "id": 1,
+      "name": "code"
+    },
+    "ModeAtCheck": {
+      "id": 3,
+      "name": "mode_at_check"
+    },
+    "Observation": {
+      "id": 5,
+      "name": "observation"
+    }
+  },
+  "AgentRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Name": {
+      "id": 3,
+      "name": "name"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "AgentStatusReceipt": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "NextUpdateAt": {
+      "id": 4,
+      "name": "next_update_at"
+    },
+    "Pending": {
+      "id": 3,
+      "name": "pending"
+    },
+    "Status": {
+      "id": 2,
+      "name": "status"
+    }
+  },
+  "AgentStatusRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Text": {
+      "id": 3,
+      "name": "text"
+    }
+  },
+  "AgentTextStatus": {
+    "ObservedAt": {
+      "id": 5,
+      "name": "observed_at"
+    },
+    "Source": {
+      "id": 2,
+      "name": "source"
+    },
+    "Stale": {
+      "id": 6,
+      "name": "stale"
+    },
+    "State": {
+      "id": 3,
+      "name": "state"
+    },
+    "Text": {
+      "id": 1,
+      "name": "text"
+    },
+    "UpdatedAt": {
+      "id": 4,
+      "name": "updated_at"
+    }
+  },
+  "Approval": {
+    "ActorID": {
+      "id": 1,
+      "name": "actor_id"
+    },
+    "At": {
+      "id": 7,
+      "name": "at"
+    },
+    "Attempt": {
+      "id": 6,
+      "name": "attempt"
+    },
+    "OperationID": {
+      "id": 8,
+      "name": "operation_id"
+    },
+    "ProjectEpoch": {
+      "id": 4,
+      "name": "project_epoch"
+    },
+    "ResultGeneration": {
+      "id": 3,
+      "name": "result_generation"
+    },
+    "RunID": {
+      "id": 5,
+      "name": "run_id"
+    },
+    "SpecGeneration": {
+      "id": 2,
+      "name": "spec_generation"
+    }
+  },
+  "ApprovalPolicy": {
+    "IndependentReadiness": {
+      "id": 2,
+      "name": "independent_readiness"
+    },
+    "IndependentVerification": {
+      "id": 3,
+      "name": "independent_verification"
+    },
+    "RequiredActors": {
+      "id": 1,
+      "name": "required_actors"
+    }
+  },
+  "AssistanceGrant": {
+    "Active": {
+      "id": 8,
+      "name": "active"
+    },
+    "ApplicationID": {
+      "id": 15,
+      "name": "application_id"
+    },
+    "CreatedAt": {
+      "id": 11,
+      "name": "created_at"
+    },
+    "CreatedBy": {
+      "id": 10,
+      "name": "created_by"
+    },
+    "DesktopFallback": {
+      "id": 16,
+      "name": "desktop_fallback"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Mode": {
+      "id": 5,
+      "name": "mode"
+    },
+    "ProjectID": {
+      "id": 4,
+      "name": "project_id"
+    },
+    "Provider": {
+      "id": 7,
+      "name": "provider"
+    },
+    "Purpose": {
+      "id": 6,
+      "name": "purpose"
+    },
+    "Reason": {
+      "id": 13,
+      "name": "reason"
+    },
+    "RequesterID": {
+      "id": 2,
+      "name": "requester_id"
+    },
+    "Revision": {
+      "id": 9,
+      "name": "revision"
+    },
+    "ScreenID": {
+      "id": 14,
+      "name": "screen_id"
+    },
+    "TargetID": {
+      "id": 3,
+      "name": "target_id"
+    },
+    "UpdatedAt": {
+      "id": 12,
+      "name": "updated_at"
+    }
+  },
+  "AssistanceGrantRequest": {
+    "ApplicationID": {
+      "id": 11,
+      "name": "application_id"
+    },
+    "DesktopFallback": {
+      "id": 12,
+      "name": "desktop_fallback"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Mode": {
+      "id": 6,
+      "name": "mode"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectID": {
+      "id": 5,
+      "name": "project_id"
+    },
+    "Provider": {
+      "id": 8,
+      "name": "provider"
+    },
+    "Purpose": {
+      "id": 7,
+      "name": "purpose"
+    },
+    "Reason": {
+      "id": 9,
+      "name": "reason"
+    },
+    "RequesterID": {
+      "id": 3,
+      "name": "requester_id"
+    },
+    "ScreenID": {
+      "id": 10,
+      "name": "screen_id"
+    },
+    "TargetID": {
+      "id": 4,
+      "name": "target_id"
+    }
+  },
+  "AssistanceHelp": {
+    "AgentID": {
+      "id": 2,
+      "name": "agent_id"
+    },
+    "ExpiresAt": {
+      "id": 4,
+      "name": "expires_at"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Messages": {
+      "id": 3,
+      "name": "messages"
+    }
+  },
+  "AssistanceHelpRequest": {
+    "ApplicationID": {
+      "id": 9,
+      "name": "application_id"
+    },
+    "DesktopFallback": {
+      "id": 10,
+      "name": "desktop_fallback"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Mode": {
+      "id": 3,
+      "name": "mode"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectID": {
+      "id": 6,
+      "name": "project_id"
+    },
+    "Provider": {
+      "id": 5,
+      "name": "provider"
+    },
+    "Purpose": {
+      "id": 4,
+      "name": "purpose"
+    },
+    "Reason": {
+      "id": 11,
+      "name": "reason"
+    },
+    "ScreenID": {
+      "id": 8,
+      "name": "screen_id"
+    },
+    "TaskID": {
+      "id": 7,
+      "name": "task_id"
+    }
+  },
+  "AssistanceRevoke": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 3,
+      "name": "reason"
+    }
+  },
+  "Attention": {
+    "EntryID": {
+      "id": 1,
+      "name": "entry_id"
+    },
+    "Generation": {
+      "id": 3,
+      "name": "generation"
+    },
+    "State": {
+      "id": 4,
+      "name": "state"
+    },
+    "TaskID": {
+      "id": 2,
+      "name": "task_id"
+    }
+  },
+  "AttentionRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Generation": {
+      "id": 3,
+      "name": "generation"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "State": {
+      "id": 4,
+      "name": "state"
+    }
+  },
+  "AuthenticationRefresh": {
+    "ProjectID": {
+      "id": 2,
+      "name": "project_id"
+    },
+    "Provider": {
+      "id": 1,
+      "name": "provider"
+    },
+    "Reason": {
+      "id": 3,
+      "name": "reason"
+    }
+  },
+  "AuthenticationRefreshRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectID": {
+      "id": 4,
+      "name": "project_id"
+    },
+    "Provider": {
+      "id": 3,
+      "name": "provider"
+    },
+    "Reason": {
+      "id": 5,
+      "name": "reason"
+    }
+  },
+  "CertificateIdentity": {
+    "AgentID": {
+      "id": 2,
+      "name": "agent_id"
+    },
+    "Generation": {
+      "id": 3,
+      "name": "generation"
+    },
+    "InstanceID": {
+      "id": 1,
+      "name": "instance_id"
+    },
+    "OwnerGeneration": {
+      "id": 4,
+      "name": "owner_generation"
+    },
+    "Purpose": {
+      "id": 5,
+      "name": "purpose"
+    }
+  },
+  "ClaimRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Kind": {
+      "id": 3,
+      "name": "kind"
+    },
+    "Model": {
+      "id": 9,
+      "name": "model"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectEpoch": {
+      "id": 6,
+      "name": "project_epoch"
+    },
+    "Provider": {
+      "id": 8,
+      "name": "provider"
+    },
+    "ResultGeneration": {
+      "id": 5,
+      "name": "result_generation"
+    },
+    "SpecGeneration": {
+      "id": 4,
+      "name": "spec_generation"
+    },
+    "TokenHash": {
+      "id": 7,
+      "name": "token_hash"
+    }
+  },
+  "Clarity": {
+    "ActorID": {
+      "id": 1,
+      "name": "actor_id"
+    },
+    "AnswerIDs": {
+      "id": 6,
+      "name": "answer_ids"
+    },
+    "DiscussionGeneration": {
+      "id": 3,
+      "name": "discussion_generation"
+    },
+    "ProjectEpoch": {
+      "id": 4,
+      "name": "project_epoch"
+    },
+    "Rationale": {
+      "id": 5,
+      "name": "rationale"
+    },
+    "SpecGeneration": {
+      "id": 2,
+      "name": "spec_generation"
+    }
+  },
+  "Command": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "ConnectionProfile": {
+    "CA": {
+      "id": 3,
+      "name": "ca"
+    },
+    "Identity": {
+      "id": 1,
+      "name": "identity"
+    },
+    "KnownHosts": {
+      "id": 6,
+      "name": "known_hosts"
+    },
+    "SSHHost": {
+      "id": 4,
+      "name": "ssh_host"
+    },
+    "SSHPort": {
+      "id": 5,
+      "name": "ssh_port"
+    },
+    "URL": {
+      "id": 2,
+      "name": "url"
+    }
+  },
+  "DiagnosticRefreshRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 3,
+      "name": "reason"
+    }
+  },
+  "EnrollRequest": {
+    "CredentialHash": {
+      "id": 5,
+      "name": "credential_hash"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "InvitationToken": {
+      "id": 3,
+      "name": "invitation_token"
+    },
+    "Name": {
+      "id": 4,
+      "name": "name"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "Entry": {
+    "AuthorID": {
+      "id": 7,
+      "name": "author_id"
+    },
+    "Body": {
+      "id": 5,
+      "name": "body"
+    },
+    "CreatedAt": {
+      "id": 11,
+      "name": "created_at"
+    },
+    "Generation": {
+      "id": 9,
+      "name": "generation"
+    },
+    "ID": {
+      "id": 2,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 4,
+      "name": "kind"
+    },
+    "Mentions": {
+      "id": 8,
+      "name": "mentions"
+    },
+    "ParentID": {
+      "id": 6,
+      "name": "parent_id"
+    },
+    "Review": {
+      "id": 1,
+      "name": "review"
+    },
+    "Revision": {
+      "id": 10,
+      "name": "revision"
+    },
+    "TaskID": {
+      "id": 3,
+      "name": "task_id"
+    },
+    "UpdatedAt": {
+      "id": 12,
+      "name": "updated_at"
+    }
+  },
+  "EntryRequest": {
+    "Body": {
+      "id": 4,
+      "name": "body"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Kind": {
+      "id": 3,
+      "name": "kind"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ParentID": {
+      "id": 5,
+      "name": "parent_id"
+    }
+  },
+  "Event": {
+    "CreatedAt": {
+      "id": 6,
+      "name": "created_at"
+    },
+    "ProjectID": {
+      "id": 5,
+      "name": "project_id"
+    },
+    "Sequence": {
+      "id": 1,
+      "name": "sequence"
+    },
+    "SourceID": {
+      "id": 3,
+      "name": "source_id"
+    },
+    "TaskID": {
+      "id": 4,
+      "name": "task_id"
+    },
+    "Topic": {
+      "id": 2,
+      "name": "topic"
+    }
+  },
+  "Fault": {
+    "Code": {
+      "id": 1,
+      "name": "code"
+    },
+    "Message": {
+      "id": 2,
+      "name": "message"
+    },
+    "Retryable": {
+      "id": 3,
+      "name": "retryable"
+    }
+  },
+  "GrantRequest": {
+    "AgentID": {
+      "id": 3,
+      "name": "agent_id"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Revoke": {
+      "id": 4,
+      "name": "revoke"
+    }
+  },
+  "Health": {
+    "APIVersion": {
+      "id": 1,
+      "name": "api_version"
+    },
+    "SchemaVersion": {
+      "id": 2,
+      "name": "schema_version"
+    },
+    "Version": {
+      "id": 3,
+      "name": "version"
+    }
+  },
+  "HealthIncident": {
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 2,
+      "name": "kind"
+    },
+    "NextAction": {
+      "id": 7,
+      "name": "next_action"
+    },
+    "Reason": {
+      "id": 6,
+      "name": "reason"
+    },
+    "ResolvedAt": {
+      "id": 5,
+      "name": "resolved_at"
+    },
+    "Since": {
+      "id": 4,
+      "name": "since"
+    },
+    "State": {
+      "id": 3,
+      "name": "state"
+    }
+  },
+  "HealthProblem": {
+    "Code": {
+      "id": 2,
+      "name": "code"
+    },
+    "Component": {
+      "id": 1,
+      "name": "component"
+    },
+    "FirstSeenAt": {
+      "id": 3,
+      "name": "first_seen_at"
+    },
+    "LastSeenAt": {
+      "id": 4,
+      "name": "last_seen_at"
+    },
+    "ResolvedAt": {
+      "id": 5,
+      "name": "resolved_at"
+    }
+  },
+  "HeartbeatRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Health": {
+      "id": 3,
+      "name": "health"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "History": {
+    "Action": {
+      "id": 4,
+      "name": "action"
+    },
+    "ActorID": {
+      "id": 3,
+      "name": "actor_id"
+    },
+    "CreatedAt": {
+      "id": 6,
+      "name": "created_at"
+    },
+    "Reason": {
+      "id": 5,
+      "name": "reason"
+    },
+    "Sequence": {
+      "id": 1,
+      "name": "sequence"
+    },
+    "Snapshot": {
+      "id": 7,
+      "name": "snapshot"
+    },
+    "SourceID": {
+      "id": 2,
+      "name": "source_id"
+    }
+  },
+  "IdentityCertificate": {
+    "Agent": {
+      "id": 1,
+      "name": "agent"
+    },
+    "Certificate": {
+      "id": 3,
+      "name": "certificate"
+    },
+    "Identity": {
+      "id": 2,
+      "name": "identity"
+    }
+  },
+  "IdentityChallenge": {
+    "AgentID": {
+      "id": 2,
+      "name": "agent_id"
+    },
+    "ExpiresAt": {
+      "id": 5,
+      "name": "expires_at"
+    },
+    "Generation": {
+      "id": 4,
+      "name": "generation"
+    },
+    "InstanceID": {
+      "id": 3,
+      "name": "instance_id"
+    },
+    "Nonce": {
+      "id": 1,
+      "name": "nonce"
+    }
+  },
+  "Invitation": {
+    "ExpiresAt": {
+      "id": 4,
+      "name": "expires_at"
+    },
+    "Founder": {
+      "id": 3,
+      "name": "founder"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "SponsorID": {
+      "id": 2,
+      "name": "sponsor_id"
+    },
+    "UsedBy": {
+      "id": 5,
+      "name": "used_by"
+    }
+  },
+  "InvitationRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "ExpiresAt": {
+      "id": 4,
+      "name": "expires_at"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "TokenHash": {
+      "id": 3,
+      "name": "token_hash"
+    }
+  },
+  "ListQuery": {
+    "AssigneeID": {
+      "id": 2,
+      "name": "assignee_id"
+    },
+    "Cursor": {
+      "id": 6,
+      "name": "cursor"
+    },
+    "IncludeArchived": {
+      "id": 4,
+      "name": "include_archived"
+    },
+    "Limit": {
+      "id": 5,
+      "name": "limit"
+    },
+    "ProjectID": {
+      "id": 1,
+      "name": "project_id"
+    },
+    "Status": {
+      "id": 3,
+      "name": "status"
+    }
+  },
+  "LocalStatus": {
+    "Agent": {
+      "id": 1,
+      "name": "agent"
+    },
+    "Connected": {
+      "id": 3,
+      "name": "connected"
+    },
+    "Identity": {
+      "id": 2,
+      "name": "identity"
+    },
+    "OwnerGeneration": {
+      "id": 5,
+      "name": "owner_generation"
+    },
+    "Problem": {
+      "id": 6,
+      "name": "problem"
+    },
+    "Ready": {
+      "id": 4,
+      "name": "ready"
+    }
+  },
+  "ManagedAccount": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "Fingerprint": {
+      "id": 6,
+      "name": "fingerprint"
+    },
+    "GID": {
+      "id": 4,
+      "name": "gid"
+    },
+    "Generation": {
+      "id": 9,
+      "name": "generation"
+    },
+    "PreviousFingerprints": {
+      "id": 7,
+      "name": "previous_fingerprints"
+    },
+    "PublicKey": {
+      "id": 5,
+      "name": "public_key"
+    },
+    "State": {
+      "id": 8,
+      "name": "state"
+    },
+    "UID": {
+      "id": 3,
+      "name": "uid"
+    },
+    "Username": {
+      "id": 2,
+      "name": "username"
+    }
+  },
+  "Message": {
+    "AgentOperation": {
+      "id": 15,
+      "name": "agent_operation"
+    },
+    "AuthenticationRefresh": {
+      "id": 14,
+      "name": "authentication_refresh"
+    },
+    "Body": {
+      "id": 4,
+      "name": "body"
+    },
+    "CreatedAt": {
+      "id": 10,
+      "name": "created_at"
+    },
+    "ExpiresAt": {
+      "id": 12,
+      "name": "expires_at"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 6,
+      "name": "kind"
+    },
+    "Origin": {
+      "id": 5,
+      "name": "origin"
+    },
+    "ReadAt": {
+      "id": 11,
+      "name": "read_at"
+    },
+    "RecipientID": {
+      "id": 3,
+      "name": "recipient_id"
+    },
+    "ResponseRequest": {
+      "id": 8,
+      "name": "response_requested"
+    },
+    "Revision": {
+      "id": 13,
+      "name": "revision"
+    },
+    "SenderID": {
+      "id": 2,
+      "name": "sender_id"
+    },
+    "State": {
+      "id": 9,
+      "name": "state"
+    },
+    "Urgent": {
+      "id": 7,
+      "name": "urgent"
+    }
+  },
+  "MessageCommand": {
+    "Body": {
+      "id": 4,
+      "name": "body"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "ExpiresAt": {
+      "id": 9,
+      "name": "expires_at"
+    },
+    "Kind": {
+      "id": 6,
+      "name": "kind"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Origin": {
+      "id": 5,
+      "name": "origin"
+    },
+    "RecipientID": {
+      "id": 3,
+      "name": "recipient_id"
+    },
+    "ResponseRequest": {
+      "id": 8,
+      "name": "response_requested"
+    },
+    "Urgent": {
+      "id": 7,
+      "name": "urgent"
+    }
+  },
+  "MessageDiagnostics": {
+    "HealthReceivedAt": {
+      "id": 8,
+      "name": "health_received_at"
+    },
+    "MessageID": {
+      "id": 1,
+      "name": "message_id"
+    },
+    "NextAction": {
+      "id": 11,
+      "name": "next_action"
+    },
+    "ObservedAt": {
+      "id": 7,
+      "name": "observed_at"
+    },
+    "ReadAt": {
+      "id": 3,
+      "name": "read_at"
+    },
+    "Reason": {
+      "id": 10,
+      "name": "reason"
+    },
+    "RecipientID": {
+      "id": 2,
+      "name": "recipient_id"
+    },
+    "ResponseRequested": {
+      "id": 4,
+      "name": "response_requested"
+    },
+    "Stage": {
+      "id": 6,
+      "name": "stage"
+    },
+    "Stale": {
+      "id": 9,
+      "name": "stale"
+    },
+    "State": {
+      "id": 5,
+      "name": "state"
+    }
+  },
+  "MessageReadRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "MessageReceipt": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "State": {
+      "id": 3,
+      "name": "state"
+    }
+  },
+  "MessageRequest": {
+    "Body": {
+      "id": 4,
+      "name": "body"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "ExpiresAt": {
+      "id": 9,
+      "name": "expires_at"
+    },
+    "Kind": {
+      "id": 6,
+      "name": "kind"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Origin": {
+      "id": 5,
+      "name": "origin"
+    },
+    "RecipientID": {
+      "id": 3,
+      "name": "recipient_id"
+    },
+    "ResponseRequest": {
+      "id": 8,
+      "name": "response_requested"
+    },
+    "Urgent": {
+      "id": 7,
+      "name": "urgent"
+    }
+  },
+  "ModeRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Mode": {
+      "id": 3,
+      "name": "mode"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 4,
+      "name": "reason"
+    }
+  },
+  "OwnerCertificate": {
+    "Certificate": {
+      "id": 1,
+      "name": "certificate"
+    },
+    "Challenge": {
+      "id": 3,
+      "name": "challenge"
+    },
+    "Generation": {
+      "id": 2,
+      "name": "generation"
+    }
+  },
+  "OwnerRequest": {
+    "Nonce": {
+      "id": 2,
+      "name": "nonce"
+    },
+    "OwnerKey": {
+      "id": 1,
+      "name": "owner_key"
+    },
+    "Proof": {
+      "id": 3,
+      "name": "proof"
+    }
+  },
+  "Project": {
+    "Archived": {
+      "id": 8,
+      "name": "archived"
+    },
+    "CreatedAt": {
+      "id": 9,
+      "name": "created_at"
+    },
+    "Delegates": {
+      "id": 5,
+      "name": "delegates"
+    },
+    "Description": {
+      "id": 3,
+      "name": "description"
+    },
+    "Epoch": {
+      "id": 7,
+      "name": "epoch"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Name": {
+      "id": 2,
+      "name": "name"
+    },
+    "OwnerID": {
+      "id": 4,
+      "name": "owner_id"
+    },
+    "Revision": {
+      "id": 6,
+      "name": "revision"
+    }
+  },
+  "ProjectChange": {
+    "Archived": {
+      "id": 5,
+      "name": "archived"
+    },
+    "Description": {
+      "id": 4,
+      "name": "description"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Name": {
+      "id": 3,
+      "name": "name"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 6,
+      "name": "reason"
+    }
+  },
+  "ProjectRequest": {
+    "Description": {
+      "id": 4,
+      "name": "description"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Name": {
+      "id": 3,
+      "name": "name"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "ProviderObservation": {
+    "Authentication": {
+      "id": 3,
+      "name": "authentication"
+    },
+    "ObservedAt": {
+      "id": 4,
+      "name": "observed_at"
+    },
+    "ProblemCode": {
+      "id": 5,
+      "name": "problem_code"
+    },
+    "Provider": {
+      "id": 1,
+      "name": "provider"
+    },
+    "Version": {
+      "id": 2,
+      "name": "version"
+    }
+  },
+  "PublicIdentity": {
+    "AuthKey": {
+      "id": 5,
+      "name": "auth_key"
+    },
+    "AuthProof": {
+      "id": 7,
+      "name": "auth_proof"
+    },
+    "Name": {
+      "id": 3,
+      "name": "name"
+    },
+    "RequestID": {
+      "id": 2,
+      "name": "request_id"
+    },
+    "SSHKey": {
+      "id": 4,
+      "name": "ssh_key"
+    },
+    "SSHProof": {
+      "id": 6,
+      "name": "ssh_proof"
+    },
+    "Version": {
+      "id": 1,
+      "name": "version"
+    }
+  },
+  "RecoverIdentityRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Identity": {
+      "id": 4,
+      "name": "identity"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 3,
+      "name": "reason"
+    }
+  },
+  "RegisterIdentityRequest": {
+    "ExistingAgentID": {
+      "id": 4,
+      "name": "existing_agent_id"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Identity": {
+      "id": 3,
+      "name": "identity"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "RelayChunk": {
+    "Data": {
+      "id": 1,
+      "name": "data"
+    },
+    "EOF": {
+      "id": 2,
+      "name": "eof"
+    }
+  },
+  "RelayOpen": {
+    "SessionID": {
+      "id": 1,
+      "name": "session_id"
+    },
+    "Side": {
+      "id": 2,
+      "name": "side"
+    },
+    "Ticket": {
+      "id": 3,
+      "name": "ticket"
+    }
+  },
+  "RelayWritten": {
+    "Written": {
+      "id": 1,
+      "name": "written"
+    }
+  },
+  "ReportOutcome": {
+    "Accepted": {
+      "id": 1,
+      "name": "accepted"
+    },
+    "Run": {
+      "id": 4,
+      "name": "run"
+    },
+    "Stale": {
+      "id": 2,
+      "name": "stale"
+    },
+    "Task": {
+      "id": 3,
+      "name": "task"
+    }
+  },
+  "ReportRequest": {
+    "ApproveRework": {
+      "id": 8,
+      "name": "approve_rework"
+    },
+    "Checkpoint": {
+      "id": 12,
+      "name": "checkpoint"
+    },
+    "Decision": {
+      "id": 7,
+      "name": "decision"
+    },
+    "Evidence": {
+      "id": 11,
+      "name": "evidence"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Outcome": {
+      "id": 9,
+      "name": "outcome"
+    },
+    "ResultGeneration": {
+      "id": 6,
+      "name": "result_generation"
+    },
+    "RunID": {
+      "id": 3,
+      "name": "run_id"
+    },
+    "SafeToRetry": {
+      "id": 13,
+      "name": "safe_to_retry"
+    },
+    "SpecGeneration": {
+      "id": 5,
+      "name": "spec_generation"
+    },
+    "Summary": {
+      "id": 10,
+      "name": "summary"
+    },
+    "Token": {
+      "id": 4,
+      "name": "token"
+    },
+    "Waiting": {
+      "id": 14,
+      "name": "waiting"
+    }
+  },
+  "Result": {
+    "Evidence": {
+      "id": 4,
+      "name": "evidence"
+    },
+    "RunID": {
+      "id": 1,
+      "name": "run_id"
+    },
+    "SpecGeneration": {
+      "id": 2,
+      "name": "spec_generation"
+    },
+    "Summary": {
+      "id": 3,
+      "name": "summary"
+    }
+  },
+  "RetryPolicy": {
+    "BackoffSeconds": {
+      "id": 2,
+      "name": "backoff_seconds"
+    },
+    "MaxRetries": {
+      "id": 1,
+      "name": "max_retries"
+    }
+  },
+  "ReviewReference": {
+    "Decision": {
+      "id": 4,
+      "name": "decision"
+    },
+    "ResultGeneration": {
+      "id": 3,
+      "name": "result_generation"
+    },
+    "RunID": {
+      "id": 1,
+      "name": "run_id"
+    },
+    "SpecGeneration": {
+      "id": 2,
+      "name": "spec_generation"
+    }
+  },
+  "Run": {
+    "AgentID": {
+      "id": 4,
+      "name": "agent_id"
+    },
+    "AgentRevision": {
+      "id": 9,
+      "name": "agent_revision"
+    },
+    "Attempt": {
+      "id": 11,
+      "name": "attempt"
+    },
+    "Checkpoint": {
+      "id": 17,
+      "name": "checkpoint"
+    },
+    "Decision": {
+      "id": 10,
+      "name": "decision"
+    },
+    "DiscussionGeneration": {
+      "id": 7,
+      "name": "discussion_generation"
+    },
+    "Evidence": {
+      "id": 16,
+      "name": "evidence"
+    },
+    "FinishedAt": {
+      "id": 19,
+      "name": "finished_at"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 2,
+      "name": "kind"
+    },
+    "Model": {
+      "id": 13,
+      "name": "model"
+    },
+    "ProjectEpoch": {
+      "id": 8,
+      "name": "project_epoch"
+    },
+    "Provider": {
+      "id": 12,
+      "name": "provider"
+    },
+    "ResultGeneration": {
+      "id": 6,
+      "name": "result_generation"
+    },
+    "SpecGeneration": {
+      "id": 5,
+      "name": "spec_generation"
+    },
+    "StartedAt": {
+      "id": 18,
+      "name": "started_at"
+    },
+    "State": {
+      "id": 14,
+      "name": "state"
+    },
+    "Summary": {
+      "id": 15,
+      "name": "summary"
+    },
+    "TaskID": {
+      "id": 3,
+      "name": "task_id"
+    }
+  },
+  "Screen": {
+    "Applications": {
+      "id": 7,
+      "name": "applications"
+    },
+    "Height": {
+      "id": 5,
+      "name": "height"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Name": {
+      "id": 2,
+      "name": "name"
+    },
+    "Primary": {
+      "id": 6,
+      "name": "primary"
+    },
+    "Scope": {
+      "id": 3,
+      "name": "scope"
+    },
+    "Width": {
+      "id": 4,
+      "name": "width"
+    }
+  },
+  "ScreensRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Screens": {
+      "id": 3,
+      "name": "screens"
+    }
+  },
+  "Session": {
+    "ApplicationID": {
+      "id": 17,
+      "name": "application_id"
+    },
+    "CreatedAt": {
+      "id": 14,
+      "name": "created_at"
+    },
+    "DesktopFallback": {
+      "id": 18,
+      "name": "desktop_fallback"
+    },
+    "ExpiresAt": {
+      "id": 12,
+      "name": "expires_at"
+    },
+    "GrantID": {
+      "id": 15,
+      "name": "grant_id"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Mode": {
+      "id": 6,
+      "name": "mode"
+    },
+    "OpenRequested": {
+      "id": 11,
+      "name": "open_requested"
+    },
+    "ProjectID": {
+      "id": 4,
+      "name": "project_id"
+    },
+    "Provider": {
+      "id": 8,
+      "name": "provider"
+    },
+    "Purpose": {
+      "id": 7,
+      "name": "purpose"
+    },
+    "Reason": {
+      "id": 9,
+      "name": "reason"
+    },
+    "RequesterID": {
+      "id": 2,
+      "name": "requester_id"
+    },
+    "Revision": {
+      "id": 13,
+      "name": "revision"
+    },
+    "ScreenID": {
+      "id": 16,
+      "name": "screen_id"
+    },
+    "State": {
+      "id": 10,
+      "name": "state"
+    },
+    "TargetID": {
+      "id": 3,
+      "name": "target_id"
+    },
+    "TaskID": {
+      "id": 5,
+      "name": "task_id"
+    }
+  },
+  "SessionChange": {
+    "Action": {
+      "id": 3,
+      "name": "action"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "SessionFenceObservation": {
+    "CleanupProven": {
+      "id": 3,
+      "name": "cleanup_proven"
+    },
+    "Fingerprint": {
+      "id": 2,
+      "name": "fingerprint"
+    },
+    "RecoveryState": {
+      "id": 5,
+      "name": "recovery_state"
+    },
+    "SessionID": {
+      "id": 1,
+      "name": "session_id"
+    },
+    "SessionState": {
+      "id": 4,
+      "name": "session_state"
+    }
+  },
+  "SessionRecoveryRequest": {
+    "ExpectedFence": {
+      "id": 4,
+      "name": "expected_fence"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 5,
+      "name": "reason"
+    },
+    "SessionID": {
+      "id": 3,
+      "name": "session_id"
+    }
+  },
+  "SessionRequest": {
+    "ApplicationID": {
+      "id": 13,
+      "name": "application_id"
+    },
+    "DesktopFallback": {
+      "id": 14,
+      "name": "desktop_fallback"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "ExpiresAt": {
+      "id": 10,
+      "name": "expires_at"
+    },
+    "GrantID": {
+      "id": 11,
+      "name": "grant_id"
+    },
+    "Mode": {
+      "id": 6,
+      "name": "mode"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectID": {
+      "id": 4,
+      "name": "project_id"
+    },
+    "Provider": {
+      "id": 8,
+      "name": "provider"
+    },
+    "Purpose": {
+      "id": 7,
+      "name": "purpose"
+    },
+    "Reason": {
+      "id": 9,
+      "name": "reason"
+    },
+    "ScreenID": {
+      "id": 12,
+      "name": "screen_id"
+    },
+    "TargetID": {
+      "id": 3,
+      "name": "target_id"
+    },
+    "TaskID": {
+      "id": 5,
+      "name": "task_id"
+    }
+  },
+  "Task": {
+    "AcceptanceCriteria": {
+      "id": 5,
+      "name": "acceptance_criteria"
+    },
+    "ActiveRun": {
+      "id": 30,
+      "name": "active_run"
+    },
+    "ArchivedAt": {
+      "id": 22,
+      "name": "archived_at"
+    },
+    "AssigneeID": {
+      "id": 9,
+      "name": "assignee_id"
+    },
+    "Attempts": {
+      "id": 32,
+      "name": "attempts"
+    },
+    "Clarity": {
+      "id": 28,
+      "name": "clarity"
+    },
+    "CreatedAt": {
+      "id": 20,
+      "name": "created_at"
+    },
+    "CreatedBy": {
+      "id": 19,
+      "name": "created_by"
+    },
+    "Description": {
+      "id": 4,
+      "name": "description"
+    },
+    "DiscussionGeneration": {
+      "id": 17,
+      "name": "discussion_generation"
+    },
+    "Failures": {
+      "id": 33,
+      "name": "failures"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Importance": {
+      "id": 8,
+      "name": "importance"
+    },
+    "LastRunID": {
+      "id": 31,
+      "name": "last_run_id"
+    },
+    "Model": {
+      "id": 11,
+      "name": "model"
+    },
+    "NextAttemptAt": {
+      "id": 34,
+      "name": "next_attempt_at"
+    },
+    "ParentID": {
+      "id": 13,
+      "name": "parent_id"
+    },
+    "Policy": {
+      "id": 23,
+      "name": "policy"
+    },
+    "Priority": {
+      "id": 7,
+      "name": "priority"
+    },
+    "ProjectID": {
+      "id": 2,
+      "name": "project_id"
+    },
+    "Provider": {
+      "id": 10,
+      "name": "provider"
+    },
+    "Readiness": {
+      "id": 25,
+      "name": "readiness"
+    },
+    "Repetitive": {
+      "id": 14,
+      "name": "repetitive"
+    },
+    "Result": {
+      "id": 36,
+      "name": "result"
+    },
+    "ResultGeneration": {
+      "id": 18,
+      "name": "result_generation"
+    },
+    "RetryApproval": {
+      "id": 27,
+      "name": "retry_approval"
+    },
+    "RetryPolicy": {
+      "id": 24,
+      "name": "retry_policy"
+    },
+    "Revision": {
+      "id": 15,
+      "name": "revision"
+    },
+    "SpecGeneration": {
+      "id": 16,
+      "name": "spec_generation"
+    },
+    "Status": {
+      "id": 6,
+      "name": "status"
+    },
+    "Title": {
+      "id": 3,
+      "name": "title"
+    },
+    "UnsafeRetry": {
+      "id": 35,
+      "name": "unsafe_retry"
+    },
+    "UpdatedAt": {
+      "id": 21,
+      "name": "updated_at"
+    },
+    "Verification": {
+      "id": 26,
+      "name": "verification"
+    },
+    "Waiting": {
+      "id": 29,
+      "name": "waiting"
+    },
+    "WorkspaceRef": {
+      "id": 12,
+      "name": "workspace_ref"
+    }
+  },
+  "TaskChange": {
+    "AcceptanceCriteria": {
+      "id": 7,
+      "name": "acceptance_criteria"
+    },
+    "AgentID": {
+      "id": 11,
+      "name": "agent_id"
+    },
+    "AnswerIDs": {
+      "id": 23,
+      "name": "answer_ids"
+    },
+    "Attempt": {
+      "id": 21,
+      "name": "attempt"
+    },
+    "Decision": {
+      "id": 19,
+      "name": "decision"
+    },
+    "Description": {
+      "id": 6,
+      "name": "description"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "HistorySequence": {
+      "id": 22,
+      "name": "history_sequence"
+    },
+    "Importance": {
+      "id": 9,
+      "name": "importance"
+    },
+    "Kind": {
+      "id": 3,
+      "name": "kind"
+    },
+    "Model": {
+      "id": 13,
+      "name": "model"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Policy": {
+      "id": 15,
+      "name": "policy"
+    },
+    "Priority": {
+      "id": 8,
+      "name": "priority"
+    },
+    "Provider": {
+      "id": 12,
+      "name": "provider"
+    },
+    "Reason": {
+      "id": 4,
+      "name": "reason"
+    },
+    "ResultGeneration": {
+      "id": 18,
+      "name": "result_generation"
+    },
+    "RetryPolicy": {
+      "id": 16,
+      "name": "retry_policy"
+    },
+    "RunID": {
+      "id": 20,
+      "name": "run_id"
+    },
+    "SpecGeneration": {
+      "id": 17,
+      "name": "spec_generation"
+    },
+    "Status": {
+      "id": 10,
+      "name": "status"
+    },
+    "StoppedAcknowledged": {
+      "id": 25,
+      "name": "stopped_acknowledged"
+    },
+    "Title": {
+      "id": 5,
+      "name": "title"
+    },
+    "Waiting": {
+      "id": 24,
+      "name": "waiting"
+    },
+    "WorkspaceRef": {
+      "id": 14,
+      "name": "workspace_ref"
+    }
+  },
+  "TaskRequest": {
+    "AcceptanceCriteria": {
+      "id": 6,
+      "name": "acceptance_criteria"
+    },
+    "Description": {
+      "id": 5,
+      "name": "description"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Importance": {
+      "id": 10,
+      "name": "importance"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ParentID": {
+      "id": 7,
+      "name": "parent_id"
+    },
+    "Priority": {
+      "id": 9,
+      "name": "priority"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "Repetitive": {
+      "id": 8,
+      "name": "repetitive"
+    },
+    "Title": {
+      "id": 4,
+      "name": "title"
+    }
+  },
+  "Update": {
+    "ProjectID": {
+      "id": 5,
+      "name": "project_id"
+    },
+    "Sequence": {
+      "id": 1,
+      "name": "sequence"
+    },
+    "SourceID": {
+      "id": 3,
+      "name": "source_id"
+    },
+    "TaskID": {
+      "id": 4,
+      "name": "task_id"
+    },
+    "Topic": {
+      "id": 2,
+      "name": "topic"
+    },
+    "Urgent": {
+      "id": 6,
+      "name": "urgent"
+    }
+  },
+  "Waiting": {
+    "Kind": {
+      "id": 1,
+      "name": "kind"
+    },
+    "QuestionIDs": {
+      "id": 4,
+      "name": "question_ids"
+    },
+    "Reason": {
+      "id": 2,
+      "name": "reason"
+    },
+    "RequestedIDs": {
+      "id": 3,
+      "name": "requested_ids"
+    },
+    "Since": {
+      "id": 5,
+      "name": "since"
+    }
+  },
+  "WorkerHealth": {
+    "ActionID": {
+      "id": 19,
+      "name": "action_id"
+    },
+    "ActionKind": {
+      "id": 18,
+      "name": "action_kind"
+    },
+    "Activity": {
+      "id": 12,
+      "name": "activity"
+    },
+    "Authentication": {
+      "id": 9,
+      "name": "authentication"
+    },
+    "AuthenticationObservedAt": {
+      "id": 10,
+      "name": "authentication_observed_at"
+    },
+    "BlockedSinceAt": {
+      "id": 27,
+      "name": "blocked_since_at"
+    },
+    "Blocker": {
+      "id": 26,
+      "name": "blocker"
+    },
+    "DeadlineAt": {
+      "id": 14,
+      "name": "deadline_at"
+    },
+    "JournalID": {
+      "id": 21,
+      "name": "journal_id"
+    },
+    "LastActionAt": {
+      "id": 24,
+      "name": "last_action_at"
+    },
+    "LastActionID": {
+      "id": 23,
+      "name": "last_action_id"
+    },
+    "LastActionKind": {
+      "id": 22,
+      "name": "last_action_kind"
+    },
+    "LastProgressAt": {
+      "id": 15,
+      "name": "last_progress_at"
+    },
+    "Mode": {
+      "id": 4,
+      "name": "mode"
+    },
+    "Model": {
+      "id": 7,
+      "name": "model"
+    },
+    "ObservedAt": {
+      "id": 3,
+      "name": "observed_at"
+    },
+    "PendingReports": {
+      "id": 25,
+      "name": "pending_reports"
+    },
+    "Phase": {
+      "id": 11,
+      "name": "phase"
+    },
+    "PhaseStartedAt": {
+      "id": 13,
+      "name": "phase_started_at"
+    },
+    "PreferredProvider": {
+      "id": 6,
+      "name": "preferred_provider"
+    },
+    "Problems": {
+      "id": 28,
+      "name": "problems"
+    },
+    "Provider": {
+      "id": 5,
+      "name": "provider"
+    },
+    "ProviderVersion": {
+      "id": 8,
+      "name": "provider_version"
+    },
+    "Sequence": {
+      "id": 2,
+      "name": "sequence"
+    },
+    "StepFinishedAt": {
+      "id": 17,
+      "name": "step_finished_at"
+    },
+    "StepStartedAt": {
+      "id": 16,
+      "name": "step_started_at"
+    },
+    "TaskID": {
+      "id": 20,
+      "name": "task_id"
+    },
+    "Version": {
+      "id": 1,
+      "name": "version"
+    }
+  }
+}

@@ -44,7 +44,7 @@ as a migration shortcut.
 
 ## Current Go security upgrade
 
-API/schema contract **2** uses server SQLite migration **3**; local worker SQL
+API/schema contract **2** uses server SQLite migration **4**; local worker SQL
 remains **1**. Ordered migrations retain existing agents, tasks, mode/assistance
 attribution and operation receipts. This is not an importer for historical
 non-Go state. Old hashes/invitations may remain as records but cannot authorize
@@ -65,17 +65,37 @@ identity. New workers fail closed against missing authority/identity metadata.
 
 Normal signed registration and recovery reserve unique SSH accounts/UIDs and
 retire old keys/owner generations. Confirmed different live owner keys plus a
-fresh incumbent WS ping ban the entire identity, including Founder; only
+fresh incumbent authenticated control ping ban the entire identity, including Founder; only
 explicit fresh-key recovery restores access. Founder recovery uses private
 root-local Unix maintenance, never an agent gateway/API exception. Neither
 restart nor database compatibility proves a safe binary rollback. Real native
 multi-UID/sshd/service and full-host recovery qualification remains separate and
 unperformed; software/RAM clones or sequential use cannot be ruled out.
 
+## Clean binary transport cutover
+
+Native protocol **2** uses framed protobuf over existing pinned SSH/inner mTLS
+and Unix IPC. HTTP command/query, owner-control, relay and root-helper transport
+is not a compatibility option for native processes. Update all four binaries
+and their source-matched guide; older native transports fail closed rather than
+silently downgrading. Browser and external vendor/download protocols are separate.
+
+SQL4 adds durable scoped updates without resetting identities or private worker
+state. Existing logical operation IDs, JSON proposals/journals/outbox, task
+generations and cleanup evidence remain meaningful; wire bytes do not replace
+their logical fingerprints. No data wipe is necessary merely to change encoding.
+Normal cutover does not rotate keys, auto-resume uncertain work or clear fences.
+
+SSH accounts and kernel UID establish the principal, not unrestricted project
+authority. Current mTLS/key/owner-generation proofs remain mandatory: an OS-only
+replacement has not been natively qualified against stale SSH-channel admission.
+Deployment/wipe requires an explicitly resolved machine, role and exact paths;
+source changes do not authorize deleting unidentified live state.
+
 ## Backup compatibility and quarantined authority
 
 Backup-manifest schema 1 and current schema 2 are recognized independently of
-SQLite `user_version`: known old server SQL migrates through version 3, while
+SQLite `user_version`: known old server SQL migrates through version 4, while
 future manifest versions above 2 and future SQL are rejected. Restore validates
 the encrypted archive/database before publishing a fresh destination and
 quarantines **all** restored agent/key/owner epochs, including Founder and legacy

@@ -6,17 +6,14 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/tls"
-	"net/http"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/device"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/message"
 )
 
 // Remote is the pinned SSH/TLS boundary. Implementations own and close only
@@ -74,7 +71,7 @@ func (NativeRemote) Challenge(ctx context.Context, c config.Worker) (domain.Iden
 		return domain.IdentityChallenge{}, err
 	}
 	defer client.Close()
-	return api.Call[domain.IdentityChallenge](ctx, client, http.MethodGet, "/v1/identity/challenge", nil)
+	return api.Call[domain.IdentityChallenge](ctx, client, "GET", "/v1/identity/challenge", nil)
 }
 
 func (NativeRemote) Activate(ctx context.Context, c config.Worker, request domain.ActivateIdentityRequest) (domain.IdentityCertificate, error) {
@@ -83,7 +80,7 @@ func (NativeRemote) Activate(ctx context.Context, c config.Worker, request domai
 		return domain.IdentityCertificate{}, err
 	}
 	defer client.Close()
-	return api.Call[domain.IdentityCertificate](ctx, client, http.MethodPost, "/v1/identity/activate", request)
+	return api.Call[domain.IdentityCertificate](ctx, client, "POST", "/v1/identity/activate", request)
 }
 
 func (NativeRemote) Owner(ctx context.Context, c config.Worker, cert tls.Certificate) (OwnerStream, error) {
@@ -91,28 +88,18 @@ func (NativeRemote) Owner(ctx context.Context, c config.Worker, cert tls.Certifi
 	if err != nil {
 		return nil, err
 	}
-	connection, response, err := websocket.Dial(ctx, "wss://"+strings.TrimPrefix(client.BaseURL, "https://")+"/v1/identity/owner", &websocket.DialOptions{
-		HTTPClient: client.HTTP, CompressionMode: websocket.CompressionDisabled,
-	})
+	connection, err := client.MessageSession(ctx)
 	if err != nil {
-		if response != nil && response.Body != nil {
-			response.Body.Close()
-		}
 		client.Close()
-		if response != nil && (response.StatusCode == http.StatusForbidden || response.StatusCode == http.StatusConflict) {
-			return nil, domain.Fail(domain.Denied, "identity owner was rejected")
-		}
-		return nil, domain.Fail(domain.Unavailable, "identity owner connection failed")
+		return nil, err
 	}
-	connection.SetReadLimit(domain.MaxBody)
-	// Certificate renewal is slower than the gateway's idle limit. Keep the
-	// authenticated owner stream alive independently of certificate renewal.
 	heartbeatCtx, cancel := context.WithCancel(ctx)
-	owner := &nativeOwner{connection: connection, client: client, cancel: cancel, heartbeatDone: make(chan struct{})}
+	owner := &nativeOwner{connection: connection, client: client, cancel: cancel,
+		responses: make(chan domain.OwnerCertificate, 1), heartbeatDone: make(chan struct{})}
 	go func() {
 		defer close(owner.heartbeatDone)
 		if err := ownerKeepalive(heartbeatCtx, 20*time.Second, connection.Ping); err != nil && heartbeatCtx.Err() == nil {
-			connection.CloseNow()
+			_ = connection.Shutdown(domain.Fail(domain.Unavailable, "owner keepalive failed"))
 		}
 	}()
 	return owner, nil
@@ -123,9 +110,10 @@ func (NativeRemote) Client(c config.Worker, cert tls.Certificate) (*api.Client, 
 }
 
 type nativeOwner struct {
-	connection    *websocket.Conn
+	connection    *message.Session
 	client        *api.Client
 	cancel        context.CancelFunc
+	responses     chan domain.OwnerCertificate
 	heartbeatDone chan struct{}
 	closeOnce     sync.Once
 	closeErr      error
@@ -151,30 +139,54 @@ func ownerKeepalive(ctx context.Context, interval time.Duration, ping func(conte
 
 func (o *nativeOwner) Challenge(ctx context.Context) (domain.IdentityChallenge, error) {
 	var challenge domain.IdentityChallenge
-	err := wsjson.Read(ctx, o.connection, &challenge)
+	data, err := o.client.Message(ctx, message.Request{Operation: api.OwnerChallengeOperation})
+	if err != nil {
+		return challenge, err
+	}
+	err = message.UnmarshalPayload(data, &challenge)
 	return challenge, err
 }
 func (o *nativeOwner) Send(ctx context.Context, request domain.OwnerRequest) error {
-	return wsjson.Write(ctx, o.connection, request)
+	data, err := message.MarshalPayload(request)
+	if err != nil {
+		return err
+	}
+	data, err = o.client.Message(ctx, message.Request{Operation: api.OwnerProveOperation, Payload: data})
+	if err != nil {
+		return err
+	}
+	var certificate domain.OwnerCertificate
+	if err := message.UnmarshalPayload(data, &certificate); err != nil {
+		return err
+	}
+	select {
+	case o.responses <- certificate:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-o.connection.Done():
+		return o.connection.Err()
+	}
 }
 func (o *nativeOwner) Receive(ctx context.Context) (domain.OwnerCertificate, error) {
-	var cert domain.OwnerCertificate
-	err := wsjson.Read(ctx, o.connection, &cert)
-	if websocket.CloseStatus(err) == websocket.StatusPolicyViolation {
-		err = domain.Fail(domain.Denied, "identity owner authority was withdrawn")
+	select {
+	case certificate := <-o.responses:
+		return certificate, nil
+	case <-ctx.Done():
+		return domain.OwnerCertificate{}, ctx.Err()
+	case <-o.connection.Done():
+		return domain.OwnerCertificate{}, o.connection.Err()
 	}
-	return cert, err
 }
 func (o *nativeOwner) Close() error {
 	o.closeOnce.Do(func() {
 		if o.cancel != nil {
 			o.cancel()
 		}
-		o.closeErr = o.connection.CloseNow()
+		o.client.Close()
 		if o.heartbeatDone != nil {
 			<-o.heartbeatDone
 		}
-		o.client.Close()
 	})
 	return o.closeErr
 }

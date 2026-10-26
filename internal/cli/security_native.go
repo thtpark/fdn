@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -27,6 +26,7 @@ import (
 	"github.com/thtpark/fdn/internal/pki"
 	"github.com/thtpark/fdn/internal/platform"
 	"github.com/thtpark/fdn/internal/secure"
+	"github.com/thtpark/fdn/internal/transport"
 )
 
 type nativeAccountClient interface {
@@ -472,15 +472,24 @@ func (a *app) serveNativeFoundation(ctx context.Context, args []string, supplied
 	type endpoint struct {
 		path    string
 		group   int
-		handler http.Handler
+		purpose string
 		tls     *tls.Config
 	}
-	endpoints := []endpoint{{c.IngressSocket, c.IngressGroup, service.Handler(), mainTLS}, {c.JoinSocket, c.IngressGroup, service.BootstrapHandler(), joinTLS}, {filepath.Join(c.StateDir, "maintenance.sock"), -1, service.MaintenanceHandler(), nil}}
-	var servers []*http.Server
+	mainTLS.NextProtos, joinTLS.NextProtos = []string{api.MessageALPN}, []string{api.MessageALPN}
+	endpoints := []endpoint{{c.IngressSocket, c.IngressGroup, "api", mainTLS}, {c.JoinSocket, c.IngressGroup, "join", joinTLS}, {filepath.Join(c.StateDir, "maintenance.sock"), -1, "maintenance", nil}}
+	ctx, cancelConnections := context.WithCancel(ctx)
+	defer cancelConnections()
 	var listeners []net.Listener
+	done := make(chan error, len(endpoints))
+	remaining := 0
 	defer func() {
+		cancelConnections()
 		for _, listener := range listeners {
 			_ = listener.Close()
+		}
+		for remaining > 0 {
+			<-done
+			remaining--
 		}
 	}()
 	for _, endpoint := range endpoints {
@@ -489,29 +498,20 @@ func (a *app) serveNativeFoundation(ctx context.Context, args []string, supplied
 			return nil, err
 		}
 		listeners = append(listeners, listener)
-		server := &http.Server{Handler: endpoint.handler, ConnContext: ingress.ConnContext, TLSConfig: endpoint.tls, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 2 * time.Minute, IdleTimeout: time.Minute, MaxHeaderBytes: 16 << 10, ErrorLog: slog.NewLogLogger(service.Log.Handler(), slog.LevelWarn)}
-		servers = append(servers, server)
+		remaining++
+		go func() {
+			done <- transport.ServeConnections(ctx, listener, func(call context.Context, conn net.Conn) error {
+				if endpoint.tls != nil {
+					conn = tls.Server(conn, endpoint.tls.Clone())
+				}
+				return service.ServeMessageConnection(call, conn, endpoint.purpose)
+			}, func(err error) {
+				service.Log.Warn("native message connection closed", "purpose", endpoint.purpose, "code", domain.AsFault(err).Code)
+			})
+		}()
 	}
-	done := make(chan error, len(servers))
-	remaining := len(servers)
-	defer func() {
-		for _, server := range servers {
-			_ = server.Close()
-		}
-		for remaining > 0 {
-			<-done
-			remaining--
-		}
-	}()
 	stopReconciliation := startNativeReconciliation(ctx, store, client, c, service.Log)
 	defer stopReconciliation()
-	for index, server := range servers {
-		listener := listeners[index]
-		if server.TLSConfig != nil {
-			listener = tls.NewListener(listener, server.TLSConfig)
-		}
-		go func(server *http.Server, listener net.Listener) { done <- server.Serve(listener) }(server, listener)
-	}
 	if a.emit(map[string]any{"state": "listening", "ingress_socket": c.IngressSocket, "join_socket": c.JoinSocket, "version": domain.Version}, nil) != 0 {
 		return nil, domain.Fail(domain.Unavailable, "could not publish native listener readiness")
 	}
@@ -521,13 +521,8 @@ func (a *app) serveNativeFoundation(ctx context.Context, args []string, supplied
 		return nil, err
 	case <-ctx.Done():
 		_ = service.Close()
-		stop, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		var stopErr error
-		for _, server := range servers {
-			stopErr = errors.Join(stopErr, server.Shutdown(stop))
-		}
-		return map[string]string{"state": "stopped"}, stopErr
+		cancelConnections()
+		return map[string]string{"state": "stopped"}, nil
 	}
 }
 
@@ -639,11 +634,18 @@ func (a *app) nativeAccounts(ctx context.Context, args []string) (any, error) {
 		return nil, err
 	}
 	defer listener.Close()
-	server := &http.Server{Handler: platform.NewAccountHandler(manager, c.Accounts.ServerUID), ConnContext: ingress.ConnContext, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 2 * time.Minute, IdleTimeout: time.Minute, MaxHeaderBytes: 8 << 10}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	logger := slog.New(slog.NewJSONHandler(a.diagnostic, nil))
 	done := make(chan error, 1)
-	go func() { done <- server.Serve(listener) }()
+	go func() {
+		done <- transport.ServeConnections(ctx, listener, platform.NewAccountMessageHandler(manager, c.Accounts.ServerUID), func(err error) {
+			logger.Warn("account message connection closed", "code", domain.AsFault(err).Code)
+		})
+	}()
 	if a.emit(map[string]any{"state": "listening", "account_socket": c.Socket}, nil) != 0 {
-		_ = server.Close()
+		cancel()
+		_ = listener.Close()
 		<-done
 		return nil, domain.Fail(domain.Unavailable, "could not publish helper readiness")
 	}
@@ -651,15 +653,10 @@ func (a *app) nativeAccounts(ctx context.Context, args []string) (any, error) {
 	case err := <-done:
 		return nil, err
 	case <-ctx.Done():
-		stop, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		err := server.Shutdown(stop)
-		_ = server.Close()
+		cancel()
+		_ = listener.Close()
 		serveErr := <-done
-		if errors.Is(serveErr, http.ErrServerClosed) {
-			serveErr = nil
-		}
-		return map[string]string{"state": "stopped"}, errors.Join(err, serveErr)
+		return map[string]string{"state": "stopped"}, serveErr
 	}
 }
 
@@ -730,10 +727,7 @@ func (a *app) recoverNativeFounder(ctx context.Context, args []string) (any, err
 		return nil, err
 	}
 	socket := filepath.Join(c.StateDir, "maintenance.sock")
-	transport := &http.Transport{Proxy: nil, ResponseHeaderTimeout: 2 * time.Minute, DialContext: func(ctx context.Context, _, address string) (net.Conn, error) {
-		if address != "maintenance.local:80" {
-			return nil, domain.Fail(domain.Denied, "maintenance cannot dial another origin")
-		}
+	client := api.NewMessageClient("unix://maintenance.local", func(ctx context.Context) (net.Conn, error) {
 		info, err := os.Lstat(socket)
 		if err != nil {
 			return nil, err
@@ -752,10 +746,9 @@ func (a *app) recoverNativeFounder(ctx context.Context, args []string) (any, err
 			return nil, domain.Fail(domain.Denied, "maintenance is not the pinned local service OS peer")
 		}
 		return conn, nil
-	}}
-	defer transport.CloseIdleConnections()
-	client := &api.Client{BaseURL: "http://maintenance.local", HTTP: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	})
+	defer client.Close()
 	var identity domain.AgentIdentity
-	err = client.Request(ctx, http.MethodPost, "/v1/identity/recover-founder", domain.RecoverIdentityRequest{Command: domain.Command{OperationID: a.operation}, Reason: *reason, Identity: public}, &identity)
+	err = client.Request(ctx, "POST", "/v1/identity/recover-founder", domain.RecoverIdentityRequest{Command: domain.Command{OperationID: a.operation}, Reason: *reason, Identity: public}, &identity)
 	return map[string]any{"identity": identity, "local_root_recovery": true}, err
 }

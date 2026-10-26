@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
@@ -25,6 +26,9 @@ import (
 )
 
 func Dial(ctx context.Context, client *api.Client, sessionID, side string) (net.Conn, error) {
+	if client.IsMessageClient() {
+		return api.DialMessageRelay(ctx, client, sessionID, side)
+	}
 	url := "wss" + strings.TrimPrefix(client.BaseURL, "https") + api.Path("sessions", sessionID, "relay", side)
 	if client.Local {
 		url = "ws" + strings.TrimPrefix(client.BaseURL, "http") + api.Path("sessions", sessionID, "relay", side)
@@ -78,12 +82,15 @@ type Opener interface {
 }
 
 type Manager struct {
-	Client     *api.Client
-	State      *local.State
-	Config     config.Worker
-	ConfigPath string // Overrides Config.SourcePath when the caller did not load it through config.LoadWorker.
-	Opener     Opener
-	Log        *slog.Logger
+	Client          *api.Client
+	State           *local.State
+	Config          config.Worker
+	ConfigPath      string // Overrides Config.SourcePath when the caller did not load it through config.LoadWorker.
+	Opener          Opener
+	Log             *slog.Logger
+	wakeOnce        sync.Once
+	wake            chan struct{}
+	externalUpdates atomic.Bool
 }
 
 type Fence struct {
@@ -91,6 +98,50 @@ type Fence struct {
 	ID            string `json:"id"`
 	CleanupProven bool   `json:"cleanup_proven,omitempty"`
 	Generation    string `json:"generation,omitempty"`
+}
+
+func (m *Manager) Wake() {
+	m.wakeOnce.Do(func() { m.wake = make(chan struct{}, 1) })
+	select {
+	case m.wake <- struct{}{}:
+	default:
+	}
+}
+
+func (m *Manager) UseExternalUpdates() { m.externalUpdates.Store(true) }
+
+func (m *Manager) watchUpdates(ctx context.Context) {
+	cursor := ""
+	delay := time.Second
+	for ctx.Err() == nil {
+		page, err := api.Call[domain.Page[domain.Update]](ctx, m.Client, "GET", "/v1/updates?wait=true&limit=100&since="+cursor, nil)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			m.Log.Warn("session update subscription blocked", "code", domain.AsFault(err).Code)
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
+			delay = min(delay*2, 30*time.Second)
+			continue
+		}
+		relevant := cursor == ""
+		cursor, delay = page.NextCursor, time.Second
+		for _, update := range page.Items {
+			switch update.Topic {
+			case "session", "assistance", "project", "task", "agent", "agent-mode", "agent-operation":
+				relevant = true
+			}
+		}
+		if relevant {
+			m.Wake()
+		}
+	}
 }
 
 func (m *Manager) Run(ctx context.Context) error {
@@ -103,32 +154,82 @@ func (m *Manager) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	publicationDone := make(chan struct{})
 	go func() { defer close(publicationDone); m.publishLoop(ctx) }()
-	defer func() { cancel(); <-publicationDone }()
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
+	var watchDone chan struct{}
+	if !m.externalUpdates.Load() {
+		watchDone = make(chan struct{})
+		go func() { defer close(watchDone); m.watchUpdates(ctx) }()
+	}
+	defer func() {
+		cancel()
+		<-publicationDone
+		if watchDone != nil {
+			<-watchDone
+		}
+	}()
+	m.Wake()
+	retry := time.NewTimer(time.Hour)
+	retry.Stop()
+	defer retry.Stop()
+	var pending []domain.Session
+	needsSync := true
+	delay := time.Second
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-ticker.C:
-			if err := m.retryCleanup(ctx); err != nil && domain.AsFault(err).Code != domain.Conflict {
+		case <-m.wake:
+			needsSync = true
+			delay = time.Second
+		case <-retry.C:
+		}
+		retryPending := false
+		if err := m.retryCleanup(ctx); err != nil {
+			retryPending = true
+			if domain.AsFault(err).Code != domain.Conflict {
 				m.Log.Warn("proved session cleanup retirement blocked", "code", domain.AsFault(err).Code)
 			}
+		}
+		if needsSync {
 			sessions, err := api.Call[[]domain.Session](ctx, m.Client, "GET", "/v1/sessions", nil)
 			if err != nil {
 				if ctx.Err() == nil {
-					m.Log.Warn("session polling blocked", "code", domain.AsFault(err).Code)
+					m.Log.Warn("session update synchronization blocked", "code", domain.AsFault(err).Code)
 				}
-				continue
+				retryPending = true
+			} else {
+				pending = pending[:0]
+				for _, session := range sessions {
+					if session.TargetID == m.Client.Credential.AgentID && session.State == "consented" && session.OpenRequested {
+						pending = append(pending, session)
+					}
+				}
+				needsSync = false
 			}
-			for _, session := range sessions {
-				if session.TargetID != m.Client.Credential.AgentID || session.State != "consented" || !session.OpenRequested {
+		}
+		if !needsSync {
+			for _, session := range pending {
+				if session.ExpiresAt <= time.Now().Unix() {
 					continue
 				}
-				if err := m.start(ctx, session); err != nil && domain.AsFault(err).Code != domain.Conflict {
-					m.Log.Warn("session startup/closure blocked", "session", session.ID, "code", domain.AsFault(err).Code)
+				if err := m.start(ctx, session); err != nil {
+					retryPending = true
+					if domain.AsFault(err).Code != domain.Conflict {
+						m.Log.Warn("session startup/closure blocked", "session", session.ID, "code", domain.AsFault(err).Code)
+					}
+				} else {
+					m.Wake()
+					break
 				}
 			}
+		}
+		if retryPending {
+			retry.Stop()
+			select {
+			case <-retry.C:
+			default:
+			}
+			retry.Reset(delay)
+			delay = min(delay*2, 30*time.Second)
 		}
 	}
 }

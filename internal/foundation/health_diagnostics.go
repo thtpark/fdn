@@ -290,11 +290,11 @@ AND json_extract(data,'$.kind')='direct' AND json_extract(data,'$.response_reque
 }
 
 func (s *Store) AgentDiagnostics(ctx context.Context, actor, target string) (domain.AgentDiagnostics, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.readSnapshot(ctx)
 	if err != nil {
 		return domain.AgentDiagnostics{}, err
 	}
-	defer tx.Rollback()
+	defer tx.Close()
 	viewer, err := s.actor(ctx, tx, actor)
 	if err != nil {
 		return domain.AgentDiagnostics{}, err
@@ -349,11 +349,11 @@ func (s *Store) AgentDiagnostics(ctx context.Context, actor, target string) (dom
 }
 
 func (s *Store) MessageDiagnostics(ctx context.Context, actor, id string) (domain.MessageDiagnostics, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.readSnapshot(ctx)
 	if err != nil {
 		return domain.MessageDiagnostics{}, err
 	}
-	defer tx.Rollback()
+	defer tx.Close()
 	if _, err := s.actor(ctx, tx, actor); err != nil {
 		return domain.MessageDiagnostics{}, err
 	}

@@ -87,11 +87,11 @@ func resolveHealthEpisode(episode *healthEpisode, assessment healthAssessment, n
 }
 
 func (s *Store) sweepAgentHealth(ctx context.Context, id string) error {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginWrite(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer finish()
 	agent, err := get[domain.Agent](ctx, tx, "agents", id)
 	if err != nil {
 		return err
@@ -113,7 +113,7 @@ func (s *Store) sweepAgentHealth(ctx context.Context, id string) error {
 		return err
 	}
 	if agent.Founder && !assessment.reported {
-		return tx.Commit()
+		return s.commit(ctx, tx)
 	}
 	episode, err := healthSetting[healthEpisode](ctx, tx, healthIncidentKey+id)
 	if err != nil {
@@ -155,7 +155,7 @@ func (s *Store) sweepAgentHealth(ctx context.Context, id string) error {
 			return err
 		}
 	}
-	return tx.Commit()
+	return s.commit(ctx, tx)
 }
 
 func (s *Store) healthRecipients(ctx context.Context, q queryer, agent domain.Agent, taskID string) ([]string, bool, error) {

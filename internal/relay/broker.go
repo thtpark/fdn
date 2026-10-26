@@ -2,22 +2,36 @@ package relay
 
 import (
 	"context"
+	"errors"
 	"io"
+	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/foundation"
 )
 
 type slot struct {
-	target            *websocket.Conn
-	requester         *websocket.Conn
-	targetReserved    bool
-	requesterReserved bool
-	done              chan struct{}
-	once              sync.Once
+	target    net.Conn
+	requester net.Conn
+	done      chan struct{}
+	once      sync.Once
+}
+
+type endpoint struct {
+	net.Conn
+	close func()
+	once  sync.Once
+}
+
+func (c *endpoint) Close() error {
+	err := c.Conn.Close()
+	c.once.Do(c.close)
+	return err
 }
 
 type Broker struct {
@@ -27,107 +41,128 @@ type Broker struct {
 	closed bool
 }
 
-func New(store *foundation.Store) *Broker { return &Broker{store: store, slots: map[string]*slot{}} }
+func New(store *foundation.Store) *Broker {
+	return &Broker{store: store, slots: map[string]*slot{}}
+}
 
-func (b *Broker) Serve(w http.ResponseWriter, r *http.Request, actor, id, side string) {
-	session, err := b.store.SessionAccess(r.Context(), actor, id, side)
+func (b *Broker) Open(ctx context.Context, actor, id, side string) (net.Conn, error) {
+	watermark, err := b.store.Updates(ctx, actor, "", 1)
 	if err != nil {
-		http.Error(w, "relay authority changed", http.StatusForbidden)
-		return
+		return nil, err
+	}
+	session, err := b.store.SessionAccess(ctx, actor, id, side)
+	if err != nil {
+		return nil, err
 	}
 	b.mu.Lock()
 	if b.closed {
 		b.mu.Unlock()
-		http.Error(w, "relay unavailable", http.StatusServiceUnavailable)
-		return
+		return nil, domain.Fail(domain.Unavailable, "relay is stopping")
 	}
 	s := b.slots[id]
 	if s == nil {
 		s = &slot{done: make(chan struct{})}
 		b.slots[id] = s
 	}
-	busy := (side == "target" && s.targetReserved) || (side == "requester" && s.requesterReserved)
-	if busy {
+	if (side == "target" && s.target != nil) || (side == "requester" && s.requester != nil) {
 		b.mu.Unlock()
-		http.Error(w, "relay side already connected", http.StatusConflict)
-		return
+		return nil, domain.Fail(domain.Conflict, "relay side is already connected")
 	}
+	local, peer := net.Pipe()
 	if side == "target" {
-		s.targetReserved = true
+		s.target = peer
 	} else {
-		s.requesterReserved = true
-	}
-	b.mu.Unlock()
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionDisabled})
-	if err != nil {
-		b.retire(id, s)
-		return
-	}
-	conn.SetReadLimit(64 << 10)
-	b.mu.Lock()
-	select {
-	case <-s.done:
-		b.mu.Unlock()
-		conn.CloseNow()
-		return
-	default:
-	}
-	if side == "target" {
-		s.target = conn
-	} else {
-		s.requester = conn
+		s.requester = peer
 	}
 	if s.target != nil && s.requester != nil {
 		go b.bridge(id, s, s.target, s.requester)
 	}
 	b.mu.Unlock()
-	defer b.retire(id, s)
-	expiry := time.NewTimer(max(time.Until(time.Unix(session.ExpiresAt, 0)), 0))
-	defer expiry.Stop()
-	check := time.NewTicker(250 * time.Millisecond)
-	defer check.Stop()
-	for {
+	go b.guard(ctx, actor, id, side, watermark.NextCursor, session.ExpiresAt, s)
+	return &endpoint{Conn: local, close: func() { b.retire(id, s) }}, nil
+}
+
+func (b *Broker) guard(ctx context.Context, actor, id, side, cursor string, expires int64, s *slot) {
+	ctx, cancel := context.WithDeadline(ctx, time.Unix(expires, 0))
+	defer cancel()
+	stop := context.AfterFunc(ctx, func() { b.retire(id, s) })
+	defer stop()
+	go func() {
 		select {
 		case <-s.done:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	for {
+		page, err := b.store.WaitUpdates(ctx, actor, cursor, 200)
+		if err != nil {
+			b.retire(id, s)
 			return
-		case <-r.Context().Done():
-			return
-		case <-expiry.C:
-			return
-		case <-check.C:
-			if _, err := b.store.SessionAccess(r.Context(), actor, id, side); err != nil {
+		}
+		cursor = page.NextCursor
+		if len(page.Items) > 0 {
+			if _, err := b.store.SessionAccess(ctx, actor, id, side); err != nil {
+				b.retire(id, s)
 				return
 			}
 		}
 	}
 }
 
-func (b *Broker) bridge(id string, s *slot, target, requester *websocket.Conn) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	left := websocket.NetConn(ctx, target, websocket.MessageBinary)
-	right := websocket.NetConn(ctx, requester, websocket.MessageBinary)
+// Serve is the browser/business-fixture edge. Native relay traffic uses Open
+// and bounded binary messages, not a WebSocket on Foundation's SSH ingress.
+func (b *Broker) Serve(w http.ResponseWriter, r *http.Request, actor, id, side string) {
+	stream, err := b.Open(r.Context(), actor, id, side)
+	if err != nil {
+		http.Error(w, "relay authority unavailable", domain.HTTPStatus(err))
+		return
+	}
+	defer stream.Close()
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionDisabled})
+	if err != nil {
+		return
+	}
+	defer conn.CloseNow()
+	conn.SetReadLimit(64 << 10)
+	ws := websocket.NetConn(r.Context(), conn, websocket.MessageBinary)
 	done := make(chan struct{}, 2)
-	go func() { _, _ = io.Copy(left, right); done <- struct{}{} }()
-	go func() { _, _ = io.Copy(right, left); done <- struct{}{} }()
+	go func() { _, _ = io.Copy(stream, ws); done <- struct{}{} }()
+	go func() { _, _ = io.Copy(ws, stream); done <- struct{}{} }()
 	<-done
-	cancel()
+	_ = ws.Close()
+	_ = stream.Close()
+	<-done
+}
+
+func (b *Broker) bridge(id string, s *slot, target, requester net.Conn) {
+	done := make(chan error, 2)
+	go func() { _, err := io.Copy(target, requester); done <- err }()
+	go func() { _, err := io.Copy(requester, target); done <- err }()
+	first := <-done
 	b.retire(id, s)
-	<-done
+	second := <-done
+	for _, err := range []error{first, second} {
+		if err != nil && !IsClosed(err) {
+			slog.Warn("relay stream ended", "code", domain.AsFault(err).Code)
+		}
+	}
 }
 
 func (b *Broker) retire(id string, s *slot) {
 	s.once.Do(func() {
 		b.mu.Lock()
-		delete(b.slots, id)
+		if b.slots[id] == s {
+			delete(b.slots, id)
+		}
 		target, requester := s.target, s.requester
 		close(s.done)
 		b.mu.Unlock()
 		if target != nil {
-			target.CloseNow()
+			_ = target.Close()
 		}
 		if requester != nil {
-			requester.CloseNow()
+			_ = requester.Close()
 		}
 	})
 }
@@ -144,4 +179,8 @@ func (b *Broker) Close() error {
 		b.retire(id, s)
 	}
 	return nil
+}
+
+func IsClosed(err error) bool {
+	return errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe)
 }

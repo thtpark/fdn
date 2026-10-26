@@ -57,13 +57,24 @@ func loadWorkflow(t *testing.T, name string) workflow {
 func TestWorkflowTriggersAndIndependentSuites(t *testing.T) {
 	tests := loadWorkflow(t, "tests.yml")
 	pr := tests.On["pull_request"]
-	if !reflect.DeepEqual(pr.Branches, []string{"main"}) || !reflect.DeepEqual(pr.Types, []string{"opened", "synchronize", "reopened", "ready_for_review"}) {
-		t.Fatal("main PR tests have incorrect trigger")
+	if !reflect.DeepEqual(pr.Branches, []string{"main", "release"}) || !reflect.DeepEqual(pr.Types, []string{"opened", "synchronize", "reopened", "ready_for_review"}) {
+		t.Fatal("main/release PR tests have incorrect trigger")
 	}
 	for job, suite := range map[string]string{"static": "static", "unit": "unit", "integration": "integration", "end-to-end": "e2e", "stress": "stress"} {
 		value, exists := tests.Jobs[job]
 		if !exists {
 			t.Fatal("missing independent suite", job)
+		}
+		lockedCompiler := false
+		for _, step := range tests.Jobs["static"].Steps {
+			if strings.Contains(step.Run, "protoc-36.2-linux-x86_64.zip") &&
+				strings.Contains(step.Run, "121f6c7afe1d4d0e3ea6aab9432038599250134cbf4474cb1167d2c7decd4278") &&
+				strings.Contains(step.Run, "sha256sum --check --strict") {
+				lockedCompiler = true
+			}
+		}
+		if !lockedCompiler {
+			t.Fatal("static acceptance does not install its verified locked protobuf compiler")
 		}
 		found := false
 		for _, step := range value.Steps {

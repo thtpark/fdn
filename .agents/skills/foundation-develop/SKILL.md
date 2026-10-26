@@ -20,7 +20,7 @@ The checkout's root documents are canonical; no old source tree is required.
 4. Preserve exact replay, generation/epoch fences, completed-vs-done, creator/
    recipient ownership and the one-slot rule. Identity tests must distinguish
    separate-HOME business fixtures from actual Unix peer-UID/mTLS checks. Prove
-   different live owner keys plus fresh incumbent WS ping before whole-identity
+   different live owner keys plus fresh incumbent binary ping before whole-identity
    ban (including Founder); crash/reconnect/CLI/unproved attempts do not ban.
    Keep keys outside runner UID and root maintenance outside agent ingress.
    Root provision/disable RPCs must carry positive identity key generation:
@@ -32,7 +32,8 @@ The checkout's root documents are canonical; no old source tree is required.
    hardware signing/attestation is not implemented or qualified. New provider
    adapters must prove non-prompting coding approval and tool-disabled text calls.
 5. Add ordered compatibility-tested migrations, never rewrite shipped schemas
-   or reset state. API/schema contract is 2, server SQL migration 3, local SQL 1.
+   or reset state. Application/schema contract is 2, native message protocol 2,
+   server SQL migration 4, local SQL 1.
    Retain old identities/tasks/operations and private worker state without
    authorizing legacy bearer runtime. Explicit Founder binding and runner
    `connect --migrate` preserve the designated original non-Founder; a keyless
@@ -53,7 +54,11 @@ The checkout's root documents are canonical; no old source tree is required.
    timing for capture/expiry, not target wall time.
    Preserve raw private evidence and test narrow real Unix-proxy method/depth/
    query/header boundaries without forwarding caller identity.
-7. Use the smallest related tests, then `bash scripts/test.sh all`. Independent
+7. Native coordination uses bounded protobuf over SSH/mTLS and Unix IPC, not
+   HTTP/gRPC or a downgrade path. Preserve kernel-derived principals and
+   narrow typed capabilities; UID alone is not a key-generation proof.
+   Run `go run ./tools/protocol --check` for the locked contract.
+   Use the smallest related tests, then `bash scripts/test.sh all`. Independent
    selectors are static, unit, integration, e2e and stress. Tests use isolated
    state/HOME/ports and deterministic providers; no VM, container, root/host
    service registration, real credentials or paid inference.

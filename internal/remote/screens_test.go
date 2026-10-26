@@ -81,6 +81,14 @@ func newManagerFixture(t *testing.T) *managerFixture {
 }
 
 func (f *managerFixture) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/v1/updates" {
+		if r.URL.Query().Get("since") == "" {
+			envelope(w, domain.Page[domain.Update]{Items: []domain.Update{}, NextCursor: "fixture"}, nil)
+		} else {
+			<-r.Context().Done()
+		}
+		return
+	}
 	if r.URL.Path == "/v1/sessions/session_fixture/relay/target" {
 		conn, err := websocket.Accept(w, r, nil)
 		if err != nil {
@@ -215,7 +223,8 @@ func TestScreenPublicationLostAcknowledgementReusesDurableProposal(t *testing.T)
 	if err := f.manager.PublishScreens(context.Background()); err == nil {
 		t.Fatal("lost acknowledgement was hidden")
 	}
-	restarted := *f.manager
+	restarted := &Manager{Client: f.manager.Client, State: f.manager.State, Config: f.manager.Config,
+		ConfigPath: f.manager.ConfigPath, Opener: f.manager.Opener, Log: f.manager.Log}
 	if err := restarted.PublishScreens(context.Background()); err != nil {
 		t.Fatal(err)
 	}

@@ -53,10 +53,13 @@ protected-account commands; it has no `guide` or `config init` leaf.
    journals/outbox and identity. A keyless legacy Founder requires root-local
    recovery before it can register others. Migration never borrows another
    computer's state/keys/provider login or erases a pending operation.
-9. A proved second different live owner key plus a fresh incumbent WebSocket
+9. A proved second different live owner key plus a fresh incumbent binary control
    ping bans the entire identity, including the original and Founder, and closes
    API/streams. Stale crashes/reconnects, ordinary CLI calls, public collisions
    and unproved attempts do not ban. Never clear a ban, keys or lock by hand.
+   Activation, owner proof and ordinary commands use version-2 protobuf sessions
+   over pinned SSH/mTLS. Keep certificate/generation proofs: OS-only stale-SSH
+   admission has not been natively qualified, and an account UID is not a key epoch.
 10. Recovery requires fresh SSH/authentication keypairs, new signed public
     request, intentional reason and current authority. No `--rotate` exists:
     stop the service safely, preserve its old private StateDir and ALL runner

@@ -12,7 +12,7 @@ approvals, run models, or publish sensitive data.
   needs and explicitly pauses/resumes global mode. Delegates may be AI agents.
 - Persistent scoped Founder-issued assistance authorization survives restarts
   and live-connection expiry; targets need no human or repeated consent.
-- One authoritative TLS API and embedded SQLite service; agents never write the
+- One authoritative binary TLS message service and embedded SQLite; agents never write the
   server database directly. Service-controlled policy applies to every client.
 - Pinned SSH forced stdio (`fdn-api`/`fdn-join`) into local Unix ingress plus
   inner mTLS; no API TCP listener, bearer bootstrap or token-only runtime.
@@ -20,7 +20,7 @@ approvals, run models, or publish sensitive data.
   kernel peer UID must agree with certificate instance/agent/key/owner epochs.
 - Founder-only signed public registration; private software keys stay in the
   separate identity-service account, never the provider runner or its prompts.
-- Confirmed different simultaneous owner keys plus a fresh incumbent WebSocket
+- Confirmed different simultaneous owner keys plus a fresh incumbent binary control
   ping ban the entire identity, including the original and Founder. Stale/dead
   reconnects, ordinary CLI traffic, collisions and unproved attempts do not ban.
 - Recovery is explicit with fresh keys/generations; Founder recovery is only
@@ -70,7 +70,7 @@ and non-authentication blockers remain visible, including after sign-in.
 Workers optionally piggyback version-1 observations on existing 30-second
 heartbeats; old bodies and the `Agent` response remain compatible. Bounded
 service-owned latest-report/incident settings need no new migration (API/schema
-2, server SQL 3, local SQL 1). The non-AI server watchdog monitors missing
+2, server SQL 4, local SQL 1). The non-AI server watchdog monitors missing
 heartbeat/report (90 seconds), deadline plus grace (30 seconds) and eligible
 unexplained queued replies (120 seconds), including manual Founder. It does not
 classify pause/no-response-requested/idle/in-deadline work as stuck. Protected
@@ -118,7 +118,7 @@ or version bump is part of this source-only work.
 
 ## Current acceptance gate: software-first identity security
 
-API/schema contract **2**, server SQL migration **3** and preserved local SQL
+API/schema contract **2**, server SQL migration **4** and preserved local SQL
 **1** are the current implementation target. This is mandatory security work,
 not an optional hardware milestone or permission to bypass existing project/
 work policies. Source integration and exact test outcomes must be confirmed
@@ -150,7 +150,7 @@ before marking this gate complete.
   confirmed strict Unix/attachment source results do not finish all-suite
   acceptance after subsequent restore/lifecycle changes; see
   [TEST_PLAN.md](TEST_PLAN.md) and [SCENARIOS.md](tests/e2e/SCENARIOS.md).
-- Known backup manifest schemas 1/2 migrate through server SQL3; future formats
+- Known backup manifest schemas 1/2 migrate through server SQL4; future formats
   fail closed. Restore quarantines ALL identity/owner/key epochs before
   publication. Root-private fresh-key recovery adopts/recovers the sole existing
   legacy/restored Founder retaining ID/history, then active Founder explicitly
@@ -166,17 +166,260 @@ keys/RAM and sequential use remain clonable. Optional future native hardware
 signing does not change the software-first acceptance requirement; no hardware
 adapter or attestation is part of this implementation.
 
-## Next work: verify scale before adding infrastructure
+## SSH-native messages and scoped push: source implementation
 
-The **1,000-agent target is unqualified**. Current fixed polling creates roughly
-four baseline requests/second per idle healthy worker before task traffic.
-Follow [CAPACITY.md](CAPACITY.md): establish workload/SLOs, add a local agent-fleet
-load harness, eliminate unrelated wakeups and consolidate polling, measure
-transport/SQLite/host limits, then size or change storage from evidence.
+The version 0.3.0 worktree implements the following slices from the 0.2.11
+`ae390a55` baseline. Native protobuf protocol is **2**, application/schema is
+**2**, server SQL is **4**, and local SQL remains **1**. See
+[CAPACITY.md](CAPACITY.md) for the approved profile and measured outcomes, not
+an inferred production capacity claim. Full source-suite/release and actual
+native deployment qualification remain separate gates.
 
-This milestone should not accidentally add a broker, distributed authority,
-second automation switch, approval bypass, or paid benchmark. Keep current
-revocation, fairness, bounded output, cancellation and report-replay semantics.
+The clean internal transport cutover intentionally adds no native HTTP
+compatibility layer. Existing JSON business fixtures remain explicit test
+adapters; normal processes use only binary SSH/mTLS/Unix sessions. Kernel-based
+principals and current certificate/owner-generation proofs are retained.
+An OS-only replacement for those proofs is **not** claimed or enabled.
+
+### Observed local acceptance
+
+On 2026-10-25, the 0.3.0 worktree based on `ae390a55` passed
+`bash scripts/test.sh all` with Go 1.27.1 on darwin/arm64: static/module/vet and
+three-target builds, all race-enabled unit/integration checks, actual compiled
+binary e2e workflows and stress. Protocol generation checks are in the static
+suite. This is local evidence, not a claim of Linux runtime CI or a release.
+
+All S0-S7 source slices below are implemented and locally qualified. The
+unchanged 1,000-logical-identity harness additionally passed ordinary and race
+builds: final update p95/p99 10.324/11.202 ms ordinary and
+159.452/169.139 ms with race; cancellation p99 0.491/1.366 ms. Earlier failing
+race tails and the actual writer-admission fix remain recorded in
+[CAPACITY.md](CAPACITY.md).
+
+No live system was wiped, restarted or redeployed. Release packaging/rollout
+still requires its authorized source-bound workflow and verified Foundation/
+agent machine, account and state-path inventory. Browser/vendor HTTP edges,
+native multi-UID/sshd/service/reboot and OS-only key-generation admission remain
+separate qualification; they must not be inferred from this source gate.
+
+### Target architecture and scope
+
+- Use persistent, bidirectional SSH stdio streams as the communication backbone.
+  Replace internal HTTP/JSON and WebSocket exchanges with bounded, typed protobuf
+  messages; do not introduce gRPC, an HTTP replacement framework, or a broker.
+- `agent-cli` and `agent-service` attach through peer-checked local Unix IPC to
+  the separate `agent-identity` service. That service owns keys and upstream
+  connections; CLI attachment never creates another identity owner.
+- Foundation derives the connecting principal from the fixed gateway's kernel
+  peer UID and registered account. Never accept a claimed UID/AgentID as proof.
+  OS permissions govern account/socket admission; Foundation transactions still
+  enforce project, task, private-party, approval, mode and generation authority.
+- Commands/results, explicit queries/snapshots, scoped updates, cancellation,
+  checkpoints and keepalives share a small application message protocol.
+  Request/reply behavior does not require a general RPC framework.
+- One logical agent session may use separate purpose-bound SSH streams.
+  Owner liveness and cancellation must not wait behind desktop/bulk bytes or
+  inference. Do not assume the current native SSH adapter multiplexes all
+  traffic onto one physical SSH connection.
+- Cover ordinary business traffic, local IPC, activation/owner control, private
+  maintenance, account provisioning and remote relay transport. Browser-facing
+  viewer HTTP/WebSocket and external vendor/download protocols are separate
+  edges, not internal coordination transports.
+- Keep SQLite, existing domain policy and retained JSON persistence/evidence.
+  This is not a database replacement, general replication system, new automation
+  switch, shell-command-per-action design, or authority to deploy.
+
+### Ordered delivery and dependencies
+
+Each row records the bounded implementation/review slice and its exit gate.
+S1 and S2 can proceed independently after S0; S6 need not block push development.
+
+| Slice | Depends on | Deliverable and exit gate |
+| --- | --- | --- |
+| S0: specification and baseline | None | Freeze protocol/security/compatibility contracts, agree workload and numeric SLOs, then capture an isolated current-source baseline |
+| S1: OS principal and session fences | S0 | Prove kernel-bound admission, stale-session rejection, recovery and duplicate-owner behavior; explicitly decide whether inner mTLS can be retired |
+| S2: typed message session | S0 | Reproducible protobuf generation, bounded framing, multiplexed command/result/update handling, cancellation, backpressure and version tests |
+| S3: server and identity adapters | S1, S2 | End-to-end binary commands/queries through existing policy, with legacy operation/outbox replay and strict IPC capability separation |
+| S4: durable scoped updates | S3 | Transactional change records, post-commit wakeups, private routing, consistent snapshot/replay and reconnect/slow-consumer proofs |
+| S5: worker and CLI cutover | S4 | Replace discovery pollers with durable update admission and existing serial execution; preserve CLI output, health, pause and recovery behavior |
+| S6: remaining internal transports | S3 | Migrate purpose-bound relays and narrow maintenance/provisioning surfaces without expanding their authority |
+| S7: qualification and retirement | S5, S6 | Pass compatibility, failure and fleet acceptance; retire internal HTTP only after all callers migrate; prepare a separately authorized release |
+
+### S0: freeze contracts and measure the real baseline
+
+Inventory every internal caller and control path, including manual commands,
+cached diagnostics, explicit refresh/repair, help delivery, health monitoring,
+native maintenance and relays. Distinguish temporary compatibility adapters
+from the final HTTP-free internal transport.
+
+Agree frame/queue/in-flight limits, deadlines, connection/recovery limits,
+notification and cancellation p95/p99 SLOs, fairness and the idle traffic budget
+before implementation. Follow [CAPACITY.md](CAPACITY.md) for connected/active
+counts, workload, state growth and measurement conditions. Include the separate
+five-second control poll and busy-run guards, not just shared-event polling.
+
+Define protocol and application compatibility separately from SQL migration
+versions. Specify presence/default semantics, typed failures, cursor validity
+and the server-first upgrade/retirement path. Authentication failures and
+incompatible versions must never silently fall back to another protocol.
+
+### S1: establish OS-backed admission without weakening current security
+
+Preserve dedicated Foundation accounts/UID reservations, pinned SSH, fixed
+gateway commands, no arbitrary shell/PTY/forwarding, protected Unix socket
+permissions and separate identity-service/runner UIDs. Replace HTTP path/method
+allowlists with equally narrow typed-message capability checks.
+
+Define how an admitted SSH transport is bound to the approved key generation,
+instance, purpose and owner session. A UID, client-claimed generation, or lookup
+of the registry's latest generation alone is insufficient. Prove that a
+previously authenticated SSH transport cannot open newly accepted channels after
+revocation/fresh-key recovery. Removing an authorized key or locking an account
+does not prove existing transports have stopped; account/UID reuse is forbidden.
+
+Keep the current ephemeral-owner possession proof and same-owner reconnect
+semantics. Replace WebSocket liveness only with an equivalently fresh,
+authenticated binary challenge/response. Different proved live owner keys plus
+fresh incumbent liveness must still ban the whole identity, including Founder;
+ordinary CLI connections, stale owners and unproved attempts must not.
+
+**Security gate:** retain current inner mTLS/generation proofs until the proposed
+OS-backed replacement proves those guarantees. Binary messaging and HTTP removal
+can proceed with mTLS retained; SSH-only authentication is a separate acceptance
+gate, not a UID-only fallback. Separate-HOME and injected-UID fixtures do not
+qualify actual native multi-UID/session-revocation behavior.
+
+### S2-S3: implement the narrow protocol and preserve logical operations
+
+Use a bounded length-prefixed protobuf envelope with explicit protocol
+negotiation and typed command/result/query/update/control variants. Keep
+connection-scoped correlation IDs distinct from durable operation IDs and update
+cursors. Pin generation tooling and verify generated-source reproducibility.
+
+Define field presence for edits, numeric/enum validation and unknown-field/version
+policy. Reject unsupported or privileged message kinds explicitly. Bound frame
+allocation, decoded collections, queues, in-flight requests and stalled writes;
+test truncation, malformed lengths, disconnects and cancellation. Multiple local
+CLI clients must not collide or interfere with the service's pending requests.
+
+Reuse [domain contracts](internal/domain/) and [transactional policy](internal/foundation/).
+Do not implement policy only in a generated client or accept mutable server-owned
+fields through a general-purpose payload. Keep private owner/signing/control
+operations inaccessible to runner IPC; no generic privileged invocation method.
+
+Preserve existing logical action/request fingerprints, receipts and errors.
+Protobuf bytes must not become a new fingerprint that invalidates retained
+operations. Test cross-transport replay, including lost acknowledgements and
+same-operation/different-input conflicts. Translate retained local HTTP
+method/path/body proposals and outbox records into their exact known typed
+operations without rewriting the original evidence or invoking a model again.
+
+Keep current databases, identities, knowledge, journals, fences and configuration
+bindings. Add ordered server migrations only for new durable structures; do not
+rewrite shipped schemas. Prefer existing local durability structures; if a new
+format/schema is necessary, version and compatibility-test it explicitly.
+
+### S4: make durable, relevant updates the normal discovery path
+
+Append change records in the same transaction as accepted business mutations;
+notify in-memory subscribers only after commit. Rollbacks and exact operation
+replays must not create phantom or duplicate business changes. Waiting sessions
+must not hold SQL transactions/connections or query on each keepalive tick.
+
+Cover task/specification/assignment/result changes, project authority, discussion
+and attention generations, private messages/read/disposition, sessions/grants,
+mode/revocation and protected agent operations. Notify both former and current
+affected assignees/delegates/owners where authority changes. Do not broadcast
+private IDs/payloads through the existing team-visible event feed.
+
+Bind subscriptions/cursors to authenticated scope and security generations.
+Define consistent snapshot/high-watermark and race-free catch-up/subscription.
+After reconnect, replay from the durable checkpoint; unavailable history requires
+an explicit bounded resynchronization, not silent cursor reset. Recheck current
+authority before disclosure. Define retention separately; never prune recovery
+evidence merely to simplify a feed.
+
+Coalesce relevant updates by resource/category without losing the durable
+pending-work indication. Bound slow-consumer queues and disconnect/resynchronize
+explicitly rather than silently dropping required changes. Keep expiry,
+retry/backoff, deferred work and watchdog deadlines on bounded timers; not every
+time-based transition has an incoming mutation to wake it.
+
+### S5: replace polling without changing worker or CLI authority
+
+Replace the one-second shared-event/urgent-inbox, 500 ms session-discovery and
+five-second agent-operation discovery loops with the shared scoped update path.
+Remove repeated full selection scans, unchanged cursor writes and unchanged
+urgent-head wakeups. Atomically persist the cursor with pending local work
+before advancing the checkpoint; on restart, reconsider retained pending work.
+
+Keep update reception, control handling and health publication responsive while
+paused, fenced or busy. Ordinary work still uses the same serial controller,
+work lock, priority/fairness, approval gates and prepared report/outbox path.
+Initial synchronization, explicit queries and recovery reconciliation remain
+observable operations, not concealed fast polling loops.
+
+Retain heartbeat/health semantics separately from transport keepalives: liveness
+is not progress. Cached diagnostics remain read-only; explicit refresh/repair
+retain protected operations, fixed expiry, server-clock capture bounds and exact
+cleanup/fence proofs. Delivery never automatically marks a message read.
+
+Preserve existing CLI commands, JSON/error/exit shapes, explicit read actions,
+watch NDJSON/checkpoints and one-page behavior. Keep provider prompts, private
+knowledge and tool-disabled/coding boundaries independent of wire encoding.
+
+Retain active-run authority guards until pushed task/project/mode/ownership
+changes and disconnect/expiry handling prove equivalent cancellation. Remove
+those remote polling guards only after coverage is complete. Preserve local OS
+safety observations where no authoritative notification path exists.
+
+### S6-S7: finish all surfaces, qualify, then retire compatibility
+
+Migrate [remote sessions](internal/remote/) and [relays](internal/relay/) without
+blocking owner liveness or changing consent/open/expiry/revocation/cleanup.
+Convert private maintenance and account provision/disable exchanges to narrow
+typed messages. Keep root maintenance outside agent ingress, positive retained
+key generations, tombstones, exact retries, UID retention and returned-binding
+checks. Do not introduce a generic root method.
+
+Coordinate replacement of the server and all clients on explicitly resolved
+machines; the native listener has no HTTP compatibility window or downgrade.
+Inventory every supported caller before cutover. HTTP business fixtures are
+not native transports, and JSON CLI/evidence envelopes remain intentional.
+Document database/binary rollback limits and restore/recovery before cutover.
+Normal upgrades must not rotate keys, change identity, clear fences or resume
+uncertain work. Unproven SSH-only admission remains blocked even if the binary
+transport itself is ready.
+
+Extend existing isolated unit/integration/native-binary/e2e tests with real Unix
+peers, bounded SSH fixtures and deterministic providers. Cover all existing
+business authorization/replay cases plus snapshot races, cross-agent privacy,
+old-SSH-channel admission after recovery, queue saturation, busy/paused control,
+lost notifications/acks, reconnect storms and cleanup. Run the smallest related
+selectors, then `bash scripts/test.sh all` and source-bound Linux/macOS CI.
+
+Compare identical before/after workloads: 1,000 idle connections, mixed active
+work, urgent messages, project/assignment churn, slow clients, restarts and
+reconnect storms. Measure notification/cancellation latency, discovery/query
+counts, writer-lock waits, SQL/WAL/disk activity, CPU/RSS, bytes, SSH processes
+and FDs. Healthy synchronized idle agents must have no fixed discovery-query
+loops or unrelated wakeups; separately account for heartbeat, explicit sync and
+recovery traffic. Agree numeric acceptance thresholds in S0, not after a result.
+The **1,000-agent target remains unqualified** until that evidence exists.
+
+Update [SCHEMA.md](SCHEMA.md), [COMMANDS.md](COMMANDS.md),
+[DEVELOPMENT.md](DEVELOPMENT.md), [TEST_PLAN.md](TEST_PLAN.md),
+[DEPLOYMENT.md](DEPLOYMENT.md), [MIGRATION.md](MIGRATION.md), capacity evidence,
+skills and embedded guide contracts with each implemented slice. Verify all four
+binary payloads and synthetic native installation/upgrade behavior. New immutable
+release contents need a new VERSION; packaging/release/deployment require their
+separate authorization and source-bound workflow. No live credentials, paid
+inference, host service registration or deployment is part of this plan.
+
+First functional milestone: one enrolled agent attaches through its protected
+identity service, performs a typed query/command, receives a private message and
+assigned-task update without discovery polling, and replays correctly after a
+lost response/reconnect without duplicate inference or authority bypass.
 
 ## Phase 6: deliberate shared files, diaries, skills and ideas
 

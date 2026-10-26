@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
-	"time"
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/domain"
@@ -518,10 +517,14 @@ func (a *app) watchCommand(ctx context.Context, r *resources, args []string) (an
 			return nil, err
 		}
 	}
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
+	wait := false
 	for {
 		query.Set("since", cursor)
+		if wait && !*once {
+			query.Set("wait", "true")
+		} else {
+			query.Del("wait")
+		}
 		page, err := api.Call[domain.Page[domain.Event]](ctx, r.client, "GET", "/v1/events?"+query.Encode(), nil)
 		if err != nil {
 			return nil, err
@@ -534,14 +537,15 @@ func (a *app) watchCommand(ctx context.Context, r *resources, args []string) (an
 				return nil, domain.Fail(domain.Unavailable, "watch output failed; checkpoint was not advanced")
 			}
 		}
-		if err := r.state.Put(ctx, key, page.NextCursor); err != nil {
-			return nil, err
+		if page.NextCursor != cursor {
+			if err := r.state.Put(ctx, key, page.NextCursor); err != nil {
+				return nil, err
+			}
+			cursor = page.NextCursor
 		}
-		cursor = page.NextCursor
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return nil, ctx.Err()
-		case <-ticker.C:
 		}
+		wait = len(page.Items) < *limit
 	}
 }

@@ -30,58 +30,143 @@ func agentOperationHash(operation domain.AgentOperation) (string, error) {
 }
 
 func (e *Engine) operationLoop(ctx context.Context, wake chan<- struct{}) {
-	timer := time.NewTimer(0)
+	timer := time.NewTimer(time.Hour)
+	timer.Stop()
 	defer timer.Stop()
+	var due <-chan time.Time
 	for {
+		retry := false
 		select {
 		case <-ctx.Done():
 			return
-		case <-timer.C:
+		case <-e.controlWake:
+		case <-due:
+			retry = true
 		}
-		if err := e.processAgentOperations(ctx, wake); err != nil {
+		timer.Stop()
+		due = nil
+		checkpoint, err := e.updateCheckpoint(ctx, nil)
+		var blocked error
+		if err != nil {
+			blocked = err
+		} else {
+			if checkpoint.Mode.pending() {
+				c, modeErr := e.currentConfig()
+				if modeErr == nil {
+					var me domain.Agent
+					me, modeErr = api.Call[domain.Agent](ctx, e.Client, http.MethodGet, "/v1/me", nil)
+					if modeErr == nil {
+						_, modeErr = e.applyMode(ctx, c, me)
+					}
+				}
+				if modeErr == nil {
+					_, modeErr = e.updateCheckpoint(ctx, func(p *updateCheckpoint) {
+						p.Mode.Handled = max(p.Mode.Handled, checkpoint.Mode.Requested)
+					})
+				}
+				blocked = errors.Join(blocked, modeErr)
+			}
+			if checkpoint.Operations.pending() {
+				scanErr, deliveryErr := e.scanAgentOperations(ctx, wake)
+				if scanErr == nil {
+					_, scanErr = e.updateCheckpoint(ctx, func(p *updateCheckpoint) {
+						p.Operations.Handled = max(p.Operations.Handled, checkpoint.Operations.Requested)
+					})
+				}
+				blocked = errors.Join(blocked, scanErr, deliveryErr)
+			}
+			if checkpoint.Authentication.pending() {
+				c, controlErr := e.currentConfig()
+				if controlErr == nil {
+					controlCtx := context.WithValue(ctx, backgroundControlContext{}, true)
+					for {
+						var handled bool
+						handled, controlErr = e.authenticationControl(controlCtx, c)
+						if controlErr != nil || !handled {
+							break
+						}
+					}
+				}
+				if controlErr == nil {
+					_, controlErr = e.updateCheckpoint(ctx, func(p *updateCheckpoint) {
+						p.Authentication.Handled = max(p.Authentication.Handled, checkpoint.Authentication.Requested)
+					})
+				}
+				blocked = errors.Join(blocked, controlErr)
+			}
+			if retry {
+				blocked = errors.Join(blocked, e.deliverPendingAgentOperationResults(ctx), e.retryHelpDeliveries(ctx))
+			}
+		}
+		receipts, receiptErr := e.State.PendingAgentOperationResults(ctx, 1)
+		helpPending, helpErr := e.pendingHelpDeliveries(ctx)
+		blocked = errors.Join(blocked, receiptErr, helpErr)
+		if blocked != nil {
 			if ctx.Err() == nil {
-				e.recordProblem(ctx, "agent-control-problem", err)
+				e.recordProblem(ctx, "agent-control-problem", blocked)
 			}
 		} else {
 			e.clearProblem(ctx, "agent-control-problem")
 		}
-		timer.Reset(5 * time.Second)
+		if blocked != nil || len(receipts) != 0 || helpPending {
+			timer.Reset(5 * time.Second)
+			due = timer.C
+		}
 	}
 }
 
 func (e *Engine) processAgentOperations(ctx context.Context, wake chan<- struct{}) error {
-	receipts, err := e.State.PendingAgentOperationResults(ctx, 20)
-	if err != nil {
-		return err
-	}
-	var blocked error
-	for _, receipt := range receipts {
-		blocked = errors.Join(blocked, e.deliverAgentOperationResult(ctx, receipt))
-		if ctx.Err() != nil {
-			return errors.Join(blocked, ctx.Err())
+	deliveryErr := e.deliverPendingAgentOperationResults(ctx)
+	scanErr, pendingErr := e.scanAgentOperations(ctx, wake)
+	return errors.Join(deliveryErr, scanErr, pendingErr)
+}
+
+func (e *Engine) deliverPendingAgentOperationResults(ctx context.Context) error {
+	for {
+		receipts, err := e.State.PendingAgentOperationResults(ctx, 20)
+		if err != nil {
+			return err
+		}
+		var blocked error
+		for _, receipt := range receipts {
+			blocked = errors.Join(blocked, e.deliverAgentOperationResult(ctx, receipt))
+			if ctx.Err() != nil {
+				return errors.Join(blocked, ctx.Err())
+			}
+		}
+		if blocked != nil || len(receipts) < 20 {
+			return blocked
 		}
 	}
+}
+
+func (e *Engine) scanAgentOperations(ctx context.Context, wake chan<- struct{}) (error, error) {
+	var blocked, deliveryErr error
 	cursor := ""
-	for range 4 {
+	for {
 		path := "/v1/agent-operations?limit=20"
 		if cursor != "" {
 			path += "&cursor=" + url.QueryEscape(cursor)
 		}
 		page, err := api.Call[domain.Page[domain.AgentOperation]](ctx, e.Client, http.MethodGet, path, nil)
 		if err != nil {
-			return errors.Join(blocked, err)
+			return errors.Join(blocked, err), deliveryErr
 		}
 		for _, operation := range page.Items {
 			recovered, err := e.handleAgentOperation(ctx, operation.ID)
-			blocked = errors.Join(blocked, err)
-			if recovered && wake != nil {
-				select {
-				case wake <- struct{}{}:
-				default:
+			if err != nil {
+				var receipt local.AgentOperationReceipt
+				if found, readErr := e.State.Get(ctx, local.AgentOperationResultKey(operation.ID), &receipt); readErr == nil && found && receipt.DeliveryState == "pending" {
+					deliveryErr = errors.Join(deliveryErr, err)
+				} else {
+					blocked = errors.Join(blocked, err, readErr)
 				}
 			}
+			if recovered {
+				blocked = errors.Join(blocked, e.requestUpdates(ctx, updateWork, wake))
+			}
 			if ctx.Err() != nil {
-				return errors.Join(blocked, ctx.Err())
+				return errors.Join(blocked, ctx.Err()), deliveryErr
 			}
 		}
 		cursor = page.NextCursor
@@ -89,7 +174,7 @@ func (e *Engine) processAgentOperations(ctx context.Context, wake chan<- struct{
 			break
 		}
 	}
-	return blocked
+	return blocked, deliveryErr
 }
 
 func (e *Engine) currentAgentOperation(ctx context.Context, id string) (domain.AgentOperation, domain.Agent, agentOperationClock, error) {

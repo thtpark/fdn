@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thtpark/fdn/internal/database"
@@ -59,20 +61,81 @@ CREATE INDEX assistance_parties ON assistance_grants(requester_id,target_id,acti
 type Store struct {
 	db  *sql.DB
 	now func() time.Time
+
+	writer          chan struct{}
+	writerWaiters   atomic.Int64
+	closed          chan struct{}
+	updates         updateHub
+	updateFeedID    string
+	updateCursorKey []byte
 }
 
 func Open(ctx context.Context, path string) (*Store, error) {
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema})
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema})
 	if err != nil {
 		return nil, err
 	}
-	return &Store{db: db, now: time.Now}, nil
+	store := &Store{db: db, now: time.Now, writer: make(chan struct{}, 1), closed: make(chan struct{})}
+	if err := store.loadUpdateFeed(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return store, nil
 }
 
-func (s *Store) Close() error                    { return s.db.Close() }
+func (s *Store) Close() error                    { return s.closeUpdates() }
 func (s *Store) Ping(ctx context.Context) error  { return s.db.PingContext(ctx) }
 func (s *Store) Check(ctx context.Context) error { return database.Check(ctx, s.db) }
 func (s *Store) timestamp() int64                { return s.now().UTC().Unix() }
+
+// SQLite already serializes writes. Admit them before leasing a connection so
+// competing IMMEDIATE transactions cannot occupy the entire WAL reader pool.
+// Callers always defer finish, including on replay, denial and storage failure.
+func (s *Store) beginWrite(ctx context.Context) (*sql.Tx, func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	s.writerWaiters.Add(1)
+	select {
+	case <-ctx.Done():
+		s.writerWaiters.Add(-1)
+		return nil, nil, ctx.Err()
+	case <-s.closed:
+		s.writerWaiters.Add(-1)
+		return nil, nil, domain.Fail(domain.Unavailable, "update store is closed")
+	case s.writer <- struct{}{}:
+		s.writerWaiters.Add(-1)
+	}
+	release := func() { <-s.writer }
+	if err := ctx.Err(); err != nil {
+		release()
+		return nil, nil, err
+	}
+	select {
+	case <-s.closed:
+		release()
+		return nil, nil, domain.Fail(domain.Unavailable, "update store is closed")
+	default:
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		release()
+		select {
+		case <-s.closed:
+			return nil, nil, domain.Fail(domain.Unavailable, "update store is closed")
+		default:
+		}
+		return nil, nil, err
+	}
+	var once sync.Once
+	finish := func() {
+		once.Do(func() {
+			tx.Rollback()
+			release()
+		})
+	}
+	return tx, finish, nil
+}
 
 type queryer interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
@@ -119,11 +182,11 @@ func transact[T any](ctx context.Context, s *Store, actor, action, op string, re
 		return zero, err
 	}
 	fingerprint := domain.Hash(string(requestBytes))
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginWrite(ctx)
 	if err != nil {
 		return zero, err
 	}
-	defer tx.Rollback()
+	defer finish()
 	var previousHash string
 	var previous []byte
 	err = tx.QueryRowContext(ctx, "SELECT fingerprint, result FROM operations WHERE actor_id = ? AND operation_id = ?", actor, op).Scan(&previousHash, &previous)
@@ -156,7 +219,7 @@ func transact[T any](ctx context.Context, s *Store, actor, action, op string, re
 		if err := s.audit(ctx, tx, actor, action, string(fault.Code)); err != nil {
 			return zero, errors.Join(applyErr, err)
 		}
-		if err := tx.Commit(); err != nil {
+		if err := s.commit(ctx, tx); err != nil {
 			return zero, errors.Join(applyErr, err)
 		}
 		return zero, applyErr
@@ -171,7 +234,7 @@ func transact[T any](ctx context.Context, s *Store, actor, action, op string, re
 	if err = s.audit(ctx, tx, actor, action, "accepted"); err != nil {
 		return zero, err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = s.commit(ctx, tx); err != nil {
 		return zero, err
 	}
 	return result, nil
@@ -210,7 +273,16 @@ func (s *Store) history(ctx context.Context, tx *sql.Tx, source, actor, action s
 }
 
 func (s *Store) event(ctx context.Context, tx *sql.Tx, topic, source, task, project string) error {
-	_, err := tx.ExecContext(ctx, "INSERT INTO events(topic, source_id, task_id, project_id, created_at) VALUES(?, ?, ?, ?, ?)", topic, source, task, project, s.timestamp())
+	result, err := tx.ExecContext(ctx, "INSERT INTO events(topic, source_id, task_id, project_id, created_at) VALUES(?, ?, ?, ?, ?)", topic, source, task, project, s.timestamp())
+	if err != nil {
+		return err
+	}
+	sequence, err := result.LastInsertId()
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO update_changes(source_table,source_id,before_data,after_data)
+VALUES('events',?,NULL,json_object('project_id',?,'task_id',?))`, sequence, project, task)
 	return err
 }
 

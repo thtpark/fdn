@@ -16,7 +16,7 @@ func (e *Engine) authenticationControl(ctx context.Context, c config.Worker) (bo
 			return false, err
 		}
 		for _, message := range page.Items {
-			if message.Kind != "authentication-refresh" {
+			if message.Kind != "authentication-refresh" || message.State != "pending" || message.ExpiresAt <= e.Now().Unix() {
 				continue
 			}
 			return true, e.applyAuthenticationControl(ctx, c, message.ID)
@@ -29,12 +29,17 @@ func (e *Engine) authenticationControl(ctx context.Context, c config.Worker) (bo
 }
 
 func (e *Engine) applyAuthenticationControl(ctx context.Context, c config.Worker, id string) error {
+	e.authControlMu.Lock()
+	defer e.authControlMu.Unlock()
 	message, err := api.Call[domain.Message](ctx, e.Client, "GET", api.Path("messages", id), nil)
 	if err != nil {
 		return err
 	}
 	if message.Kind != "authentication-refresh" || message.AuthenticationRefresh == nil || message.RecipientID != e.Client.Credential.AgentID || message.ResponseRequest {
 		return domain.Fail(domain.Denied, "sign-in refresh requires a server-issued control for this identity")
+	}
+	if message.State == "handled" {
+		return nil
 	}
 	if message.State != "pending" || message.ExpiresAt <= e.Now().UTC().Unix() {
 		return domain.Fail(domain.Prerequisite, "sign-in refresh is no longer pending; Founder must request again")
@@ -71,8 +76,10 @@ func (e *Engine) applyAuthenticationControl(ctx context.Context, c config.Worker
 	}
 	if !prepared {
 		health, err := e.Executor.Check(ctx, control.Provider)
-		if observedErr := e.providerHealth(ctx, control.Provider, "", health, err); observedErr != nil {
-			return observedErr
+		if background, _ := ctx.Value(backgroundControlContext{}).(bool); !background {
+			if observedErr := e.providerHealth(ctx, control.Provider, "", health, err); observedErr != nil {
+				return observedErr
+			}
 		}
 		if err != nil {
 			return err

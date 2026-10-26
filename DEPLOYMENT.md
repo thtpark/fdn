@@ -382,7 +382,8 @@ Targets and delegates cannot self-set manual or bypass it with manual work.
 `mode set ai|manual` is now Founder-only for its own mode, not a local worker
 override. Real OS emergency stops remain OS actions, not a fabricated mode grant.
 
-Upgrade Foundation before workers: API/schema is 2, server SQLite migration 3,
+Upgrade Foundation before workers: API/schema is 2, native message protocol 2,
+server SQLite migration 4,
 local SQLite remains 1. Migration 2's mode/assistance attribution is retained;
 migration 3 adds identity/account/key/generation fences without erasing old
 agents, tasks or operation evidence. Old bearer files cannot run v2. An active
@@ -393,6 +394,18 @@ This replaces only the matching legacy credential file with public AgentID and
 preserves knowledge, journals, bindings and outbox. A legacy Founder must first
 use the authorized root-local recovery route with fresh keypairs. Never migrate
 by copying another computer's keys or resetting its database.
+
+The binary transport is a clean cutover, not an HTTP compatibility window.
+Replace all four compatible binaries and their guide, then verify the actual
+Foundation, identity-service and runner versions before resuming approved work.
+Native coordination uses protobuf sessions over SSH/mTLS/Unix IPC, including
+owner control, relays and narrow root maintenance/provisioning. Existing HTTPS
+origin settings identify TLS trust/server naming; they do not expose an HTTP
+service. Browser-facing and third-party vendor protocols remain separate.
+Keep current certificate/owner-generation proofs until OS-only admission has
+passed independent native stale-session/recovery qualification. A source build
+or an authorized clean deployment does not by itself justify an unidentified
+state-directory wipe.
 
 Existing Founder defaults to manual, regular agents to ai. An unexplained old
 local manual pause is blocked rather than silently resumed; Founder explicitly
@@ -829,7 +842,7 @@ size manifest. Keep the private age identity off the backup host. Restore
 authenticates the full archive, rejects unexpected/duplicate/traversing entries
 and verifies schema/integrity before publishing a fresh directory. Supported
 backup-manifest `schema_version` values are **1 and 2**; known prior SQL is
-migrated to server SQL **3**, while future manifest versions above 2 and future
+migrated to server SQL **4**, while future manifest versions above 2 and future
 SQL remain rejected. Manifest schema is not SQLite `PRAGMA user_version`.
 
 **Restore is not identity reactivation.** Before publication it retires sessions

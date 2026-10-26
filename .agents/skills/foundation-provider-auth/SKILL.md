@@ -8,6 +8,9 @@ description: "Use when installing/updating Codex or Copilot, checking provider r
 Read `agent-cli guide show COMMANDS.md` and `guide show DEPLOYMENT.md`.
 Distinguish installation, credentials present, validated authentication, selected
 model and authorized inference.
+Native coordination is protobuf over SSH/mTLS/Unix IPC. A pushed authentication
+notice/control is durable context, not successful sign-in or permission to start
+login, inference, a session, or another worker.
 
 1. Resolve the worker's actual account/HOME/configuration/identity and mode.
    Inspect `provider status --provider NAME`, `preferences show`, `work status`
