@@ -22,7 +22,10 @@ The checkout's root documents are canonical; no old source tree is required.
    separate-HOME business fixtures from actual Unix peer-UID/mTLS checks. Prove
    different live owner keys plus fresh incumbent binary ping before whole-identity
    ban (including Founder); crash/reconnect/CLI/unproved attempts do not ban.
-   Keep keys outside runner UID and root maintenance outside agent ingress.
+   Workers use the existing installing user's UID/HOME for identity and tools;
+   no new worker account/group is required. Keys stay private and out of model/
+   shared output, not isolated from same-user tools. Keep Foundation root
+   maintenance outside agent ingress.
    Root provision/disable RPCs must carry positive identity key generation:
    retain inventory/tombstones, reject stale or same-generation changed keys
    before OS calls, preserve UID/name on fresh-key recovery, and check current
@@ -68,10 +71,12 @@ The checkout's root documents are canonical; no old source tree is required.
    build lists, archive checks/activation and Debian worker payloads must include
    `agent-identity`; test with synthetic payloads, never local release packaging.
    Keep its offline help distinct from the three guide-capable binaries.
-   `agent-identity service plan/install/status` takes two-account OPTIONS, not
-   `--config`; recording tests must reject implicit apply/account adoption and
-   prove native manager invocation under the actual runner. Fresh recovery
-   uses a new empty sub-StateDir in stable identity HOME and retains old keys/
+   `agent-identity service plan/install/status` takes current-user OPTIONS, not
+   `--config`; test defaults from the actual OS user, independent agent names,
+   one existing account, both user services, no sudo/runuser/account creation or
+   HOME chmod, private IPC and explicit stopped legacy migration with retained
+   state. Windows adapters remain separate, unimplemented work. Fresh recovery
+   uses a new empty sub-StateDir in the same user's HOME and retains old keys/
    all runner state; never invent `--rotate` or rotate during normal retries.
 9. PRs into main run separate Linux/macOS suites. Real packaging only follows
    an authorized PR merge into release on the exact source commit. Never

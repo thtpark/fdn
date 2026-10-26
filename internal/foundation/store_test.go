@@ -295,7 +295,7 @@ func TestDiscussionMentionsAndBlockingAnswers(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	task := f.ready(t)
-	q, err := f.s.CreateEntry(ctx, f.worker.ID, task.ID, domain.EntryRequest{Command: op(), Kind: "comment", Body: "Which value? @{" + f.founder.ID + "} @{" + f.founder.ID + "}"})
+	q, err := f.s.CreateEntry(ctx, f.worker.ID, task.ID, domain.EntryRequest{Command: op(), Kind: "comment", Body: "Which value? @{Founder} @{" + f.founder.ID + "}"})
 	if err != nil || len(q.Mentions) != 1 {
 		t.Fatal(q, err)
 	}

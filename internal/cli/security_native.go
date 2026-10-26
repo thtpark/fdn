@@ -31,7 +31,7 @@ import (
 
 type nativeAccountClient interface {
 	Provision(context.Context, platform.AccountProvisionRequest) (platform.ManagedAccount, error)
-	Disable(context.Context, string, int64) (platform.ManagedAccount, error)
+	Disable(context.Context, platform.AccountDisableRequest) (platform.ManagedAccount, error)
 	Close()
 }
 
@@ -105,19 +105,18 @@ func provisionNativeIdentity(ctx context.Context, store nativeIdentityRegistry, 
 	if err != nil {
 		return identity, err
 	}
-	if current.Generation != identity.Generation || current.RequestID != identity.RequestID || current.SSHFingerprint != identity.SSHFingerprint || current.SSHKey != identity.SSHKey || (current.State != "pending" && current.State != "provisioned" && current.State != "active") {
+	if current.Generation != identity.Generation || current.RequestID != identity.RequestID || current.SSHUser != identity.SSHUser || current.UID != identity.UID || current.SSHFingerprint != identity.SSHFingerprint || current.SSHKey != identity.SSHKey || (current.State != "pending" && current.State != "provisioned" && current.State != "active") {
 		return current, domain.Fail(domain.Conflict, "native provisioning request is no longer the approved current identity")
 	}
 	canonical, fingerprint, err := platform.CanonicalAccountKey(identity.SSHKey)
 	if err != nil || fingerprint != identity.SSHFingerprint {
 		return identity, domain.Fail(domain.Denied, "registry public key fingerprint is not canonical")
 	}
-	account, err := client.Provision(ctx, platform.AccountProvisionRequest{AgentID: identity.AgentID, PublicKey: canonical, Generation: identity.Generation, Reactivate: identity.State == "pending" || identity.Generation > 1})
+	account, err := client.Provision(ctx, platform.AccountProvisionRequest{AgentID: identity.AgentID, Username: identity.SSHUser, PublicKey: canonical, Generation: identity.Generation, Reactivate: identity.State == "pending" || identity.Generation > 1})
 	if err != nil {
 		return identity, domain.Fail(domain.Prerequisite, "native account provisioning remains pending; reconcile the retained identity")
 	}
-	name, err := platform.AccountUsername(identity.AgentID)
-	if err != nil || account.AgentID != identity.AgentID || account.Username != name || identity.SSHUser != name || account.UID == 0 || account.GID != uint32(c.IngressGroup) ||
+	if !domain.ValidAccountUsername(identity.SSHUser) || account.AgentID != identity.AgentID || account.Username != identity.SSHUser || account.UID == 0 || account.GID != uint32(c.IngressGroup) ||
 		account.Generation != identity.Generation || account.Fingerprint != fingerprint || account.PublicKey != canonical || account.State != platform.AccountActive || identity.UID >= 0 && identity.UID != int64(account.UID) {
 		return identity, domain.Fail(domain.Denied, "native provisioner returned a mismatched immutable account binding")
 	}
@@ -125,7 +124,7 @@ func provisionNativeIdentity(ctx context.Context, store nativeIdentityRegistry, 
 	if err != nil {
 		return identity, err
 	}
-	if bound.Generation != identity.Generation || bound.SSHFingerprint != identity.SSHFingerprint || bound.RequestID != identity.RequestID {
+	if bound.Generation != identity.Generation || bound.SSHFingerprint != identity.SSHFingerprint || bound.RequestID != identity.RequestID || bound.SSHUser != account.Username || bound.UID != int64(account.UID) {
 		return bound, domain.Fail(domain.Conflict, "native account binding belongs to a superseded identity generation")
 	}
 	current, err = store.Identity(ctx, identity.AgentID)
@@ -139,12 +138,11 @@ func provisionNativeIdentity(ctx context.Context, store nativeIdentityRegistry, 
 }
 
 func disableNativeIdentity(ctx context.Context, client nativeAccountClient, identity domain.AgentIdentity) error {
-	account, err := client.Disable(ctx, identity.AgentID, identity.Generation)
+	account, err := client.Disable(ctx, platform.AccountDisableRequest{AgentID: identity.AgentID, Username: identity.SSHUser, Generation: identity.Generation})
 	if err != nil {
 		return domain.Fail(domain.Prerequisite, "application access is denied; native account cleanup remains pending")
 	}
-	name, err := platform.AccountUsername(identity.AgentID)
-	if err != nil || account.AgentID != identity.AgentID || account.Username != name || account.State != platform.AccountDisabled || account.Generation != identity.Generation || identity.UID >= 0 && int64(account.UID) != identity.UID {
+	if !domain.ValidAccountUsername(identity.SSHUser) || account.AgentID != identity.AgentID || account.Username != identity.SSHUser || account.State != platform.AccountDisabled || account.Generation != identity.Generation || identity.UID >= 0 && int64(account.UID) != identity.UID {
 		return domain.Fail(domain.Denied, "native account cleanup did not match the retained identity")
 	}
 	return nil

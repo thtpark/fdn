@@ -625,22 +625,24 @@ func (b *observedBody) Close() error {
 	return nil
 }
 
-func TestNativeServeRejectsToolRunnerUIDAndPrivatePathsRejectSymlinks(t *testing.T) {
+func TestNativeServeRequiresCurrentUserAndPrivatePathsRejectSymlinks(t *testing.T) {
 	f := newFixture(t)
-	if err := CheckNativeAccount(f.config); domain.AsFault(err).Code != domain.Denied {
-		t.Fatal("native service accepted the same identity/tool-runner UID", err)
+	if os.Geteuid() != 0 {
+		if err := CheckNativeAccount(f.config); err != nil {
+			t.Fatal("native service rejected its own installing user", err)
+		}
 	}
-	rootRunner := f.config
-	rootRunner.WorkerUID = 0
-	if err := CheckNativeAccount(rootRunner); domain.AsFault(err).Code != domain.Denied {
-		t.Fatal("native service accepted a root runner by numeric UID", err)
+	foreign := f.config
+	foreign.WorkerUID = os.Geteuid() + 1
+	if err := CheckNativeAccount(foreign); domain.AsFault(err).Code != domain.Denied {
+		t.Fatal("native service accepted a legacy foreign runner UID", err)
 	}
-	service, err := New(f.config, f.options)
+	service, err := New(foreign, f.options)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := service.Serve(context.Background()); domain.AsFault(err).Code != domain.Denied {
-		t.Fatal("native serve bypassed its account boundary", err)
+		t.Fatal("native serve bypassed its current-user boundary", err)
 	}
 	link := filepath.Join(f.root, "linked-state")
 	if err := os.Symlink(f.config.StateDir, link); err != nil {

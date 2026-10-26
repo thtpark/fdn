@@ -99,7 +99,7 @@ func NewAccountHandler(manager *AccountManager, serverUID uint32) http.Handler {
 				return
 			}
 			var plan AccountPlan
-			plan, err = manager.Plan(r.Context(), AccountRequest{AgentID: request.AgentID, PublicKey: request.PublicKey, Generation: request.Generation, Reactivate: request.Reactivate})
+			plan, err = manager.Plan(r.Context(), AccountRequest{AgentID: request.AgentID, Username: request.Username, PublicKey: request.PublicKey, Generation: request.Generation, Reactivate: request.Reactivate})
 			if err == nil {
 				account, err = manager.Apply(r.Context(), plan, true)
 			}
@@ -109,7 +109,7 @@ func NewAccountHandler(manager *AccountManager, serverUID uint32) http.Handler {
 				reply(http.StatusBadRequest, ManagedAccount{}, "invalid account disable request")
 				return
 			}
-			account, err = manager.Disable(r.Context(), request.AgentID, request.Generation, true)
+			account, err = manager.Disable(r.Context(), request, true)
 		}
 		if err != nil {
 			reply(http.StatusConflict, ManagedAccount{}, "account operation remains denied or pending; reconcile its retained identity")
@@ -171,16 +171,24 @@ func (c *AccountClient) Close() {
 }
 
 func (c *AccountClient) Provision(ctx context.Context, request AccountProvisionRequest) (ManagedAccount, error) {
+	name, err := accountUsername(request.AgentID, request.Username)
+	if err != nil {
+		return ManagedAccount{}, err
+	}
 	account, err := c.call(ctx, "/v1/accounts/provision", request)
-	if err == nil && (account.AgentID != request.AgentID || account.Generation != request.Generation) {
+	if err == nil && (account.AgentID != request.AgentID || account.Username != name || account.Generation != request.Generation) {
 		return ManagedAccount{}, ErrAccountConflict
 	}
 	return account, err
 }
 
-func (c *AccountClient) Disable(ctx context.Context, agentID string, generation int64) (ManagedAccount, error) {
-	account, err := c.call(ctx, "/v1/accounts/disable", AccountDisableRequest{AgentID: agentID, Generation: generation})
-	if err == nil && (account.AgentID != agentID || account.Generation != generation) {
+func (c *AccountClient) Disable(ctx context.Context, request AccountDisableRequest) (ManagedAccount, error) {
+	name, err := accountUsername(request.AgentID, request.Username)
+	if err != nil {
+		return ManagedAccount{}, err
+	}
+	account, err := c.call(ctx, "/v1/accounts/disable", request)
+	if err == nil && (account.AgentID != request.AgentID || account.Username != name || account.Generation != request.Generation) {
 		return ManagedAccount{}, ErrAccountConflict
 	}
 	return account, err
@@ -220,9 +228,9 @@ func (c *AccountClient) call(ctx context.Context, path string, value any) (Manag
 	if response.StatusCode != http.StatusOK || reply.Error != "" {
 		return ManagedAccount{}, errors.New("native account provisioning remains pending or denied")
 	}
-	name, nameErr := AccountUsername(reply.Account.AgentID)
+	_, nameErr := accountUsername(reply.Account.AgentID, reply.Account.Username)
 	absentDisable := path == "/v1/accounts/disable" && reply.Account.State == AccountDisabled && reply.Account.UID == 0 && reply.Account.GID == 0 && reply.Account.Fingerprint == "" && reply.Account.PublicKey == ""
-	if nameErr != nil || reply.Account.Username != name || reply.Account.Generation < 1 || !absentDisable && !validAccountFingerprint(reply.Account.Fingerprint) {
+	if nameErr != nil || reply.Account.Username == "" || reply.Account.Generation < 1 || !absentDisable && !validAccountFingerprint(reply.Account.Fingerprint) {
 		return ManagedAccount{}, errors.New("invalid managed account helper identity")
 	}
 	return reply.Account, nil

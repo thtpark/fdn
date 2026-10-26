@@ -14,10 +14,10 @@ sample command or a key file is available.
 
 - Foundation: native Linux, dedicated unprivileged account (Debian default `fdn`,
   home/state `/var/lib/fdn`), signed distribution packages for OS prerequisites.
-- Worker, including Founder's computer: distinct non-root identity-service and
-  provider/tool-runner accounts, UIDs, private state and HOMEs. `agent-identity`
-  owns long-term keys; `agent-service` and providers run only as the runner.
-  Neither Debian worker installation nor a display name creates these accounts.
+- Worker, including Founder's computer: the existing installing user runs
+  `agent-identity`, `agent-service`, CLI and providers in its own HOME. No new
+  OS account/group, hidden user or separate identity HOME is required. That
+  user owns identity keys as well as provider and runner state.
 - Foundation ingress: a unique managed SSH account/UID per enrolled identity,
   including Founder, separate from the unprivileged `fdn` server account.
   A narrow, separately configured root Unix provisioner manages only this
@@ -42,8 +42,10 @@ Use approved IAP/operator SSH where applicable. Authenticate host keys from
 trusted provider/operator metadata, never accept an unknown key or scan it as a
 trust-establishment shortcut. Signed registration reserves a dedicated
 Foundation-host account; the narrow root provisioner applies only that managed
-namespace. Never substitute a shared SSH account, a same-UID provider/identity
-service, copied bearer credentials or relaxed TLS.
+namespace. Never substitute a shared Foundation SSH account, copied bearer
+credentials or relaxed TLS. Worker identity and tools intentionally share the
+existing local user; Foundation authenticates the enrolled identity, not that
+local username. Native Windows service/IPC adapters remain unimplemented.
 
 ## Obtain and verify the release
 
@@ -121,10 +123,41 @@ real multi-UID users, sshd, systemd/launchd or reboot behavior. No hardware
 adapter, attestation or perfect physical-clone prevention is implemented.
 
 An authorized administrator prepares the unprivileged Foundation account,
-private state, ingress group/socket parents, immutable gateway binary, and two
-worker-side accounts (identity service and runner). Every identity, including
+private state, ingress group/socket parents and immutable gateway binary.
+Workers use their existing installing users, without account provisioning.
+Every identity, including
 Founder, also gets its **own** Foundation-host SSH account/UID. Never share that
 SSH account with another identity or give it a normal shell.
+
+### Agent names and OS accounts
+
+The worker's existing username does not matter. For example, local user `alice`
+can install/run both processes and enroll as `Agent1`; Foundation reserves
+`agent1` for that identity's SSH ingress on the Foundation host. No local
+`agent1`, `fdn-worker` or `fdni_agent1` account is created. UIDs are local to each
+host and do not need to match.
+
+| Role | Example account | Boundary |
+| --- | --- | --- |
+| Worker identity and provider/tool runner | Existing `alice` | Same user/HOME owns keys, workspaces and provider login; owner-only IPC |
+| Foundation SSH ingress for Agent1 | `agent1` | Dedicated local UID; forced API/join only, no ordinary shell |
+| Foundation server | `fdn` | Separate unprivileged service/database account |
+
+New registration lowercases the agent name, replaces runs outside ASCII
+`a-z`, `0-9`, `_`, `-` with `-`, and removes outer `-`. The result must match
+`[a-z_][a-z0-9_-]{0,31}` and cannot be `root`; the display name must be one line.
+`Agent One` therefore uses `agent-one`. Invalid/oversized names and reserved or
+unmanaged account collisions fail explicitly; nothing is truncated, silently
+hashed, adopted or renamed. The signed profile's `identity.ssh_user` is the
+authoritative chosen Foundation login.
+
+Existing local users are retained and existing Foundation UID/name
+reservations, including `fdna_...`, are retained during upgrade/recovery. Do not
+rename a live account or move its HOME/state merely to match the new convention.
+Matching spellings are for separate hosts, not permission to reuse a runner or
+server account as SSH ingress on the same host. Upgrade the root account helper
+with the server before new named registrations; the narrow RPCs now carry the
+approved username. No database reset, account migration or deployment is implied.
 
 The administrator configures the narrow root account service and forced gateway
 before initialization. These are distinct protected configurations:
@@ -145,9 +178,11 @@ administrator must include `policy_dir/sshd.conf` in the selected sshd config;
 managed account activation checks effective sshd policy before enabling access
 and reloads only the explicitly selected native SSH service.
 
-The helper's internal typed provision request is `agent_id`, `public_key`,
-positive key `generation` and optional `reactivate`; disable is `agent_id` plus
-positive `generation`. These are server-to-root Unix RPC fields, **not new CLI
+The helper's internal typed provision request is `agent_id`, `username`,
+`public_key`, positive key `generation` and optional `reactivate`; disable is
+`agent_id`, `username` and positive `generation`. Omission of username preserves
+the old ID-derived request convention only; the server supplies the exact
+registry-approved username on new requests. These are server-to-root Unix RPC fields, **not new CLI
 flags or root methods**. Private inventory retains each generation: stale
 lower-generation or same-generation different-key work is rejected before any
 OS command; exact same-generation replay is idempotent. A newer disable leaves
@@ -191,15 +226,15 @@ of them through TCP, a general-purpose forwarding account or a bearer fallback.
 
 ## Prepare Founder and initialize Foundation
 
-An authorized setup supplies the identity account's private configuration with
-absolute `state_dir`/`socket` and explicit runner `worker_uid`/`worker_gid`.
-There is no `agent-identity config init` command. Keep its 0700 private key state
-separate from the runner HOME/state and from the shared IPC parent. The IPC
-parent is identity-owned 0710 with the runner group; the proxy socket is 0660
-and additionally checks kernel runner UID/GID. Native identity execution rejects
-root and the runner's own UID.
+As the existing installing user, prepare a private configuration with absolute
+`state_dir`/`socket`, distinct identity/runner state and an IPC directory under
+that user's HOME. There is no `agent-identity config init` command.
+Private `worker_uid`/`worker_gid` may be omitted/zero: native execution derives
+the actual user's UID/GID and rejects explicit foreign/legacy values or root.
+Private state/configuration is 0700/0600; IPC parent/socket is 0700/0600 with
+kernel peer UID/GID checks. Do not create accounts/groups or change HOME mode.
 
-As Founder's protected identity-service account, with that service stopped:
+As Founder's existing worker user, with the identity service stopped:
 
 ```sh
 agent-identity --config /PRIVATE/identity.json prepare \
@@ -207,7 +242,8 @@ agent-identity --config /PRIVATE/identity.json prepare \
 ```
 
 Transfer **only the signed public request** through an authenticated channel.
-The private SSH/authentication keys never leave the identity account. As the
+The private SSH/authentication keys stay in that user's private identity state.
+They are not exported by preparation or ordinary IPC. As the
 unprivileged Foundation account, while the approved root account helper runs:
 
 ```sh
@@ -252,7 +288,7 @@ Registration acceptance is not final health or native qualification.
 ## Register signed worker keys and attach the runner
 
 For Founder, use the operator-assembled public profile. For a subsequent
-computer, its protected identity account first runs `prepare --name Agent1
+computer, its existing installing user first runs `prepare --name Agent1
 --output PUBLIC_REQUEST` using its own private service configuration. Founder
 alone approves that request:
 
@@ -267,7 +303,7 @@ provenance/integrity. Exact retries preserve the same request/operation/keys;
 public-key collisions and unproved attempts are rejected without banning an
 existing owner. A display name or provider login is not enrollment.
 
-As the target's identity-service account, with that service stopped for the
+As the target's existing worker user, with the identity service stopped for the
 offline profile operation:
 
 ```sh
@@ -280,13 +316,14 @@ agent-identity --config /PRIVATE/identity.json serve
 activation, obtains the device certificate and maintains `/v1/identity/owner`
 over the join channel. Ephemeral owner certificates authorize ordinary API;
 the kernel ingress UID, instance/agent/key/owner generations must all agree.
-The provider runner never receives these certificates or their private keys.
+The proxy never returns these certificates/private keys in ordinary IPC replies.
+The same OS user owns the files; this is not isolation from its own tools.
 
-As the **different runner account**, initialize only its local proxy binding:
+As that **same existing user**, initialize the runner's local proxy binding:
 
 ```sh
 agent-cli --config /PRIVATE/agent.json config init \
-  --state /PRIVATE/runner-state --identity-socket /run/fdn-agent/identity.sock \
+  --state /PRIVATE/runner-state --identity-socket /OWNED_HOME/.local/state/fdn-ipc/identity.sock \
   --workspace-root /OWNED/workspaces
 agent-cli --config /PRIVATE/agent.json connect
 agent-cli --config /PRIVATE/agent.json agent identity
@@ -300,66 +337,63 @@ provider sign-in and local workspace-tool grants are still separate.
 
 ## Native identity and runner services
 
-There are two worker-side registrations, not one same-UID daemon: the protected
-`agent-identity --config PRIVATE_CONFIG serve`, and the distinct runner's
-`agent-service --config RUNNER_CONFIG serve`. Their supported paired lifecycle
+There are two processes under the **same existing installing user**:
+`agent-identity --config PRIVATE_CONFIG serve` and
+`agent-service --config RUNNER_CONFIG serve`. Their paired lifecycle
 uses **no `--config` or enrollment**:
 
 ```sh
 agent-identity service plan --input /PROTECTED/identity-services.json
-# Explicit authorized root execution on the selected native OS:
+# As the existing installing user, without sudo:
 agent-identity service install --input /PROTECTED/identity-services.json --apply
 agent-identity service status --input /PROTECTED/identity-services.json
 ```
 
-`plan` is read-only without root; `install` requires explicit `--apply`; `status`
-requires native root but no apply flag. Input is a protected public options file,
+`plan` is read-only; `install` requires explicit `--apply` as the existing user;
+`status` uses that same user without root or an apply flag. Input is a protected options file,
 not stdin. This is different from the runner-only `agent-cli service` interface.
-These paired lifecycle commands never create/adopt accounts or silently fall
-back to one UID.
+Neither command creates accounts/groups, changes the user's HOME permissions,
+sets a no-login shell, enables linger or switches users. The user's native
+manager/login domain must already be available.
 
 `platform.IdentityServiceOptions` uses these exact JSON fields:
 
 | Fields | Contract |
 | --- | --- |
-| `os`, `name` | Native `linux`/`darwin` and stable managed installation name |
-| `identity_user`, `identity_uid`, `identity_gid`, `identity_home` | Protected non-root identity account; positive UID/GID distinct from runner, matching named primary group, private 0700 HOME |
-| `worker_user`, `worker_uid`, `worker_gid`, `worker_home` | Distinct provider runner with its own matching named primary group, UID/GID and private 0700 HOME |
-| `identity_binary`, `worker_binary` | Immutable absolute paired `agent-identity`/`agent-service` binaries in the same directory |
-| `identity_config`, `worker_config` | Preexisting owner-only 0600 files under their respective private HOMEs; identity/runner socket and UID/GID bindings must match the plan |
-| `state_dir`, `worker_state_dir` | Separate private 0700 state under each account's HOME; identity key state can be a fresh generation-specific subdirectory |
-| `socket_dir` | Separate identity-owned 0710 runner-group IPC parent outside both HOMEs/private states; identity proxy socket 0660 |
-| `identity_definition`, `worker_definition` | Exact native paths below, not arbitrary root write targets |
+| `os`, `name` | Native `linux`/`darwin` (OS defaults to current); stable installation name, not an OS account selector |
+| `user`, `uid`, `gid`, `home` | Optional defaults from the actual OS account; native install/status must match that existing non-root user, independently of agent name |
+| `identity_binary`, `worker_binary` | Protected absolute paired `agent-identity`/`agent-service` binaries in the same directory; owned by the user or root |
+| `identity_config`, `worker_config` | Preexisting owner-only 0600 files under the same existing HOME; planned state/socket bindings must agree |
+| `state_dir`, `worker_state_dir` | Distinct private 0700 directories under that HOME; identity key state can be a fresh generation-specific directory |
+| `socket_dir` | Distinct user-owned 0700 IPC parent under that HOME, separate from state directories; proxy socket 0600 |
+| `identity_definition`, `worker_definition` | Exact per-user native paths below; no system-service/root write targets |
 
-Provision exact accounts/UIDs/HOMEs/groups first, with OS comment/RealName markers
-`fdn-identity=NAME` and `fdn-runner=NAME`. The identity shell is
-`/usr/sbin/nologin` on Linux or `/usr/bin/false` on macOS; the runner uses the
-planned native shell. Identity supplementary membership in the worker group is
-required for unprivileged IPC ownership changes; reverse worker membership in
-the identity/root group is forbidden. Missing/mismatched state stays an explicit
-prerequisite/conflict, never successful adoption. The installer uses fixed
-absolute native arguments and a minimal environment, not a generic root helper.
+No special account marker, named primary group, supplementary membership or
+private 0700 HOME is required. The existing HOME remains unchanged. Configurations
+and private state must already exist as this user; missing/untrusted state is an
+explicit failure. Legacy `identity_*`/`worker_*` **account selectors** are rejected,
+not used to create accounts, move keys or change ownership. See
+[legacy ownership migration](MIGRATION.md#migrating-legacy-split-account-workers).
 
-| Native OS | Exact definition paths (`NAME`, `WORKER_HOME` are plan values) |
+| Native OS | Exact definition paths (`NAME`, `HOME` are plan values) |
 | --- | --- |
-| Linux identity | `/etc/systemd/system/fdn-identity-NAME.service` |
-| Linux runner | `WORKER_HOME/.config/systemd/user/fdn-worker-NAME.service` |
-| macOS identity | `/Library/LaunchDaemons/org.foundation.identity.NAME.plist` |
-| macOS runner | `WORKER_HOME/Library/LaunchAgents/org.foundation.runner.NAME.plist` |
+| Linux identity | `HOME/.config/systemd/user/fdn-identity-NAME.service` |
+| Linux runner | `HOME/.config/systemd/user/fdn-worker-NAME.service` |
+| macOS identity | `HOME/Library/LaunchAgents/org.foundation.identity.NAME.plist` |
+| macOS runner | `HOME/Library/LaunchAgents/org.foundation.runner.NAME.plist` |
 
-Linux installation registers the non-root identity system unit, enables the
-runner's lingering/user manager, then runs `systemctl --user` as that actual
-runner, never as root. Its user-bus environment is for registration only, not
-provider processes. Keep Linux identity HOME outside `/home`, `/root` and
-`/run/user` because `ProtectHome` hides those paths. Identity unit HOME,
-working/read-write root remain the stable identity HOME so explicit fresh
-sub-StateDir recovery need not change accounts or runner paths.
+Linux registers **both** with `systemctl --user` and the actual user's existing
+bus. A missing manager/bus fails before service-definition writes; optional
+logout persistence is a separately authorized native prerequisite. No
+`loginctl enable-linger`, system `user@UID` start, root helper or `runuser` is
+invoked by installation.
 
-macOS registers the identity system LaunchDaemon and uses `launchctl asuser`
-with a nonprompting privilege drop to the actual runner for its GUI LaunchAgent.
-No system daemon gains desktop consent merely by registration. Account/GUI
-prerequisites must already exist; fixture plans/recorded commands are not proof
-of actual multi-UID, manager, GUI or reboot qualification.
+macOS registers **both** LaunchAgents in `gui/UID` as the existing logged-in
+user. It creates no hidden account or LaunchDaemon and invokes no `sudo` or
+`launchctl asuser`. Missing GUI/login domains are explicit prerequisites;
+registration grants no desktop/TCC consent. Recording fixtures do not qualify
+live native manager, desktop or reboot behavior. Windows service/IPC support
+is still separate, unimplemented work.
 
 After explicit registration, verify status and the runner's own identity/health:
 
@@ -909,14 +943,14 @@ keys. For an explicitly authorized recovery:
    evidence and **all** runner state, credentials/public binding, journals,
    outbox, knowledge, bindings, provider HOME and workspaces. Never delete keys
    or runner journals to make the recovery appear fresh.
-2. Choose a new **empty**, identity-owned 0700 StateDir **inside the same identity
-   HOME**, separate from the stable private configuration and IPC parent. Keep
+2. Choose a new **empty**, user-owned 0700 StateDir **inside the same existing
+   user's HOME**, separate from the stable private configuration and IPC parent. Keep
    that 0600 config file path, account UID/GID/HOME, IPC endpoint and every runner
    path unchanged. Update its `state_dir` and the service OPTIONS `state_dir` to
    the new subdirectory only; retain the old state protected and untouched.
-   The unit uses stable identity HOME for HOME/working/read-write scope, so this
+   The service uses the existing HOME for its stable working directory, so this
    supported workflow does not adopt accounts or require deleting old state.
-3. As the protected identity account, while its service remains stopped, prepare
+3. As the existing worker user, while its identity service remains stopped, prepare
    the new signed public request:
 
    ```sh
@@ -926,7 +960,7 @@ keys. For an explicitly authorized recovery:
 
 4. Obtain the explicit Founder/root recovery below, validate/transfer its new
    public profile, then use `agent-identity --config PRIVATE_CONFIG connect
-   --profile NEW_PUBLIC_PROFILE` as the identity account. Restart the exact
+   --profile NEW_PUBLIC_PROFILE` as that same user. Restart the exact
    native identity/runner services through the approved OS manager; attach the
    same original runner with `agent-cli connect` and check identity/status.
    Recovery neither resets journals nor authorizes an uncertain task retry.

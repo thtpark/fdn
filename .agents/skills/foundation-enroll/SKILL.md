@@ -1,6 +1,6 @@
 ---
 name: foundation-enroll
-description: "Use when preparing Founder or Agent1 signed public identity requests, registering or migrating a computer, attaching its isolated identity proxy, recovering a banned identity with fresh keys, or granting project authority with pinned SSH and mutual TLS."
+description: "Use when preparing Founder or Agent1 signed public identity requests under the existing installing user, registering or migrating a computer, attaching its identity proxy, recovering a banned identity with fresh keys, or granting project authority with pinned SSH and mutual TLS."
 ---
 
 # Register and recover the correct identity
@@ -9,19 +9,24 @@ Read `agent-cli guide show DEPLOYMENT.md`, `guide show COMMANDS.md` and
 `guide show SCHEMA.md` offline. `agent-identity --help` separately describes its
 protected-account commands; it has no `guide` or `config init` leaf.
 
-1. Resolve the computer, enrolled AgentID/role, identity-service UID/HOME/private
-   configuration, distinct provider-runner UID/HOME/configuration and actual
+1. Resolve the computer, enrolled AgentID/role, existing installing user's
+   UID/HOME, private identity/runner configurations, distinct state paths and actual
    version. A display name, provider sign-in or copied bearer file is not an
    identity. No v2 bearer invitation or token-only runtime is supported.
 2. Verify native prerequisites, private ownership and approved CA/SSH host pins.
    Each identity, including Founder, needs its own Foundation-host SSH account
-   and UID. The root-controlled gateway allows only `fdn-api`/`fdn-join` stdio,
+   and UID. New registration derives an OS-safe lowercase username from its
+   agent name (`Agent1` -> `agent1`); invalid results/collisions fail, never
+   truncate, adopt or rename. The local worker uses its existing OS user; its
+   username need not match and no new worker account is created. Existing Foundation names/UIDs
+   remain unchanged during upgrade and recovery. The root-controlled gateway allows only `fdn-api`/`fdn-join` stdio,
    never commands, PTY or forwarding. Kernel peer UID and inner mTLS identity
    must agree; never weaken pins or share an SSH account to make connect work.
-3. An authorized native setup provides the protected identity configuration;
-   native identity execution rejects root and the runner's UID. Stop that
-   identity service before offline preparation/profile changes. As its own
-   identity account, use `agent-identity --config PRIVATE_CONFIG prepare --name
+3. As the existing installing user, prepare private identity configuration/state
+   under its HOME. Omitted/zero worker_uid/worker_gid means current user;
+   explicit foreign values require legacy migration and native execution rejects
+   root. Stop the identity service before offline preparation/profile changes.
+   As that same user, use `agent-identity --config PRIVATE_CONFIG prepare --name
    NAME --output PUBLIC_REQUEST`. Export only the signed public request; keep
    both private keypairs and exact retry state in that account.
 4. Initial Founder: an authorized operator passes that public request to
@@ -36,12 +41,13 @@ protected-account commands; it has no `guide` or `config init` leaf.
    --input PUBLIC_REQUEST [--output PUBLIC_PROFILE]`. Project delegates cannot
    register agents. Transfer public request/profile with authenticated integrity;
    it contains no private keys but is still a trust decision.
-6. As the target identity account, use `agent-identity --config PRIVATE_CONFIG
+6. As the target's existing worker user, use `agent-identity --config PRIVATE_CONFIG
    connect --profile PUBLIC_PROFILE`, then its `serve`. Connect stores only a
    validated public profile; serve activates the key binding and maintains
    device-authenticated owner control. Long-term keys and device/owner
-   certificates never go to providers or runner state.
-7. As the different runner account, run `agent-cli config init --identity-socket
+   certificates never go into model/shared output or ordinary IPC replies.
+   The same user owns the files; separate processes are not key isolation.
+7. As that same existing user, run `agent-cli config init --identity-socket
    ABS` only for a missing runner configuration, then `agent-cli connect`.
    The private peer-checked Unix proxy must be active; the runner saves only
    public AgentID. Use `agent identity`, `doctor`, `status` and `agent list` to
@@ -63,8 +69,8 @@ protected-account commands; it has no `guide` or `config init` leaf.
 10. Recovery requires fresh SSH/authentication keypairs, new signed public
     request, intentional reason and current authority. No `--rotate` exists:
     stop the service safely, preserve its old private StateDir and ALL runner
-    state/journals, then choose a new empty identity-owned 0700 StateDir inside
-    the SAME identity HOME. Keep the private config file/IPC and runner paths
+    state/journals, then choose a new empty user-owned 0700 StateDir inside
+    the SAME existing user's HOME. Keep the private config file/IPC and runner paths
     stable; update the intended `state_dir` binding in config/service OPTIONS,
     then `prepare` the new public request. Normal retries never auto-rotate.
     Founder uses `agent recover AGENT --input NEW_PUBLIC --reason REASON

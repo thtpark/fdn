@@ -49,7 +49,7 @@ func TestAccountHelperKernelUIDFixedOperationsAndClient(t *testing.T) {
 	if err != nil || account.State != AccountActive || account.UID != manager.options.UIDMin {
 		t.Fatal(account, err)
 	}
-	disabled, err := client.Disable(context.Background(), account.AgentID, account.Generation+1)
+	disabled, err := client.Disable(context.Background(), AccountDisableRequest{AgentID: account.AgentID, Generation: account.Generation + 1})
 	if err != nil || disabled.UID != account.UID || disabled.State != AccountDisabled || disabled.Generation != account.Generation+1 || !system.disabled[account.Username] {
 		t.Fatal(disabled, err)
 	}

@@ -299,7 +299,7 @@ func (s *Store) newIdentity(ctx context.Context, tx *sql.Tx, agent domain.Agent,
 	if err != nil {
 		return domain.AgentIdentity{}, err
 	}
-	user, err := identitySSHUser(agent.ID)
+	user, err := domain.AgentUsername(agent.Name)
 	if err != nil {
 		return domain.AgentIdentity{}, err
 	}
@@ -434,11 +434,7 @@ func (s *Store) BindIdentityAccount(ctx context.Context, agentID, user string, u
 	if err := identityAllowed(identity, agent, false); err != nil {
 		return domain.AgentIdentity{}, err
 	}
-	expected, err := identitySSHUser(agentID)
-	if err != nil {
-		return identity, err
-	}
-	if user != expected || user != identity.SSHUser || uid <= 0 || uid >= 1<<32-1 || sshFingerprint != identity.SSHFingerprint {
+	if !domain.ValidAccountUsername(user) || user != identity.SSHUser || uid <= 0 || uid >= 1<<32-1 || sshFingerprint != identity.SSHFingerprint {
 		return domain.AgentIdentity{}, domain.Fail(domain.Invalid, "provisioned account or SSH key does not match the approved identity")
 	}
 	var previousUID int64

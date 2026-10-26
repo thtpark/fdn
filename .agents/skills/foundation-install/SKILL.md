@@ -1,6 +1,6 @@
 ---
 name: foundation-install
-description: "Use when installing Foundation or a worker, preparing a native Linux/macOS computer, registering systemd/launchd services, verifying release packages, or upgrading an existing installation without losing identity and state."
+description: "Use when installing Foundation or a worker under the existing installing user, preparing a native Linux/macOS computer, registering per-user systemd/launchd services, migrating legacy split-account workers, verifying release packages, or upgrading an installation without losing identity and state."
 ---
 
 # Install or upgrade Foundation
@@ -22,11 +22,18 @@ commands.
 4. Verify source/version/platform/digests before native archive/Debian install.
    Preserve immutable releases and all existing state. Keep signing/attestation
    claims separate from checksum verification.
-5. Prepare approved native accounts/UIDs/HOMEs, not a same-UID provider and
-   credential service. `agent-identity` owns private key/config state; the runner
-   gets only a peer-checked Unix proxy and public AgentID. Foundation also needs
+5. Reuse the existing installing user for worker identity, CLI, service and
+   providers. No new account/group, hidden user or separate HOME is required.
+   The local username need not match the enrolled agent name. That user owns
+   keys and all worker state; separate processes organize lifecycle, not
+   isolation from its tools. Keep state/configuration and IPC owner-only.
+   Foundation still needs
    one dedicated SSH account/UID per identity, including Founder, separate from
-   the unprivileged server. An authorized root-local account provisioner manages
+   the unprivileged server. A new Agent1 uses `agent1` for Foundation SSH even
+   when its local user is `alice`. Existing Foundation account names/UIDs stay
+   retained; never rename the local account or move live state for this
+   convention. Upgrade the account helper with the server before new named
+   registrations. An authorized root-local account provisioner manages
    only that namespace. Pinned SSH forces `fdn-api`/`fdn-join` stdio into inner
    mTLS Unix ingress, with no arbitrary commands, PTY, forwarding or TCP/bearer
    bootstrap. Internal transport is protobuf protocol 2, not HTTP/gRPC.
@@ -54,18 +61,19 @@ commands.
    `fdn-service`; Debian worker payloads include the first three. Verify the
    new binary and complete guide against the trusted manifest, not just an old
    launcher. Use `agent-identity service plan --input OPTIONS` read-only, then
-   authorized native-root `agent-identity service install --input OPTIONS
+   explicit current-user `agent-identity service install --input OPTIONS
    --apply` and `agent-identity service status --input OPTIONS`. These take no
-   `--config`; OPTIONS is the exact two-account IdentityServiceOptions in
-   DEPLOYMENT.md, not single-role agent-cli service options. Preprovision the
-   exact UID/GID/HOME/primary groups, managed `fdn-identity=NAME` /
-   `fdn-runner=NAME` markers, no-login identity shell and one-way identity
-   membership in the worker group; never worker membership in identity/root.
-   Private configurations must already exist and bind the planned socket/state.
-   Missing/mismatched accounts fail, never auto-adopt/create. Linux registers
-   identity system unit plus actual runner user manager; macOS identity
-   LaunchDaemon plus actual runner GUI LaunchAgent at fixed definition paths.
-   Native multi-UID/manager/GUI qualification remains separate authorized work.
+   `--config`; OPTIONS is the current-user IdentityServiceOptions in
+   DEPLOYMENT.md, not single-role agent-cli service options. User/UID/GID/HOME
+   default from the actual OS account. Prepare distinct 0700 state and 0600
+   configurations in that existing HOME; IPC parent/socket is 0700/0600.
+   Existing HOME mode, groups and shell stay unchanged. Both Linux units use
+   `systemctl --user`; both macOS services are the user's GUI LaunchAgents.
+   Missing user-manager/login prerequisites fail, never invoke root, sudo or
+   runuser or create accounts. Legacy split-account options need the explicit
+   stopped, state-preserving migration in MIGRATION.md; never move keys/reset
+   state automatically. Native manager/GUI and Windows runtime qualification
+   remain separate; Windows adapters are not implemented.
 9. Verify actual process owner, exact version/source, enabled/running manager,
    SQLite/TLS health, private listeners, SSH route and guide discovery. Do not
    equate accepted registration with final health.

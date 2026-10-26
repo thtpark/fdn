@@ -3,7 +3,6 @@ package platform
 import (
 	"context"
 	"errors"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,10 +14,7 @@ import (
 // IdentityServiceEnvironment is a recording-test seam, not a runtime setting or
 // privileged command endpoint. Native CLI execution always uses the native host.
 type IdentityServiceEnvironment interface {
-	LookupUser(context.Context, string) (AccountUser, bool, error)
-	LookupUID(context.Context, uint32) (AccountUser, bool, error)
-	LookupGroup(context.Context, string) (AccountGroup, bool, error)
-	LookupGID(context.Context, uint32) (AccountGroup, bool, error)
+	CurrentUser(context.Context) (AccountUser, error)
 	ValidateLayout(IdentityServiceOptions) error
 	WriteDefinitions(IdentityServiceOptions, IdentityServicePlan) error
 	RunnerDomain(IdentityServiceOptions) error
@@ -44,7 +40,7 @@ type IdentityServiceInstaller struct {
 }
 
 // NewIdentityServiceInstaller embeds a recording host. Production must use
-// NewNativeIdentityServiceInstaller, whose root/OS guard cannot be configured.
+// NewNativeIdentityServiceInstaller, whose current-user/OS guard cannot be configured.
 func NewIdentityServiceInstaller(o IdentityServiceOptions, host IdentityServiceEnvironment, runner process.Runner) (*IdentityServiceInstaller, error) {
 	if _, err := RenderIdentityServices(o); err != nil {
 		return nil, err
@@ -66,79 +62,26 @@ func (i *IdentityServiceInstaller) guard(ctx context.Context) error {
 }
 
 func (i *IdentityServiceInstaller) checkAccounts(ctx context.Context) error {
+	account, err := i.host.CurrentUser(ctx)
+	if err != nil {
+		return err
+	}
 	o := i.options
-	for _, expected := range []struct {
-		name, home, marker string
-		uid, gid           int
-		identity           bool
-	}{{o.IdentityUser, o.IdentityHome, "fdn-identity=" + o.Name, o.IdentityUID, o.IdentityGID, true},
-		{o.WorkerUser, o.WorkerHome, "fdn-runner=" + o.Name, o.WorkerUID, o.WorkerGID, false}} {
-		account, found, err := i.host.LookupUser(ctx, expected.name)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return domain.Fail(domain.Prerequisite, "dedicated local identity and runner accounts must be provisioned exactly as service plan specifies; no account was created or adopted")
-		}
-		byID, found, err := i.host.LookupUID(ctx, uint32(expected.uid))
-		if err != nil {
-			return err
-		}
-		if account.UID == 0 || found && byID.UID == 0 {
-			return domain.Fail(domain.Denied, "resolved identity and runner accounts must both have non-root UIDs; root aliases are not service accounts")
-		}
-		if !found || account.Username != expected.name || account.UID != uint32(expected.uid) || account.GID != uint32(expected.gid) ||
-			account.Home != expected.home || account.Marker != expected.marker || byID.Username != account.Username || byID.UID != account.UID ||
-			byID.GID != account.GID || byID.Home != account.Home || byID.Marker != account.Marker {
-			return domain.Fail(domain.Conflict, "local account name/UID/group/HOME/managed marker does not match the explicit service plan; unrelated accounts are never adopted")
-		}
-		if expected.identity && !slices.Contains([]string{"/usr/sbin/nologin", "/sbin/nologin", "/usr/bin/false", "/bin/false"}, account.Shell) {
-			return domain.Fail(domain.Prerequisite, "dedicated identity account must have a no-login shell before service installation")
-		}
-		if !slices.Contains(account.Groups, account.GID) || slices.Contains(account.Groups, uint32(0)) ||
-			expected.identity && !slices.Contains(account.Groups, uint32(o.WorkerGID)) ||
-			!expected.identity && slices.Contains(account.Groups, uint32(o.IdentityGID)) {
-			return domain.Fail(domain.Prerequisite, "provision explicit identity-to-worker supplementary membership and exclude reverse/root group membership before installation")
-		}
-		if expected.identity {
-			for _, group := range account.Groups {
-				if group != uint32(o.IdentityGID) && group != uint32(o.WorkerGID) && !(o.OS == "darwin" && (group == 12 || group == 61)) {
-					return domain.Fail(domain.Denied, "identity account must not inherit unrelated supplementary groups")
-				}
-			}
-		}
-		group, found, err := i.host.LookupGroup(ctx, expected.name)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return domain.Fail(domain.Prerequisite, "service plan requires each dedicated account's named primary group")
-		}
-		byGID, found, err := i.host.LookupGID(ctx, uint32(expected.gid))
-		if err != nil {
-			return err
-		}
-		if !found || group.Name != expected.name || group.GID != uint32(expected.gid) || byGID.Name != group.Name || byGID.GID != group.GID {
-			return domain.Fail(domain.Conflict, "dedicated primary group name/GID reservation conflicts with the service plan")
-		}
+	if account.UID == 0 {
+		return domain.Fail(domain.Denied, "run worker service installation/status as the existing worker user, not root or sudo")
+	}
+	if account.Username != o.User || int(account.UID) != o.UID || int(account.GID) != o.GID || account.Home != o.Home {
+		return domain.Fail(domain.Conflict, "service plan must match the actual installing user's UID/GID/HOME; the local username need not match the enrolled agent name")
 	}
 	return nil
 }
 
-func (i *IdentityServiceInstaller) run(ctx context.Context, path string, args []string, worker bool) ([]byte, error) {
+func (i *IdentityServiceInstaller) run(ctx context.Context, path string, args []string) ([]byte, error) {
 	o := i.options
-	environment := []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL=C", "HOME=/root"}
-	if worker {
-		uid := strconv.Itoa(o.WorkerUID)
-		if o.OS == "linux" {
-			args = append([]string{"--user", o.WorkerUser, "--", "/usr/bin/env", "-i", "HOME=" + o.WorkerHome, "USER=" + o.WorkerUser,
-				"LOGNAME=" + o.WorkerUser, "PATH=/usr/bin:/bin", "LC_ALL=C", "XDG_RUNTIME_DIR=/run/user/" + uid,
-				"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/" + uid + "/bus", path}, args...)
-			path = "/usr/sbin/runuser"
-		} else {
-			args = append([]string{"asuser", uid, "/usr/bin/sudo", "-n", "-H", "-u", o.WorkerUser, "--", path}, args...)
-			path = "/bin/launchctl"
-		}
+	environment := []string{"PATH=/usr/bin:/bin", "LC_ALL=C", "HOME=" + o.Home, "USER=" + o.User, "LOGNAME=" + o.User}
+	if o.OS == "linux" {
+		runtimeDir := "/run/user/" + strconv.Itoa(o.UID)
+		environment = append(environment, "XDG_RUNTIME_DIR="+runtimeDir, "DBUS_SESSION_BUS_ADDRESS=unix:path="+runtimeDir+"/bus")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -153,11 +96,11 @@ func (i *IdentityServiceInstaller) probe(ctx context.Context, worker bool) (Iden
 	o := i.options
 	if o.OS == "linux" {
 		name := "fdn-identity-" + o.Name + ".service"
-		args := []string{"show", name, "--property=LoadState", "--property=ActiveState"}
+		args := []string{"--user", "show", name, "--property=LoadState", "--property=ActiveState"}
 		if worker {
 			args = []string{"--user", "show", "fdn-worker-" + o.Name + ".service", "--property=LoadState", "--property=ActiveState"}
 		}
-		data, err := i.run(ctx, "/usr/bin/systemctl", args, worker)
+		data, err := i.run(ctx, "/usr/bin/systemctl", args)
 		if err != nil {
 			return IdentityUnitStatus{}, err
 		}
@@ -174,11 +117,11 @@ func (i *IdentityServiceInstaller) probe(ctx context.Context, worker bool) (Iden
 		}
 		return IdentityUnitStatus{Registered: values["LoadState"] == "loaded", Running: values["LoadState"] == "loaded" && values["ActiveState"] == "active"}, nil
 	}
-	target := "system/org.foundation.identity." + o.Name
+	target := "gui/" + strconv.Itoa(o.UID) + "/org.foundation.identity." + o.Name
 	if worker {
-		target = "gui/" + strconv.Itoa(o.WorkerUID) + "/org.foundation.runner." + o.Name
+		target = "gui/" + strconv.Itoa(o.UID) + "/org.foundation.runner." + o.Name
 	}
-	data, err := i.run(ctx, "/bin/launchctl", []string{"print", target}, worker)
+	data, err := i.run(ctx, "/bin/launchctl", []string{"print", target})
 	if err != nil {
 		var status interface{ ExitCode() int }
 		if errors.As(err, &status) && status.ExitCode() == 113 {
@@ -223,7 +166,7 @@ func (i *IdentityServiceInstaller) Status(ctx context.Context) (IdentityServiceS
 func (i *IdentityServiceInstaller) Install(ctx context.Context, apply bool) (IdentityServiceStatus, error) {
 	status := IdentityServiceStatus{OS: i.options.OS, Name: i.options.Name}
 	if !apply {
-		return status, domain.Fail(domain.Denied, "service install requires explicit --apply and administrator execution; service plan is read-only")
+		return status, domain.Fail(domain.Denied, "service install requires explicit --apply as the installing user; service plan is read-only")
 	}
 	if err := i.guard(ctx); err != nil {
 		return status, err
@@ -239,32 +182,21 @@ func (i *IdentityServiceInstaller) Install(ctx context.Context, apply bool) (Ide
 		return status, err
 	}
 	o := i.options
+	if err := i.host.RunnerDomain(o); err != nil {
+		return status, err
+	}
 	if o.OS == "darwin" {
-		if _, err := i.run(ctx, "/bin/launchctl", []string{"print", "gui/" + strconv.Itoa(o.WorkerUID)}, true); err != nil {
-			return status, domain.Fail(domain.Prerequisite, "runner GUI domain is not available; provision its native login domain before installing the LaunchAgent")
+		if _, err := i.run(ctx, "/bin/launchctl", []string{"print", "gui/" + strconv.Itoa(o.UID)}); err != nil {
+			return status, domain.Fail(domain.Prerequisite, "the installing user's GUI domain is unavailable; log in as that existing user before installing both LaunchAgents")
 		}
 	}
 	if err := i.host.WriteDefinitions(o, plan); err != nil {
 		return status, err
 	}
 	if o.OS == "linux" {
-		for _, command := range []struct {
-			path string
-			args []string
-		}{
-			{"/usr/bin/loginctl", []string{"enable-linger", o.WorkerUser}},
-			{"/usr/bin/systemctl", []string{"start", "user@" + strconv.Itoa(o.WorkerUID) + ".service"}},
-		} {
-			if _, err := i.run(ctx, command.path, command.args, false); err != nil {
-				return status, domain.Fail(domain.Prerequisite, "runner user-manager persistence/start remains pending; retry the same service install after correcting the native prerequisite")
-			}
-		}
-		if err := i.host.RunnerDomain(o); err != nil {
-			return status, err
-		}
-		for n, definition := range []Definition{plan.Identity, plan.Worker} {
+		for _, definition := range []Definition{plan.Identity, plan.Worker} {
 			for _, command := range definition.Commands {
-				if _, err := i.run(ctx, "/usr/bin/systemctl", command[1:], n == 1); err != nil {
+				if _, err := i.run(ctx, "/usr/bin/systemctl", command[1:]); err != nil {
 					return status, domain.Fail(domain.Unavailable, "native service registration failed; installed definitions are retained for exact retry")
 				}
 			}
@@ -280,13 +212,13 @@ func (i *IdentityServiceInstaller) Install(ctx context.Context, apply bool) (Ide
 			}
 			command := definition.Commands[0][1:]
 			if state.Registered {
-				target := "system/org.foundation.identity." + o.Name
+				target := "gui/" + strconv.Itoa(o.UID) + "/org.foundation.identity." + o.Name
 				if n == 1 {
-					target = "gui/" + strconv.Itoa(o.WorkerUID) + "/org.foundation.runner." + o.Name
+					target = "gui/" + strconv.Itoa(o.UID) + "/org.foundation.runner." + o.Name
 				}
 				command = []string{"kickstart", target}
 			}
-			if _, err := i.run(ctx, "/bin/launchctl", command, n == 1); err != nil {
+			if _, err := i.run(ctx, "/bin/launchctl", command); err != nil {
 				return status, domain.Fail(domain.Unavailable, "native launchd registration remains pending; retry the same approved install")
 			}
 		}

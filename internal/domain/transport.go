@@ -95,6 +95,7 @@ type ManagedAccount struct {
 
 type AccountProvisionRequest struct {
 	AgentID    string `json:"agent_id"`
+	Username   string `json:"username,omitempty"`
 	PublicKey  string `json:"public_key"`
 	Generation int64  `json:"generation"`
 	Reactivate bool   `json:"reactivate,omitempty"`
@@ -102,5 +103,6 @@ type AccountProvisionRequest struct {
 
 type AccountDisableRequest struct {
 	AgentID    string `json:"agent_id"`
+	Username   string `json:"username,omitempty"`
 	Generation int64  `json:"generation"`
 }

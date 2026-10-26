@@ -81,10 +81,10 @@ func (c *AccountClient) callMessage(ctx context.Context, path string, value any)
 	if err := message.UnmarshalPayload(data, &account); err != nil {
 		return ManagedAccount{}, err
 	}
-	name, err := AccountUsername(account.AgentID)
+	_, err = accountUsername(account.AgentID, account.Username)
 	absentDisable := operation == "accounts.disable" && account.State == AccountDisabled &&
 		account.UID == 0 && account.GID == 0 && account.Fingerprint == "" && account.PublicKey == ""
-	if err != nil || account.Username != name || account.Generation < 1 ||
+	if err != nil || account.Username == "" || account.Generation < 1 ||
 		(!absentDisable && !validAccountFingerprint(account.Fingerprint)) {
 		return ManagedAccount{}, domain.Fail(domain.Unavailable, "invalid managed account reply")
 	}
@@ -121,7 +121,7 @@ func NewAccountMessageHandler(manager *AccountManager, serverUID uint32) func(co
 				if err := message.UnmarshalPayload(request.Payload, &input); err != nil {
 					return nil, err
 				}
-				plan, planErr := manager.Plan(call, AccountRequest{AgentID: input.AgentID, PublicKey: input.PublicKey,
+				plan, planErr := manager.Plan(call, AccountRequest{AgentID: input.AgentID, Username: input.Username, PublicKey: input.PublicKey,
 					Generation: input.Generation, Reactivate: input.Reactivate})
 				err = planErr
 				if err == nil {
@@ -132,7 +132,7 @@ func NewAccountMessageHandler(manager *AccountManager, serverUID uint32) func(co
 				if err := message.UnmarshalPayload(request.Payload, &input); err != nil {
 					return nil, err
 				}
-				account, err = manager.Disable(call, input.AgentID, input.Generation, true)
+				account, err = manager.Disable(call, input, true)
 			}
 			if err != nil {
 				return nil, domain.Fail(domain.Conflict, "account operation remains denied or pending; reconcile retained identity")

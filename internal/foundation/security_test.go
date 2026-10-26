@@ -142,7 +142,7 @@ func TestSecurityBootstrapRegistrationAndFounderOnlyPolicy(t *testing.T) {
 	if err != nil || founder.UID != -1 || founder.State != "pending" || founder.Assurance != "software" || founder.InstanceID != instance {
 		t.Fatal("invalid pending bootstrap", founder, err)
 	}
-	if founder.SSHUser != "fdna_"+strings.TrimPrefix(founder.AgentID, "agent_")[:20] {
+	if founder.SSHUser != "founder" {
 		t.Fatal("unexpected dedicated account name", founder.SSHUser)
 	}
 	for _, replayOp := range []string{operation, op().OperationID} {

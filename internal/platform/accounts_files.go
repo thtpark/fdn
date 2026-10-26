@@ -209,14 +209,16 @@ func (m *AccountManager) validateInventory(inventory AccountInventory) error {
 		return errors.New("unsupported or mismatched managed account inventory")
 	}
 	names := map[string]bool{}
+	agents := map[string]bool{}
 	uids := map[uint32]bool{}
 	fingerprints := map[string]string{}
 	for _, account := range inventory.Accounts {
-		name, err := AccountUsername(account.AgentID)
-		if err != nil || name != account.Username || names[name] || account.Generation < 1 {
+		name, err := accountUsername(account.AgentID, account.Username)
+		if err != nil || account.Username == "" || names[name] || agents[account.AgentID] || account.Generation < 1 {
 			return ErrAccountConflict
 		}
 		names[name] = true
+		agents[account.AgentID] = true
 		if account.UID == 0 {
 			if (account.State != AccountDisabled && account.State != AccountRetiring) || account.GID != 0 || account.PublicKey != "" || account.Fingerprint != "" || len(account.PreviousFingerprints) != 0 {
 				return ErrAccountConflict

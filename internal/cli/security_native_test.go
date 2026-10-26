@@ -53,8 +53,7 @@ func (c *nativeRecordingClient) Provision(ctx context.Context, request platform.
 	}
 	account, exists := c.records[request.AgentID]
 	if !exists {
-		name, _ := platform.AccountUsername(request.AgentID)
-		account = platform.ManagedAccount{AgentID: request.AgentID, Username: name, UID: c.uid + uint32(c.created), GID: c.gid}
+		account = platform.ManagedAccount{AgentID: request.AgentID, Username: request.Username, UID: c.uid + uint32(c.created), GID: c.gid}
 		c.created++
 	}
 	account.PublicKey, account.Fingerprint, account.State, account.Generation = canonical, fingerprint, platform.AccountActive, request.Generation
@@ -67,6 +66,8 @@ func (c *nativeRecordingClient) Provision(ctx context.Context, request platform.
 		account.UID = 0
 	case "username":
 		account.Username = "root"
+	case "other-username":
+		account.Username = "another-agent"
 	case "fingerprint":
 		account.Fingerprint = "SHA256:invalid"
 	case "group":
@@ -80,12 +81,12 @@ func (c *nativeRecordingClient) Provision(ctx context.Context, request platform.
 	}
 	return account, nil
 }
-func (c *nativeRecordingClient) Disable(_ context.Context, id string, generation int64) (platform.ManagedAccount, error) {
+func (c *nativeRecordingClient) Disable(_ context.Context, request platform.AccountDisableRequest) (platform.ManagedAccount, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	account := c.records[id]
-	account.State, account.Generation = platform.AccountDisabled, generation
-	c.records[id] = account
+	account := c.records[request.AgentID]
+	account.State, account.Generation = platform.AccountDisabled, request.Generation
+	c.records[request.AgentID] = account
 	if c.fail {
 		return platform.ManagedAccount{}, errors.New("recorded disable failure")
 	}
@@ -238,7 +239,7 @@ func TestNativeFoundationRejectsLegacyInitAndUnboundProvisionResults(t *testing.
 			t.Fatal("invalid init changed state", err)
 		}
 	}
-	for _, corruption := range []string{"uid", "username", "fingerprint", "group", "agent", "state", "generation"} {
+	for _, corruption := range []string{"uid", "username", "other-username", "fingerprint", "group", "agent", "state", "generation"} {
 		t.Run(corruption, func(t *testing.T) {
 			fixture := nativeFixtureForTest(t)
 			fixture.client.corrupt = corruption

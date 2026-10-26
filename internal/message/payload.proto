@@ -15,6 +15,7 @@ message Bytes {
 message Go_AccountDisableRequest {
   String agent_id = 1;
   Signed generation = 2;
+  String username = 3;
 }
 
 message Go_AccountProvisionRequest {
@@ -22,6 +23,7 @@ message Go_AccountProvisionRequest {
   String public_key = 2;
   Signed generation = 3;
   Bool reactivate = 4;
+  String username = 5;
 }
 
 message Go_ActivateIdentityRequest {

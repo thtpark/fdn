@@ -54,6 +54,7 @@ type AccountOptions struct {
 
 type AccountRequest struct {
 	AgentID    string
+	Username   string
 	PublicKey  string
 	Generation int64
 	Reactivate bool
@@ -82,7 +83,7 @@ type AccountInventory struct {
 	Accounts      []ManagedAccount `json:"accounts"`
 }
 
-// AccountPlan contains no executable command, arbitrary username or OS path.
+// AccountPlan contains no executable command or caller-selected OS path.
 // Apply regenerates it under the inventory lock and rejects modified/stale plans.
 type AccountPlan struct {
 	Revision    uint64
@@ -173,12 +174,26 @@ func newAccountManager(options AccountOptions, system AccountSystem, filesystemR
 	return &AccountManager{options: options, system: system, filesystemRoot: filesystemRoot}, nil
 }
 
-// AccountUsername is deterministic, bounded and independent of display names.
+// AccountUsername retains the ID-derived naming used by existing installations.
 func AccountUsername(agentID string) (string, error) {
 	if !agentAccountID.MatchString(agentID) {
 		return "", errors.New("managed accounts require an immutable Foundation agent ID")
 	}
 	return "fdna_" + agentID[len("agent_"):len("agent_")+20], nil
+}
+
+func accountUsername(agentID, name string) (string, error) {
+	legacy, err := AccountUsername(agentID)
+	if err != nil {
+		return "", err
+	}
+	if name == "" {
+		return legacy, nil
+	}
+	if !domain.ValidAccountUsername(name) {
+		return "", errors.New("managed accounts require a non-root OS-safe username")
+	}
+	return name, nil
 }
 
 // CanonicalAccountKey accepts one ordinary SSH public key without key options,
@@ -264,7 +279,7 @@ func (m *AccountManager) Plan(ctx context.Context, request AccountRequest) (Acco
 }
 
 func (m *AccountManager) plan(ctx context.Context, inventory AccountInventory, request AccountRequest) (AccountPlan, error) {
-	name, err := AccountUsername(request.AgentID)
+	name, err := accountUsername(request.AgentID, request.Username)
 	if err != nil {
 		return AccountPlan{}, err
 	}
@@ -284,7 +299,7 @@ func (m *AccountManager) plan(ctx context.Context, inventory AccountInventory, r
 		}
 		if account.AgentID == request.AgentID {
 			existing = account
-			if request.Generation < account.Generation || request.Generation == account.Generation && fingerprint != account.Fingerprint {
+			if account.Username != name || request.Generation < account.Generation || request.Generation == account.Generation && fingerprint != account.Fingerprint {
 				return AccountPlan{}, ErrAccountConflict
 			}
 			if request.Generation > account.Generation && fingerprint == account.Fingerprint {
@@ -417,7 +432,7 @@ func (m *AccountManager) Apply(ctx context.Context, plan AccountPlan, apply bool
 	if err != nil {
 		return ManagedAccount{}, err
 	}
-	expected, err := m.plan(ctx, inventory, AccountRequest{AgentID: plan.AgentID, PublicKey: plan.PublicKey, Generation: plan.Generation, Reactivate: plan.Reactivate})
+	expected, err := m.plan(ctx, inventory, AccountRequest{AgentID: plan.AgentID, Username: plan.Username, PublicKey: plan.PublicKey, Generation: plan.Generation, Reactivate: plan.Reactivate})
 	if err != nil {
 		return ManagedAccount{}, err
 	}
@@ -507,15 +522,15 @@ func (m *AccountManager) Reconcile(ctx context.Context, apply bool) (AccountInve
 // Disable removes SSH keys, expires/locks the retained OS account, and retains
 // every identity reservation. The caller must also revoke application authority;
 // this operation is not a promise to terminate already established SSH sessions.
-func (m *AccountManager) Disable(ctx context.Context, agentID string, generation int64, apply bool) (ManagedAccount, error) {
+func (m *AccountManager) Disable(ctx context.Context, request AccountDisableRequest, apply bool) (ManagedAccount, error) {
 	if err := m.guard(ctx, apply); err != nil {
 		return ManagedAccount{}, err
 	}
-	name, err := AccountUsername(agentID)
+	name, err := accountUsername(request.AgentID, request.Username)
 	if err != nil {
 		return ManagedAccount{}, err
 	}
-	if generation < 1 {
+	if request.Generation < 1 {
 		return ManagedAccount{}, errors.New("managed account disable requires a positive identity key generation")
 	}
 	m.mu.Lock()
@@ -529,21 +544,21 @@ func (m *AccountManager) Disable(ctx context.Context, agentID string, generation
 	if err != nil {
 		return ManagedAccount{}, err
 	}
-	index := slices.IndexFunc(inventory.Accounts, func(account ManagedAccount) bool { return account.AgentID == agentID })
-	if index >= 0 && generation < inventory.Accounts[index].Generation {
+	index := slices.IndexFunc(inventory.Accounts, func(account ManagedAccount) bool { return account.AgentID == request.AgentID })
+	if index >= 0 && (name != inventory.Accounts[index].Username || request.Generation < inventory.Accounts[index].Generation) {
 		return ManagedAccount{}, ErrAccountConflict
 	}
 	if index < 0 {
 		if len(inventory.Accounts) >= 4096 {
 			return ManagedAccount{}, errors.New("managed account inventory limit reached")
 		}
-		inventory.Accounts = append(inventory.Accounts, ManagedAccount{AgentID: agentID, Username: name, Generation: generation, State: AccountRetiring})
+		inventory.Accounts = append(inventory.Accounts, ManagedAccount{AgentID: request.AgentID, Username: name, Generation: request.Generation, State: AccountRetiring})
 		index = len(inventory.Accounts) - 1
 		if err := m.saveInventory(&inventory); err != nil {
 			return ManagedAccount{}, err
 		}
-	} else if inventory.Accounts[index].State != AccountDisabled || inventory.Accounts[index].Generation != generation {
-		inventory.Accounts[index].Generation, inventory.Accounts[index].State = generation, AccountRetiring
+	} else if inventory.Accounts[index].State != AccountDisabled || inventory.Accounts[index].Generation != request.Generation {
+		inventory.Accounts[index].Generation, inventory.Accounts[index].State = request.Generation, AccountRetiring
 		if err := m.saveInventory(&inventory); err != nil {
 			return ManagedAccount{}, err
 		}

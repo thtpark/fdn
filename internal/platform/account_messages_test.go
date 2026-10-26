@@ -56,20 +56,32 @@ func TestBinaryAccountHelperKernelUIDAndGenerationFences(t *testing.T) {
 		t.Fatal("native account client retained HTTP")
 	}
 	account, err := client.Provision(ctx, AccountProvisionRequest{AgentID: accountTestAgent,
-		PublicKey: accountTestKey(t), Generation: 1})
-	if err != nil || account.State != AccountActive {
+		Username: "agent1", PublicKey: accountTestKey(t), Generation: 1})
+	if err != nil || account.State != AccountActive || account.Username != "agent1" {
 		t.Fatal("binary provision failed", account, err)
 	}
-	disabled, err := client.Disable(ctx, account.AgentID, 2)
+	disabled, err := client.Disable(ctx, AccountDisableRequest{AgentID: account.AgentID, Username: account.Username, Generation: 2})
 	if err != nil || disabled.State != AccountDisabled || disabled.UID != account.UID || disabled.Generation != 2 {
 		t.Fatal("binary disable lost account/generation", disabled, err)
 	}
 	mutations, lookups := len(system.mutations), system.lookups
-	if _, err := client.Provision(ctx, AccountProvisionRequest{AgentID: account.AgentID, PublicKey: account.PublicKey, Generation: 1}); err == nil {
+	if _, err := client.Provision(ctx, AccountProvisionRequest{AgentID: account.AgentID, Username: account.Username, PublicKey: account.PublicKey, Generation: 1}); err == nil {
 		t.Fatal("stale binary provision revived an old key")
 	}
 	if len(system.mutations) != mutations || system.lookups != lookups {
 		t.Fatal("stale binary generation reached OS operations")
+	}
+	if _, err := client.Disable(ctx, AccountDisableRequest{AgentID: account.AgentID, Username: "another-agent", Generation: 3}); err == nil ||
+		len(system.mutations) != mutations || system.lookups != lookups {
+		t.Fatal("binary disable changed a retained name or reached OS operations", err)
+	}
+	tombstone, err := client.Disable(ctx, AccountDisableRequest{AgentID: accountTestOther, Username: "agent2", Generation: 2})
+	if err != nil || tombstone.Username != "agent2" || tombstone.UID != 0 || tombstone.State != AccountDisabled {
+		t.Fatal("binary named tombstone was not retained", tombstone, err)
+	}
+	recovered, err := client.Provision(ctx, AccountProvisionRequest{AgentID: accountTestOther, Username: "agent2", PublicKey: accountTestKey(t), Generation: 3, Reactivate: true})
+	if err != nil || recovered.Username != "agent2" || recovered.UID == 0 || recovered.Generation != 3 {
+		t.Fatal("binary fresh-key recovery lost the named tombstone", recovered, err)
 	}
 	conn, err := (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	if err != nil {

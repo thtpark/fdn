@@ -7,6 +7,10 @@
     "Generation": {
       "id": 2,
       "name": "generation"
+    },
+    "Username": {
+      "id": 3,
+      "name": "username"
     }
   },
   "AccountProvisionRequest": {
@@ -25,6 +29,10 @@
     "Reactivate": {
       "id": 4,
       "name": "reactivate"
+    },
+    "Username": {
+      "id": 5,
+      "name": "username"
     }
   },
   "ActivateIdentityRequest": {

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/process"
 )
 
@@ -136,8 +137,8 @@ func (s *nativeAccountSystem) lookupGroup(ctx context.Context, key string) (Acco
 
 func (s *nativeAccountSystem) validUser(user AccountUser) error {
 	agentID := strings.TrimPrefix(user.Marker, "fdn-agent=")
-	name, err := AccountUsername(agentID)
-	if err != nil || user.Username != name || user.UID < s.options.UIDMin || user.UID > s.options.UIDMax ||
+	name, err := accountUsername(agentID, user.Username)
+	if err != nil || user.Username == "" || user.UID < s.options.UIDMin || user.UID > s.options.UIDMax ||
 		user.UID == s.options.ServerUID || user.GID != s.options.IngressGID ||
 		user.Home != filepath.Join(s.options.PolicyDir, "homes", name) || user.Shell != "/bin/sh" ||
 		len(user.Groups) != 1 || user.Groups[0] != s.options.IngressGID {
@@ -204,7 +205,7 @@ func (s *nativeAccountSystem) EnableUser(ctx context.Context, user AccountUser) 
 }
 
 func (s *nativeAccountSystem) ActivateSSH(ctx context.Context, policy AccountSSHPolicy) error {
-	if !strings.HasPrefix(policy.Username, "fdna_") || len(policy.Username) != 25 {
+	if !domain.ValidAccountUsername(policy.Username) {
 		return ErrAccountConflict
 	}
 	manager := &AccountManager{options: s.options}

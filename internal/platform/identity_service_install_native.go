@@ -6,12 +6,12 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
@@ -20,11 +20,15 @@ import (
 )
 
 func NewNativeIdentityServiceInstaller(o IdentityServiceOptions, runner process.Runner) (*IdentityServiceInstaller, error) {
+	var err error
+	o, err = ResolveIdentityServiceUser(o)
+	if err != nil {
+		return nil, err
+	}
 	if runner == nil {
 		runner = process.Native{}
 	}
-	host := &nativeIdentityServiceEnvironment{runner: runner, os: o.OS}
-	installer, err := NewIdentityServiceInstaller(o, host, runner)
+	installer, err := NewIdentityServiceInstaller(o, &nativeIdentityServiceEnvironment{}, runner)
 	if err != nil {
 		return nil, err
 	}
@@ -34,133 +38,29 @@ func NewNativeIdentityServiceInstaller(o IdentityServiceOptions, runner process.
 
 func nativeIdentityInstallGuard(target string) error {
 	if target != runtime.GOOS {
-		return domain.Fail(domain.Prerequisite, "native identity service installation/status must run on the specified OS")
+		return domain.Fail(domain.Prerequisite, "native worker service installation/status must run on the specified OS")
 	}
-	if os.Geteuid() != 0 || os.Getuid() != 0 {
-		return domain.Fail(domain.Denied, "identity service system installation/status requires explicit administrator execution; prepare/connect/serve remain unprivileged")
+	if os.Geteuid() == 0 || os.Getuid() != os.Geteuid() {
+		return domain.Fail(domain.Denied, "run worker service installation/status as the existing installing user, without sudo or a privileged UID")
 	}
 	return nil
 }
 
-type nativeIdentityServiceEnvironment struct {
-	runner process.Runner
-	os     string
-}
-
-func (h *nativeIdentityServiceEnvironment) query(ctx context.Context, path string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	output, diagnostic := process.NewBuffer(16<<10), process.NewBuffer(8<<10)
-	err := h.runner.Run(ctx, process.Spec{Path: path, Args: args, Env: []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL=C", "HOME=/root"}, Stdout: output, Stderr: diagnostic})
-	data, outputErr := output.Bytes()
-	_, diagnosticErr := diagnostic.Bytes()
-	if errors.Join(err, outputErr, diagnosticErr) != nil {
-		return nil, domain.Fail(domain.Prerequisite, "native account lookup failed or the required dedicated account/group is missing; follow service plan without adopting another account")
-	}
-	return data, nil
-}
-
-func (h *nativeIdentityServiceEnvironment) property(ctx context.Context, record, property string) (string, error) {
-	data, err := h.query(ctx, "/usr/bin/dscl", ".", "-read", record, property)
+func currentIdentityServiceUser() (AccountUser, error) {
+	account, err := user.LookupId(strconv.Itoa(os.Geteuid()))
 	if err != nil {
-		return "", err
+		return AccountUser{}, domain.Fail(domain.Prerequisite, "cannot resolve the installing user's OS account and HOME")
 	}
-	value, ok := strings.CutPrefix(string(data), property+":")
-	value = strings.TrimSpace(value)
-	if !ok || value == "" || strings.ContainsAny(value, "\x00\r\n") {
-		return "", domain.Fail(domain.Prerequisite, "native directory account property is missing or ambiguous")
+	if account.Username == "" || !filepath.IsAbs(account.HomeDir) || filepath.Clean(account.HomeDir) != account.HomeDir {
+		return AccountUser{}, domain.Fail(domain.Prerequisite, "installing user's OS account needs its existing canonical HOME")
 	}
-	return value, nil
+	return AccountUser{Username: account.Username, UID: uint32(os.Geteuid()), GID: uint32(os.Getegid()), Home: account.HomeDir}, nil
 }
 
-func (h *nativeIdentityServiceEnvironment) LookupUser(ctx context.Context, name string) (AccountUser, bool, error) {
-	if !username.MatchString(name) {
-		return AccountUser{}, false, domain.Fail(domain.Invalid, "invalid dedicated account name")
-	}
-	if h.os == "linux" {
-		return (&nativeAccountSystem{runner: h.runner}).LookupUser(ctx, name)
-	}
-	properties := map[string]string{}
-	for _, key := range []string{"UniqueID", "PrimaryGroupID", "NFSHomeDirectory", "UserShell", "RealName"} {
-		value, err := h.property(ctx, "/Users/"+name, key)
-		if err != nil {
-			return AccountUser{}, false, err
-		}
-		properties[key] = value
-	}
-	uid, uidErr := strconv.ParseUint(properties["UniqueID"], 10, 32)
-	gid, gidErr := strconv.ParseUint(properties["PrimaryGroupID"], 10, 32)
-	if errors.Join(uidErr, gidErr) != nil {
-		return AccountUser{}, false, domain.Fail(domain.Prerequisite, "native directory returned invalid account IDs")
-	}
-	groups, err := h.query(ctx, "/usr/bin/id", "-G", name)
-	if err != nil {
-		return AccountUser{}, false, err
-	}
-	account := AccountUser{Username: name, UID: uint32(uid), GID: uint32(gid), Home: properties["NFSHomeDirectory"], Shell: properties["UserShell"], Marker: properties["RealName"]}
-	for _, group := range strings.Fields(string(groups)) {
-		id, err := strconv.ParseUint(group, 10, 32)
-		if err != nil {
-			return AccountUser{}, false, domain.Fail(domain.Prerequisite, "native directory returned invalid supplementary groups")
-		}
-		account.Groups = append(account.Groups, uint32(id))
-	}
-	return account, true, nil
-}
+type nativeIdentityServiceEnvironment struct{}
 
-func (h *nativeIdentityServiceEnvironment) search(ctx context.Context, kind, property string, id uint32) (string, bool, error) {
-	data, err := h.query(ctx, "/usr/bin/dscl", ".", "-search", "/"+kind, property, strconv.FormatUint(uint64(id), 10))
-	if err != nil {
-		return "", false, err
-	}
-	fields := strings.Fields(string(data))
-	if len(fields) == 0 {
-		return "", false, nil
-	}
-	if len(fields) != 2 || !username.MatchString(fields[0]) || fields[1] != strconv.FormatUint(uint64(id), 10) {
-		return "", false, domain.Fail(domain.Conflict, "native UID/GID lookup is ambiguous; unrelated accounts are never adopted")
-	}
-	return fields[0], true, nil
-}
-
-func (h *nativeIdentityServiceEnvironment) LookupUID(ctx context.Context, uid uint32) (AccountUser, bool, error) {
-	if h.os == "linux" {
-		return (&nativeAccountSystem{runner: h.runner}).LookupUID(ctx, uid)
-	}
-	name, found, err := h.search(ctx, "Users", "UniqueID", uid)
-	if err != nil || !found {
-		return AccountUser{}, found, err
-	}
-	return h.LookupUser(ctx, name)
-}
-
-func (h *nativeIdentityServiceEnvironment) LookupGroup(ctx context.Context, name string) (AccountGroup, bool, error) {
-	if !username.MatchString(name) {
-		return AccountGroup{}, false, domain.Fail(domain.Invalid, "invalid dedicated group name")
-	}
-	if h.os == "linux" {
-		return (&nativeAccountSystem{runner: h.runner}).LookupGroup(ctx, name)
-	}
-	value, err := h.property(ctx, "/Groups/"+name, "PrimaryGroupID")
-	if err != nil {
-		return AccountGroup{}, false, err
-	}
-	gid, err := strconv.ParseUint(value, 10, 32)
-	if err != nil {
-		return AccountGroup{}, false, domain.Fail(domain.Prerequisite, "native directory returned an invalid group ID")
-	}
-	return AccountGroup{Name: name, GID: uint32(gid)}, true, nil
-}
-
-func (h *nativeIdentityServiceEnvironment) LookupGID(ctx context.Context, gid uint32) (AccountGroup, bool, error) {
-	if h.os == "linux" {
-		return (&nativeAccountSystem{runner: h.runner}).LookupGID(ctx, gid)
-	}
-	name, found, err := h.search(ctx, "Groups", "PrimaryGroupID", gid)
-	if err != nil || !found {
-		return AccountGroup{}, found, err
-	}
-	return h.LookupGroup(ctx, name)
+func (*nativeIdentityServiceEnvironment) CurrentUser(context.Context) (AccountUser, error) {
+	return currentIdentityServiceUser()
 }
 
 func identityInstallAncestors(path string, owner uint32, binary bool) error {
@@ -171,17 +71,17 @@ func identityInstallAncestors(path string, owner uint32, binary bool) error {
 		}
 		stat, ok := info.Sys().(*syscall.Stat_t)
 		if !ok || (stat.Uid != 0 && stat.Uid != owner) {
-			return domain.Fail(domain.Denied, "native service paths need protected parent ownership without group/other writes")
+			return domain.Fail(domain.Denied, "native service paths need protected installing-user or root ownership")
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
-			if !binary || stat.Uid != 0 {
-				return domain.Fail(domain.Denied, "native service paths must not traverse untrusted symlinks")
+			if !binary {
+				return domain.Fail(domain.Denied, "native service paths must not traverse symlinks")
 			}
 			real, err := filepath.EvalSymlinks(current)
 			if err != nil || real == current {
-				return domain.Fail(domain.Denied, "immutable binary link cannot be resolved safely")
+				return domain.Fail(domain.Denied, "binary activation link cannot be resolved safely")
 			}
-			if err := identityInstallAncestors(filepath.Join(real, "placeholder"), 0, false); err != nil {
+			if err := identityInstallAncestors(filepath.Join(real, "placeholder"), owner, false); err != nil {
 				return err
 			}
 		} else if !info.IsDir() || info.Mode().Perm()&0022 != 0 {
@@ -211,14 +111,14 @@ func identityInstallDirectory(path string, uid, gid int, mode os.FileMode, creat
 	}
 	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return domain.Fail(domain.Prerequisite, "private identity/runner directory is missing; provision the exact service plan first")
+		return domain.Fail(domain.Prerequisite, "required private worker directory is missing; prepare it as the installing user")
 	}
 	if err != nil {
 		return err
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !ok || !info.IsDir() || info.Mode().Perm() != mode || int(stat.Uid) != uid || int(stat.Gid) != gid {
-		return domain.Fail(domain.Denied, "existing native directory ownership/mode does not match the plan; it will not be adopted or chmodded")
+		return domain.Fail(domain.Denied, "existing native directory ownership/mode does not match the installing user; it will not be adopted or chmodded")
 	}
 	return nil
 }
@@ -231,19 +131,19 @@ func identityInstallRead(path string, uid uint32, private, binary bool) ([]byte,
 		info, err := os.Lstat(path)
 		if err == nil && info.Mode()&os.ModeSymlink != 0 {
 			stat, ok := info.Sys().(*syscall.Stat_t)
-			if !ok || uid != 0 || stat.Uid != 0 {
-				return nil, domain.Fail(domain.Denied, "binary activation links must be root-owned")
+			if !ok || (stat.Uid != 0 && stat.Uid != uid) {
+				return nil, domain.Fail(domain.Denied, "binary activation links must be owned by root or the installing user")
 			}
 			real, err := filepath.EvalSymlinks(path)
 			if err != nil || real == path {
 				return nil, domain.Fail(domain.Denied, "binary activation link cannot be resolved")
 			}
-			return identityInstallRead(real, 0, false, true)
+			return identityInstallRead(real, uid, false, true)
 		}
 	}
 	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, domain.Fail(domain.Prerequisite, "required native configuration/binary is missing; prepare it under its dedicated account first")
+		return nil, domain.Fail(domain.Prerequisite, "required native configuration/binary is missing; prepare it as the installing user")
 	}
 	if err != nil {
 		return nil, err
@@ -254,9 +154,9 @@ func identityInstallRead(path string, uid uint32, private, binary bool) ([]byte,
 		return nil, err
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || !info.Mode().IsRegular() || stat.Uid != uid || info.Mode().Perm()&0022 != 0 ||
+	if !ok || !info.Mode().IsRegular() || (stat.Uid != uid && !(binary && stat.Uid == 0)) || info.Mode().Perm()&0022 != 0 ||
 		private && info.Mode().Perm()&0077 != 0 || binary && (info.Mode().Perm()&0111 == 0 || info.Mode()&(os.ModeSetuid|os.ModeSetgid) != 0) {
-		return nil, domain.Fail(domain.Denied, "native files require exact account ownership and protected regular-file permissions")
+		return nil, domain.Fail(domain.Denied, "native files require installing-user ownership, private configuration and protected executable permissions")
 	}
 	if binary {
 		return nil, nil
@@ -271,28 +171,30 @@ func identityInstallRead(path string, uid uint32, private, binary bool) ([]byte,
 	return data, err
 }
 
-func (h *nativeIdentityServiceEnvironment) ValidateLayout(o IdentityServiceOptions) error {
-	for _, directory := range []IdentityDirectoryPlan{{o.IdentityHome, o.IdentityUID, o.IdentityGID, 0700}, {o.WorkerHome, o.WorkerUID, o.WorkerGID, 0700},
-		{o.StateDir, o.IdentityUID, o.IdentityGID, 0700}, {o.WorkerStateDir, o.WorkerUID, o.WorkerGID, 0700}} {
-		if err := identityInstallDirectory(directory.Path, directory.UID, directory.GID, os.FileMode(directory.Mode), false); err != nil {
+func (*nativeIdentityServiceEnvironment) ValidateLayout(o IdentityServiceOptions) error {
+	if err := identityInstallAncestors(filepath.Join(o.Home, "placeholder"), uint32(o.UID), false); err != nil {
+		return err
+	}
+	for _, path := range []string{o.StateDir, o.WorkerStateDir} {
+		if err := identityInstallDirectory(path, o.UID, o.GID, 0700, false); err != nil {
 			return err
 		}
 	}
 	if _, err := os.Lstat(o.SocketDir); err == nil {
-		if err := identityInstallDirectory(o.SocketDir, o.IdentityUID, o.WorkerGID, 0710, false); err != nil {
+		if err := identityInstallDirectory(o.SocketDir, o.UID, o.GID, 0700, false); err != nil {
 			return err
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
-	} else if err := identityInstallAncestors(o.SocketDir, 0, false); err != nil {
+	} else if err := identityInstallAncestors(o.SocketDir, uint32(o.UID), false); err != nil {
 		return err
 	}
 	for _, binary := range []string{o.IdentityBinary, o.WorkerBinary} {
-		if _, err := identityInstallRead(binary, 0, false, true); err != nil {
+		if _, err := identityInstallRead(binary, uint32(o.UID), false, true); err != nil {
 			return err
 		}
 	}
-	data, err := identityInstallRead(o.IdentityConfig, uint32(o.IdentityUID), true, false)
+	data, err := identityInstallRead(o.IdentityConfig, uint32(o.UID), true, false)
 	if err != nil {
 		return err
 	}
@@ -300,7 +202,7 @@ func (h *nativeIdentityServiceEnvironment) ValidateLayout(o IdentityServiceOptio
 	if err := config.Decode(data, &identity); err != nil {
 		return err
 	}
-	data, err = identityInstallRead(o.WorkerConfig, uint32(o.WorkerUID), true, false)
+	data, err = identityInstallRead(o.WorkerConfig, uint32(o.UID), true, false)
 	if err != nil {
 		return err
 	}
@@ -313,20 +215,21 @@ func (h *nativeIdentityServiceEnvironment) ValidateLayout(o IdentityServiceOptio
 
 func validateIdentityServiceConfiguration(o IdentityServiceOptions, identity config.IdentityService, worker config.Worker) error {
 	if identity.StateDir != o.StateDir || filepath.Dir(identity.Socket) != o.SocketDir || !filepath.IsAbs(identity.Socket) || filepath.Clean(identity.Socket) != identity.Socket ||
-		len(identity.Socket) > 103 || strings.ContainsAny(identity.Socket, "\x00\r\n") || identity.WorkerUID != o.WorkerUID || identity.WorkerGID != o.WorkerGID {
-		return domain.Fail(domain.Conflict, "private identity configuration does not match planned state/IPC and runner UID/GID")
+		len(identity.Socket) > 103 || strings.ContainsAny(identity.Socket, "\x00\r\n") ||
+		(identity.WorkerUID != 0 && identity.WorkerUID != o.UID) || (identity.WorkerGID != 0 && identity.WorkerGID != o.GID) {
+		return domain.Fail(domain.Conflict, "identity configuration must match the installing user's state/IPC; legacy foreign worker UID/GID requires explicit migration")
 	}
 	if worker.StateDir != o.WorkerStateDir || worker.IdentitySocket != identity.Socket || worker.SSH != nil ||
-		!identityPathWithin(o.WorkerStateDir, worker.CredentialFile) || !identityPathWithin(o.WorkerHome, worker.CAFile) ||
-		identityPathWithin(o.IdentityHome, worker.CredentialFile) || identityPathWithin(o.IdentityHome, worker.CAFile) {
-		return domain.Fail(domain.Denied, "runner configuration must use only the planned public IPC endpoint, never identity-private state or SSH keys")
+		!identityPathWithin(o.WorkerStateDir, worker.CredentialFile) || !identityPathWithin(o.Home, worker.CAFile) ||
+		identityPathWithin(o.StateDir, worker.CredentialFile) || identityPathWithin(o.StateDir, worker.CAFile) {
+		return domain.Fail(domain.Denied, "runner configuration must retain its public IPC binding and distinct runner files, not mix identity-private files into credential/CA paths")
 	}
-	return worker.ValidateForOwner(uint32(o.WorkerUID))
+	return worker.ValidateForOwner(uint32(o.UID))
 }
 
 func identityInstallUnitParents(base, target string, uid, gid int) error {
 	if !identityPathWithin(base, target) {
-		return domain.Fail(domain.Denied, "native definition is outside its managed directory")
+		return domain.Fail(domain.Denied, "native definition is outside the installing user's HOME")
 	}
 	rel, _ := filepath.Rel(base, target)
 	current := base
@@ -348,7 +251,7 @@ func identityInstallUnitParents(base, target string, uid, gid int) error {
 		}
 		stat, ok := info.Sys().(*syscall.Stat_t)
 		if !ok || !info.IsDir() || int(stat.Uid) != uid || info.Mode().Perm()&0022 != 0 {
-			return domain.Fail(domain.Denied, "native manager definition parent is not owned/protected by the planned account")
+			return domain.Fail(domain.Denied, "native manager definition parent is not owned/protected by the installing user")
 		}
 	}
 	return nil
@@ -364,7 +267,7 @@ func identityInstallDefinition(definition Definition, uid, gid int) (err error) 
 			return err
 		}
 		if !bytes.Equal(old, []byte(definition.Content)) {
-			return domain.Fail(domain.Conflict, "existing service definition differs from this exact plan; it was retained for explicit administrator review")
+			return domain.Fail(domain.Conflict, "existing service definition differs from this exact plan; retain it for explicit user review")
 		}
 		return nil
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -393,37 +296,36 @@ func identityInstallDefinition(definition Definition, uid, gid int) (err error) 
 	return secure.SyncDir(filepath.Dir(definition.Path))
 }
 
-func (h *nativeIdentityServiceEnvironment) WriteDefinitions(o IdentityServiceOptions, plan IdentityServicePlan) error {
-	if err := identityInstallDirectory(o.SocketDir, o.IdentityUID, o.WorkerGID, 0710, true); err != nil {
+func (*nativeIdentityServiceEnvironment) WriteDefinitions(o IdentityServiceOptions, plan IdentityServicePlan) error {
+	if err := identityInstallDirectory(o.SocketDir, o.UID, o.GID, 0700, true); err != nil {
 		return err
 	}
-	if err := identityInstallAncestors(o.IdentityDefinition, 0, false); err != nil {
-		return err
+	for _, definition := range []Definition{plan.Identity, plan.Worker} {
+		if err := identityInstallUnitParents(o.Home, filepath.Dir(definition.Path), o.UID, o.GID); err != nil {
+			return err
+		}
+		if err := identityInstallDefinition(definition, o.UID, o.GID); err != nil {
+			return err
+		}
 	}
-	if err := identityInstallUnitParents(o.WorkerHome, filepath.Dir(o.WorkerDefinition), o.WorkerUID, o.WorkerGID); err != nil {
-		return err
-	}
-	if err := identityInstallDefinition(plan.Identity, 0, 0); err != nil {
-		return err
-	}
-	return identityInstallDefinition(plan.Worker, o.WorkerUID, o.WorkerGID)
+	return nil
 }
 
-func (h *nativeIdentityServiceEnvironment) RunnerDomain(o IdentityServiceOptions) error {
+func (*nativeIdentityServiceEnvironment) RunnerDomain(o IdentityServiceOptions) error {
 	if o.OS != "linux" {
 		return nil
 	}
-	directory := "/run/user/" + strconv.Itoa(o.WorkerUID)
-	if err := identityInstallDirectory(directory, o.WorkerUID, o.WorkerGID, 0700, false); err != nil {
-		return domain.Fail(domain.Prerequisite, "runner user manager/runtime directory is unavailable or not owned by its UID")
+	directory := "/run/user/" + strconv.Itoa(o.UID)
+	if err := identityInstallDirectory(directory, o.UID, o.GID, 0700, false); err != nil {
+		return domain.Fail(domain.Prerequisite, "installing user's systemd manager/runtime directory is unavailable; log in as that existing user")
 	}
 	info, err := os.Lstat(filepath.Join(directory, "bus"))
 	if err != nil {
-		return domain.Fail(domain.Prerequisite, "runner user bus is unavailable; persistent user manager setup remains pending")
+		return domain.Fail(domain.Prerequisite, "installing user's bus is unavailable; prepare the existing user manager before installation")
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || info.Mode()&os.ModeSocket == 0 || int(stat.Uid) != o.WorkerUID {
-		return domain.Fail(domain.Denied, "runner user bus must be a real socket owned by the planned worker UID")
+	if !ok || info.Mode()&os.ModeSocket == 0 || int(stat.Uid) != o.UID {
+		return domain.Fail(domain.Denied, "user bus must be a real socket owned by the installing user")
 	}
 	return nil
 }

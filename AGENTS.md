@@ -47,12 +47,18 @@ guide includes this file, all skills, and the development references.
   permissions and task scope. Routine local access needs no project approval.
   Root changes, another computer's consent, cloud costs, external commitments,
   and provider spending retain their separate authorization boundaries.
-- Keep one enrolled identity and one active work slot per computer. Its protected
-  `agent-identity` service uses a different UID/HOME from the provider/tool runner;
-  only a peer-checked local Unix proxy and public AgentID reach the runner.
+- Keep one enrolled identity and one active work slot per computer. The existing
+  installing user runs `agent-identity`, the runner and providers, and owns all
+  worker state including private identity keys. Do not create another OS user
+  or rename the local account to match the agent. Separate processes organize
+  lifecycle, not key isolation from that user's tools; private files and the
+  peer-checked local Unix proxy stay owner-only.
   Every identity, including Founder, has its own Foundation-host SSH account/UID.
+  New Foundation SSH accounts use the OS-safe lowercase agent name; local worker
+  usernames are independent. Existing Foundation names/UIDs stay retained.
   Manual work, automatic work, onboarding, replies, and remote sessions share
-  admission. Mentioning an agent does not assign work or confer authority.
+  admission. Literal `@{NAME}` and `@{AGENT_ID}` mentions resolve to stable IDs;
+  ambiguous names require an ID. Mentioning never assigns work or confers authority.
 - Read the current instructions, criteria, discussion, assignment, workspace,
   approvals, project epoch, and continuation before execution. Questions are not
   a quota: ask useful blocking questions, incorporate actual requested replies

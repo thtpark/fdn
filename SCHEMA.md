@@ -22,10 +22,11 @@ immediate write transactions, and at most eight connections. Writes serialize;
 SQLite is not distributed multi-master storage.
 
 Each runner has an independent private `local.sqlite` under `state_dir`.
-The distinct identity service owns its own protected key/profile state, not that
-runner database. Application databases, configurations, locks, state directories
-and their owners are checked. Default private directory/file permissions are
-0700/0600; the deliberately shared IPC path is described below.
+The identity service and runner use distinct state directories but the same
+existing installing user's UID/HOME. That user owns the keys, profiles, provider
+credentials and runner database. Application databases, configurations, locks,
+state directories and owners are checked. Private directories/files and IPC
+use 0700/0600; the user's existing HOME permissions are not changed.
 `PRAGMA user_version` is local to each database. Future versions fail closed.
 
 ### Server tables
@@ -339,6 +340,9 @@ the common operation, then read agent diagnostics again.
 
 IDs use a stable family prefix plus random hex, for example `agent_...`,
 `project_...`, `task_...`, `run_...`, `comment_...`. Display names are not identity.
+New dedicated SSH usernames derive from agent names, but account names and
+mentions resolve to immutable AgentIDs; neither a name nor a matching username
+authenticates an actor or grants authority.
 Operation IDs match `[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}`. Run ownership tokens
 remain random 32-byte values with server-side SHA-256 hashes; they are not agent
 login credentials. Legacy bearer hashes are recovery evidence only. Do not
@@ -357,6 +361,26 @@ epochs fence semantic decisions independently of a revision.
 | Project `epoch` | Delegation/context changes; invalidates old readiness/clarity/retry authority |
 | Entry `generation` | Body edit; old mention receipts become stale |
 
+### Literal agent-name and ID mentions
+
+Comment/worklog bodies accept `@{Agent1}` or `@{AGENT_ID}` with the actual name
+or complete ID substituted. Braces also support names containing spaces.
+Name lookup is case-insensitive against active registered agents and happens
+inside the entry's write transaction. Unknown/inactive names fail as not-found;
+ambiguous names fail as conflict with an instruction to use the exact AgentID.
+Legacy duplicate display names are retained, not silently renamed or guessed.
+Explicit ID mentions retain their previous behavior, including inactive or
+unknown IDs that cannot receive active attention.
+
+`Entry.body` remains exactly as authored; `Entry.mentions` stores sorted,
+deduplicated AgentIDs, excluding the author even when mentioned by name.
+Only comments create attention. Worklogs retain mention metadata without
+notifications. Exact operation replay returns the original recipient IDs,
+not a new name lookup; body edits resolve anew and stale the old generation's
+receipts. Waiting/clarification and feedback policy use those canonical IDs.
+Mentions never assign work or confer project, identity or OS authority.
+No database migration or mention backfill is performed.
+
 ## Software-first identity and transport
 
 The v2 contract uses software keys. Hardware-backed native signers are optional
@@ -366,16 +390,48 @@ RAM, or use a full clone sequentially without proving simultaneous owners.
 
 ### Accounts, keys and registration
 
+The worker computer is the trust boundary, not a provider subprocess. Install
+and run `agent-identity`, `agent-service`, `agent-cli` and providers as the
+existing installing user. No worker OS account, group, hidden/no-login user or
+separate HOME is created. The local username need not match the enrolled agent
+name or Foundation SSH login: the approved signed profile, keys and mTLS
+identify the agent. Name alone is not authentication.
+
+The user can access its own private keys. Process separation and separate state
+directories organize lifecycle, not isolation from that user's tools. Keep keys
+out of model prompts, public output, ordinary IPC replies and shared records.
+Compromising same-user tools can compromise the identity; administrator/root
+control was never prevented by a second UID. Foundation-side account separation,
+project authority, generation fences and confirmed duplicate-owner policy remain.
+Linux/macOS use current-user IPC and user service managers. Windows still needs
+native service/IPC adapters and qualification; this ownership contract does not
+claim a Windows runtime port.
+
 - Registration advances from `pending` to `provisioned` to `active`. An exact
   retry after native account binding but before activation reconciles the same
   provisioned account/key/generation; it must not create another identity or
   reject a retained successful binding. Active identities are not reprovisioned.
 - Every agent, including Founder, receives a unique Foundation-host SSH user and
   UID. Durable account/key reservations prevent another identity reusing them.
+  For new identities the username is the lowercase agent name with runs outside
+  ASCII `a-z`, `0-9`, `_` and `-` replaced by `-`, then outer `-` removed.
+  The result must match `[a-z_][a-z0-9_-]{0,31}` and cannot be `root`; names
+  must be single-line. Invalid results are rejected, never truncated or replaced
+  by a hidden ID/hash fallback. For example, `Agent1` uses `agent1` and
+  `Agent One` uses `agent-one`. Collisions fail; unmanaged accounts are never
+  adopted. Existing ID-derived usernames and all reserved UID/name bindings stay
+  unchanged across upgrades, reconciliation and fresh-key recovery.
+  The worker uses its existing OS user, with an independent local UID and any
+  local username. There is no required `agent1` or `fdn-worker` local account.
+  Equal names on different
+  hosts do not make the accounts interchangeable or grant a Foundation shell.
   The unprivileged server delegates only fixed managed-account operations to a
   separate root-local Unix provisioner, never arbitrary command execution.
-  Its typed provision/disable RPCs require the **positive identity key
-  generation**, retained per account in the private root inventory. Lower
+  Its typed provision/disable RPCs carry the registry-approved `username` and
+  require the **positive identity key generation**, retained per account in the
+  private root inventory. Omitted usernames retain only the legacy ID-derived
+  request convention; new server requests always send the exact reserved name.
+  A changed name is rejected even with a newer generation. Lower
   generations and same-generation different keys are rejected before OS
   commands; exact same-generation retries are idempotent. A newer disable
   persists a tombstone even when no account was ever provisioned. Approved
@@ -390,11 +446,15 @@ RAM, or use a full clone sequentially without proving simultaneous owners.
   **not a root OS account binding**; later fresh higher-generation approval
   allocates a native account only for that same identity/name.
 - On the worker, `agent-identity` owns private SSH/authentication keys and device
-  certificates under a different non-root UID/HOME from `agent-service`,
-  `agent-cli` and providers. Private state is 0700 and private files 0600. A
-  separate identity-owned 0710 IPC directory exposes a 0660 proxy socket to the
-  configured runner group; kernel peer checks additionally pin the runner UID.
-  Group membership alone is not authentication.
+  certificates as the same existing non-root user running `agent-service`,
+  `agent-cli` and providers. Private state/configuration is 0700/0600. A
+  separate user-owned 0700 IPC directory exposes a 0600 proxy socket; kernel
+  peer checks pin this user's UID/GID. Omitted/zero private configuration
+  `worker_uid`/`worker_gid` defaults to the actual current user; explicit foreign
+  values fail with migration guidance before native serving or key transfer.
+  No special group membership is required. Legacy split-account options fail
+  explicitly; keys, profiles, journals and account ownership are never moved,
+  rotated or reset automatically.
 - `agent-identity prepare` retains fresh keypairs and emits only a signed public
   request: version, request ID, name, SSH/auth public keys and both possession
   proofs. First Founder binding uses the explicit local server initialization
@@ -496,7 +556,7 @@ certificates, owner leases and old-generation receipts remain invalid. Recovery
 does not erase tasks, work journals/outbox or uncertain side effects, and does
 not approve resuming a run. The supported software-key workflow stops the
 service, retains its old private StateDir and **all runner state**, then prepares
-fresh keys in a new empty 0700 sub-StateDir inside the same identity HOME. The
+fresh keys in a new empty 0700 sub-StateDir inside the same existing user's HOME. The
 private config path/IPC endpoint and runner paths stay stable; config and native
 service OPTIONS bind the new `state_dir`. Explicit recovery/profile approval
 precedes reconnect/restart. There is no `--rotate` flag or automatic key rotation
