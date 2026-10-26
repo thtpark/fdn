@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thtpark/fdn/internal/domain"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -58,7 +59,7 @@ type AccountRequest struct {
 	Reactivate bool
 }
 
-type AccountState string
+type AccountState = domain.AccountState
 
 const (
 	AccountPending  AccountState = "pending"
@@ -67,17 +68,7 @@ const (
 	AccountDisabled AccountState = "disabled"
 )
 
-type ManagedAccount struct {
-	AgentID              string       `json:"agent_id"`
-	Username             string       `json:"username"`
-	UID                  uint32       `json:"uid"`
-	GID                  uint32       `json:"gid"`
-	PublicKey            string       `json:"public_key"`
-	Fingerprint          string       `json:"fingerprint"`
-	PreviousFingerprints []string     `json:"previous_fingerprints,omitempty"`
-	State                AccountState `json:"state"`
-	Generation           int64        `json:"generation"`
-}
+type ManagedAccount = domain.ManagedAccount
 
 // AccountInventory is retained even after disable. Neither names, UIDs nor key
 // fingerprints from another immutable identity are ever recycled. Pending is

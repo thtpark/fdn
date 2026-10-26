@@ -21,14 +21,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/device"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/foundation"
 	"github.com/thtpark/fdn/internal/ingress"
+	"github.com/thtpark/fdn/internal/message"
 	"github.com/thtpark/fdn/internal/platform"
 )
 
@@ -285,7 +284,7 @@ func nativeHTTPClient(socket string, tlsConfig *tls.Config) *http.Client {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	}}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 }
-func nativeResponse(t *testing.T, client *http.Client, method, path string, input any) (int, api.Envelope) {
+func legacyNativeResponse(t *testing.T, client *http.Client, method, path string, input any) (int, api.Envelope) {
 	t.Helper()
 	var data []byte
 	var err error
@@ -312,6 +311,32 @@ func nativeResponse(t *testing.T, client *http.Client, method, path string, inpu
 		t.Fatal(err)
 	}
 	return response.StatusCode, envelope
+}
+
+func nativeMessageClient(socket string, tlsConfig *tls.Config) *api.Client {
+	return api.NewMessageClient("fixture://native", func(ctx context.Context) (net.Conn, error) {
+		conn, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "unix", socket)
+		if err != nil || tlsConfig == nil {
+			return conn, err
+		}
+		trust := tlsConfig.Clone()
+		trust.NextProtos = []string{api.MessageALPN}
+		secured := tls.Client(conn, trust)
+		if err := secured.HandshakeContext(ctx); err != nil {
+			_ = secured.Close()
+			return nil, err
+		}
+		return secured, nil
+	})
+}
+
+func nativeResponse(t *testing.T, client *api.Client, method, path string, input any) (int, api.Envelope) {
+	t.Helper()
+	var data json.RawMessage
+	if err := client.Request(context.Background(), method, path, input, &data); err != nil {
+		return domain.HTTPStatus(err), api.Envelope{Error: domain.AsFault(err), Warnings: []string{}}
+	}
+	return http.StatusOK, api.Envelope{OK: true, Data: data, Warnings: []string{}}
 }
 
 func TestNativeFoundationUnixMutualTLSJoinOwnerAndMaintenance(t *testing.T) {
@@ -356,14 +381,13 @@ func TestNativeFoundationUnixMutualTLSJoinOwnerAndMaintenance(t *testing.T) {
 	roots := x509.NewCertPool()
 	roots.AppendCertsFromPEM(ca)
 	baseTLS := &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS13, ServerName: "localhost"}
-	unauthenticated := nativeHTTPClient(c.IngressSocket, baseTLS)
-	defer unauthenticated.CloseIdleConnections()
-	if response, err := unauthenticated.Get("https://localhost/healthz"); err == nil {
-		response.Body.Close()
+	unauthenticated := nativeMessageClient(c.IngressSocket, baseTLS)
+	defer unauthenticated.Close()
+	if err := unauthenticated.Request(context.Background(), "GET", "/healthz", nil, nil); err == nil {
 		t.Fatal("ordinary API accepted missing client certificate")
 	}
-	join := nativeHTTPClient(c.JoinSocket, baseTLS.Clone())
-	defer join.CloseIdleConnections()
+	join := nativeMessageClient(c.JoinSocket, baseTLS.Clone())
+	defer join.Close()
 	status, envelope := nativeResponse(t, join, http.MethodGet, "/v1/me", nil)
 	if status != http.StatusForbidden || envelope.OK {
 		t.Fatal("join exposed ordinary API", status)
@@ -392,22 +416,21 @@ func TestNativeFoundationUnixMutualTLSJoinOwnerAndMaintenance(t *testing.T) {
 	}
 	deviceTLS := baseTLS.Clone()
 	deviceTLS.Certificates = []tls.Certificate{certificate}
-	deviceAPI := nativeHTTPClient(c.IngressSocket, deviceTLS)
-	defer deviceAPI.CloseIdleConnections()
+	deviceAPI := nativeMessageClient(c.IngressSocket, deviceTLS)
+	defer deviceAPI.Close()
 	status, envelope = nativeResponse(t, deviceAPI, http.MethodGet, "/v1/me", nil)
 	if status != http.StatusForbidden || envelope.OK {
 		t.Fatal("device certificate bypassed live owner", status)
 	}
-	ownerClient := nativeHTTPClient(c.JoinSocket, deviceTLS.Clone())
-	defer ownerClient.CloseIdleConnections()
+	ownerClient := nativeMessageClient(c.JoinSocket, deviceTLS.Clone())
+	defer ownerClient.Close()
 	ownerCtx, stopOwner := context.WithTimeout(context.Background(), 5*time.Second)
 	defer stopOwner()
-	owner, _, err := websocket.Dial(ownerCtx, "wss://localhost/v1/identity/owner", &websocket.DialOptions{HTTPClient: ownerClient})
+	data, err := ownerClient.Message(ownerCtx, message.Request{Operation: api.OwnerChallengeOperation})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer owner.CloseNow()
-	if err := wsjson.Read(ownerCtx, owner, &challenge); err != nil {
+	if err := message.UnmarshalPayload(data, &challenge); err != nil {
 		t.Fatal(err)
 	}
 	_, ownerKey, err := ed25519.GenerateKey(rand.Reader)
@@ -418,11 +441,16 @@ func TestNativeFoundationUnixMutualTLSJoinOwnerAndMaintenance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := wsjson.Write(ownerCtx, owner, ownerRequest); err != nil {
+	payload, err := message.MarshalPayload(ownerRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err = ownerClient.Message(ownerCtx, message.Request{Operation: api.OwnerProveOperation, Payload: payload})
+	if err != nil {
 		t.Fatal(err)
 	}
 	var ownerCertificate domain.OwnerCertificate
-	if err := wsjson.Read(ownerCtx, owner, &ownerCertificate); err != nil {
+	if err := message.UnmarshalPayload(data, &ownerCertificate); err != nil {
 		t.Fatal(err)
 	}
 	privateDER, err := x509.MarshalPKCS8PrivateKey(ownerKey)
@@ -435,14 +463,14 @@ func TestNativeFoundationUnixMutualTLSJoinOwnerAndMaintenance(t *testing.T) {
 	}
 	ownerTLS := baseTLS.Clone()
 	ownerTLS.Certificates = []tls.Certificate{ownerPair}
-	ordinary := nativeHTTPClient(c.IngressSocket, ownerTLS)
-	defer ordinary.CloseIdleConnections()
+	ordinary := nativeMessageClient(c.IngressSocket, ownerTLS)
+	defer ordinary.Close()
 	status, envelope = nativeResponse(t, ordinary, http.MethodGet, "/v1/me", nil)
 	var actor domain.Agent
 	if err := json.Unmarshal(envelope.Data, &actor); err != nil || status != http.StatusOK || actor.ID != activation.Agent.ID {
 		t.Fatal("live account/owner binding", status, err, envelope.Error)
 	}
-	_ = owner.Close(websocket.StatusNormalClosure, "done")
+	ownerClient.Close()
 	deadline := time.Now().Add(time.Second)
 	for {
 		status, envelope = nativeResponse(t, ordinary, http.MethodGet, "/v1/me", nil)
@@ -454,15 +482,10 @@ func TestNativeFoundationUnixMutualTLSJoinOwnerAndMaintenance(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	maintenance := nativeHTTPClient(filepath.Join(c.StateDir, "maintenance.sock"), nil)
-	defer maintenance.CloseIdleConnections()
-	response, err := maintenance.Get("http://localhost/v1/identity/recover-founder")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = response.Body.Close()
-	if response.StatusCode != http.StatusForbidden {
-		t.Fatal("non-root reached maintenance", response.StatusCode)
+	maintenance := nativeMessageClient(filepath.Join(c.StateDir, "maintenance.sock"), nil)
+	defer maintenance.Close()
+	if err := maintenance.Request(context.Background(), "POST", "/v1/identity/recover-founder", domain.RecoverIdentityRequest{}, nil); domain.AsFault(err).Code != domain.Denied {
+		t.Fatal("non-root reached maintenance", err)
 	}
 	for path, mode := range map[string]os.FileMode{c.IngressSocket: 0660, c.JoinSocket: 0660, filepath.Join(c.StateDir, "maintenance.sock"): 0600} {
 		info, err := os.Lstat(path)

@@ -142,12 +142,16 @@ func (e *Engine) acknowledgeReviewFeedback(ctx context.Context, j *local.Journal
 }
 
 func (e *Engine) research(ctx context.Context, c config.Worker, tasks []domain.Task, manual bool) (bool, error) {
+	if !slices.ContainsFunc(tasks, func(task domain.Task) bool { return task.Status == domain.Backlogged && !task.Repetitive }) {
+		return false, nil
+	}
 	var last int64
 	found, err := e.State.Get(ctx, "last-research", &last)
 	if err != nil {
 		return false, err
 	}
 	if found && e.Now().Sub(time.Unix(last, 0)) < time.Duration(c.ResearchIntervalHours)*time.Hour {
+		deferWorkUntil(ctx, time.Unix(last, 0).Add(time.Duration(c.ResearchIntervalHours)*time.Hour))
 		return false, nil
 	}
 	for _, task := range tasks {

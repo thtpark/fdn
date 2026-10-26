@@ -89,19 +89,30 @@ type Launch struct {
 }
 
 type Engine struct {
-	Client     *api.Client
-	State      *local.State
-	Config     config.Worker
-	ConfigPath string
-	Executor   provider.Executor
-	Log        *slog.Logger
-	Now        func() time.Time
-	configMu   sync.RWMutex
-	statusWake chan struct{}
+	Client        *api.Client
+	State         *local.State
+	Config        config.Worker
+	ConfigPath    string
+	Executor      provider.Executor
+	Log           *slog.Logger
+	Now           func() time.Time
+	configMu      sync.RWMutex
+	statusWake    chan struct{}
+	healthWake    chan struct{}
+	controlWake   chan struct{}
+	updateMu      sync.Mutex
+	authorityMu   sync.Mutex
+	feedRunning   bool
+	feedOnline    bool
+	authorities   map[*authoritySubscription]struct{}
+	authMu        sync.Mutex
+	authControlMu sync.Mutex
+	permissionMu  sync.Mutex
 }
 
 func New(c config.Worker, path string, client *api.Client, state *local.State, executor provider.Executor) *Engine {
-	return &Engine{Config: c, ConfigPath: path, Client: client, State: state, Executor: executor, Log: slog.Default(), Now: time.Now, statusWake: make(chan struct{}, 1)}
+	return &Engine{Config: c, ConfigPath: path, Client: client, State: state, Executor: executor, Log: slog.Default(), Now: time.Now,
+		statusWake: make(chan struct{}, 1), healthWake: make(chan struct{}, 1), controlWake: make(chan struct{}, 1), authorities: make(map[*authoritySubscription]struct{})}
 }
 
 func (e *Engine) currentConfig() (config.Worker, error) {
@@ -231,6 +242,9 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 	}()
 	slot, err := secure.Acquire(filepath.Join(c.StateDir, "work.lock"))
 	if err != nil {
+		if domain.AsFault(err).Code == domain.Conflict {
+			deferWorkUntil(ctx, e.Now().Add(time.Second))
+		}
 		return status, err
 	}
 	defer func() { err = errors.Join(err, slot.Close()) }()
@@ -550,6 +564,9 @@ func (e *Engine) selectProvider(ctx context.Context, c config.Worker, name, mode
 	health, err := e.Executor.Check(ctx, name)
 	observedErr := e.providerHealth(ctx, name, model, health, err)
 	if err != nil {
+		if !permissionFailure(err) {
+			deferWorkUntil(ctx, e.Now().Add(time.Duration(c.PollSeconds)*time.Second))
+		}
 		blocker := "provider-unavailable"
 		if permissionFailure(err) {
 			blocker = "provider-permission"
@@ -561,6 +578,7 @@ func (e *Engine) selectProvider(ctx context.Context, c config.Worker, name, mode
 		return health, model, observedErr
 	}
 	if health.Authentication != "authenticated" && health.Authentication != "credentials-present-unverified" {
+		deferWorkUntil(ctx, e.Now().Add(time.Duration(c.PollSeconds)*time.Second))
 		if health.Authentication != "login-required" && health.Authentication != "credentials-rejected" {
 			return health, model, errors.Join(domain.Fail(domain.Prerequisite, "provider authentication is unknown; inspect provider status without starting inference"), e.blockHealth(ctx, "authentication-unknown"))
 		}
@@ -632,6 +650,13 @@ func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journ
 	if err != nil {
 		return err
 	}
+	invocationCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	if err := e.guardAuthority(invocationCtx, cancel, &authoritySubscription{modeOnly: true}, func(ctx context.Context) error {
+		return e.validateRunMode(ctx, manual)
+	}); err != nil {
+		return err
+	}
 	if err := e.phaseHealth(ctx, "invoking", &launch, j.ID, min(c.InvocationTimeoutSeconds, 300), true); err != nil {
 		return err
 	}
@@ -639,8 +664,6 @@ func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journ
 	if err := e.State.SaveJournal(ctx, *j); err != nil {
 		return err
 	}
-	invocationCtx, cancel := context.WithCancelCause(ctx)
-	defer cancel(nil)
 	go e.guardMode(invocationCtx, cancel, manual, "")
 	reply, err := e.Executor.Invoke(invocationCtx, provider.Invocation{ID: j.ID, Provider: j.Provider, Path: path, Model: j.Model,
 		Prompt: prompt, Timeout: time.Duration(min(c.InvocationTimeoutSeconds, 300)) * time.Second,

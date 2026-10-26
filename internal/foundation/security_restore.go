@@ -12,11 +12,11 @@ const identityRestorePending = "restore-pending"
 // QuarantineRestoredIdentities runs on a validated, isolated restore before it
 // replaces service state. Only explicit fresh-key recovery can restore access.
 func (s *Store) QuarantineRestoredIdentities(ctx context.Context) error {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginWrite(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer finish()
 	rows, err := tx.QueryContext(ctx, "SELECT data FROM agents ORDER BY id")
 	if err != nil {
 		return err
@@ -75,7 +75,7 @@ func (s *Store) QuarantineRestoredIdentities(ctx context.Context) error {
 			return err
 		}
 	}
-	return tx.Commit()
+	return s.commit(ctx, tx)
 }
 
 func (s *Store) replaceIdentityKeys(ctx context.Context, tx *sql.Tx, identity domain.AgentIdentity, public domain.PublicIdentity, actor string) (domain.AgentIdentity, error) {

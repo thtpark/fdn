@@ -535,22 +535,16 @@ func TestWorkerProxyStripsCredentialsDeniesTransportControlAndReturnsPublicStatu
 	if err := client.Request(context.Background(), http.MethodGet, "/local/profile", nil, &profile); err != nil || !reflect.DeepEqual(profile, f.profile) {
 		t.Fatal("public profile unavailable", err)
 	}
-	request, _ := http.NewRequest(http.MethodGet, client.BaseURL+"/v1/me", nil)
-	for _, name := range []string{"Authorization", "Proxy-Authorization", "X-Fdn-Agent", "X-Identity", "X-Client-Cert", "Forwarded", "X-Forwarded-User"} {
-		request.Header.Set(name, "forged-private-value")
-	}
-	request.Header.Set("Accept", "application/json")
-	response, err := client.HTTP.Do(request)
-	if err != nil {
+	var observed domain.Agent
+	if err := client.Request(context.Background(), http.MethodGet, "/v1/me", nil, &observed); err != nil {
 		t.Fatal(err)
 	}
-	response.Body.Close()
-	if response.Header.Get("X-Identity-Proof") != "" {
-		t.Fatal("remote transport metadata reached the worker")
+	if client.HTTP != nil {
+		t.Fatal("runner IPC retained an HTTP/header channel")
 	}
 	forwarded := <-f.remote.requests
-	for name := range request.Header {
-		if name != "Accept" && forwarded.Header.Get(name) != "" {
+	for _, name := range []string{"Authorization", "Proxy-Authorization", "X-Fdn-Agent", "X-Identity", "X-Client-Cert", "Forwarded", "X-Forwarded-User"} {
+		if forwarded.Header.Get(name) != "" {
 			t.Fatal("proxy forwarded worker-supplied identity metadata", name)
 		}
 	}
@@ -590,11 +584,7 @@ func TestRevocationIsFatalDenialAndCancelsOwnedInFlightStreams(t *testing.T) {
 	requestDone := make(chan struct{})
 	go func() {
 		defer close(requestDone)
-		response, err := client.HTTP.Get(client.BaseURL + "/v1/events")
-		if err == nil {
-			io.Copy(io.Discard, response.Body)
-			response.Body.Close()
-		}
+		_ = client.Request(context.Background(), http.MethodGet, "/v1/events", nil, nil)
 	}()
 	<-started
 	owner.events <- ownerEvent{err: domain.Fail(domain.Denied, "confirmed duplicate owner ban")}
@@ -676,12 +666,8 @@ func TestKernelPeerCredentialsCannotBeOverriddenByHTTPIdentityHeaders(t *testing
 		t.Fatal(err)
 	}
 	defer client.Close()
-	request, _ := http.NewRequest(http.MethodGet, client.BaseURL+"/local/status", nil)
-	request.Header.Set("X-Worker-Uid", fmt.Sprint(os.Geteuid()))
-	request.Header.Set("X-Fdn-Identity", "trusted")
-	if response, err := client.HTTP.Do(request); err == nil {
-		response.Body.Close()
-		t.Fatal("HTTP identity headers bypassed a mismatching kernel-peer result")
+	if err := client.Request(context.Background(), http.MethodGet, "/local/status", nil, nil); err == nil {
+		t.Fatal("wire metadata bypassed a mismatching kernel-peer result")
 	}
 	if !service.Status().Ready {
 		t.Fatal("unauthorized worker connection changed the identity's owner lifecycle")

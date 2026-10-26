@@ -546,8 +546,8 @@ func TestSecurityMigrationPreservesVersionTwoRecordsAndExplicitMigration(t *test
 	}
 	defer store.Close()
 	var version int
-	if err := store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 3 {
-		t.Fatal("server did not append migration three", version, err)
+	if err := store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 4 {
+		t.Fatal("server did not append migrations three and four", version, err)
 	}
 	for id, previous := range oldData {
 		var data string
@@ -612,7 +612,7 @@ func TestSecurityOfflineRecoveryOfLegacyFounderAndFutureSchema(t *testing.T) {
 		t.Fatal("legacy Founder recovery lost provenance", agent, err)
 	}
 	path := filepath.Join(securityDirectory(t), "private", "future.sqlite")
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, "SELECT 1;"})
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, "SELECT 1;"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -625,13 +625,13 @@ func TestSecurityOfflineRecoveryOfLegacyFounderAndFutureSchema(t *testing.T) {
 		t.Fatal("future schema was opened")
 	}
 	assertCode(t, err, domain.Prerequisite)
-	probe, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, "SELECT 1;"})
+	probe, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, "SELECT 1;"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer probe.Close()
 	var version int
-	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 4 {
+	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 5 {
 		t.Fatal("future schema refusal modified retained database", version, err)
 	}
 }

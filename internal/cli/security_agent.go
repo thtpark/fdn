@@ -27,11 +27,7 @@ func (a *app) connect(ctx context.Context, args []string) (any, error) {
 		return nil, err
 	}
 	defer client.Close()
-	var status struct {
-		Agent     domain.Agent         `json:"agent"`
-		Identity  domain.AgentIdentity `json:"identity"`
-		Connected bool                 `json:"connected"`
-	}
+	var status api.LocalStatus
 	if err := client.Request(ctx, "GET", "/local/status", nil, &status); err != nil {
 		return nil, err
 	}

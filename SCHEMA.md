@@ -4,7 +4,8 @@ Current API and application schema version: **2**. This document describes the
 Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
-Server SQLite migration version is **3**; local-worker SQLite remains **1**.
+Native message protocol version is **2**; server SQLite migration version is
+**4**; local-worker SQLite remains **1**.
 Deploy the server first. Version 2 requires account-bound public-key admission
 and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
 create new runtime identities. Native multi-UID qualification is separate from
@@ -14,7 +15,7 @@ source-bound software tests and has not been performed.
 
 Foundation owns a private SQLite database, normally
 `/var/lib/fdn/foundation.sqlite`. Agents use the inner HTTPS API over pinned SSH
-stdio/Unix ingress; they cannot submit
+stdio/Unix ingress, carrying bounded protobuf frames rather than HTTP; they cannot submit
 arbitrary SQL, raw documents, bulk writes or replication traffic. The Go SQLite
 driver uses WAL, `synchronous(FULL)`, foreign keys, a 10-second busy timeout,
 immediate write transactions, and at most eight connections. Writes serialize;
@@ -50,6 +51,10 @@ and their owners are checked. Default private directory/file permissions are
 | `assistance_grants` | Persistent requester/target, mode/purpose/provider/project scope; Founder issuance/revocation, active/revision/attribution; no connection-lifetime coupling |
 | `histories` | Latest three snapshots per mutable source, global sequence, authenticated actor, action, reason, time |
 | `events` | Shared change sequence and topic/source/task/project references; no private message payloads |
+| `update_feed` | Durable bodyless change sequence for scoped push; meaningful mutations only |
+| `update_recipients` | Actor/key-generation/sequence recipient index; private references stay party-scoped |
+| `update_state` | Singleton persistent feed ID, cursor-signing key and retained sequence floor |
+| `update_changes` | Transaction-local changed-source accumulation, drained before commit |
 | `operations` | Actor + operation ID, exact request fingerprint, bounded result reference/receipt |
 | `audit` | Durable accepted/denied operation outcomes, actor, action and time |
 | `settings` | Reserved service-owned settings, including bounded per-agent latest worker-health report/incident and concise public status/pending publication; no client authority projection |
@@ -404,7 +409,7 @@ RAM, or use a full clone sequentially without proving simultaneous owners.
   Only the local socket and public AgentID are retained by the runner; no legacy
   bearer token authenticates API v2.
 
-### SSH stdio, mutual TLS and owner control
+### SSH stdio, OS identity and binary owner control
 
 Pinned SSH invokes the root-controlled forced gateway with exactly `fdn-api` or
 `fdn-join`. No arbitrary command, PTY, forwarding or client-supplied account
@@ -413,15 +418,21 @@ Foundation reads the kernel peer UID rather than trusting headers or JSON.
 There is no TCP/bearer bootstrap fallback. Private root maintenance is a
 separate socket and is never selectable by this gateway.
 
+Native connections negotiate `fdn-message/2` inside TLS and use the versioned
+protobuf session in `internal/message/`. Commands/results, queries, cancellation
+and independent ping/pong frames share a bounded full-duplex stream. There is no
+HTTP/gRPC ingress or automatic HTTP fallback. JSON remains the CLI, offline
+public-file and retained evidence format, not the native network encoding.
+
 Activation proves the approved authentication key through the join channel and
 obtains a device certificate. The device certificate authorizes only identity
-control, including WebSocket `/v1/identity/owner` on that channel. Owner admission
+control, including typed owner challenge/proof messages on that channel. Owner admission
 proves an ephemeral owner key and issues an owner certificate for ordinary API
 use. Certificates bind `instance_id`, `agent_id`, key `generation`, purpose and
 (for owners) `owner_generation`; these must agree with the peer UID, registered
 keys, current state and live owner. Transactions recheck the same generation
 fence so revocation/recovery cannot authorize a late stale write. Bounded
-WebSocket keepalive pings run independently of certificate renewal so the
+binary keepalive pings run independently of certificate renewal so the
 finite-idle SSH gateway does not expire a healthy owner. Native SSH process exit
 propagates EOF even while its stdin is idle; a closed gateway cannot leave a
 stale local lease looking ready instead of triggering same-owner reconnection.
@@ -431,12 +442,41 @@ a second owner or expose signing/control keys to provider processes. Device
 certificate renewal uses fresh approved-key proof; reconnects retain the same
 per-start ephemeral owner key, never persist it on disk, and rotate owner
 certificates under current authority. Device/owner expiry or denial closes
-access rather than falling back to direct/device/bearer API use.
+access rather than falling back to direct/device/bearer API use. Account
+identity and socket permissions do not replace transactional project, task,
+private-party, mode and generation authorization. A UID alone cannot prove the
+key generation of an already authenticated SSH transport; inner mTLS remains
+mandatory until an OS-only replacement is independently proved.
+
+### Durable scoped discovery
+
+SQL4 records recipient-scoped updates transactionally with meaningful accepted
+mutations. Only affected subscribers are signalled after commit. Private
+message/session/control identifiers never enter the team-visible event feed.
+Actor/generation-bound opaque cursors support bounded replay; initial
+synchronization captures a watermark before reconsidering current work.
+The cursor uses HMAC-SHA256 with the persistent 256-bit key in
+`update_state(id=1).cursor_key` and binds the feed ID, actor, key generation and
+sequence. There is no automatic pruning or cursor TTL. `floor_sequence`
+defaults to zero; an older cursor is explicitly stale, never silently reset.
+
+Workers wait for updates instead of polling shared events, urgent inbox,
+sessions or protected controls on fixed discovery intervals. Cursor advancement
+and pending work are durably recorded together. Initial sync, due retries,
+expiry/recovery, the 30-second health heartbeat and local safety observations
+remain distinct. Transport pings neither query business state nor count as
+progress. Explicit shared CLI watch uses the public event stream with its
+existing project/task filters, not private notifications.
+
+Blocked subscriptions release SQL connections and transactions. Slow/cancelled
+sessions have bounded queues and typed failures; disconnect/replay must not
+repeat inference, clear a fence, mark a message read or grant authority.
+Protected controls, status and health remain responsive during provider work.
 
 ### Confirmed duplicate ban and explicit recovery
 
 Only two **different live owner keys** that prove possession, plus a **fresh
-successful WebSocket ping of the incumbent**, establish the duplicate condition.
+successful authenticated binary ping of the incumbent**, establish the duplicate condition.
 The policy is to ban the **entire identity**, not choose a winner: both original
 and contender lose API admission and active streams, including when the original
 is Founder. Key/owner generations retire, outstanding challenges cannot revive
@@ -465,7 +505,7 @@ on ordinary prepare retry, reconnect or restart.
 ### Restored identities are quarantined, not reactivated
 
 A verified backup restore accepts known manifest schema 1/2 and applies
-supported SQL migrations through server SQL 3; future manifest/SQL versions
+supported SQL migrations through server SQL 4; future manifest/SQL versions
 fail closed. Before publishing the fresh destination, restore retires sessions
 and quarantines every restored agent/key/owner epoch, including Founder and
 legacy agents without a prior key binding. Old bearer files, signed requests,

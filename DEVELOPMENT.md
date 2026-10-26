@@ -24,6 +24,7 @@ provider accounts are not test prerequisites.
 ```sh
 go mod download
 go test ./...
+go run ./tools/protocol --check
 mkdir -p bin
 go build -o ./bin/ ./cmd/...
 bash scripts/test.sh all
@@ -43,6 +44,7 @@ computer. Do not run test services against an existing Foundation/state director
 | Server authority | `internal/foundation/` | Transactional policy, enrollment, projects, tasks, reports, discussions, messages/sessions |
 | Persistence | `internal/database/` | Private SQLite, WAL/full sync, migrations and integrity |
 | Transport and identity | `internal/api/`, `internal/pki/`, `internal/transport/`, `internal/ingress/`, `internal/device/`, `internal/identityservice/`, `cmd/agent-identity/` | Signed public registration, pinned SSH stdio, peer-UID/mTLS binding, protected identity proxy and owner control |
+| Binary message contract | `internal/message/`, `tools/protocol/` | Locked protobuf schema, bounded framing, duplex commands/queries/updates, priority ping/cancel and reproducible generation |
 | Worker durability | `internal/local/`, `internal/work/` | Identity binding, knowledge, inventory, workspace authorization, serial controller, journals/outbox |
 | Provider/process boundary | `internal/provider/`, `internal/process/` | Capability/auth probes, staged updates, stdin prompts, cancellation and bounded private output |
 | Human sessions | `internal/remote/`, `internal/relay/` | Explicit open + consent, expiring relays, native endpoint/viewer control |
@@ -128,12 +130,13 @@ errors, credentials, process arguments and workspace paths out of safe results.
 
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
-version is **2**; server SQLite migration is **3**, local SQLite remains **1**.
+version is **2**; native message protocol is **2**, server SQLite migration is
+**4**, local SQLite remains **1**.
 Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
 - Reject databases newer than the binary rather than resetting them. Restore
-  recognizes manifest schema 1/2 separately from SQL3, rejects future formats,
+  recognizes manifest schema 1/2 separately from SQL4, rejects future formats,
   and quarantines all restored identity/owner/key epochs before publication.
   Test root-private sole-legacy-Founder adoption preserving ID/history, regular
   fresh-key reapproval, retired credential denial and unchanged mode/work fences.
@@ -160,7 +163,7 @@ Read [SCHEMA.md](SCHEMA.md) before changing either database.
   higher-generation UID/name retention and current registry/returned/post-bind
   tuple checks; do not add a generation override CLI or reset root inventory.
 - Duplicate-owner tests must prove different live owner keys and a fresh
-  incumbent WebSocket ping before the whole-identity ban, including Founder.
+  incumbent authenticated binary ping before the whole-identity ban, including Founder.
   Same-key reconnect, dead owner, CLI traffic and unproved attempts must not
   ban. Recovery rotates keys/generations explicitly and cannot revive old
   certificates or work authority. Software/RAM cloning and sequential use

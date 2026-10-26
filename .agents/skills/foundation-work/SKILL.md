@@ -9,6 +9,9 @@ Read `agent-cli guide show COMMANDS.md` and `guide show SCHEMA.md` for exact
 inputs. During controller-managed text phases, tools remain disabled: return the
 required structured reply and let the controller publish permitted changes.
 These workflows do not grant extra tools, authority or another work slot.
+The daemon receives durable scoped updates over the protected binary SSH session,
+not repeated inbox/task discovery polls. Delivery does not mark a message read,
+grant approval, start inference while paused, or clear a recovery fence.
 
 ## Context and readiness
 

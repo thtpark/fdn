@@ -32,9 +32,15 @@ type controllerOwner struct {
 	keyGeneration int64
 	instance      string
 	generation    int64
-	conn          *websocket.Conn
+	conn          ownerConnection
 	ctx           context.Context
 	cancel        context.CancelFunc
+}
+
+type ownerConnection interface {
+	Ping(context.Context) error
+	CloseNow() error
+	Close(websocket.StatusCode, string) error
 }
 
 type identityServer struct {
@@ -205,17 +211,17 @@ func (s *Server) provisionIdentity(ctx context.Context, proposed domain.AgentIde
 }
 
 func (s *Server) identityRoutes() {
-	body(s, "POST /v1/identity/register", false, func(r *http.Request, a domain.Agent, q domain.RegisterIdentityRequest) (domain.AgentIdentity, error) {
+	body(s, "POST /v1/identity/register", false, func(r *operationRequest, a domain.Agent, q domain.RegisterIdentityRequest) (domain.AgentIdentity, error) {
 		identity, err := s.Store.RegisterIdentity(r.Context(), a.ID, q)
 		if err != nil {
 			return identity, err
 		}
 		return s.provisionIdentity(r.Context(), identity)
 	})
-	read(s, "GET /v1/identity/status", func(r *http.Request, a domain.Agent) (domain.AgentIdentity, error) {
+	read(s, "GET /v1/identity/status", func(r *operationRequest, a domain.Agent) (domain.AgentIdentity, error) {
 		return s.Store.Identity(r.Context(), a.ID)
 	})
-	body(s, "POST /v1/identity/{id}/recover", false, func(r *http.Request, a domain.Agent, q domain.RecoverIdentityRequest) (domain.AgentIdentity, error) {
+	body(s, "POST /v1/identity/{id}/recover", false, func(r *operationRequest, a domain.Agent, q domain.RecoverIdentityRequest) (domain.AgentIdentity, error) {
 		if a.Founder && r.PathValue("id") == a.ID {
 			return domain.AgentIdentity{}, domain.Fail(domain.Prerequisite, "Founder key replacement requires the local OS-operator recovery channel")
 		}
@@ -325,6 +331,74 @@ func ownerChallenge(identity domain.AgentIdentity, ttl time.Duration) domain.Ide
 	return domain.IdentityChallenge{Nonce: domain.NewToken(), AgentID: identity.AgentID, InstanceID: identity.InstanceID, Generation: identity.Generation, ExpiresAt: time.Now().Add(ttl).Unix()}
 }
 
+func (s *Server) admitOwner(ctx, lifetime context.Context, actor domain.Agent, identity domain.AgentIdentity, request domain.OwnerRequest, conn ownerConnection) (*controllerOwner, domain.AgentIdentity, error) {
+	lock := s.identity.lock(actor.ID)
+	lock.Lock()
+	defer lock.Unlock()
+	fresh, err := s.Store.Identity(ctx, actor.ID)
+	if err != nil {
+		return nil, identity, err
+	}
+	if fresh.State != "active" || fresh.InstanceID != identity.InstanceID || fresh.Generation != identity.Generation {
+		return nil, identity, domain.Fail(domain.Denied, "identity changed before owner admission")
+	}
+	identity = fresh
+	s.identity.mu.RLock()
+	old := s.identity.owners[actor.ID]
+	closed := s.identity.closed
+	s.identity.mu.RUnlock()
+	if closed {
+		return nil, identity, domain.Fail(domain.Unavailable, "Foundation is stopping")
+	}
+	if old != nil && (old.keyGeneration != identity.Generation || old.instance != identity.InstanceID || old.generation != identity.OwnerGeneration || old.key != identity.OwnerKey) {
+		s.identity.retire(actor.ID)
+		old = nil
+	}
+	if old != nil && old.key != request.OwnerKey {
+		ping, stop := context.WithTimeout(ctx, 2*time.Second)
+		live := old.conn.Ping(ping) == nil
+		stop()
+		if live {
+			if err := s.Store.BanDuplicateIdentity(ctx, actor.ID, identity.Generation, old.generation, "confirmed duplicate live controller identities"); err != nil {
+				return nil, identity, err
+			}
+			s.identity.mu.Lock()
+			delete(s.identity.owners, actor.ID)
+			s.identity.mu.Unlock()
+			_ = old.conn.Close(websocket.StatusPolicyViolation, "duplicate identity banned; explicit recovery required")
+			old.cancel()
+			_ = conn.Close(websocket.StatusPolicyViolation, "duplicate identity banned; explicit recovery required")
+			s.Log.Warn("identity banned after confirmed duplicate ownership", "agent_id", actor.ID)
+			s.disableIdentity(ctx, actor.ID)
+			return nil, identity, domain.Fail(domain.Denied, "duplicate identity banned; explicit recovery required")
+		}
+	}
+	identity, err = s.Store.SetIdentityOwner(ctx, actor.ID, request.OwnerKey, identity.Generation)
+	if err != nil {
+		return nil, identity, err
+	}
+	ownerCtx, cancel := context.WithCancel(lifetime)
+	entry := &controllerOwner{key: request.OwnerKey, keyGeneration: identity.Generation, instance: identity.InstanceID,
+		generation: identity.OwnerGeneration, conn: conn, ctx: ownerCtx, cancel: cancel}
+	s.identity.mu.Lock()
+	s.identity.owners[actor.ID] = entry
+	s.identity.mu.Unlock()
+	if old != nil {
+		old.cancel()
+		_ = old.conn.CloseNow()
+	}
+	return entry, identity, nil
+}
+
+func (s *Server) releaseOwner(actor string, entry *controllerOwner) {
+	entry.cancel()
+	s.identity.mu.Lock()
+	if s.identity.owners[actor] == entry {
+		delete(s.identity.owners, actor)
+	}
+	s.identity.mu.Unlock()
+}
+
 func (s *Server) serveOwner(w http.ResponseWriter, r *http.Request) {
 	actor, _, err := s.authenticateConnection(r, "device")
 	if err != nil {
@@ -367,74 +441,13 @@ func (s *Server) serveOwner(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	lock := s.identity.lock(actor.ID)
-	lock.Lock()
-	fresh, err := s.Store.Identity(r.Context(), actor.ID)
-	if err != nil || fresh.State != "active" || fresh.InstanceID != identity.InstanceID || fresh.Generation != identity.Generation {
-		lock.Unlock()
-		conn.Close(websocket.StatusPolicyViolation, "identity state changed; owner admission denied")
-		return
-	}
-	identity = fresh
-	s.identity.mu.RLock()
-	old := s.identity.owners[actor.ID]
-	closed := s.identity.closed
-	s.identity.mu.RUnlock()
-	if closed {
-		lock.Unlock()
-		return
-	}
-	if old != nil && (old.keyGeneration != identity.Generation || old.instance != identity.InstanceID || old.generation != identity.OwnerGeneration || old.key != identity.OwnerKey) {
-		s.identity.retire(actor.ID)
-		old = nil
-	}
-	if old != nil && old.key != req.OwnerKey {
-		pingCtx, stop := context.WithTimeout(r.Context(), 2*time.Second)
-		live := old.conn.Ping(pingCtx) == nil
-		stop()
-		if live {
-			err = s.Store.BanDuplicateIdentity(r.Context(), actor.ID, identity.Generation, old.generation, "confirmed duplicate live controller identities")
-			if err == nil {
-				s.identity.mu.Lock()
-				delete(s.identity.owners, actor.ID)
-				s.identity.mu.Unlock()
-				old.conn.Close(websocket.StatusPolicyViolation, "duplicate identity banned; explicit recovery required")
-				old.cancel()
-				conn.Close(websocket.StatusPolicyViolation, "duplicate identity banned; explicit recovery required")
-				s.Log.Warn("identity banned after confirmed duplicate ownership", "agent_id", actor.ID)
-				s.disableIdentity(r.Context(), actor.ID)
-			}
-			lock.Unlock()
-			if err != nil {
-				conn.Close(websocket.StatusPolicyViolation, "identity state changed; owner admission denied")
-			}
-			return
-		}
-	}
-	identity, err = s.Store.SetIdentityOwner(r.Context(), actor.ID, req.OwnerKey, identity.Generation)
+	entry, identity, err := s.admitOwner(r.Context(), r.Context(), actor, identity, req, conn)
 	if err != nil {
-		lock.Unlock()
 		conn.Close(websocket.StatusPolicyViolation, "identity owner admission denied")
 		return
 	}
-	ownerCtx, ownerCancel := context.WithCancel(r.Context())
-	entry := &controllerOwner{key: req.OwnerKey, keyGeneration: identity.Generation, instance: identity.InstanceID, generation: identity.OwnerGeneration, conn: conn, ctx: ownerCtx, cancel: ownerCancel}
-	s.identity.mu.Lock()
-	s.identity.owners[actor.ID] = entry
-	s.identity.mu.Unlock()
-	if old != nil {
-		old.cancel()
-		old.conn.CloseNow()
-	}
-	lock.Unlock()
-	defer func() {
-		entry.cancel()
-		s.identity.mu.Lock()
-		if s.identity.owners[actor.ID] == entry {
-			delete(s.identity.owners, actor.ID)
-		}
-		s.identity.mu.Unlock()
-	}()
+	ownerCtx := entry.ctx
+	defer s.releaseOwner(actor.ID, entry)
 	for {
 		current, lookupErr := s.Store.Identity(ownerCtx, actor.ID)
 		if lookupErr != nil {

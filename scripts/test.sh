@@ -7,6 +7,7 @@ case "$suite" in
   static)
     test -z "$(gofmt -l guidance.go guidance_test.go cmd internal tests tools)"
     go mod verify
+    go run ./tools/protocol --check
     go vet ./...
     go build ./cmd/...
     for target in linux/amd64 linux/arm64 darwin/arm64; do

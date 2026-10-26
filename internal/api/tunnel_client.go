@@ -22,44 +22,92 @@ import (
 )
 
 func NewTunnelClient(c config.Worker, certificate tls.Certificate, mode string) (*Client, error) {
-	return newTunnelClient(c, certificate, mode, process.Native{})
+	return newMessageTunnelClient(c, certificate, mode, process.Native{})
 }
 
-func newTunnelClient(c config.Worker, certificate tls.Certificate, mode string, runner process.Runner) (*Client, error) {
+const MessageALPN = "fdn-message/2"
+
+func tunnelTrust(c config.Worker, certificate tls.Certificate, mode string) (config.SSH, *tls.Config, string, error) {
 	if err := config.URL(c.URL); err != nil {
-		return nil, err
+		return config.SSH{}, nil, "", err
 	}
 	if c.SSH == nil {
-		return nil, domain.Fail(domain.Prerequisite, "Foundation access requires a pinned SSH stream")
+		return config.SSH{}, nil, "", domain.Fail(domain.Prerequisite, "Foundation access requires a pinned SSH stream")
 	}
 	sshConfig := *c.SSH
 	if _, err := transport.StreamArguments(sshConfig, mode); err != nil {
-		return nil, err
+		return config.SSH{}, nil, "", err
 	}
 	tlsConfig, err := pki.Client(c.CAFile, c.ServerName)
 	if err != nil {
-		return nil, err
+		return config.SSH{}, nil, "", err
 	}
 	if len(certificate.Certificate) == 0 {
 		if mode != "fdn-join" || certificate.PrivateKey != nil {
-			return nil, domain.Fail(domain.Prerequisite, "ordinary API access requires an owner certificate")
+			return config.SSH{}, nil, "", domain.Fail(domain.Prerequisite, "ordinary API access requires an owner certificate")
 		}
 	} else {
 		if err := tunnelCertificate(&certificate, tlsConfig.RootCAs, mode); err != nil {
-			return nil, err
+			return config.SSH{}, nil, "", err
 		}
 		tlsConfig.Certificates = []tls.Certificate{certificate}
 	}
-	tlsConfig.NextProtos = []string{"http/1.1"}
 	origin, _ := url.Parse(c.URL)
 	if origin.RawPath != "" || origin.Opaque != "" || origin.ForceQuery {
-		return nil, domain.Fail(domain.Invalid, "Foundation tunnel URL must be a canonical HTTPS origin")
+		return config.SSH{}, nil, "", domain.Fail(domain.Invalid, "Foundation tunnel URL must be a canonical HTTPS origin")
 	}
 	port := origin.Port()
 	if port == "" {
 		port = "443"
 	}
 	address := net.JoinHostPort(origin.Hostname(), port)
+	if tlsConfig.ServerName == "" {
+		tlsConfig.ServerName = origin.Hostname()
+	}
+	return sshConfig, tlsConfig, address, nil
+}
+
+func newMessageTunnelClient(c config.Worker, certificate tls.Certificate, mode string, runner process.Runner) (*Client, error) {
+	sshConfig, tlsConfig, _, err := tunnelTrust(c, certificate, mode)
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig.NextProtos = []string{MessageALPN}
+	client := NewMessageClient(strings.TrimRight(c.URL, "/"), func(ctx context.Context) (net.Conn, error) {
+		streamCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+		stop := context.AfterFunc(ctx, cancel)
+		conn, err := transport.OpenStream(streamCtx, sshConfig, mode, runner)
+		if err != nil {
+			stop()
+			cancel()
+			return nil, err
+		}
+		secured := tls.Client(conn, tlsConfig.Clone())
+		err = secured.HandshakeContext(ctx)
+		stop()
+		if err != nil || ctx.Err() != nil {
+			cancel()
+			_ = secured.Close()
+			return nil, domain.Fail(domain.Unavailable, "pinned SSH identity TLS connection failed")
+		}
+		if secured.ConnectionState().NegotiatedProtocol != MessageALPN {
+			cancel()
+			_ = secured.Close()
+			return nil, domain.Fail(domain.Prerequisite, "Foundation does not support the binary message protocol")
+		}
+		return &tunnelConnection{Conn: secured, cancel: cancel}, nil
+	})
+	return client, nil
+}
+
+// newTunnelClient is the HTTP business-fixture adapter. Native clients use the
+// purpose-bound binary SSH transport and never downgrade to this adapter.
+func newTunnelClient(c config.Worker, certificate tls.Certificate, mode string, runner process.Runner) (*Client, error) {
+	sshConfig, tlsConfig, address, err := tunnelTrust(c, certificate, mode)
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig.NextProtos = []string{"http/1.1"}
 	httpTransport := &http.Transport{TLSClientConfig: tlsConfig, Proxy: nil,
 		DialContext: func(ctx context.Context, network, target string) (net.Conn, error) {
 			if (network != "tcp" && network != "tcp4" && network != "tcp6") || target != address {

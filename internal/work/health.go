@@ -63,6 +63,7 @@ func (e *Engine) changeHealth(ctx context.Context, change func(*workerHealthStat
 	state.Health.ObservedAt = e.Now().UTC().Unix()
 	meaningful := domain.SummarizeActivity(state.Health)
 	urgent := domain.ImportantStatusChange(state.LastStatus, meaningful)
+	changed := meaningful.Text != "" && state.LastStatus != meaningful
 	if meaningful.Text != "" {
 		state.LastStatus = meaningful
 	}
@@ -70,10 +71,9 @@ func (e *Engine) changeHealth(ctx context.Context, change func(*workerHealthStat
 		return err
 	}
 	if urgent {
-		select {
-		case e.statusWake <- struct{}{}:
-		default:
-		}
+		signalUpdate(e.statusWake)
+	} else if changed {
+		signalUpdate(e.healthWake)
 	}
 	return nil
 }

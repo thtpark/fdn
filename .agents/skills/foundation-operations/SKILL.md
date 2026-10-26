@@ -83,7 +83,7 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    public recipient, and use `fdn-service backup --output FILE --recipient
    RECIPIENT`. Restore only to a fresh directory with the private identity
    supplied through a protected file. Verify full archive/integrity/compatible
-   schema. Manifest schema 1/2 is supported through SQL3 migration; future
+   schema. Manifest schema 1/2 is supported through SQL4 migration; future
    manifest/SQL versions fail closed. Restore quarantines ALL identity/owner/key
    epochs before publication, so old tokens/keys/certificates never reactivate.
    Root-private fresh-key Founder recovery retains ID/history, then Founder
@@ -109,9 +109,12 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
     Preserve root inventory and inspect public identity/request/key-generation
     references instead of editing it, replaying old keys or guessing an epoch.
 12. A proved second different live owner key plus a fresh successful incumbent
-    WebSocket ping bans the whole identity, including the original and Founder,
+    binary control ping bans the whole identity, including the original and Founder,
     and closes API/streams. A stale/crashed/same-key reconnect, ordinary CLI
     traffic, public-key collision or unproved attempt is not ban evidence.
+    Native commands/updates use protobuf protocol 2 over SSH/mTLS/Unix IPC;
+    HTTPS origin settings describe trust, not an HTTP service to probe or a
+    fallback. Keep current generation proofs until native OS-only qualification.
     Preserve the audit and work fences; do not delete state or auto-unban on
     restart. There is no `--rotate`: safely stop identity/affected work, retain
     the old private StateDir and ALL runner state/journals, and choose a new

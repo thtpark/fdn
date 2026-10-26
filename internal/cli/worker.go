@@ -206,7 +206,11 @@ func (a *app) write(ctx context.Context, r *resources, path string, input any, r
 			var current struct {
 				Revision int64 `json:"revision"`
 			}
-			if err := r.client.Request(ctx, "GET", revisionSource, nil, &current); err != nil {
+			currentData, err := api.Call[json.RawMessage](ctx, r.client, "GET", revisionSource, nil)
+			if err != nil {
+				return nil, err
+			}
+			if err := json.Unmarshal(currentData, &current); err != nil {
 				return nil, err
 			}
 			var fields map[string]json.RawMessage

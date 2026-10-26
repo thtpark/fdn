@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/thtpark/fdn/internal/api"
+	"github.com/thtpark/fdn/internal/apitest"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 )
@@ -64,7 +65,7 @@ func diagnosticsCLIFixture(t *testing.T, actor string, handler http.HandlerFunc)
 	}
 	var mu sync.Mutex
 	var requests []string
-	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := &apitest.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		requests = append(requests, r.Method+" "+r.URL.EscapedPath())
 		mu.Unlock()

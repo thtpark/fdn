@@ -32,11 +32,11 @@ func (s *Store) PublishScreens(ctx context.Context, actor string, req domain.Scr
 }
 
 func (s *Store) Screens(ctx context.Context, actor, target string) ([]domain.Screen, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.readSnapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer tx.Close()
 	if _, err := s.actor(ctx, tx, actor); err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (s *Store) Screens(ctx context.Context, actor, target string) ([]domain.Scr
 	if screens == nil {
 		screens = []domain.Screen{}
 	}
-	return screens, tx.Commit()
+	return screens, nil
 }
 
 func assistanceScreen(target domain.Agent, mode, screenID, applicationID string, desktopFallback bool) (domain.Screen, error) {

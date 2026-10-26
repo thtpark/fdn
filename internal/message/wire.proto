@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package fdn.message.v1;
+option go_package = "github.com/thtpark/fdn/internal/message/wire";
+
+// Each protobuf envelope is prefixed by its unsigned, big-endian uint32 length.
+// Protocol and payload-schema versions are independent of SQL/API versions.
+message Envelope {
+  oneof body {
+    Hello hello = 1;
+    Ready ready = 2;
+    Call call = 3;
+    Result result = 4;
+    Ping ping = 5;
+    Pong pong = 6;
+    Cancel cancel = 7;
+    Fault terminal = 8;
+  }
+}
+
+message Hello {
+  uint32 version = 1;
+  bytes payload_schema_sha256 = 2;
+}
+
+message Ready {}
+
+message Metadata {
+  string key = 1;
+  string value = 2;
+}
+
+message Call {
+  uint64 id = 1;
+  string operation = 2;
+  string target = 3;
+  repeated Metadata query = 4;
+  bytes payload = 5;
+  sint64 deadline_unix_nano = 6;
+}
+
+message Result {
+  uint64 id = 1;
+  oneof outcome {
+    bytes payload = 2;
+    Fault fault = 3;
+  }
+}
+
+message Ping { uint64 id = 1; }
+message Pong { uint64 id = 1; }
+message Cancel { uint64 id = 1; }
+
+// Message is absent by default. Only an explicitly approved, bounded public
+// domain fault may supply it; exception strings and private diagnostics may not.
+message Fault {
+  enum Code {
+    UNSPECIFIED = 0;
+    INVALID = 1;
+    NOT_FOUND = 2;
+    DENIED = 3;
+    CONFLICT = 4;
+    PREREQUISITE = 5;
+    UNAVAILABLE = 6;
+    PROVIDER = 7;
+    INTERNAL = 8;
+    CANCELLED = 9;
+  }
+  Code code = 1;
+  bool retryable = 2;
+  optional string message = 3;
+}

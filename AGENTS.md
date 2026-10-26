@@ -83,7 +83,7 @@ guide includes this file, all skills, and the development references.
 - Identity registration is Founder-only, not a project-delegate permission or
   provider sign-in. Use pinned SSH stdio and inner mutual TLS, never a TCP/bearer
   bootstrap shortcut or a shared Foundation SSH account. A proved different
-  live owner key plus a fresh incumbent WebSocket ping bans the entire identity,
+  live owner key plus a fresh incumbent binary control ping bans the entire identity,
   including the original and Founder; ordinary CLI traffic, stale reconnects,
   collisions and unproved attempts do not. Recovery needs fresh keypairs and
   explicit authority; Founder recovery is root-local only. Software/RAM keys

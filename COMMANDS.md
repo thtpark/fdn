@@ -789,15 +789,21 @@ current exact retry authority; recovery is not permission to rerun.
 
 ## API map for development
 
-API/schema contract version is **2**, server SQLite migration **3**, local
-SQLite **1**. The API uses the same envelope/typed inputs over pinned SSH stdio
-and inner TLS on Unix ingress. `/healthz` reports compatibility on that transport;
-it is not a public TCP enrollment service. No bearer enrollment or invitation
-redemption exists in the runtime.
+Application/schema contract version is **2**, native message protocol **2**,
+server SQLite migration **4**, local SQLite **1**. Native processes exchange
+bounded protobuf frames over pinned SSH stdio/inner mTLS and peer-checked local
+Unix sockets. There is no internal HTTP/gRPC listener or HTTP downgrade.
+JSON envelopes remain CLI output and local evidence, not native wire payloads.
+
+The method/path notation below is an in-process selector used by command
+adapters and trusted JSON business fixtures. Native wire operations have typed
+names such as `query.me` and `command.tasks.by_id.change`; methods, URL paths,
+headers and bearer tokens are not sent over the message session. `/healthz`
+selects a compatibility query, not a public TCP enrollment service.
 
 The join channel exposes `/v1/identity/challenge` and `/v1/identity/activate` for
-fresh approved-key proof, then device-certificate-authenticated WebSocket
-`/v1/identity/owner`. That owner control channel proves an ephemeral owner key
+fresh approved-key proof, then device-certificate-authenticated binary
+`identity.owner.challenge`/`identity.owner.prove` exchanges. That control channel proves an ephemeral owner key
 and issues an owner certificate. Ordinary API requires current owner mTLS plus
 agreement with the kernel peer UID and instance/agent/key/owner generations;
 request headers and JSON cannot supply a different principal.
@@ -805,14 +811,14 @@ request headers and JSON cannot supply a different principal.
 Ordinary families: `/me`, `/agents`, `/heartbeat`, `/identity/register`,
 `/identity/status`, `/identity/AGENT/recover`, `/projects`,
 `/project-creation-grants`, `/tasks`, `/entries`, `/attention`, `/events`,
-`/ownership`, `/messages`, `/sessions`, `/agent-operations`. Registration/recovery is Founder-only;
+`/ownership`, `/messages`, `/sessions`, `/agent-operations`, `/updates`. Registration/recovery is Founder-only;
 Founder recovery is root-only private Unix maintenance, never one of these
 agent routes. Entity changes use dedicated POST suffixes; claims/reports are
 controller operations, not generic CLI write escapes. Relays recheck current
 identity/owner, party/side, scope, consent/open and expiry.
 
 Only different live owner keys with valid possession proofs and a fresh
-incumbent WebSocket ping cause the **entire identity** ban, original and
+incumbent binary control ping cause the **entire identity** ban, original and
 contender including Founder. Ordinary CLI traffic attaches the local proxy;
 crash/reconnect, key collision and unproved attempts do not ban. Ban closes API
 and streams. Recovery needs fresh keypairs and explicit generation/epoch
@@ -824,19 +830,27 @@ Read-only diagnostic routes are `GET /v1/agents/{id}/diagnostics`
 (`domain.MessageDiagnostics`, message parties). `POST /v1/heartbeat` accepts
 `domain.HeartbeatRequest`: existing command metadata plus optional version-1
 `health`. Legacy bodies remain accepted and the result remains `domain.Agent`.
-Latest reports/incidents use bounded service-owned settings, with no new SQLite
-migration or change to API/schema 2, server SQL 3 or local SQL 1.
+Latest reports/incidents use bounded service-owned settings; health itself needs
+no migration beyond the current SQL4 scoped-update contract.
+
+`GET /v1/updates?since=CURSOR&limit=N&wait=true` selects a recipient-scoped
+blocking update request. An empty cursor returns the initial current watermark;
+subsequent requests replay or wait without timer-driven SQL discovery. `GET
+/v1/events` additionally accepts `wait=true` for explicitly filtered shared CLI
+watch. Private identifiers never appear in shared events. Discovery, heartbeat,
+transport ping and actual work progress are separate; receipt of an update is
+not a message read acknowledgement or work authority.
 
 Founder control writes are `POST /v1/agents/{id}/diagnostics` and
 `POST /v1/agents/{id}/repairs`. The target's dedicated control consumer uses
 `GET /v1/agent-operations?limit=N&cursor=CURSOR` for its queued/checking nonexpired
 operations and `POST /v1/agent-operations/{id}/result` for its own safe typed
 reports. Requester Founder/target lookup uses `GET /v1/agent-operations/{id}`.
-The proxy accepts only these exact methods/depths; the list accepts only
+The proxy accepts only their exact typed capabilities; the list accepts only
 `limit`/`cursor`, while detail/control routes accept no query extras. Transport,
 certificate, native root/service controls and deeper write paths remain denied.
 
-Exact routes/DTOs are in `internal/api/server.go`, `internal/api/identity.go`,
+Exact selectors/DTOs are in `internal/api/server.go`, `internal/api/messages.go`, `internal/api/identity.go`,
 `internal/domain/commands.go`, `internal/domain/identity.go`,
 `internal/domain/agent_operations.go` and `internal/domain/health.go`;
 [SCHEMA.md](SCHEMA.md) describes their invariants and qualification limits.

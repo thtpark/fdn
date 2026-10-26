@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -41,9 +42,13 @@ type Options struct {
 	RetryInterval     time.Duration
 	RenewInterval     time.Duration
 	DeviceRenewBefore time.Duration
+	Log               *slog.Logger
 }
 
 func (o Options) defaults() Options {
+	if o.Log == nil {
+		o.Log = slog.Default()
+	}
 	if o.Remote == nil {
 		o.Remote = NativeRemote{}
 	}

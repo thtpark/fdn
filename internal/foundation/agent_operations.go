@@ -73,11 +73,11 @@ func (s *Store) createAgentOperation(ctx context.Context, tx *sql.Tx, requester 
 }
 
 func (s *Store) GetAgentOperation(ctx context.Context, actor, id string) (domain.AgentOperation, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.readSnapshot(ctx)
 	if err != nil {
 		return domain.AgentOperation{}, err
 	}
-	defer tx.Rollback()
+	defer tx.Close()
 	viewer, err := s.actor(ctx, tx, actor)
 	if err != nil {
 		return domain.AgentOperation{}, err
@@ -94,11 +94,11 @@ func (s *Store) GetAgentOperation(ctx context.Context, actor, id string) (domain
 
 func (s *Store) ListAgentOperations(ctx context.Context, actor, cursor string, limit int) (domain.Page[domain.AgentOperation], error) {
 	page := domain.Page[domain.AgentOperation]{Items: []domain.AgentOperation{}}
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.readSnapshot(ctx)
 	if err != nil {
 		return page, err
 	}
-	defer tx.Rollback()
+	defer tx.Close()
 	target, err := s.actor(ctx, tx, actor)
 	if err != nil {
 		return page, err

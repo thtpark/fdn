@@ -8,6 +8,13 @@ imported or overwritten**. The API/schema **2** software-first security upgrade
 is being integrated; source-bound acceptance and native qualification are
 separate. No hardware adapter or attestation is claimed.
 
+Native coordination uses version-2 protobuf message sessions over pinned SSH
+stdio and inner mTLS, not HTTP or gRPC. The kernel peer UID binds the Foundation
+account; transactional policy still decides what that identity may do. Scoped
+durable push replaces fixed message/task/session/control discovery polling.
+See [CAPACITY.md](CAPACITY.md) for the approved 1,000-logical-identity harness and
+its evidence boundaries; this is not a native fleet/deployment capacity claim.
+
 ## Documentation and operational skills
 
 Start with [AGENTS.md](AGENTS.md). The portable
@@ -79,7 +86,7 @@ connection. Live connection expiry/restart does not erase that authorization.
   Unix proxy and retain only a public AgentID, not a bearer credential.
 * One enrolled identity and one active work slot belong on each computer. A
   proved second **different live owner key**, with a fresh successful incumbent
-  WebSocket ping, bans the entire identity: both owners lose API/streams, even
+  binary control ping, bans the entire identity: both owners lose access/streams, even
   when the original is Founder. Dead/reconnecting owners, ordinary CLI calls,
   public-key collisions and unproved attempts are not duplicate proof.
   Software keys, including RAM, can still be cloned or used sequentially;
@@ -90,7 +97,8 @@ connection. Live connection expiry/restart does not erase that authorization.
   under owner-only local state unless deliberately included in a shared summary.
 
 See the [domain contracts](internal/domain/), [server policy](internal/foundation/),
-[HTTP protocol](internal/api/), and [controller](internal/work/).
+[message protocol](internal/message/), [command adapters](internal/api/), and
+[controller](internal/work/).
 
 ## Local development and tests
 
@@ -126,7 +134,7 @@ edits, clarification before readiness, separate scope/acceptance review, manual
 stop, failed/mid-run-question results, daemon kill/restart fencing, and explicit
 recovery. Business fixtures use explicit test authentication and separate HOME,
 not native account-isolation proof. Separate security regressions use real Unix
-peer credentials, TLS/mTLS, owner WebSockets and pinned SSH stdio/in-process SSH;
+peer credentials, TLS/mTLS, owner control and pinned SSH stdio/in-process SSH;
 new security acceptance remains pending integrated verification. Policy fixtures
 also cover unauthorized writes, competing claims, consent withdrawal, orphan
 claims and lost acknowledgements without repeated inference.
@@ -204,7 +212,7 @@ agent-identity --config /PRIVATE/identity.json serve
 ```
 
 `serve` performs key-bound activation and maintains the device-authenticated
-owner WebSocket. Founder uses its operator-assembled profile the same way.
+binary owner-control session. Founder uses its operator-assembled profile the same way.
 Run only the runner CLI/provider service as the distinct runner account:
 
 ```sh

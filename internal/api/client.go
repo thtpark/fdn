@@ -22,6 +22,7 @@ type Client struct {
 	Credential config.Credential
 	HTTP       *http.Client
 	Local      bool
+	messages   *messageClient
 }
 
 func NewClient(base, caFile, serverName string, credential config.Credential) (*Client, error) {
@@ -40,7 +41,12 @@ func NewClient(base, caFile, serverName string, credential config.Credential) (*
 		HTTP: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
-func (c *Client) Close() { c.HTTP.CloseIdleConnections() }
+func (c *Client) Close() {
+	c.closeMessages()
+	if c.HTTP != nil {
+		c.HTTP.CloseIdleConnections()
+	}
+}
 
 func Path(parts ...string) string {
 	for i, part := range parts {
@@ -50,13 +56,16 @@ func Path(parts ...string) string {
 }
 
 func (c *Client) Request(ctx context.Context, method, path string, input, output any) error {
+	if c.IsMessageClient() {
+		return c.requestMessage(ctx, method, path, input, output)
+	}
 	if !strings.HasPrefix(path, "/v1/") && path != "/healthz" && !(c.Local && strings.HasPrefix(path, "/local/")) {
 		return domain.Fail(domain.Invalid, "API path must be relative")
 	}
 	if strings.Contains(path, "://") || strings.HasPrefix(path, "//") {
 		return domain.Fail(domain.Invalid, "invalid API path")
 	}
-	if _, ok := ctx.Deadline(); !ok {
+	if _, ok := ctx.Deadline(); !ok && !blockingQuery(method, path) {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
@@ -91,6 +100,8 @@ func (c *Client) Request(ctx context.Context, method, path string, input, output
 		return domain.Fail(domain.Unavailable, "Foundation connection or TLS verification failed; reconcile operation_id before retrying writes")
 	}
 	defer response.Body.Close()
+	stopBody := context.AfterFunc(ctx, func() { _ = response.Body.Close() })
+	defer stopBody()
 	if response.Header.Get("X-Fdn-API-Version") != strconv.Itoa(domain.APIVersion) {
 		return domain.Fail(domain.Prerequisite, "incompatible Foundation API version")
 	}

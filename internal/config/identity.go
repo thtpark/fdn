@@ -13,14 +13,7 @@ type IdentityService struct {
 	Worker    Worker `json:"worker"`
 }
 
-type ConnectionProfile struct {
-	Identity   domain.AgentIdentity `json:"identity"`
-	URL        string               `json:"url"`
-	CA         string               `json:"ca"`
-	SSHHost    string               `json:"ssh_host"`
-	SSHPort    int                  `json:"ssh_port"`
-	KnownHosts string               `json:"known_hosts"`
-}
+type ConnectionProfile = domain.ConnectionProfile
 
 func (c IdentityService) Validate() error {
 	if !filepath.IsAbs(c.StateDir) || !filepath.IsAbs(c.Socket) || c.WorkerUID < 0 || c.WorkerGID < 0 {

@@ -139,26 +139,11 @@ func TestWorkerProxyForwardsExactDiagnosticAndOperationRoutes(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			request, err := http.NewRequestWithContext(ctx, item.method, client.BaseURL+item.path, bytes.NewReader(body))
-			if err != nil {
-				t.Fatal(err)
+			if err := client.Request(ctx, item.method, item.path, item.body, nil); err != nil {
+				t.Fatal("ordinary typed operation blocked before server policy", err)
 			}
-			request.Header.Set("Accept", "application/json")
-			request.Header.Set("Content-Type", "application/json")
-			for _, name := range []string{"Authorization", "Proxy-Authorization", "X-Fdn-Agent", "X-Fdn-Identity", "X-Identity", "X-Client-Cert", "X-Worker-UID", "Forwarded", "X-Forwarded-User", "Cookie"} {
-				request.Header.Set(name, "fixture-private-caller-value")
-			}
-			response, err := client.HTTP.Do(request)
-			if err != nil {
-				t.Fatal(err)
-			}
-			_, readErr := io.Copy(io.Discard, response.Body)
-			closeErr := response.Body.Close()
-			if response.StatusCode != http.StatusOK || readErr != nil || closeErr != nil {
-				t.Fatal("ordinary operation blocked before server policy", response.StatusCode, readErr, closeErr)
-			}
-			if response.Header.Get("X-Identity-Proof") != "" || response.Header.Get("Set-Cookie") != "" {
-				t.Fatal("remote transport/private metadata reached the runner")
+			if client.HTTP != nil {
+				t.Fatal("runner retained an HTTP metadata channel")
 			}
 			var got recordedRequest
 			select {
@@ -166,15 +151,21 @@ func TestWorkerProxyForwardsExactDiagnosticAndOperationRoutes(t *testing.T) {
 			case <-ctx.Done():
 				t.Fatal("ordinary operation never reached server transport")
 			}
-			if got.request.Method != item.method || got.request.URL.RequestURI() != item.path || got.request.Host != "localhost:8443" || !bytes.Equal(got.body, body) {
+			expected, err := url.ParseRequestURI(item.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.request.Method != item.method || got.request.URL.Path != expected.Path ||
+				got.request.URL.Query().Encode() != expected.Query().Encode() ||
+				got.request.Host != "localhost:8443" || !bytes.Equal(got.body, body) {
 				t.Fatal("proxy changed exact method/path/query/body", got.request.Method, got.request.URL, string(got.body))
 			}
-			for name := range request.Header {
-				if name != "Accept" && name != "Content-Type" && got.request.Header.Get(name) != "" {
+			for _, name := range []string{"Authorization", "Proxy-Authorization", "X-Fdn-Agent", "X-Fdn-Identity", "X-Identity", "X-Client-Cert", "X-Worker-UID", "Forwarded", "X-Forwarded-User", "Cookie"} {
+				if got.request.Header.Get(name) != "" {
 					t.Fatal("proxy forwarded private caller identity metadata", name)
 				}
 			}
-			if got.request.Header.Get("Accept") != "application/json" || got.request.Header.Get("Content-Type") != "application/json" {
+			if got.request.Header.Get("Accept") != "application/json" || item.body != nil && got.request.Header.Get("Content-Type") != "application/json" {
 				t.Fatal("ordinary content headers changed")
 			}
 		})
@@ -221,17 +212,8 @@ func TestWorkerProxyDeniesDiagnosticAndOperationEscapes(t *testing.T) {
 		{http.MethodPost, "/local/service/stop"},
 	} {
 		t.Run(item.method+item.path, func(t *testing.T) {
-			request, err := http.NewRequest(item.method, client.BaseURL+item.path, bytes.NewReader([]byte(`{"operation_id":"denied-fixture"}`)))
-			if err != nil {
-				t.Fatal(err)
-			}
-			response, err := client.HTTP.Do(request)
-			if err != nil {
-				t.Fatal(err)
-			}
-			response.Body.Close()
-			if response.StatusCode != http.StatusForbidden {
-				t.Fatal("operation escape was not denied at the Unix proxy", response.StatusCode)
+			if err := client.Request(context.Background(), item.method, item.path, domain.Command{OperationID: "denied-fixture"}, nil); domain.AsFault(err).Code != domain.Denied {
+				t.Fatal("operation escape was not denied at the Unix proxy", err)
 			}
 			select {
 			case request := <-f.remote.requests:

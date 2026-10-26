@@ -4,18 +4,15 @@ package e2e_test
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,7 +20,9 @@ import (
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/foundation"
+	"github.com/thtpark/fdn/internal/message"
 	"github.com/thtpark/fdn/internal/pki"
+	"github.com/thtpark/fdn/internal/transport"
 )
 
 // workflowAPI is a business-workflow fixture, not a standalone Foundation server.
@@ -105,50 +104,49 @@ func (f *workflowAPI) localProxy(t *testing.T, socket string, agent domain.Agent
 	if err := os.Chmod(socket, 0600); err != nil {
 		t.Fatal(err)
 	}
-	upstream, err := url.Parse(f.server.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	client, err := api.NewClient(f.server.URL, filepath.Join(f.root, "ca.pem"), "", config.Credential{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	proxy := httputil.NewSingleHostReverseProxy(upstream)
-	proxy.Transport = client.HTTP.Transport
-	proxy.ErrorLog = slog.NewLogLogger(slog.NewTextHandler(io.Discard, nil), slog.LevelError)
-	director := proxy.Director
-	proxy.Director = func(r *http.Request) {
-		director(r)
-		r.Host = upstream.Host
-		r.Header.Set("Authorization", "Bearer "+token)
-	}
-	identity := domain.AgentIdentity{AgentID: agent.ID, State: "active", Assurance: "test-fixture-only"}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/local/status" && r.URL.Path != "/local/profile" {
-			proxy.ServeHTTP(w, r)
-			return
-		}
-		w.Header().Set("X-Fdn-API-Version", strconv.Itoa(domain.APIVersion))
-		w.Header().Set("Content-Type", "application/json")
-		var data any = api.LocalStatus{Agent: agent, Identity: identity, Connected: true, Ready: true}
-		if r.URL.Path == "/local/profile" {
-			data = config.ConnectionProfile{Identity: identity, URL: f.server.URL}
-		}
-		encoded, err := json.Marshal(data)
-		if err != nil {
-			t.Error(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(api.Envelope{OK: true, Data: encoded, Warnings: []string{}})
+	ctx, cancel := context.WithCancel(context.Background())
+	var peers sync.WaitGroup
+	client := api.NewMessageClient("fixture://foundation", func(context.Context) (net.Conn, error) {
+		left, right := net.Pipe()
+		peers.Go(func() {
+			defer left.Close()
+			_ = f.service.ServeTrustedMessages(ctx, left, agent.ID)
+		})
+		return right, nil
 	})
-	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second}
+	identity := domain.AgentIdentity{AgentID: agent.ID, State: "active", Assurance: "test-fixture-only"}
 	done := make(chan error, 1)
-	go func() { done <- server.Serve(listener) }()
+	go func() {
+		done <- transport.ServeConnections(ctx, listener, func(ctx context.Context, conn net.Conn) error {
+			session, err := message.NewSession(ctx, conn, func(call context.Context, request message.Request) ([]byte, error) {
+				switch request.Operation {
+				case "query.local.status":
+					return message.MarshalPayload(api.LocalStatus{Agent: agent, Identity: identity, Connected: true, Ready: true})
+				case "query.local.profile":
+					return message.MarshalPayload(config.ConnectionProfile{Identity: identity, URL: f.server.URL})
+				}
+				if err := api.ValidateOrdinaryMessage(request); err != nil {
+					return nil, err
+				}
+				result, err := client.Message(call, request)
+				return result, message.PublicError(err)
+			})
+			if err != nil {
+				return err
+			}
+			defer session.Close()
+			<-session.Done()
+			return nil
+		}, func(err error) {
+			slog.Warn("binary workflow fixture connection ended", "code", domain.AsFault(err).Code)
+		})
+	}()
 	t.Cleanup(func() {
-		server.Close()
+		cancel()
+		listener.Close()
 		client.Close()
-		if err := <-done; err != nil && err != http.ErrServerClosed {
+		peers.Wait()
+		if err := <-done; err != nil {
 			t.Error(err)
 		}
 	})

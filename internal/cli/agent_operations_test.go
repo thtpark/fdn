@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/thtpark/fdn/internal/api"
+	"github.com/thtpark/fdn/internal/apitest"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/local"
@@ -73,7 +74,7 @@ func operationCLIFixture(t *testing.T, handler http.HandlerFunc) (config.Worker,
 	}
 	var mu sync.Mutex
 	var requests []operationCLIRequest
-	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := &apitest.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Error(err)

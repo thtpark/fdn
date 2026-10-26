@@ -15,11 +15,11 @@ import (
 const identityChallengeLifetime = 120
 
 func (s *Store) ChallengeIdentity(ctx context.Context, uid int64) (domain.IdentityChallenge, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginWrite(ctx)
 	if err != nil {
 		return domain.IdentityChallenge{}, err
 	}
-	defer tx.Rollback()
+	defer finish()
 	identity, err := identityByUID(ctx, tx, uid)
 	if err != nil {
 		return domain.IdentityChallenge{}, err
@@ -42,7 +42,7 @@ ON CONFLICT(agent_id) DO UPDATE SET nonce_hash=excluded.nonce_hash,generation=ex
 	if err != nil {
 		return domain.IdentityChallenge{}, err
 	}
-	return challenge, tx.Commit()
+	return challenge, s.commit(ctx, tx)
 }
 
 func (s *Store) ActivateIdentity(ctx context.Context, uid int64, req domain.ActivateIdentityRequest) (domain.AgentIdentity, error) {
@@ -161,11 +161,11 @@ func (s *Store) SetIdentityOwner(ctx context.Context, agentID, ownerKey string, 
 	if err != nil {
 		return domain.AgentIdentity{}, domain.Fail(domain.Invalid, "a valid owner public key is required")
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginWrite(ctx)
 	if err != nil {
 		return domain.AgentIdentity{}, err
 	}
-	defer tx.Rollback()
+	defer finish()
 	agent, err := s.actor(ctx, tx, agentID)
 	if err != nil {
 		return domain.AgentIdentity{}, err
@@ -207,5 +207,5 @@ func (s *Store) SetIdentityOwner(ctx context.Context, agentID, ownerKey string, 
 	if err := s.event(ctx, tx, "agent", agentID, "", ""); err != nil {
 		return identity, err
 	}
-	return identity, tx.Commit()
+	return identity, s.commit(ctx, tx)
 }

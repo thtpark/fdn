@@ -88,6 +88,16 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	if _, err := e.State.Workspace(ctx, binding.Ref); err != nil {
 		return e.notStarted(ctx, &j, "workspace authorization changed before provider launch")
 	}
+	runCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	if verification {
+		err = e.guardVerification(runCtx, cancel, launch, run)
+	} else {
+		err = e.guardTask(runCtx, cancel, task, run.ID, manual)
+	}
+	if err != nil {
+		return errors.Join(err, e.notStarted(ctx, &j, "current authority could not be validated before provider launch"))
+	}
 	if err := e.phaseHealth(ctx, "invoking", &launch, j.ID, min(binding.TimeoutSeconds, c.InvocationTimeoutSeconds), true); err != nil {
 		return err
 	}
@@ -95,14 +105,7 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	if err := e.State.SaveJournal(ctx, j); err != nil {
 		return err
 	}
-	runCtx, cancel := context.WithCancelCause(ctx)
-	defer cancel(nil)
 	go e.guardMode(runCtx, cancel, manual, binding.Ref)
-	if verification {
-		go e.guardVerification(runCtx, cancel, launch, run)
-	} else {
-		go e.guardTask(runCtx, cancel, task, run.ID)
-	}
 	reply, invokeErr := e.Executor.Invoke(runCtx, provider.Invocation{ID: j.ID, Provider: j.Provider, Path: health.Path, Model: model,
 		Prompt: prompt, Workspace: binding.Path, Coding: true,
 		Timeout: time.Duration(min(binding.TimeoutSeconds, c.InvocationTimeoutSeconds)) * time.Second,
@@ -167,42 +170,24 @@ func validExecutionOutcome(outcome string) bool {
 	return outcome == "completed" || outcome == "paused" || outcome == "failed"
 }
 
-func (e *Engine) guardTask(ctx context.Context, cancel context.CancelCauseFunc, approved domain.Task, runID string) {
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			task, err := api.Call[domain.Task](ctx, e.Client, "GET", api.Path("tasks", approved.ID), nil)
-			if err != nil {
-				if domain.AsFault(err).Code == domain.Unavailable {
-					e.recordProblem(ctx, "connection-problem", err)
-					continue
-				}
-				cancel(err)
-				return
-			}
-			if task.ActiveRun == nil || task.ActiveRun.ID != runID || task.ActiveRun.StopRequested || task.SpecGeneration != approved.SpecGeneration || task.AssigneeID != approved.AssigneeID || task.Readiness == nil {
-				cancel(domain.Fail(domain.Conflict, "current task ownership or approval changed"))
-				return
-			}
-			project, err := api.Call[domain.Project](ctx, e.Client, "GET", api.Path("projects", task.ProjectID), nil)
-			if err != nil {
-				if domain.AsFault(err).Code == domain.Unavailable {
-					e.recordProblem(ctx, "connection-problem", err)
-					continue
-				}
-				cancel(err)
-				return
-			}
-			if project.Archived || project.Epoch != task.Readiness.ProjectEpoch {
-				cancel(domain.Fail(domain.Conflict, "current project authority changed"))
-				return
-			}
+func (e *Engine) guardTask(ctx context.Context, cancel context.CancelCauseFunc, approved domain.Task, runID string, manual bool) error {
+	return e.guardAuthority(ctx, cancel, &authoritySubscription{taskID: approved.ID, projectID: approved.ProjectID}, func(ctx context.Context) error {
+		task, err := api.Call[domain.Task](ctx, e.Client, "GET", api.Path("tasks", approved.ID), nil)
+		if err != nil {
+			return err
 		}
-	}
+		if task.ActiveRun == nil || task.ActiveRun.ID != runID || task.ActiveRun.StopRequested || task.SpecGeneration != approved.SpecGeneration || task.AssigneeID != approved.AssigneeID || task.Readiness == nil {
+			return domain.Fail(domain.Conflict, "current task ownership or approval changed")
+		}
+		project, err := api.Call[domain.Project](ctx, e.Client, "GET", api.Path("projects", task.ProjectID), nil)
+		if err != nil {
+			return err
+		}
+		if project.Archived || project.Epoch != task.Readiness.ProjectEpoch {
+			return domain.Fail(domain.Conflict, "current project authority changed")
+		}
+		return e.validateRunMode(ctx, manual)
+	})
 }
 
 func (e *Engine) finishExecution(ctx context.Context, j *local.Journal, launch Launch, reply provider.Reply) error {

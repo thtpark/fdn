@@ -2,17 +2,16 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
-	"sync"
 	"testing"
 
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/message"
+	"github.com/thtpark/fdn/internal/transport"
 )
 
 func TestLocalClientNeedsOnlyUnixSocketAndNeverLoadsBearer(t *testing.T) {
@@ -30,21 +29,27 @@ func TestLocalClientNeedsOnlyUnixSocketAndNeverLoadsBearer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var gotBearer bool
-	var mu sync.Mutex
-	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mu.Lock()
-		gotBearer = gotBearer || r.Header.Get("Authorization") != ""
-		mu.Unlock()
-		w.Header().Set("X-Fdn-API-Version", strconv.Itoa(domain.APIVersion))
-		status, _ := json.Marshal(LocalStatus{Agent: domain.Agent{ID: "agent_local"}, Connected: true})
-		_ = json.NewEncoder(w).Encode(Envelope{OK: true, Data: status, Warnings: []string{}})
-	})}
+	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- server.Serve(listener) }()
-	defer func() { server.Close(); <-done }()
+	go func() {
+		done <- transport.ServeConnections(ctx, listener, func(ctx context.Context, conn net.Conn) error {
+			session, err := message.NewSession(ctx, conn, func(_ context.Context, request message.Request) ([]byte, error) {
+				if request.Operation != "query.local.status" || request.Target != "" || len(request.Query) != 0 || len(request.Payload) != 0 {
+					return nil, domain.Fail(domain.Denied, "only the exact public status query is available")
+				}
+				return message.MarshalPayload(LocalStatus{Agent: domain.Agent{ID: "agent_local"}, Connected: true})
+			})
+			if err != nil {
+				return err
+			}
+			defer session.Close()
+			<-session.Done()
+			return nil
+		}, func(err error) { t.Errorf("binary fixture failed: %v", err) })
+	}()
+	defer func() { cancel(); listener.Close(); <-done }()
 	client, err := NewLocalClient(config.Worker{IdentitySocket: socket, CredentialFile: filepath.Join(root, "does-not-exist"), URL: "https://127.0.0.1:1"})
-	if err != nil || client.Credential.Token != "" || !client.Local {
+	if err != nil || client.Credential.Token != "" || !client.Local || !client.IsMessageClient() || client.HTTP != nil {
 		t.Fatal(client, err)
 	}
 	defer client.Close()
@@ -55,16 +60,10 @@ func TestLocalClientNeedsOnlyUnixSocketAndNeverLoadsBearer(t *testing.T) {
 	if err := client.Request(context.Background(), http.MethodGet, "/local/status", nil, &status); err != nil {
 		t.Fatal(err)
 	}
-	mu.Lock()
-	defer mu.Unlock()
-	if gotBearer {
-		t.Fatal("local client sent a bearer credential")
-	}
 	if _, err := NewLocalClient(config.Worker{IdentitySocket: "relative.sock"}); err == nil {
 		t.Fatal("relative socket was accepted")
 	}
-	if response, err := client.HTTP.Get("http://other-origin/local/status"); err == nil {
-		response.Body.Close()
+	if err := client.Request(context.Background(), "GET", "http://other-origin/local/status", nil, &status); err == nil {
 		t.Fatal("local client dialed an origin other than its fixed Unix service")
 	}
 }

@@ -24,6 +24,45 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Binary SSH message cutover acceptance
+
+Native protocol 2 uses protobuf framing, kernel-bound Unix peers, pinned SSH,
+retained mTLS/owner proofs and typed capabilities. HTTP business fixtures are
+explicit adapters, not native compatibility or OS-isolation evidence.
+
+Focused checks include:
+
+```sh
+go run ./tools/protocol --check
+go test -race -count=1 ./internal/message ./internal/api ./internal/identityservice ./internal/foundation ./internal/work ./internal/remote ./internal/platform
+FDN_MESSAGE_FLEET=1 go test -count=1 ./internal/api -run '^TestMessageFleet1000ProtobufPushAcceptance$' -v
+```
+
+The approved isolated profile has 1,000 logical identities, zero periodic
+business-discovery polling, update p95 <=250 ms/p99 <=1 second and priority
+cancellation p99 <=1 second. The harness uses temporary real SQLite, distinct
+ephemeral mTLS certificates and loopback TLS/protobuf with a trusted logical
+principal binding. It measures real mutations/delivery, unrelated idle
+subscribers, replay, privacy and resource cleanup, not merely echo messages.
+Compare instrumented race and uninstrumented timings separately and retain
+failed runs; do not relax thresholds or turn a harness into native fleet proof.
+
+Wire regressions cover bounded malformed frames/collections, exact integers and
+presence, protocol refusal, blocked-handler ping/cancel, typed faults and
+explicit public-error opt-in. State tests cover transactional private updates,
+rollback/replay, signed generation-bound cursors, race-free waits and shutdown.
+Native-source tests cover real Unix/mTLS admission and owner control, protected
+maintenance/provisioning, actual SSH stdio adapters and cleanup. Worker tests
+cover busy/paused controls, prompt status/health, due-only retries and durable
+cursor/pending generations. Full independent suites remain required.
+
+Observed on 2026-10-25 for the 0.3.0 worktree based on `ae390a55`, Go 1.27.1,
+darwin/arm64: `bash scripts/test.sh all` passed every independent suite. The
+unchanged approved fleet profile passed both ordinary and race builds; detailed
+measurements, retained failed runs, root-cause corrections and native evidence
+limits are in [CAPACITY.md](CAPACITY.md). This does not claim a release,
+deployment, Linux runtime CI, 1,000 native SSH accounts or hardware assurance.
+
 ## Documented test cases
 
 The [test-case catalog](tests/e2e/SCENARIOS.md#test-case-catalog) records the
@@ -60,14 +99,14 @@ their tests; planned/unimplemented cases must not be described as covered.
 | Identity registration/recovery | Signed public-key possession, Founder-only registration, explicit original-agent migration, canonical-key/request/account/UID uniqueness, exact activation challenge/replay, retired generations, no legacy bearer runtime, fresh-key recovery and root-local-only Founder recovery |
 | Tasks/policy | Named/independent eligibility, project epochs, invalidation, status gates, concurrent stale revisions, exact execution/verification claims/reports; verifier's current spec/result/discussion/epoch, independent own-provider selection, shared server slot, atomic feedback/rework approval, revoked authority/Founder pause and no self-acceptance |
 | Discussions/messages | Creator-only edits, literal mention/body generation, requested answers, private recipients, no automatic protected replies |
-| Persistence/restore | Reopen/migration/future-schema rejection, recognized backup-manifest schema 1/2 through SQL3 and future rejection, prepublication ALL-identity/owner/key quarantine, retired credential denial, sole legacy/restored Founder root-private fresh-key recovery retaining ID/history, regular fresh-key reapproval, unchanged mode/uncertain work, atomic transaction failures, immutable operation fingerprints, three-history bounds, integrity |
+| Persistence/restore | Reopen/migration/future-schema rejection, recognized backup-manifest schema 1/2 through SQL4 and future rejection, prepublication ALL-identity/owner/key quarantine, retired credential denial, sole legacy/restored Founder root-private fresh-key recovery retaining ID/history, regular fresh-key reapproval, unchanged mode/uncertain work, atomic transaction failures, immutable operation fingerprints, three-history bounds, integrity |
 | Worker/controller | One slot across manual/service/session/execution/verification, onboarding once, no idle inference, partial results/questions, retry/backoff/budget, offline report replay and no duplicate inference/review/merge; prepared review reply, claim-ack recovery, uncertain verifier failure, discussion/mode/workspace cancellation, disabled-binding preservation and manual resolution |
 | Providers/processes | Exact required flags, text tool isolation, prompt through stdin, private/bounded output, version/model pinning, cancellation of owned descendants, failed signed staging retains previous version; actual login PATH/bare command versions, profile preservation/collisions, current-version dispatch and real foreground-terminal input; advertised Codex/Copilot device-flow selection, legacy fallback, bounded help-only probes, protected tmux/local TTY display and public-link versus credential handling; missing-authentication to real Founder/delegate inbox before onboarding without inference, private/protected notice fields, exact replay across restart/lost ack, explicit pending failures, 15-minute expiry/legacy deadlines, no automatic renewal or receipt revival, Founder-only typed refresh including paused/offline targets, scope/authority checks, no notification spam or auth inferred from receipt acknowledgement |
 | Sessions | Request != consent != explicit open, current scope/expiry/revocation, no public listener, restart retirement, cleanup fences |
 | Autonomous control | Only Founder pauses/resumes; target/delegate/offline overrides denied; event-driven cancellation and server claim gate; version-1 server migration preserves identity; legacy unexplained manual pause fails closed |
 | Persistent assistance | Only Founder issues/revokes; exact requester/target/purpose/mode/provider/project; no-project authentication bootstrap; target prepares unattended without local consent; disconnect/restart/expiry retains grant; role/identity/revocation closes streams; delegate is not assumed human |
 | Native identity/ingress | Recording account adapters/in-process SSH, unique UID/account/key reservations, positive per-account generation on typed root provision/disable; stale/same-generation-key-change rejection before OS calls, exact replay, never-provisioned disable tombstones, higher-generation fresh-key UID/name preservation and pre/returned/post-bind/current registry tuple checks; no arbitrary commands/PTY/forwarding, wrong-peer/pin/certificate rejection, private root maintenance outside agent gateway; no host users/sshd/services changed |
-| Owner/runner isolation | Device versus ephemeral owner certificate purposes, instance/agent/key/owner-generation agreement, kernel peer UID checks, runner cannot read keys or use control routes, one local proxy owner across CLI traffic; confirmed distinct live owner proofs plus fresh incumbent WS ping ban original and contender including Founder, while stale crash/reconnect/unproved attempts do not; ban cancels API/streams, recovery keeps work fenced |
+| Owner/runner isolation | Device versus ephemeral owner certificate purposes, instance/agent/key/owner-generation agreement, kernel peer UID checks, runner cannot read keys or use control routes, one local proxy owner across CLI traffic; confirmed distinct live owner proofs plus fresh incumbent binary ping ban original and contender including Founder, while stale crash/reconnect/unproved attempts do not; ban cancels API/streams, recovery keeps work fenced |
 | Native services | Recording adapters by default, distinct non-root identity-service and runner UIDs/HOMEs, system identity service versus runner user service/GUI agent, raw scalar systemd paths, user-bus environment only for registration, Linux parser without starting a service |
 | Guidance/docs | Valid skill names/frontmatter/descriptions; local links/command coverage; no legacy checkout dependency; hashes/version completeness; preserve home instructions/unrelated skills; prompt inclusion; isolated homes; native and Debian guide content |
 | Release/install | Merged-release-only event/commit guards, pinned Actions, two matching builds including agent-identity, native/worker binary lists and executable bytes/modes, all four archive binaries allowed/required/activated, missing identity payload denied before prefix changes, Debian parent directories and real unprivileged extraction with executable hashes, trusted manifest, immutable/idempotent installation and state preservation |

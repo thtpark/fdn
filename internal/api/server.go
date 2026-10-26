@@ -35,6 +35,7 @@ type Server struct {
 	identity       *identityServer
 	health         *healthMonitor
 	authentication func(*http.Request) (domain.Agent, error)
+	operations     map[string]*messageOperation
 }
 
 func New(store *foundation.Store, log *slog.Logger) (*Server, error) {
@@ -50,6 +51,7 @@ func New(store *foundation.Store, log *slog.Logger) (*Server, error) {
 	s.identityRoutes()
 	s.healthRoutes()
 	s.agentOperationRoutes()
+	s.updateMessageRoutes()
 	s.health = s.startHealthMonitor(15*time.Second, 10*time.Second)
 	return s, nil
 }
@@ -171,7 +173,8 @@ func readBody(w http.ResponseWriter, r *http.Request, value any) (string, error)
 	return meta.OperationID, nil
 }
 
-func body[Q any, R any](s *Server, pattern string, public bool, call func(*http.Request, domain.Agent, Q) (R, error)) {
+func body[Q any, R any](s *Server, pattern string, public bool, call func(*operationRequest, domain.Agent, Q) (R, error)) {
+	registerCommand(s, pattern, call)
 	s.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		var actor domain.Agent
 		var err error
@@ -188,24 +191,25 @@ func body[Q any, R any](s *Server, pattern string, public bool, call func(*http.
 			s.respond(w, r, nil, op, err)
 			return
 		}
-		result, err := call(r, actor, req)
+		result, err := call(operationFromHTTP(r), actor, req)
 		s.respond(w, r, result, op, err)
 	})
 }
 
-func read[R any](s *Server, pattern string, call func(*http.Request, domain.Agent) (R, error)) {
+func read[R any](s *Server, pattern string, call func(*operationRequest, domain.Agent) (R, error)) {
+	registerQuery(s, pattern, call)
 	s.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		actor, err := s.authenticate(r)
 		if err != nil {
 			s.respond(w, r, nil, "", err)
 			return
 		}
-		result, err := call(r, actor)
+		result, err := call(operationFromHTTP(r), actor)
 		s.respond(w, r, result, "", err)
 	})
 }
 
-func queryLimit(r *http.Request) (int, error) {
+func queryLimit(r *operationRequest) (int, error) {
 	if r.URL.Query().Get("limit") == "" {
 		return 0, nil
 	}
@@ -217,59 +221,62 @@ func queryLimit(r *http.Request) (int, error) {
 }
 
 func (s *Server) routes() {
-	read(s, "GET /v1/agents/{id}", func(r *http.Request, a domain.Agent) (domain.Agent, error) {
+	read(s, "GET /v1/agents/{id}", func(r *operationRequest, a domain.Agent) (domain.Agent, error) {
 		return s.Store.Agent(r.Context(), a.ID, r.PathValue("id"))
 	})
-	body(s, "POST /v1/agents/{id}/mode", false, func(r *http.Request, a domain.Agent, q domain.ModeRequest) (domain.Agent, error) {
+	body(s, "POST /v1/agents/{id}/mode", false, func(r *operationRequest, a domain.Agent, q domain.ModeRequest) (domain.Agent, error) {
 		return s.Store.SetMode(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	body(s, "POST /v1/agents/{id}/status", false, func(r *http.Request, a domain.Agent, q domain.AgentStatusRequest) (domain.AgentStatusReceipt, error) {
+	body(s, "POST /v1/agents/{id}/status", false, func(r *operationRequest, a domain.Agent, q domain.AgentStatusRequest) (domain.AgentStatusReceipt, error) {
 		return s.Store.PublishAgentStatus(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	body(s, "POST /v1/agents/{id}/authentication", false, func(r *http.Request, a domain.Agent, q domain.AuthenticationRefreshRequest) (domain.Message, error) {
+	body(s, "POST /v1/agents/{id}/authentication", false, func(r *operationRequest, a domain.Agent, q domain.AuthenticationRefreshRequest) (domain.Message, error) {
 		return s.Store.RequestAuthentication(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	body(s, "POST /v1/agents/{id}/screens", false, func(r *http.Request, a domain.Agent, q domain.ScreensRequest) ([]domain.Screen, error) {
+	body(s, "POST /v1/agents/{id}/screens", false, func(r *operationRequest, a domain.Agent, q domain.ScreensRequest) ([]domain.Screen, error) {
 		if a.ID != r.PathValue("id") {
 			return nil, domain.Fail(domain.Denied, "only the target agent may publish its own screen observations")
 		}
 		return s.Store.PublishScreens(r.Context(), a.ID, q)
 	})
-	read(s, "GET /v1/agents/{id}/screens", func(r *http.Request, a domain.Agent) ([]domain.Screen, error) {
+	read(s, "GET /v1/agents/{id}/screens", func(r *operationRequest, a domain.Agent) ([]domain.Screen, error) {
 		return s.Store.Screens(r.Context(), a.ID, r.PathValue("id"))
 	})
-	body(s, "POST /v1/assistance/requests", false, func(r *http.Request, a domain.Agent, q domain.AssistanceHelpRequest) (domain.AssistanceHelp, error) {
+	body(s, "POST /v1/assistance/requests", false, func(r *operationRequest, a domain.Agent, q domain.AssistanceHelpRequest) (domain.AssistanceHelp, error) {
 		return s.Store.RequestAssistanceHelp(r.Context(), a.ID, q)
 	})
-	read(s, "GET /v1/assistance", func(r *http.Request, a domain.Agent) ([]domain.AssistanceGrant, error) {
+	read(s, "GET /v1/assistance", func(r *operationRequest, a domain.Agent) ([]domain.AssistanceGrant, error) {
 		return s.Store.AssistanceList(r.Context(), a.ID)
 	})
-	read(s, "GET /v1/assistance/{id}", func(r *http.Request, a domain.Agent) (domain.AssistanceGrant, error) {
+	read(s, "GET /v1/assistance/{id}", func(r *operationRequest, a domain.Agent) (domain.AssistanceGrant, error) {
 		return s.Store.Assistance(r.Context(), a.ID, r.PathValue("id"))
 	})
-	body(s, "POST /v1/assistance", false, func(r *http.Request, a domain.Agent, q domain.AssistanceGrantRequest) (domain.AssistanceGrant, error) {
+	body(s, "POST /v1/assistance", false, func(r *operationRequest, a domain.Agent, q domain.AssistanceGrantRequest) (domain.AssistanceGrant, error) {
 		return s.Store.CreateAssistance(r.Context(), a.ID, q)
 	})
-	body(s, "POST /v1/assistance/{id}/revoke", false, func(r *http.Request, a domain.Agent, q domain.AssistanceRevoke) (domain.AssistanceGrant, error) {
+	body(s, "POST /v1/assistance/{id}/revoke", false, func(r *operationRequest, a domain.Agent, q domain.AssistanceRevoke) (domain.AssistanceGrant, error) {
 		return s.Store.RevokeAssistance(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	body(s, "POST /v1/projects/{id}/change", false, func(r *http.Request, a domain.Agent, q domain.ProjectChange) (domain.Project, error) {
+	body(s, "POST /v1/projects/{id}/change", false, func(r *operationRequest, a domain.Agent, q domain.ProjectChange) (domain.Project, error) {
 		return s.Store.ChangeProject(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	read(s, "GET /v1/ownership", func(r *http.Request, a domain.Agent) ([]domain.Task, error) {
+	read(s, "GET /v1/ownership", func(r *operationRequest, a domain.Agent) ([]domain.Task, error) {
 		return s.Store.Ownership(r.Context(), a.ID)
 	})
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		s.respond(w, r, map[string]any{"api_version": domain.APIVersion, "schema_version": domain.SchemaVersion, "version": domain.Version}, "", s.Store.Ping(r.Context()))
 	})
-	read(s, "GET /v1/me", func(r *http.Request, a domain.Agent) (domain.Agent, error) { return s.Store.Me(r.Context(), a.ID) })
-	read(s, "GET /v1/agents", func(r *http.Request, a domain.Agent) ([]domain.Agent, error) {
+	registerQuery(s, "GET /healthz", func(r *operationRequest, _ domain.Agent) (Health, error) {
+		return Health{APIVersion: domain.APIVersion, SchemaVersion: domain.SchemaVersion, Version: domain.Version}, s.Store.Ping(r.Context())
+	})
+	read(s, "GET /v1/me", func(r *operationRequest, a domain.Agent) (domain.Agent, error) { return s.Store.Me(r.Context(), a.ID) })
+	read(s, "GET /v1/agents", func(r *operationRequest, a domain.Agent) ([]domain.Agent, error) {
 		return s.Store.Agents(r.Context(), a.ID)
 	})
-	body(s, "POST /v1/heartbeat", false, func(r *http.Request, a domain.Agent, q domain.HeartbeatRequest) (domain.Agent, error) {
+	body(s, "POST /v1/heartbeat", false, func(r *operationRequest, a domain.Agent, q domain.HeartbeatRequest) (domain.Agent, error) {
 		return s.Store.HeartbeatWithHealth(r.Context(), a.ID, q.Health)
 	})
-	body(s, "POST /v1/agents/{id}/revoke", false, func(r *http.Request, a domain.Agent, q domain.AgentRequest) (domain.Agent, error) {
+	body(s, "POST /v1/agents/{id}/revoke", false, func(r *operationRequest, a domain.Agent, q domain.AgentRequest) (domain.Agent, error) {
 		result, err := s.Store.Revoke(r.Context(), a.ID, r.PathValue("id"), q)
 		if err == nil {
 			current, lookupErr := s.Store.Identity(r.Context(), result.ID)
@@ -280,22 +287,22 @@ func (s *Server) routes() {
 		}
 		return result, err
 	})
-	read(s, "GET /v1/projects", func(r *http.Request, a domain.Agent) ([]domain.Project, error) {
+	read(s, "GET /v1/projects", func(r *operationRequest, a domain.Agent) ([]domain.Project, error) {
 		return s.Store.Projects(r.Context(), a.ID)
 	})
-	read(s, "GET /v1/projects/{id}", func(r *http.Request, a domain.Agent) (domain.Project, error) {
+	read(s, "GET /v1/projects/{id}", func(r *operationRequest, a domain.Agent) (domain.Project, error) {
 		return s.Store.Project(r.Context(), a.ID, r.PathValue("id"))
 	})
-	body(s, "POST /v1/projects", false, func(r *http.Request, a domain.Agent, q domain.ProjectRequest) (domain.Project, error) {
+	body(s, "POST /v1/projects", false, func(r *operationRequest, a domain.Agent, q domain.ProjectRequest) (domain.Project, error) {
 		return s.Store.CreateProject(r.Context(), a.ID, q)
 	})
-	body(s, "POST /v1/project-creation-grants", false, func(r *http.Request, a domain.Agent, q domain.GrantRequest) (map[string]bool, error) {
+	body(s, "POST /v1/project-creation-grants", false, func(r *operationRequest, a domain.Agent, q domain.GrantRequest) (map[string]bool, error) {
 		return s.Store.GrantCreation(r.Context(), a.ID, q)
 	})
-	body(s, "POST /v1/projects/{id}/delegates", false, func(r *http.Request, a domain.Agent, q domain.GrantRequest) (domain.Project, error) {
+	body(s, "POST /v1/projects/{id}/delegates", false, func(r *operationRequest, a domain.Agent, q domain.GrantRequest) (domain.Project, error) {
 		return s.Store.Delegate(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	read(s, "GET /v1/tasks", func(r *http.Request, a domain.Agent) (domain.Page[domain.Task], error) {
+	read(s, "GET /v1/tasks", func(r *operationRequest, a domain.Agent) (domain.Page[domain.Task], error) {
 		limit, err := queryLimit(r)
 		if err != nil {
 			return domain.Page[domain.Task]{}, err
@@ -310,100 +317,105 @@ func (s *Server) routes() {
 		q := r.URL.Query()
 		return s.Store.Tasks(r.Context(), a.ID, domain.ListQuery{ProjectID: q.Get("project"), AssigneeID: q.Get("assignee"), Status: domain.Status(q.Get("status")), IncludeArchived: archived, Limit: limit, Cursor: q.Get("cursor")})
 	})
-	read(s, "GET /v1/tasks/{id}", func(r *http.Request, a domain.Agent) (domain.Task, error) {
+	read(s, "GET /v1/tasks/{id}", func(r *operationRequest, a domain.Agent) (domain.Task, error) {
 		return s.Store.Task(r.Context(), a.ID, r.PathValue("id"))
 	})
-	body(s, "POST /v1/tasks", false, func(r *http.Request, a domain.Agent, q domain.TaskRequest) (domain.Task, error) {
+	body(s, "POST /v1/tasks", false, func(r *operationRequest, a domain.Agent, q domain.TaskRequest) (domain.Task, error) {
 		return s.Store.CreateTask(r.Context(), a.ID, q)
 	})
-	body(s, "POST /v1/tasks/{id}/change", false, func(r *http.Request, a domain.Agent, q domain.TaskChange) (domain.Task, error) {
+	body(s, "POST /v1/tasks/{id}/change", false, func(r *operationRequest, a domain.Agent, q domain.TaskChange) (domain.Task, error) {
 		return s.Store.ChangeTask(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	read(s, "GET /v1/history/{id}", func(r *http.Request, a domain.Agent) ([]domain.History, error) {
+	read(s, "GET /v1/history/{id}", func(r *operationRequest, a domain.Agent) ([]domain.History, error) {
 		return s.Store.Histories(r.Context(), a.ID, r.PathValue("id"))
 	})
-	read(s, "GET /v1/tasks/{id}/entries", func(r *http.Request, a domain.Agent) (domain.Page[domain.Entry], error) {
+	read(s, "GET /v1/tasks/{id}/entries", func(r *operationRequest, a domain.Agent) (domain.Page[domain.Entry], error) {
 		limit, err := queryLimit(r)
 		if err != nil {
 			return domain.Page[domain.Entry]{}, err
 		}
 		return s.Store.Entries(r.Context(), a.ID, r.PathValue("id"), r.URL.Query().Get("cursor"), limit)
 	})
-	body(s, "POST /v1/tasks/{id}/entries", false, func(r *http.Request, a domain.Agent, q domain.EntryRequest) (domain.Entry, error) {
+	body(s, "POST /v1/tasks/{id}/entries", false, func(r *operationRequest, a domain.Agent, q domain.EntryRequest) (domain.Entry, error) {
 		return s.Store.CreateEntry(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	body(s, "POST /v1/entries/{id}", false, func(r *http.Request, a domain.Agent, q domain.EntryRequest) (domain.Entry, error) {
+	body(s, "POST /v1/entries/{id}", false, func(r *operationRequest, a domain.Agent, q domain.EntryRequest) (domain.Entry, error) {
 		return s.Store.EditEntry(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	read(s, "GET /v1/attention", func(r *http.Request, a domain.Agent) (domain.Page[domain.Attention], error) {
+	read(s, "GET /v1/attention", func(r *operationRequest, a domain.Agent) (domain.Page[domain.Attention], error) {
 		limit, err := queryLimit(r)
 		if err != nil {
 			return domain.Page[domain.Attention]{}, err
 		}
 		return s.Store.Attention(r.Context(), a.ID, r.URL.Query().Get("cursor"), limit)
 	})
-	body(s, "POST /v1/attention/{id}", false, func(r *http.Request, a domain.Agent, q domain.AttentionRequest) (domain.Attention, error) {
+	body(s, "POST /v1/attention/{id}", false, func(r *operationRequest, a domain.Agent, q domain.AttentionRequest) (domain.Attention, error) {
 		return s.Store.AttentionReceipt(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	read(s, "GET /v1/events", func(r *http.Request, a domain.Agent) (domain.Page[domain.Event], error) {
+	read(s, "GET /v1/events", func(r *operationRequest, a domain.Agent) (domain.Page[domain.Event], error) {
 		limit, err := queryLimit(r)
 		if err != nil {
 			return domain.Page[domain.Event]{}, err
 		}
 		q := r.URL.Query()
+		if q.Get("wait") == "true" {
+			return s.Store.WaitEvents(r.Context(), a.ID, q.Get("project"), q.Get("task"), q.Get("since"), limit)
+		}
+		if q.Get("wait") != "" && q.Get("wait") != "false" {
+			return domain.Page[domain.Event]{}, domain.Fail(domain.Invalid, "invalid event wait argument")
+		}
 		return s.Store.Events(r.Context(), a.ID, q.Get("project"), q.Get("task"), q.Get("since"), limit)
 	})
-	body(s, "POST /v1/tasks/{id}/claim", false, func(r *http.Request, a domain.Agent, q domain.ClaimRequest) (domain.Run, error) {
+	body(s, "POST /v1/tasks/{id}/claim", false, func(r *operationRequest, a domain.Agent, q domain.ClaimRequest) (domain.Run, error) {
 		return s.Store.Claim(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	body(s, "POST /v1/tasks/{id}/report", false, func(r *http.Request, a domain.Agent, q domain.ReportRequest) (domain.ReportOutcome, error) {
+	body(s, "POST /v1/tasks/{id}/report", false, func(r *operationRequest, a domain.Agent, q domain.ReportRequest) (domain.ReportOutcome, error) {
 		return s.Store.Report(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	read(s, "GET /v1/tasks/{id}/runs", func(r *http.Request, a domain.Agent) ([]domain.Run, error) {
+	read(s, "GET /v1/tasks/{id}/runs", func(r *operationRequest, a domain.Agent) ([]domain.Run, error) {
 		return s.Store.Runs(r.Context(), a.ID, r.PathValue("id"))
 	})
 	// Retain presence so ordinary direct/session messages cannot supply even a zero expiry.
-	type messageInput struct {
-		domain.MessageRequest
-		ExpiresAt json.RawMessage `json:"expires_at,omitempty"`
-	}
-	body(s, "POST /v1/messages", false, func(r *http.Request, a domain.Agent, q messageInput) (domain.Message, error) {
-		if len(q.ExpiresAt) != 0 {
+	body(s, "POST /v1/messages", false, func(r *operationRequest, a domain.Agent, q domain.MessageCommand) (domain.Message, error) {
+		request := domain.MessageRequest{Command: q.Command, RecipientID: q.RecipientID, Body: q.Body,
+			Origin: q.Origin, Kind: q.Kind, Urgent: q.Urgent, ResponseRequest: q.ResponseRequest}
+		if q.ExpiresAt != nil {
 			if q.Kind != "authentication" && q.Kind != "permission" {
 				return domain.Message{}, domain.Fail(domain.Invalid, "only authentication and permission messages may set an expiry")
 			}
-			if err := json.Unmarshal(q.ExpiresAt, &q.MessageRequest.ExpiresAt); err != nil || q.MessageRequest.ExpiresAt == 0 {
+			request.ExpiresAt = *q.ExpiresAt
+			if request.ExpiresAt == 0 {
 				return domain.Message{}, domain.Fail(domain.Invalid, "authentication and permission message expiry must be a future Unix timestamp")
 			}
 		}
-		return s.Store.SendMessage(r.Context(), a.ID, q.MessageRequest)
+		return s.Store.SendMessage(r.Context(), a.ID, request)
 	})
-	read(s, "GET /v1/messages", func(r *http.Request, a domain.Agent) (domain.Page[domain.Message], error) {
+	read(s, "GET /v1/messages", func(r *operationRequest, a domain.Agent) (domain.Page[domain.Message], error) {
 		limit, err := queryLimit(r)
 		if err != nil {
 			return domain.Page[domain.Message]{}, err
 		}
 		return s.Store.Inbox(r.Context(), a.ID, r.URL.Query().Get("cursor"), limit, r.URL.Query().Get("urgent") == "true")
 	})
-	read(s, "GET /v1/messages/{id}", func(r *http.Request, a domain.Agent) (domain.Message, error) {
+	read(s, "GET /v1/messages/{id}", func(r *operationRequest, a domain.Agent) (domain.Message, error) {
 		return s.Store.Message(r.Context(), a.ID, r.PathValue("id"))
 	})
-	body(s, "POST /v1/messages/{id}/read", false, func(r *http.Request, a domain.Agent, q domain.MessageReadRequest) (domain.Message, error) {
+	body(s, "POST /v1/messages/{id}/read", false, func(r *operationRequest, a domain.Agent, q domain.MessageReadRequest) (domain.Message, error) {
 		return s.Store.ReadMessage(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	body(s, "POST /v1/messages/{id}/receipt", false, func(r *http.Request, a domain.Agent, q domain.MessageReceipt) (domain.Message, error) {
+	body(s, "POST /v1/messages/{id}/receipt", false, func(r *operationRequest, a domain.Agent, q domain.MessageReceipt) (domain.Message, error) {
 		return s.Store.ReceiveMessage(r.Context(), a.ID, r.PathValue("id"), q)
 	})
-	body(s, "POST /v1/sessions", false, func(r *http.Request, a domain.Agent, q domain.SessionRequest) (domain.Session, error) {
+	body(s, "POST /v1/sessions", false, func(r *operationRequest, a domain.Agent, q domain.SessionRequest) (domain.Session, error) {
 		return s.Store.RequestSession(r.Context(), a.ID, q)
 	})
-	read(s, "GET /v1/sessions", func(r *http.Request, a domain.Agent) ([]domain.Session, error) {
+	read(s, "GET /v1/sessions", func(r *operationRequest, a domain.Agent) ([]domain.Session, error) {
 		return s.Store.Sessions(r.Context(), a.ID)
 	})
-	read(s, "GET /v1/sessions/{id}", func(r *http.Request, a domain.Agent) (domain.Session, error) {
+	read(s, "GET /v1/sessions/{id}", func(r *operationRequest, a domain.Agent) (domain.Session, error) {
 		return s.Store.Session(r.Context(), a.ID, r.PathValue("id"))
 	})
-	body(s, "POST /v1/sessions/{id}", false, func(r *http.Request, a domain.Agent, q domain.SessionChange) (domain.Session, error) {
+	body(s, "POST /v1/sessions/{id}", false, func(r *operationRequest, a domain.Agent, q domain.SessionChange) (domain.Session, error) {
 		return s.Store.ChangeSession(r.Context(), a.ID, r.PathValue("id"), q)
 	})
 	s.mux.HandleFunc("GET /v1/sessions/{id}/relay/{side}", func(w http.ResponseWriter, r *http.Request) {
