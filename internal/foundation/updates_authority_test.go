@@ -334,7 +334,14 @@ func TestUpdatesWriterAdmissionLeavesReplayCapacity(t *testing.T) {
 	for range writers {
 		<-started
 	}
-	time.Sleep(50 * time.Millisecond)
+	deadline := time.Now().Add(3 * time.Second)
+	for f.s.writerWaiters.Load() != writers {
+		if time.Now().After(deadline) {
+			t.Fatal("competing writers did not reach application admission", f.s.writerWaiters.Load())
+		}
+		time.Sleep(time.Millisecond)
+	}
+	queued, admitted := f.s.writerWaiters.Load(), len(f.s.writer)
 	before := f.s.db.Stats()
 	readCtx, cancelRead := context.WithTimeout(ctx, time.Second)
 	page, readErr := f.s.Updates(readCtx, f.worker.ID, workerCursor, 200)
@@ -367,8 +374,8 @@ func TestUpdatesWriterAdmissionLeavesReplayCapacity(t *testing.T) {
 			t.Fatal("unrelated idle subscriber did not remain cancellable", canceled.err)
 		}
 	}
-	if readErr != nil || len(page.Items) != 0 || before.InUse != 1 {
-		t.Fatal("queued SQLite writers monopolized connections needed by replay readers", before.InUse, page, readErr)
+	if readErr != nil || len(page.Items) != 0 || queued != writers || admitted != 1 {
+		t.Fatal("queued SQLite writers bypassed admission or blocked replay readers", queued, admitted, page, readErr)
 	}
 	assertUpdateChangesDrained(t, f.s)
 }

@@ -2,7 +2,7 @@ name: Local test suites
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, release]
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
@@ -23,6 +23,18 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      - name: Install locked protobuf compiler
+        run: |
+          destination="$RUNNER_TEMP/fdn-protoc-36.2"
+          mkdir -p "$destination"
+          curl --fail --location --retry 3 \
+            --output "$destination/protoc.zip" \
+            https://github.com/protocolbuffers/protobuf/releases/download/v36.2/protoc-36.2-linux-x86_64.zip
+          printf '%s  %s\n' \
+            121f6c7afe1d4d0e3ea6aab9432038599250134cbf4474cb1167d2c7decd4278 \
+            "$destination/protoc.zip" | sha256sum --check --strict
+          unzip -q "$destination/protoc.zip" -d "$destination"
+          echo "$destination/bin" >> "$GITHUB_PATH"
       - run: bash scripts/test.sh static
 
   unit:
@@ -72,6 +84,9 @@ jobs:
         with:
           go-version-file: go.mod
       - run: bash scripts/test.sh e2e
+      - name: Repeat native sign-in shutdown on Linux
+        if: runner.os == 'Linux'
+        run: go test -count=10 -tags=e2e ./tests/e2e -run '^TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference$' -timeout=5m
 
   stress:
     name: SQLite contention and retention

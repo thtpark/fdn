@@ -51,6 +51,14 @@ Wire regressions cover bounded malformed frames/collections, exact integers and
 presence, protocol refusal, blocked-handler ping/cancel, typed faults and
 explicit public-error opt-in. State tests cover transactional private updates,
 rollback/replay, signed generation-bound cursors, race-free waits and shutdown.
+Relay deadline tests retain a bounded in-flight read result across a local
+timeout so late bytes cannot be discarded; uncertain writes close that relay.
+Writer-admission tests observe queued/admitted writers directly, not total
+pool use that also includes legitimate concurrent snapshot readers.
+Copilot status-probe cancellation closes owned stdin/stdout pipes before
+joining the child process, so a killed child cannot leave RPC reads and
+`exec.Cmd.Wait` waiting on each other. Native sign-in shutdown is repeated on
+Linux; forced-shutdown failures retain a diagnostic stack.
 Native-source tests cover real Unix/mTLS admission and owner control, protected
 maintenance/provisioning, actual SSH stdio adapters and cleanup. Worker tests
 cover busy/paused controls, prompt status/health, due-only retries and durable

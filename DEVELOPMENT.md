@@ -20,6 +20,9 @@ Use Go 1.27 or later. Race tests need the platform race-detector toolchain and C
 compiler; release binaries are CGO-free. OpenSSH, `/bin/sh`, and standard native
 archive tools support local integration/installer checks. Runtime Node/npm and
 provider accounts are not test prerequisites.
+Protocol regeneration/static checks also require protoc 36.2; CI installs its
+checksum-pinned upstream compiler. The Go plugin is built from the module's
+pinned protobuf dependency. No generation or source build runs on deployment targets.
 
 ```sh
 go mod download
@@ -189,8 +192,10 @@ transcript or user-specific authorization into shipped documentation.
 
 ## Pull requests and release evidence
 
-PRs into `main` run separate static, unit, integration, native-binary end-to-end
-and stress jobs; Linux/macOS runs qualify their own sources. Packaging runs only
+PRs into `main` or `release` run separate static, unit, integration,
+native-binary end-to-end and stress jobs; Linux/macOS runs qualify their own
+sources. Release PRs must pass this acceptance before merge; packaging is not
+a substitute for those checks. Packaging runs only
 for merged PRs into `release`, on the exact merge commit. Version changes must
 produce new immutable releases.
 

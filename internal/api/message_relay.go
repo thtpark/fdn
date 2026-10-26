@@ -184,6 +184,7 @@ type messageRelay struct {
 	readMu        sync.Mutex
 	writeMu       sync.Mutex
 	pending       []byte
+	readResult    chan relayReadResult
 	eof           bool
 	readDeadline  time.Time
 	writeDeadline time.Time
@@ -191,6 +192,11 @@ type messageRelay struct {
 	writeIO       *relayIO
 	once          sync.Once
 	closeErr      error
+}
+
+type relayReadResult struct {
+	chunk RelayChunk
+	err   error
 }
 
 type relayIO struct {
@@ -237,17 +243,40 @@ func (c *messageRelay) Read(output []byte) (int, error) {
 	}
 	ctx, finish := c.beginIO(true)
 	defer finish()
-	data, err := c.client.Message(ctx, message.Request{Operation: "relay.read", Target: c.ticket})
-	if err != nil {
+	if ctx.Err() != nil {
 		if errors.Is(context.Cause(ctx), os.ErrDeadlineExceeded) {
 			return 0, os.ErrDeadlineExceeded
 		}
-		return 0, err
+		return 0, ctx.Err()
 	}
-	var chunk RelayChunk
-	if err := message.UnmarshalPayload(data, &chunk); err != nil {
-		return 0, err
+	if c.readResult == nil {
+		result := make(chan relayReadResult, 1)
+		c.readResult = result
+		// A local read deadline must not discard bytes consumed by an in-flight
+		// remote read. Keep its one bounded result for the next caller.
+		go func() {
+			data, err := c.client.Message(c.ctx, message.Request{Operation: "relay.read", Target: c.ticket})
+			var chunk RelayChunk
+			if err == nil {
+				err = message.UnmarshalPayload(data, &chunk)
+			}
+			result <- relayReadResult{chunk: chunk, err: err}
+		}()
 	}
+	var received relayReadResult
+	select {
+	case received = <-c.readResult:
+		c.readResult = nil
+	case <-ctx.Done():
+		if errors.Is(context.Cause(ctx), os.ErrDeadlineExceeded) {
+			return 0, os.ErrDeadlineExceeded
+		}
+		return 0, ctx.Err()
+	}
+	if received.err != nil {
+		return 0, received.err
+	}
+	chunk := received.chunk
 	if len(chunk.Data) > relayChunkBytes {
 		return 0, domain.Fail(domain.Unavailable, "relay returned an oversized chunk")
 	}
@@ -274,10 +303,11 @@ func (c *messageRelay) Write(input []byte) (int, error) {
 		}
 		data, err = c.client.Message(ctx, message.Request{Operation: "relay.write", Target: c.ticket, Payload: data})
 		if err != nil {
+			closeErr := c.Close()
 			if errors.Is(context.Cause(ctx), os.ErrDeadlineExceeded) {
-				return written, os.ErrDeadlineExceeded
+				return written, errors.Join(os.ErrDeadlineExceeded, closeErr)
 			}
-			return written, err
+			return written, errors.Join(err, closeErr)
 		}
 		var result RelayWritten
 		if err := message.UnmarshalPayload(data, &result); err != nil {
