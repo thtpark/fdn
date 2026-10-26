@@ -109,16 +109,15 @@ func TestNativeMultiRoundClarificationAndCurrentSignoff(t *testing.T) {
 	if current.Readiness != nil || current.ActiveRun != nil || current.Result != nil {
 		t.Fatal("preparation granted its own approval")
 	}
-	inbox := must[domain.Page[domain.Message]](t, "agent-cli", []string{"--config", l.founder.configFile, "message", "inbox"}, nil)
-	signoff := false
-	for _, message := range inbox.Items {
-		if strings.Contains(message.Body, task.ID) && strings.Contains(message.Body, "No timed expiry") {
-			signoff = true
+	waitFor(t, 10*time.Second, func() bool {
+		inbox := must[domain.Page[domain.Message]](t, "agent-cli", []string{"--config", l.founder.configFile, "message", "inbox"}, nil)
+		for _, message := range inbox.Items {
+			if strings.Contains(message.Body, task.ID) && strings.Contains(message.Body, "No timed expiry") {
+				return true
+			}
 		}
-	}
-	if !signoff {
-		t.Fatal("exact-specification signoff was not requested")
-	}
+		return false
+	}, "exact-specification signoff notification after workspace preparation")
 	current = l.change(t, l.founder, task.ID, domain.TaskChange{Kind: "approve", Reason: "reviewed refined current specification", SpecGeneration: current.SpecGeneration})
 	waitFor(t, 15*time.Second, func() bool { return l.task(t, task.ID).Status == domain.Completed }, "approved refined task execution")
 	agent.stop(t)
