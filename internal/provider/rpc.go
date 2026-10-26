@@ -97,6 +97,11 @@ func (m *Manager) copilotAuthentication(ctx context.Context, path string) (authe
 	defer cancel()
 	stdinReader, stdinWriter := io.Pipe()
 	stdoutReader, stdoutWriter := io.Pipe()
+	closePipes := func() {
+		_ = stdinWriter.CloseWithError(ctx.Err())
+		_ = stdoutReader.CloseWithError(ctx.Err())
+	}
+	stopPipes := context.AfterFunc(ctx, closePipes)
 	done := make(chan error, 1)
 	diagnostic := process.NewBuffer(8192)
 	go func() {
@@ -107,10 +112,12 @@ func (m *Manager) copilotAuthentication(ctx context.Context, path string) (authe
 		done <- runErr
 	}()
 	defer func() {
+		contextErr := ctx.Err()
 		cancel()
-		stdinWriter.Close()
-		stdoutReader.Close()
+		stopPipes()
+		closePipes()
 		runErr := <-done
+		err = errors.Join(err, contextErr)
 		if runErr != nil && !errors.Is(runErr, context.Canceled) && !errors.Is(runErr, context.DeadlineExceeded) {
 			err = errors.Join(err, domain.Fail(domain.Unavailable, "provider status process failed"))
 		}
