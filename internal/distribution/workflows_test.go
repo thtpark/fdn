@@ -57,8 +57,8 @@ func loadWorkflow(t *testing.T, name string) workflow {
 func TestWorkflowTriggersAndIndependentSuites(t *testing.T) {
 	tests := loadWorkflow(t, "tests.yml")
 	pr := tests.On["pull_request"]
-	if !reflect.DeepEqual(pr.Branches, []string{"main"}) || !reflect.DeepEqual(pr.Types, []string{"opened", "synchronize", "reopened", "ready_for_review"}) {
-		t.Fatal("main PR tests have incorrect trigger")
+	if !reflect.DeepEqual(pr.Branches, []string{"main", "release"}) || !reflect.DeepEqual(pr.Types, []string{"opened", "synchronize", "reopened", "ready_for_review"}) {
+		t.Fatal("main/release PR tests have incorrect trigger")
 	}
 	for job, suite := range map[string]string{"static": "static", "unit": "unit", "integration": "integration", "end-to-end": "e2e", "stress": "stress"} {
 		value, exists := tests.Jobs[job]

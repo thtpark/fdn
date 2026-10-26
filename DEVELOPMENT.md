@@ -189,8 +189,10 @@ transcript or user-specific authorization into shipped documentation.
 
 ## Pull requests and release evidence
 
-PRs into `main` run separate static, unit, integration, native-binary end-to-end
-and stress jobs; Linux/macOS runs qualify their own sources. Packaging runs only
+PRs into `main` or `release` run separate static, unit, integration,
+native-binary end-to-end and stress jobs; Linux/macOS runs qualify their own
+sources. Release PRs must pass this acceptance before merge; packaging is not
+a substitute for those checks. Packaging runs only
 for merged PRs into `release`, on the exact merge commit. Version changes must
 produce new immutable releases.
 
