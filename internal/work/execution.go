@@ -46,13 +46,7 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	if err := e.resolvePermission(ctx, launch.ActionKey, "workspace"); err != nil {
 		return err
 	}
-	var health provider.Health
-	var model string
-	if verification {
-		health, model, err = e.selectProvider(ctx, c, c.Provider, c.Model, &task)
-	} else {
-		health, model, err = e.selected(ctx, c, &task)
-	}
+	health, model, err := e.selected(ctx, c, launch)
 	if err != nil {
 		return err
 	}
