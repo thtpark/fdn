@@ -545,18 +545,20 @@ func (e *Engine) launch(ctx context.Context, phase string, task *domain.Task) (L
 	return launch, nil
 }
 
-func (e *Engine) selected(ctx context.Context, c config.Worker, task *domain.Task) (provider.Health, string, error) {
+func (e *Engine) selected(ctx context.Context, c config.Worker, launch Launch) (provider.Health, string, error) {
 	name, model := c.Provider, c.Model
-	if task != nil && task.Provider != "" {
-		name = task.Provider
-		if name != c.Provider {
-			model = ""
+	if task := launch.Task; task != nil && launch.Attention == nil && launch.Phase != domain.VerificationRun {
+		if task.Provider != "" {
+			name = task.Provider
+			if name != c.Provider {
+				model = ""
+			}
+		}
+		if task.Model != "" {
+			model = task.Model
 		}
 	}
-	if task != nil && task.Model != "" {
-		model = task.Model
-	}
-	return e.selectProvider(ctx, c, name, model, task)
+	return e.selectProvider(ctx, c, name, model, launch.Task)
 }
 
 func (e *Engine) selectProvider(ctx context.Context, c config.Worker, name, model string, task *domain.Task) (provider.Health, string, error) {
@@ -632,7 +634,7 @@ func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manua
 	if err := e.textResponseBlocked(ctx, c, launch); err != nil {
 		return local.Journal{}, err
 	}
-	health, model, err := e.selected(ctx, c, launch.Task)
+	health, model, err := e.selected(ctx, c, launch)
 	if err != nil {
 		return local.Journal{}, err
 	}

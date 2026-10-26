@@ -24,6 +24,7 @@ import (
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/local"
+	"github.com/thtpark/fdn/internal/work"
 )
 
 var binaries string
@@ -470,6 +471,86 @@ func TestNativeBinariesPhaseOneThroughFive(t *testing.T) {
 				t.Fatal("restart duplicated execution")
 			}
 			must[any](t, "fdn-service", []string{"--config", l.serverConfig, "doctor"}, nil)
+		})
+	}
+}
+
+func TestNativeMentionReplyUsesRecipientProviderAndModel(t *testing.T) {
+	for _, name := range []string{"codex", "copilot"} {
+		t.Run(name, func(t *testing.T) {
+			l := newLab(t, name)
+			taskProvider := "copilot"
+			if name == "copilot" {
+				taskProvider = "codex"
+			}
+			raw := l.cli(t, l.founder, []string{"task", "create", "--input", "-"}, domain.TaskRequest{
+				ProjectID: l.project.ID, Title: "Mention reply", Description: "Discuss another agent's task", AcceptanceCriteria: "A scoped reply without execution"})
+			var task domain.Task
+			if err := json.Unmarshal(raw, &task); err != nil {
+				t.Fatal(err)
+			}
+			task = l.change(t, l.founder, task.ID, domain.TaskChange{Kind: "assign", Reason: "pin another assignee's execution provider/model",
+				AgentID: l.founder.agent.ID, Provider: taskProvider, Model: "execution-only-model"})
+			agent := l.startAgent(t)
+			waitFor(t, 10*time.Second, func() bool {
+				status := must[struct {
+					Work work.Status `json:"work"`
+				}](t, "agent-cli", []string{"--config", l.worker.configFile, "work", "status"}, nil)
+				return status.Work.InitialReviewDone
+			}, "recipient onboarding")
+			raw = l.cli(t, l.founder, []string{"comment", "add", task.ID, "--input", "-"}, domain.EntryRequest{Body: "Please answer @{" + l.worker.agent.Name + "}."})
+			var entry domain.Entry
+			if err := json.Unmarshal(raw, &entry); err != nil || len(entry.Mentions) != 1 || entry.Mentions[0] != l.worker.agent.ID {
+				t.Fatal("name mention did not resolve to its recipient", entry, err)
+			}
+			waitFor(t, 15*time.Second, func() bool {
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				entries, err := api.Call[domain.Page[domain.Entry]](ctx, l.founder.client, "GET", api.Path("tasks", task.ID, "entries"), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				replies := 0
+				for _, reply := range entries.Items {
+					if reply.ParentID == entry.ID && reply.AuthorID == l.worker.agent.ID && reply.Body == "fixture scoped reply" {
+						replies++
+					}
+				}
+				pending, err := api.Call[domain.Page[domain.Attention]](ctx, l.worker.client, "GET", "/v1/attention", nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return replies == 1 && len(pending.Items) == 0
+			}, "pushed mention reply and exact-generation receipt")
+			current := l.task(t, task.ID)
+			if current.AssigneeID != task.AssigneeID || current.Provider != taskProvider || current.Model != task.Model ||
+				current.SpecGeneration != task.SpecGeneration || current.Status != task.Status || current.Readiness != nil || current.ActiveRun != nil {
+				t.Fatal("mention response changed execution authority or requirements", current)
+			}
+			agent.stop(t)
+			state, err := local.Open(context.Background(), l.worker.config.StateDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer state.Close()
+			journals, err := state.Journals(context.Background(), false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			replies := 0
+			for _, journal := range journals {
+				if journal.Kind == "attention" {
+					replies++
+					if journal.State != "done" || journal.Provider != name || journal.Model != "fixture-model" || journal.TaskID != task.ID {
+						t.Fatal("mention did not use the recipient's preferred provider/model", journal.Kind, journal.State, journal.Provider, journal.Model)
+					}
+				} else if journal.Kind != "onboarding" {
+					t.Fatal("mention unexpectedly started task work", journal.Kind)
+				}
+			}
+			if replies != 1 {
+				t.Fatal("mention did not produce exactly one response invocation", replies)
+			}
 		})
 	}
 }

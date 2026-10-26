@@ -108,6 +108,12 @@ grant approval, start inference while paused, or clear a recovery fence.
 - Ordinary messages wait behind work; urgent messages get the next free slot,
   not a second worker or an unsafe interruption. Read actual mention/body
   generations; edits/removals can make old attention stale.
+- Automatic mention replies use the recipient's preferred provider/model, not
+  the task assignee's execution provider/model. They remain tool-disabled and
+  attach to the source comment before acknowledging its exact body generation.
+  Mention-scoped sign-in help uses the same recipient provider and retains
+  current Founder/delegate routing, including before onboarding. Assigned work
+  and verification take priority; pause and recovery fences still apply.
 - A read receipt is voluntary and explicit. Peek with message show/inbox/diagnose
   without marking read; after deliberately finishing reading, the recipient may
   use `message read MESSAGE_ID` with a stable operation ID. In a tool-disabled

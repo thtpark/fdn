@@ -494,7 +494,12 @@ The body stays as authored; returned `mentions` contains sorted, deduplicated
 AgentIDs, excluding self. Exact operation replay retains the original recipients.
 Comments create attention; worklogs retain mention metadata without attention.
 Removed/edited mentions stale old-generation receipts. Mentions never confer
-authority or assignment. Cursors are actor/query-bound; pages are
+authority or assignment. Automatic mention replies use the recipient's preferred
+provider/model, not the task assignee's required execution provider/model.
+Replies remain tool-disabled, attach to the source comment, and mark only its
+exact current body generation handled after publication. Assigned work and
+verification retain priority; Founder pause and recovery fences still block
+inference. Cursors are actor/query-bound; pages are
 limited to 1-200. Watch delivery is at least once; inspect sequence/cursor rather
 than assuming exactly-once processing.
 

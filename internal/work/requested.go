@@ -111,7 +111,7 @@ func (e *Engine) requestedAuthentication(ctx context.Context, c config.Worker, m
 			return err
 		}
 		providers := []string{c.Provider}
-		if launch.Phase != domain.VerificationRun && launch.Task != nil && launch.Task.Provider != "" && launch.Task.Provider != c.Provider {
+		if launch.Attention == nil && launch.Phase != domain.VerificationRun && launch.Task != nil && launch.Task.Provider != "" && launch.Task.Provider != c.Provider {
 			providers = append(providers, launch.Task.Provider)
 		}
 		for _, name := range providers {

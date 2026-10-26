@@ -378,6 +378,13 @@ Only comments create attention. Worklogs retain mention metadata without
 notifications. Exact operation replay returns the original recipient IDs,
 not a new name lookup; body edits resolve anew and stale the old generation's
 receipts. Waiting/clarification and feedback policy use those canonical IDs.
+Automatic replies use the mentioned recipient's preferred provider/model,
+independent of the task assignee's execution requirements. The same choice
+governs mention-scoped sign-in help before onboarding; task/project references
+remain available for protected Founder/delegate routing. A successful
+tool-disabled response is published as a reply to that comment before its exact
+body generation is acknowledged as handled. Existing pause, recovery and serial
+work-priority rules still apply.
 Mentions never assign work or confer project, identity or OS authority.
 No database migration or mention backfill is performed.
 

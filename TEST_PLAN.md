@@ -107,6 +107,23 @@ go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeBinariesPhaseOneThroughF
   document the same contract. No source fixture creates host accounts,
   registers host services or qualifies a native deployment.
 
+### Automatic mention replies
+
+```sh
+go test -race -count=1 -tags=integration ./tests/integration -run '^TestMention(ReplyUsesRecipientProviderAndModel|AuthenticationBeforeOnboardingUsesRecipientProvider)$'
+go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeMentionReplyUsesRecipientProviderAndModel$'
+```
+
+Both Codex and Copilot recipients use their own preferred provider/model even
+when another assignee's task pins an unavailable provider or model. Integration
+tests cover before/after onboarding, retained project-scoped sign-in routing,
+tool-disabled invocation, published parent-linked replies, handled attention,
+accurate health metadata, unchanged execution authority and restart without
+duplicate inference/help. Compiled-binary tests deliver a name mention to an
+already-running daemon through scoped updates and verify its actual reply,
+receipt and provider/model journal attribution. These fixtures do not certify
+live provider sign-in, deployment or model quality.
+
 ## Existing-user worker ownership
 
 ```sh
