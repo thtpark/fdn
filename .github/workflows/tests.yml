@@ -84,6 +84,9 @@ jobs:
         with:
           go-version-file: go.mod
       - run: bash scripts/test.sh e2e
+      - name: Repeat native sign-in shutdown on Linux
+        if: runner.os == 'Linux'
+        run: go test -count=10 -tags=e2e ./tests/e2e -run '^TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference$' -timeout=5m
 
   stress:
     name: SQLite contention and retention

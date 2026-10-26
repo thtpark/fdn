@@ -139,11 +139,18 @@ func (c *child) stop(t *testing.T) {
 	select {
 	case <-c.done:
 	case <-time.After(12 * time.Second):
-		if err := c.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		if err := c.cmd.Process.Signal(syscall.SIGQUIT); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			t.Error(err)
 		}
-		<-c.done
-		t.Error("owned test process required forced shutdown")
+		select {
+		case <-c.done:
+		case <-time.After(2 * time.Second):
+			if err := c.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+				t.Error(err)
+			}
+			<-c.done
+		}
+		t.Errorf("owned test process required forced shutdown; diagnostic stack:\n%s", c.stderr.String())
 	}
 }
 
