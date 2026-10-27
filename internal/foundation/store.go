@@ -71,7 +71,7 @@ type Store struct {
 }
 
 func Open(ctx context.Context, path string) (*Store, error) {
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema})
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema})
 	if err != nil {
 		return nil, err
 	}

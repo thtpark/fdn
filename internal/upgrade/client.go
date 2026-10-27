@@ -30,10 +30,11 @@ type Targets struct {
 }
 
 type PlanItem struct {
-	Target   Target                     `json:"target"`
-	Proposal domain.UpgradeProposal     `json:"proposal"`
-	Permit   *domain.UpgradePermit      `json:"permit,omitempty"`
-	Result   *domain.UpgradeNativeReply `json:"result,omitempty"`
+	Target    Target                     `json:"target"`
+	Proposal  domain.UpgradeProposal     `json:"proposal"`
+	Permit    *domain.UpgradePermit      `json:"permit,omitempty"`
+	Result    *domain.UpgradeNativeReply `json:"result,omitempty"`
+	MessageID string                     `json:"message_id,omitempty"`
 }
 
 type Plan struct {

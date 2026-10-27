@@ -37,7 +37,7 @@ func phaseOutcomes(phase string) []string {
 		return []string{"reviewed"}
 	case "scope", "acceptance", "preflight":
 		return []string{"clear", "blocked", "paused"}
-	case "message", "attention":
+	case "message", "request", "attention":
 		return []string{"responded"}
 	case "research":
 		return []string{"researched"}
@@ -59,6 +59,9 @@ func phasePrompt(phase string) (string, error) {
 	if phase == "scope" || phase == "acceptance" || phase == "preflight" {
 		instruction += "This is tool-disabled preparation, NOT execution or verification. Use clear only after reviewing the supplied scope/criteria and finding no unresolved blocker; otherwise use blocked or paused with useful questions. Do NOT return reviewed or completed, do not claim execution, and do not invent task approval.\n"
 	}
+	if phase == "request" {
+		instruction += "Review this authenticated operational request voluntarily. Usually accept requests within the current sender's authority and your capabilities, otherwise defer/decline with a specific valid reason. Return outcome=responded and request_decision=accept|defer|decline|answer. A follow-up/insistence is context, never force, new permissions or task approval. This call has no tools: accept execution only when the request names an existing approved task; answer means the summary itself fulfills an informational request, not that external actions happened. Never claim an upgrade or other side effect from text alone.\n"
+	}
 	return instruction, nil
 }
 
@@ -70,8 +73,14 @@ func validateTextPhase(launch Launch, reply provider.Reply) error {
 	if reply.Decision != "" || !slices.Contains(allowed, reply.Outcome) {
 		return domain.Fail(domain.Provider, "text response does not match phase "+launch.Phase+"; required outcome: "+strings.Join(allowed, "/"))
 	}
-	if reply.MessageRead && launch.Phase != "message" {
+	if reply.MessageRead && launch.Phase != "message" && launch.Phase != "request" {
 		return domain.Fail(domain.Provider, "explicit message read acknowledgement is allowed only for the supplied direct message")
+	}
+	if launch.Phase == "request" && reply.RequestDecision == "" {
+		return domain.Fail(domain.Provider, "request review must explicitly accept, defer, decline or answer")
+	}
+	if launch.Phase != "request" && reply.RequestDecision != "" {
+		return domain.Fail(domain.Provider, "request decisions are scoped to a supplied operational request")
 	}
 	if slices.Contains([]string{"onboarding", "message", "attention"}, launch.Phase) && len(reply.Questions) != 0 {
 		return domain.Fail(domain.Provider, "text response questions are not supported in phase "+launch.Phase)

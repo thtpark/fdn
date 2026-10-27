@@ -287,38 +287,30 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 	if err := config.Write(inputPath, plan); err != nil {
 		return nil, err
 	}
-	for i := len(plan.Items) - 1; i >= 0; i-- {
-		item := &plan.Items[i]
-		reply, err := upgrade.CallNative(ctx, runner, item.Target,
-			domain.UpgradeNativeRequest{Action: "prepare", ID: item.Proposal.Challenge.ID, Permit: item.Permit})
-		if err != nil {
-			return nil, err
-		}
-		if reply.State != "prepared" {
-			return nil, domain.Fail(domain.Conflict, "native target did not complete its exact cold backup and stopped-service receipt")
-		}
-		item.Result = &reply
-		if err := config.Write(inputPath, plan); err != nil {
-			return nil, err
-		}
-	}
+	dependencies := []string{}
 	for i := range plan.Items {
 		item := &plan.Items[i]
-		reply, err := upgrade.CallNative(ctx, runner, item.Target,
-			domain.UpgradeNativeRequest{Action: "apply", ID: item.Proposal.Challenge.ID, Permit: item.Permit})
+		request := domain.MessageRequest{Command: domain.Command{OperationID: plan.ID + ".request." + strconv.Itoa(i)},
+			RecipientID: item.Target.TargetID, Body: "Founder requests the exact approved software release " + item.Proposal.Release.Version +
+				". Review the current authority, safety and native policy; accept, defer or decline with a reason, then reply with the actual result. Automation must remain paused.",
+			Origin: "human", Kind: "request", ResponseRequest: true,
+			Request: &domain.MessageAction{Kind: "upgrade", Upgrade: item.Permit, Dependencies: slices.Clone(dependencies)}}
+		queued, err := api.Call[domain.Message](ctx, r.client, "POST", "/v1/messages", request)
 		if err != nil {
 			return nil, err
 		}
-		if reply.State != "verified" {
-			return nil, domain.Fail(domain.Unavailable, "native upgrade has not been verified")
+		if queued.Request == nil || queued.Request.State != "queued" {
+			return nil, domain.Fail(domain.Prerequisite, "target maintenance request was not durably queued")
 		}
-		item.Result = &reply
+		item.MessageID = queued.ID
+		dependencies = append(dependencies, queued.ID)
 		if err := config.Write(inputPath, plan); err != nil {
 			return nil, err
 		}
 	}
-	plan.State = "verified"
-	return map[string]any{"plan": plan, "automation": "paused; explicit Founder resumption is separate"}, config.Write(inputPath, plan)
+	plan.State = "queued"
+	return map[string]any{"plan": plan, "executed": false,
+		"note": "durable private requests queued; targets decide and report actual completion/failure. Queued is not installed. Inspect each message thread; automation remains paused."}, config.Write(inputPath, plan)
 }
 
 func (a *app) upgradeHelper(ctx context.Context, args []string) (any, error) {

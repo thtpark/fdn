@@ -88,6 +88,19 @@ func upgradeCLIFixture(t *testing.T) (*app, *resources, upgrade.Catalog, string)
 				ActorGeneration: 1, IssuedAt: time.Now().Unix(), ExpiresAt: time.Now().Unix() + 900, Signature: "fixture"}, nil)
 		case strings.HasSuffix(r.URL.Path, "/mode"):
 			diagnosticsEnvelope(t, w, domain.Agent{ID: "agent_target", Mode: "manual"}, nil)
+		case r.URL.Path == "/v1/messages" && r.Method == "POST":
+			var request domain.MessageRequest
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Error(err)
+			}
+			if request.Request == nil || request.Request.Kind != "upgrade" || request.Kind != "request" || !request.ResponseRequest {
+				t.Error("upgrade apply did not send an exact operational message")
+			}
+			if request.RecipientID == "agent_target" && (len(request.Request.Dependencies) != 1 || request.Request.Dependencies[0] != "message_instance_fixture") {
+				t.Error("worker request did not depend on Foundation's completed result")
+			}
+			diagnosticsEnvelope(t, w, domain.Message{ID: "message_" + request.RecipientID,
+				Request: &domain.MessageActionState{Action: *request.Request, State: "queued"}}, nil)
 		default:
 			t.Error("unexpected upgrade API call", r.Method, r.URL)
 			diagnosticsEnvelope(t, w, nil, domain.AsFault(domain.Fail(domain.NotFound, "fixture route not found")))
@@ -130,7 +143,7 @@ func upgradeCLIFixture(t *testing.T) (*app, *resources, upgrade.Catalog, string)
 	return a, r, catalog, targetFile
 }
 
-func TestFounderUpgradeCLIPlanApplyServerFirstAndRetainUncertainReceipts(t *testing.T) {
+func TestFounderUpgradeCLIApplyQueuesRecipientOwnedRequestsWithoutRemoteMutations(t *testing.T) {
 	for _, fail := range []string{"", "foundation:apply", "agent:apply"} {
 		t.Run(fail, func(t *testing.T) {
 			a, r, catalog, targets := upgradeCLIFixture(t)
@@ -153,22 +166,18 @@ func TestFounderUpgradeCLIPlanApplyServerFirstAndRetainUncertainReceipts(t *test
 			}
 			runner.calls, runner.fail = nil, fail
 			_, err = a.upgradeWith(ctx, r, []string{"apply", "--input", planFile}, catalog, runner)
-			if (err != nil) != (fail != "") {
-				t.Fatal("native failure projected incorrectly", err)
+			if err != nil {
+				t.Fatal("queued request submission failed", err)
 			}
 			got := strings.Join(runner.calls, ",")
-			want := "agent:prepare,foundation:prepare,foundation:apply"
-			if fail != "foundation:apply" {
-				want += ",agent:apply"
-			}
-			if got != want {
-				t.Fatal("native stop/install order is unsafe", got, want)
+			if got != "" {
+				t.Fatal("sender directly stopped or installed a remote target", got)
 			}
 			if err := config.Read(planFile, &plan); err != nil {
 				t.Fatal(err)
 			}
-			if fail == "" && plan.State != "verified" || fail != "" && plan.State != "submitted" {
-				t.Fatal("uncertainty erased or unverified deployment marked complete", plan.State)
+			if plan.State != "queued" || plan.Items[0].MessageID != "message_instance_fixture" || plan.Items[1].MessageID != "message_agent_target" {
+				t.Fatal("queued request was projected as installed or omitted its exact result references", plan.State)
 			}
 			count := len(runner.calls)
 			_, err = a.upgradeWith(ctx, r, []string{"apply", "--input", planFile}, catalog, runner)

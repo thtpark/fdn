@@ -93,11 +93,14 @@ func (a *app) engine(r *resources) *work.Engine {
 }
 
 func (a *app) service(ctx context.Context, args []string) (value any, err error) {
+	if len(args) > 0 && args[0] == "request-worker" {
+		return a.requestWorker(ctx, args[1:])
+	}
 	if len(args) > 0 && args[0] == "upgrade-helper" {
 		return a.upgradeHelper(ctx, args[1:])
 	}
 	if len(args) != 1 {
-		return nil, domain.Fail(domain.Invalid, "agent-service accepts serve or status")
+		return nil, domain.Fail(domain.Invalid, "agent-service accepts serve, status, upgrade-helper or request-worker")
 	}
 	if args[0] == "status" {
 		r, err := a.load(ctx, false)

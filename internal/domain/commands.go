@@ -124,13 +124,16 @@ type AuthenticationRefreshRequest struct {
 
 type MessageRequest struct {
 	Command
-	RecipientID     string `json:"recipient_id"`
-	Body            string `json:"body"`
-	Origin          string `json:"origin"`
-	Kind            string `json:"kind"`
-	Urgent          bool   `json:"urgent"`
-	ResponseRequest bool   `json:"response_requested"`
-	ExpiresAt       int64  `json:"expires_at,omitempty"`
+	RecipientID     string         `json:"recipient_id"`
+	Body            string         `json:"body"`
+	Origin          string         `json:"origin"`
+	Kind            string         `json:"kind"`
+	Urgent          bool           `json:"urgent"`
+	ResponseRequest bool           `json:"response_requested"`
+	ExpiresAt       int64          `json:"expires_at,omitempty"`
+	ReplyToID       string         `json:"reply_to_id,omitempty"`
+	Insistence      bool           `json:"insistence,omitempty"`
+	Request         *MessageAction `json:"request,omitempty"`
 }
 
 type MessageReceipt struct {

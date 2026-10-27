@@ -83,7 +83,7 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    public recipient, and use `fdn-service backup --output FILE --recipient
    RECIPIENT`. Restore only to a fresh directory with the private identity
    supplied through a protected file. Verify full archive/integrity/compatible
-   schema. Manifest schema 1/2 is supported through SQL4 migration; future
+   schema. Manifest schema 1/2 is supported through SQL5 migration; future
    manifest/SQL versions fail closed. Restore quarantines ALL identity/owner/key
    epochs before publication, so old tokens/keys/certificates never reactivate.
    Root-private fresh-key Founder recovery retains ID/history, then Founder
@@ -102,8 +102,11 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
      identity/generation/policy/source, exact greater release/hash, native nonce
      and public age recipient; it does not install. `upgrade apply --input PLAN`
      also needs separately administrator-provisioned helper policy/operator SSH.
-     It pauses, obtains current signed authority, creates encrypted cold backups,
-     installs Foundation before workers, verifies actual results and stays manual.
+     It pauses, obtains current signed authority and queues private target-owned
+     requests. Independent native receivers decide, create encrypted cold backups,
+     install/verify and reply with actual results; Foundation completes before
+     dependent agents. Inspect message show/thread for queued/accepted/refused/
+     completed/failed states; delivery/acceptance never means installation.
      Native phases and evidence remain private. An interrupted mutation projects
      operator-required with its original phase code; inspect the same plan with
      `upgrade status --input PLAN`, even while Foundation is offline, without

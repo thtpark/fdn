@@ -23,7 +23,7 @@ func (s *authoritySubscription) relevant(update domain.Update) bool {
 		return !s.modeOnly && (update.ProjectID == s.projectID || update.SourceID == s.projectID)
 	case "task", "run", "comment", "worklog":
 		return !s.modeOnly && (update.TaskID == s.taskID || update.SourceID == s.taskID)
-	case "message", "attention", "agent-operation", "session", "assistance":
+	case "message", "request", "attention", "agent-operation", "session", "assistance":
 		return false
 	default:
 		return true

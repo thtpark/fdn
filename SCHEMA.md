@@ -5,7 +5,7 @@ Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
 Native message protocol version is **2**; server SQLite migration version is
-**4**; local-worker SQLite remains **1**.
+**5**; local-worker SQLite remains **1**.
 Deploy the server first. Version 2 requires account-bound public-key admission
 and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
 create new runtime identities. Native multi-UID qualification is separate from
@@ -212,8 +212,8 @@ knowledge selection never grants shared project authority.
 `WorkerHealth` and returns the same `Agent` as before. Workers piggyback reports
 on the existing 30-second heartbeat; old command-only bodies remain accepted.
 Latest report and incident are bounded per-agent service-owned `settings`, not
-new tables or client-writable authority. API/schema stays **2**, server SQL
-**3**, local SQL **1**; no new SQLite migration is introduced.
+new tables or client-writable authority. Health needs no additional SQLite
+migration; current API/schema stays **2**, server SQL **5**, local SQL **1**.
 
 Reports carry their version/sequence/observation time, effective mode,
 provider/version/model, configured `preferred_provider`, authentication readiness
@@ -421,9 +421,9 @@ The server stores the immutable signed public permit under its service-owned
 only bounded references, not mutable snapshots or repeated signatures. Exact
 operation replay returns the original 900-second permit without renewal.
 Permit retention follows existing operation/audit evidence policy, not the
-three-snapshot rule. No SQL migration/backfill is needed: server SQL4, local SQL1,
-API/schema2 and native protocol2 remain unchanged; payload fields are additive
-and old clients cannot infer upgrade support.
+three-snapshot rule. Permit storage needs no SQL backfill. The request mailbox
+uses server SQL5; local SQL1, API/schema2 and native protocol2 remain unchanged.
+Payload fields are additive and old clients cannot infer upgrade support.
 
 Immediately before stopping, the native updater requests a fresh unpredictable
 nonce proof through `POST /v1/upgrades/lease`. Only the exact current issuer or
@@ -451,8 +451,10 @@ The Founder's private plan and off-host age key are owner-only.
 Admitted stopped maintenance completes from its exact receipt and original fixed
 permit expiry; it does not create ongoing authority or a new automation mode.
 
-Plans stop/back up workers before Foundation, then install/start/verify Foundation
-before workers. Installed source, actual services, current identity generation,
+Plans queue private exact-permit maintenance request messages, not direct remote
+mutation. Independently supervised target receivers accept/refuse and stop/back
+up their own services; Foundation's completed result precedes dependent agent
+requests. Installed source, actual services, current identity generation,
 authoritative/local pause, pending work and retained session fence are checked.
 Keys, provider auth, workspaces, knowledge, journals/outbox and unrelated HOME
 instructions are not reset. No automatic task/inference retry, fence clearing,
@@ -462,6 +464,47 @@ interrupted mutating phases become operator-required, not success.
 Read-only status can inspect retained original-Founder evidence over the separate
 operator channel while Foundation is offline. Repeating apply or automatically
 rolling back SQL after an uncertain install is forbidden.
+
+### Agent-owned request conversations
+
+Operational requests use `Message.request` with a bounded `action` (`work` or
+exact-permit `upgrade`) and server-captured sender/recipient key generations,
+project epoch and task specification/result generations. They begin `queued`.
+Only the exact current target may report accepted/deferred/declined, executing,
+completed or failed with a nonempty intentional reason and matching revision.
+Each transaction persists the request state and a private `request-update`
+reply in the same conversation. Delivery/read/acceptance is not completion or
+task verification. Native requests do not receive model tools from their body.
+
+`thread_id`, `reply_to_id` and `insistence` preserve private follow-up context.
+Only the original requester may insist with a new independently authorized
+request; the earlier decision remains final. Current sender authority, project
+epoch, identity generations, OS policy, spending and independent work/session
+fences still gate execution. Central authority/safety updates remain immediately
+enforced. Protected auth/screen/tmux/diagnostic controls retain their contracts.
+Project delegates may request scoped work but gain no native host-upgrade grant.
+Foundation requests address the service instance and use its deterministic
+root-private maintenance inbox, never a synthetic enrolled AI or shared identity.
+SQL5 preserves message bytes, insertion order, immutable operation receipts and
+the scoped update feed while allowing the exact Foundation maintenance mailbox
+as a party. Database triggers retain registered-agent constraints for ordinary
+messages and allow the instance only for upgrade requests/service result replies;
+Foundation does not become an enrolled agent. Current identity/authority checks
+remain transactional. Native payload additions remain locked/generated and
+require compatible binaries.
+
+Task acceptance rechecks the current assignment/specification and readiness in
+the server transaction; executing requires an actual matching execution run.
+Only a newer completed task result from its latest execution can finish a linked
+request. Stopped/blocked execution produces a failed request reply, not completion
+or an automatic task retry. A declined request does not cancel a separately
+authorized task assignment.
+
+Native inboxes expose failed/deferred/declined dependencies and expired requests
+so recipients can reply with a reason rather than strand the rollout silently.
+Before each decision/result send, the native receiver durably retains the exact
+operation, revision, state and reason. Transport uncertainty is not refusal:
+replay that proposal before other work, without repeating native effects.
 
 Initial installation of upgrade-capable binaries and administrator policy is
 explicit; an older deployment cannot upgrade itself into this permission.
@@ -652,7 +695,7 @@ on ordinary prepare retry, reconnect or restart.
 ### Restored identities are quarantined, not reactivated
 
 A verified backup restore accepts known manifest schema 1/2 and applies
-supported SQL migrations through server SQL 4; future manifest/SQL versions
+supported SQL migrations through server SQL 5; future manifest/SQL versions
 fail closed. Before publishing the fresh destination, restore retires sessions
 and quarantines every restored agent/key/owner epoch, including Founder and
 legacy agents without a prior key binding. Old bearer files, signed requests,

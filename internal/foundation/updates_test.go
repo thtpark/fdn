@@ -618,8 +618,8 @@ func TestUpdatesMigrationFourPreservesSQLThreeState(t *testing.T) {
 	}
 	defer s.Close()
 	var version int
-	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 4 {
-		t.Fatal("ordered SQL4 migration failed", version, err)
+	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 5 {
+		t.Fatal("ordered SQL4/5 migration failed", version, err)
 	}
 	for table, hash := range before {
 		if got := securityTableHash(t, s.db, table); got != hash {

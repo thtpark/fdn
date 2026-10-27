@@ -196,14 +196,50 @@ identity/fences, verify greater source activation and exact receipt replay,
 reject busy/revoked/altered requests before service stop, and retain uncertain
 installer phases as operator-required rather than repeating external effects.
 Founder CLI tests exercise actual typed local API calls and bounded protobuf
-operator requests, worker-first preparation/Foundation-first apply, exact plan
-state, private age keys, failed mid-rollout stop and offline native status.
+operator inspection/challenges, Foundation-first queued dependencies, exact plan
+state, private age keys and offline native status. Target receivers, not the
+sender CLI, perform native preparation/install.
 
 These are source fixtures, not a live privileged Linux/macOS package rollout,
 new provider login, production signing/security certification, full-host restore,
 reboot/Windows qualification or large-fleet acceptance. Full independent source
 suites remain required. Do not mark publication, policy provisioning, Founder
 migration or deployed upgrades complete from a passing local test.
+
+## Message-first operational requests
+
+```sh
+go test -race -count=1 ./internal/foundation ./internal/work ./internal/upgrade ./internal/api ./internal/cli ./internal/identityservice ./internal/provider
+go run ./tools/protocol --check
+```
+
+Request tests cover recipient-only accepted/deferred/declined/executing/
+completed/failed decisions with reasons, private threaded update replies, no
+manufactured read/approval, immutable terminal decisions, linked independently
+authorized insistence and exact replay. Prepared request-answer replay must
+produce no extra inference or duplicate result after a lost acknowledgement.
+Upgrade CLI fixtures assert zero sender-side native prepare/install calls:
+only signed exact-permit messages are queued with Foundation-first dependencies.
+Native receiver fixtures prove target-owned accept/execute/result flow,
+revoked-authority refusal and failed-dependency defer before effects, missing
+acknowledgement rejection, exact accepted/executing/completed reply replay,
+interrupted execution without a native job, and durable pending failure delivery
+while identity transport is unavailable. Neither result replay nor restart may
+repeat installation. Task-request tests recheck assignment/specification/archive/
+readiness at server admission, require an actual run/new latest completed result,
+and report paused/blocked/failed outcomes without another inference or false
+completion. Binary API tests cover private threads, exact recipient decisions
+and denied ordinary access to Foundation maintenance. Thread tests admit exactly
+200 messages in insertion order and explicitly refuse larger views.
+
+`TestMessageRequestMigrationFivePreservesSQLFourRecordsAndUpdates` checks
+message bytes/order, mode, operations, scoped feed/cursors, private update triggers,
+ordinary enrolled-party constraints and SQL4-binary refusal. Existing migration/
+restore fixtures now advance through SQL5 without identity or state resets.
+Existing paused-mode, work/session/identity/approval fences remain required.
+Foundation's root-private receiver is not an ordinary agent API privilege.
+These fixtures do not certify live OS supervision, a message-driven production
+rollout, provider execution, reboot recovery or cross-version protocol upgrades.
 
 ## Documented test cases
 

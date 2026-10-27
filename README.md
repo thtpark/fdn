@@ -133,11 +133,14 @@ published as immutable versioned GitHub release bundles. As enrolled Founder:
 ```
 
 Checking is read-only; planning does not install. Applying requires explicit
-Founder authorization **and** separately administrator-provisioned native helper
-policy/operator access. It preserves keys/state/fences, uses encrypted cold
-snapshots, upgrades Foundation before workers, verifies actual results and leaves
-automation paused. No arbitrary root shell, model inference, sign-in or automatic
-rollback is implied. Bootstrap upgrade-capable binaries/policies once; existing
+Founder authorization and queues durable private requests to the targets; it
+does not command remote installation. Targets accept, defer or decline with a
+reason and post actual results in their message threads. A separately
+administrator-provisioned independent native request worker validates OS policy,
+preserves keys/state/fences, uses encrypted cold snapshots and verifies the exact
+release. Foundation's completed result precedes dependent agent upgrades;
+automation remains paused. No arbitrary root shell, model inference, sign-in or
+automatic rollback is implied. Bootstrap compatible binaries/policies/receivers once; existing
 deployments do not acquire this capability merely from a source change.
 See [native rollout setup and recovery](DEPLOYMENT.md#founder-controlled-native-upgrades).
 

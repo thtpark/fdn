@@ -56,8 +56,12 @@ commands.
    upgrade-capable binaries and each protected native policy/CA/operator key.
    Founder authority alone is not OS privilege. The helper accepts only exact
    bounded protobuf operations, validates the signed 15-minute proposal and
-   fresh 30-second nonce start proof, then snapshots/stops workers before
-   installing/verifying Foundation first. No ordinary message starts an update.
+   fresh 30-second nonce start proof. Upgrade apply queues exact-permit private
+   requests rather than directly mutating targets. Independently supervised
+   request-worker receivers decide and snapshot/stop their own services, then
+   install/verify and post actual results; Foundation completes before dependent
+   agents. Provision those receivers outside the units they stop. Queued or
+   accepted messages are not installation success; plain body text is not authority.
    Keep PLAN and its off-host age key private; native backups can include CA/
    identity/provider keys. Retain all original work fences and leave manual.
    A lost/failed install needs exact `upgrade status`, including when Foundation
@@ -68,7 +72,7 @@ commands.
    legacy pauses for explicit Founder reconciliation, never silent resumption.
    A restored snapshot quarantines every identity/owner/key epoch; root-private
    fresh Founder recovery retains its ID/history, then Founder reapproves regulars
-   with fresh signed keys. Manifest1/2 migration to SQL4 never reactivates old
+   with fresh signed keys. Manifest1/2 migration to SQL5 never reactivates old
    tokens/certificates, changes mode automatically or resets runner state.
    The transport cutover requires all four compatible binaries/guide; there is
    no native HTTP compatibility window. Resolve exact machines/state paths

@@ -72,6 +72,15 @@ guide includes this file, all skills, and the development references.
   uncertain review never automatically reruns external tools.
   Named approvers narrow existing authority;
   they do not acquire it. Independence means a different registered actor.
+- Coordinate operational execution through durable private message requests and
+  decision/result threads. The recipient accepts, defers or declines with a valid
+  reason, then reports actual completion/failure. An insistence is a new linked
+  request, not force, approval, expanded authority or a retry reset. Protected
+  authorization/screen/tmux/diagnostic controls retain their narrow commands;
+  central safety/authority state remains immediately enforced. Native upgrades
+  require an exact Founder permit and an independently supervised policy-bound
+  target receiver; Foundation uses its deterministic private maintenance mailbox.
+  Delivery/acceptance is not installation or independent verification.
 - Stop active operations before pausing/switching tasks. Preserve checkpoints,
   run/spec references, journals, pending reports, and uncertainty. Reconcile a
   lost response with the same operation and exact proposal. Never blindly rerun
