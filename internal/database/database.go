@@ -15,7 +15,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func Open(ctx context.Context, path string, migrations []string) (*sql.DB, error) {
+func Open(ctx context.Context, path string, migrations []string, minimumVersion int) (*sql.DB, error) {
+	if minimumVersion < 1 || minimumVersion > len(migrations) {
+		return nil, domain.Fail(domain.Invalid, "database requires a supported minimum schema version")
+	}
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -49,14 +52,14 @@ func Open(ctx context.Context, path string, migrations []string) (*sql.DB, error
 		return nil, err
 	}
 	db.SetMaxOpenConns(8)
-	if err := migrate(ctx, db, migrations); err != nil {
+	if err := migrate(ctx, db, migrations, minimumVersion); err != nil {
 		db.Close()
 		return nil, err
 	}
 	return db, nil
 }
 
-func migrate(ctx context.Context, db *sql.DB, migrations []string) error {
+func migrate(ctx context.Context, db *sql.DB, migrations []string, minimumVersion int) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -68,6 +71,9 @@ func migrate(ctx context.Context, db *sql.DB, migrations []string) error {
 	}
 	if version > len(migrations) {
 		return domain.Fail(domain.Prerequisite, "database schema is newer than this binary; upgrade without resetting state")
+	}
+	if version != 0 && version < minimumVersion {
+		return domain.Fail(domain.Prerequisite, "database schema predates the supported baseline; use a current-format database without resetting retained state")
 	}
 	for i := version; i < len(migrations); i++ {
 		if _, err := tx.ExecContext(ctx, migrations[i]); err != nil {

@@ -8,6 +8,18 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 )
 
+func setFixtureName(t *testing.T, f *fixture, agent domain.Agent, name string) {
+	t.Helper()
+	agent.Name = name
+	data, err := encode(agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.s.db.Exec("UPDATE agents SET data=? WHERE id=?", data, agent.ID); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAgentNameMentionsResolveOnceAndRetainBodyGenerationFences(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
@@ -22,7 +34,7 @@ func TestAgentNameMentionsResolveOnceAndRetainBodyGenerationFences(t *testing.T)
 	if err != nil || len(pending.Items) != 1 || pending.Items[0].EntryID != entry.ID {
 		t.Fatal("name mention did not create exactly one attention item", pending, err)
 	}
-	f.enroll(t, "FOUNDER")
+	setFixtureName(t, f, f.enroll(t, "duplicate-founder"), "FOUNDER")
 	replay, err := f.s.CreateEntry(ctx, f.worker.ID, task.ID, request)
 	if err != nil || replay.ID != entry.ID || !slices.Equal(replay.Mentions, entry.Mentions) {
 		t.Fatal("replay re-resolved a name instead of returning the original receipt", replay, err)
@@ -57,7 +69,7 @@ func TestAgentNameMentionsRejectUnknownAmbiguousAndInactiveNamesAtomically(t *te
 	ctx := context.Background()
 	f := newFixture(t)
 	task := f.ready(t)
-	f.enroll(t, "FOUNDER")
+	setFixtureName(t, f, f.enroll(t, "duplicate-founder"), "FOUNDER")
 	for _, body := range []string{"Unknown @{missing}", "Ambiguous @{founder}"} {
 		before, err := f.s.Task(ctx, f.worker.ID, task.ID)
 		if err != nil {
@@ -95,7 +107,8 @@ func TestAgentNameMentionsRejectUnknownAmbiguousAndInactiveNamesAtomically(t *te
 func TestAgentNameMentionsSupportSpacedNamesAndWorklogSemantics(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
-	agent, _ := f.enroll(t, "Agent One")
+	agent := f.enroll(t, "Agent-One")
+	setFixtureName(t, f, agent, "Agent One")
 	task := f.ready(t)
 	entry, err := f.s.CreateEntry(ctx, f.worker.ID, task.ID, domain.EntryRequest{Command: op(), Kind: "worklog", Body: "Discussed with @{agent one}."})
 	if err != nil || !slices.Equal(entry.Mentions, []string{agent.ID}) {

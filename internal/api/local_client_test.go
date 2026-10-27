@@ -49,7 +49,7 @@ func TestLocalClientNeedsOnlyUnixSocketAndNeverLoadsBearer(t *testing.T) {
 	}()
 	defer func() { cancel(); listener.Close(); <-done }()
 	client, err := NewLocalClient(config.Worker{IdentitySocket: socket, CredentialFile: filepath.Join(root, "does-not-exist"), URL: "https://127.0.0.1:1"})
-	if err != nil || client.Credential.Token != "" || !client.Local || !client.IsMessageClient() || client.HTTP != nil {
+	if err != nil || !client.Local || !client.IsMessageClient() || client.HTTP != nil {
 		t.Fatal(client, err)
 	}
 	defer client.Close()

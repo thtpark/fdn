@@ -35,7 +35,7 @@ func CheckNativeAccount(c config.IdentityService) error {
 		return err
 	}
 	if os.Geteuid() == 0 || os.Getuid() != os.Geteuid() || c.WorkerUID != os.Geteuid() || c.WorkerGID != os.Getegid() {
-		return domain.Fail(domain.Denied, "identity service and worker must run as the same existing non-root user; legacy split-account state needs explicit migration, not account creation or automatic key transfer")
+		return domain.Fail(domain.Denied, "identity service and worker must run as the same existing non-root user")
 	}
 	return nil
 }

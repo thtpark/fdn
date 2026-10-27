@@ -30,7 +30,6 @@ func TestScreenProfilesAreBoundedLocalAndExplicit(t *testing.T) {
 		{"duplicate-screen", func(c *Worker) { c.Screens = append(c.Screens, c.Screens[0]) }},
 		{"path-id", func(c *Worker) { c.Screens[0].ID = "../screen" }},
 		{"oversized-id", func(c *Worker) { c.Screens[0].ID = strings.Repeat("a", 65) }},
-		{"reserved-id", func(c *Worker) { c.Screens[0].ID = "legacy-desktop" }},
 		{"private-label", func(c *Worker) { c.Screens[0].Name = "/home/runner" }},
 		{"control-label", func(c *Worker) { c.Screens[0].Name = "screen\nlabel" }},
 		{"oversized-label", func(c *Worker) { c.Screens[0].Name = strings.Repeat("a", 129) }},
@@ -147,8 +146,8 @@ func TestScreenConfigRoundtripRetainsLocalSourceOnly(t *testing.T) {
 	}
 	legacy := DefaultWorker(t.TempDir())
 	legacy.VNCAddress, legacy.VNCVerified = "localhost:5900", true
-	if err := legacy.Validate(); err != nil {
-		t.Fatal("old VNC fields no longer load", err)
+	if err := legacy.Validate(); err == nil {
+		t.Fatal("removed per-worker VNC fields were accepted")
 	}
 }
 

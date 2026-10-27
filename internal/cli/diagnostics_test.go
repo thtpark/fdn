@@ -215,10 +215,6 @@ func TestDiagnosticsCLIRequiresExistingEnrollment(t *testing.T) {
 				t.Fatal(err)
 			}
 			call(file, domain.Prerequisite)
-			if err := config.Write(worker.CredentialFile, config.Credential{AgentID: domain.NewID("agent"), Token: "fixture-retired-token"}); err != nil {
-				t.Fatal(err)
-			}
-			call(file, domain.Prerequisite)
 			if err := config.Write(worker.CredentialFile, config.Credential{AgentID: domain.NewID("agent")}); err != nil {
 				t.Fatal(err)
 			}

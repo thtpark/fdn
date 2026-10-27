@@ -171,8 +171,8 @@ func TestNativeFoundationInitPublicIdentityAndExactSagaReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal("pending initialization did not persist configuration", err)
 	}
-	if c.Listen != "" {
-		t.Fatal("secure init retained TCP", c.Listen)
+	if c.IngressSocket == "" || c.JoinSocket == "" {
+		t.Fatal("secure init omitted Unix ingress")
 	}
 	ca, err := os.ReadFile(filepath.Join(c.StateDir, "ca.pem"))
 	if err != nil {
@@ -261,7 +261,10 @@ func TestNativeFoundationRejectsLegacyInitAndUnboundProvisionResults(t *testing.
 	if _, err := fixture.app.foundation(context.Background(), []string{"bootstrap", "--output", "unused"}); err == nil {
 		t.Fatal("bearer bootstrap leaf retained")
 	}
-	legacy := config.Server{StateDir: filepath.Join(fixture.root, "old"), Listen: "127.0.0.1:8443", CertFile: filepath.Join(fixture.root, "old", "server.pem"), KeyFile: filepath.Join(fixture.root, "old", "server-key.pem")}
+	legacy := struct {
+		config.Server
+		Listen string `json:"listen"`
+	}{Server: config.Server{StateDir: filepath.Join(fixture.root, "old"), CertFile: filepath.Join(fixture.root, "old", "server.pem"), KeyFile: filepath.Join(fixture.root, "old", "server-key.pem")}, Listen: "127.0.0.1:8443"}
 	if err := config.Write(fixture.app.configFile, legacy); err != nil {
 		t.Fatal(err)
 	}

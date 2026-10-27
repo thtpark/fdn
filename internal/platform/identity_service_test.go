@@ -86,10 +86,8 @@ func TestIdentityServiceUserDefaultsIgnoreClaimedEnvironment(t *testing.T) {
 	}
 }
 
-func TestIdentityNativePlanningRejectsLegacyAccountsAndUnsafePaths(t *testing.T) {
+func TestIdentityNativePlanningRejectsUnsafePaths(t *testing.T) {
 	cases := map[string]func(*IdentityServiceOptions){
-		"legacy-identity":     func(o *IdentityServiceOptions) { o.IdentityUser = "fdni_agent1" },
-		"legacy-worker":       func(o *IdentityServiceOptions) { o.WorkerUID = o.UID },
 		"root":                func(o *IdentityServiceOptions) { o.UID = 0 },
 		"foreign-system-unit": func(o *IdentityServiceOptions) { o.IdentityDefinition = "/etc/systemd/system/identity.service" },
 		"foreign-config":      func(o *IdentityServiceOptions) { o.IdentityConfig = "/another/home/identity.json" },
@@ -106,7 +104,7 @@ func TestIdentityNativePlanningRejectsLegacyAccountsAndUnsafePaths(t *testing.T)
 			o := identityOptions()
 			mutate(&o)
 			if _, err := RenderIdentityServices(o); err == nil {
-				t.Fatal("unsafe or legacy service plan was accepted")
+				t.Fatal("unsafe service plan was accepted")
 			}
 		})
 	}

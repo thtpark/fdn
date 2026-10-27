@@ -46,12 +46,13 @@ func securityTableHash(t *testing.T, q queryer, table string) string {
 	return domain.Hash(contents.String())
 }
 
-func TestSecurityLegacyFounderAdoptionAfterOrderedMigration(t *testing.T) {
-	for _, version := range []int{1, 2} {
+func TestSecurityRejectsPrebaselineDatabasesWithoutChangingRecords(t *testing.T) {
+	for _, version := range []int{1, 2, 3, 4} {
 		t.Run(fmt.Sprintf("sql-version-%d", version), func(t *testing.T) {
 			ctx := context.Background()
 			path := filepath.Join(securityDirectory(t), "private", "legacy.sqlite")
-			db, err := database.Open(ctx, path, []string{schema, autonomousSchema}[:version])
+			migrations := []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema}[:version]
+			db, err := database.Open(ctx, path, migrations, 1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -78,49 +79,23 @@ func TestSecurityLegacyFounderAdoptionAfterOrderedMigration(t *testing.T) {
 				t.Fatal(err)
 			}
 			store, err := Open(ctx, path)
+			if store != nil {
+				store.Close()
+				t.Fatal("prebaseline state was adopted")
+			}
+			assertCode(t, err, domain.Prerequisite)
+			probe, err := database.Open(ctx, path, migrations, 1)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer store.Close()
-			var currentVersion int
-			if err := store.db.QueryRow("PRAGMA user_version").Scan(&currentVersion); err != nil || currentVersion != 5 {
-				t.Fatal("legacy schema did not migrate in order", currentVersion, err)
-			}
-			_, err = store.Identity(ctx, founder.ID)
-			assertCode(t, err, domain.NotFound)
-			keys := securityPublic(t, "fresh root-local adoption")
-			bad := keys.public
-			bad.AuthProof = "missing proof"
-			_, err = store.RecoverFounderOffline(ctx, domain.RecoverIdentityRequest{Command: op(), Reason: "root-local first-upgrade adoption", Identity: bad})
-			assertCode(t, err, domain.Invalid)
-			_, err = store.Identity(ctx, founder.ID)
-			assertCode(t, err, domain.NotFound)
-			req := domain.RecoverIdentityRequest{Command: op(), Reason: "root-local first-upgrade adoption", Identity: keys.public}
-			identity, err := store.RecoverFounderOffline(ctx, req)
-			if err != nil || identity.AgentID != founder.ID || identity.State != "pending" || identity.UID != -1 || identity.Generation != 1 {
-				t.Fatal("root adoption did not bind the designated existing Founder", identity, err)
-			}
-			_, err = store.Authenticate(ctx, legacyToken)
-			assertCode(t, err, domain.Denied)
-			replay, err := store.RecoverFounderOffline(ctx, req)
-			if err != nil || replay != identity {
-				t.Fatal("root adoption replay changed identity", err)
-			}
-			identity, _ = securityActivate(t, store, identity, keys, 5100)
-			active, err := store.Me(ctx, founder.ID)
-			if err != nil || !active.Founder || !active.Active || active.Name != founder.Name || active.CreatedAt != founder.CreatedAt || active.Mode != "manual" {
-				t.Fatal("root adoption replaced identity or role/history", active, err)
-			}
-			var count int
-			if err := store.db.QueryRow("SELECT count(*) FROM agents WHERE json_extract(data,'$.founder')=1").Scan(&count); err != nil || count != 1 {
-				t.Fatal("root adoption created a second Founder", count, err)
+			defer probe.Close()
+			var retainedVersion int
+			if err := probe.QueryRow("PRAGMA user_version").Scan(&retainedVersion); err != nil || retainedVersion != version {
+				t.Fatal("rejection changed the database schema", retainedVersion, err)
 			}
 			var fingerprint string
-			if err := store.db.QueryRow("SELECT fingerprint FROM operations WHERE actor_id=? AND operation_id=?", founder.ID, oldOperation).Scan(&fingerprint); err != nil || fingerprint != domain.Hash("retained original operation") {
-				t.Fatal("root adoption erased immutable operations", err)
-			}
-			if _, err := store.ValidateCertificate(ctx, identity.UID, securityCertificate(identity, "device"), keys.auth.Public()); err != nil {
-				t.Fatal("fresh adopted Founder cannot authenticate", err)
+			if err := probe.QueryRow("SELECT fingerprint FROM operations WHERE actor_id=? AND operation_id=?", founder.ID, oldOperation).Scan(&fingerprint); err != nil || fingerprint != domain.Hash("retained original operation") {
+				t.Fatal("rejection changed retained operation evidence", err)
 			}
 		})
 	}
@@ -129,18 +104,17 @@ func TestSecurityLegacyFounderAdoptionAfterOrderedMigration(t *testing.T) {
 func TestSecurityRestoredSnapshotQuarantineRequiresFreshRecovery(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
-	founderKeys := securityPublic(t, "Founder fixture keys")
-	founder, err := f.s.RegisterIdentity(ctx, f.founder.ID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: f.founder.ID, Identity: founderKeys.public})
+	founderKeys := f.keys[f.founder.ID]
+	founder, err := f.s.Identity(ctx, f.founder.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	founder, _ = securityActivate(t, f.s, founder, founderKeys, 5100)
-	workerKeys := securityPublic(t, "worker fixture keys")
-	worker, err := f.s.RegisterIdentity(ctx, f.founder.ID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: f.worker.ID, Identity: workerKeys.public})
+	workerKeys := f.keys[f.worker.ID]
+	worker, err := f.s.Identity(ctx, f.worker.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	worker, activation := securityActivate(t, f.s, worker, workerKeys, 5101)
+	activation := f.activations[f.worker.ID]
 	owner := securityPublic(t, "worker owner")
 	worker, err = f.s.SetIdentityOwner(ctx, worker.AgentID, owner.public.AuthKey, worker.Generation)
 	if err != nil {
@@ -196,16 +170,13 @@ func TestSecurityRestoredSnapshotQuarantineRequiresFreshRecovery(t *testing.T) {
 		if err != nil || agent.Active || identity.State != identityRestorePending || identity.OwnerKey != "" {
 			t.Fatal("restored authority remained provisionable or active", identity.AgentID, err)
 		}
-		if identity.AgentID == f.other.ID && (identity.UID != -1 || identity.SSHKey != "" || identity.AuthKey != "") {
-			t.Fatal("legacy quarantine manufactured approved keys")
-		}
 	}
 	quarantined, err := restored.Identity(ctx, worker.AgentID)
 	if err != nil || quarantined.Generation != worker.Generation+1 || quarantined.OwnerGeneration != worker.OwnerGeneration+1 || quarantined.UID != worker.UID {
 		t.Fatal("restore did not retire all epochs and retain account reservation", quarantined, err)
 	}
 	var retired, challenges int
-	if err := restored.db.QueryRow("SELECT count(*) FROM identity_keys WHERE retired=1").Scan(&retired); err != nil || retired != 4 {
+	if err := restored.db.QueryRow("SELECT count(*) FROM identity_keys WHERE retired=1").Scan(&retired); err != nil || retired != 6 {
 		t.Fatal("restored key tombstones disappeared", retired, err)
 	}
 	if err := restored.db.QueryRow("SELECT count(*) FROM identity_challenges").Scan(&challenges); err != nil || challenges != 0 {
@@ -220,9 +191,9 @@ func TestSecurityRestoredSnapshotQuarantineRequiresFreshRecovery(t *testing.T) {
 			t.Fatal("repeated quarantine changed an already retired epoch")
 		}
 	}
-	_, err = restored.Authenticate(ctx, f.founderToken)
+	_, err = restored.Me(ctx, f.founder.ID)
 	assertCode(t, err, domain.Denied)
-	_, err = restored.Authenticate(ctx, f.workerToken)
+	_, err = restored.Me(ctx, f.worker.ID)
 	assertCode(t, err, domain.Denied)
 	_, err = restored.ValidateCertificate(ctx, founder.UID, securityCertificate(founder, "device"), founderKeys.auth.Public())
 	assertCode(t, err, domain.Denied)
@@ -272,12 +243,12 @@ func TestSecurityRestoredSnapshotQuarantineRequiresFreshRecovery(t *testing.T) {
 		t.Fatal("Founder could not recover quarantined worker", recoveredWorker, err)
 	}
 	recoveredWorker, _ = securityActivate(t, restored, recoveredWorker, freshWorker, worker.UID)
-	freshLegacy := securityPublic(t, "fresh legacy migration")
-	migrated, err := restored.RegisterIdentity(founderCtx, founder.AgentID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: f.other.ID, Identity: freshLegacy.public})
+	freshOther := securityPublic(t, "fresh-other-recovery")
+	migrated, err := restored.RecoverIdentity(founderCtx, founder.AgentID, f.other.ID, domain.RecoverIdentityRequest{Command: op(), Reason: "explicit restored identity recovery", Identity: freshOther.public})
 	if err != nil || migrated.AgentID != f.other.ID || migrated.State != "pending" || migrated.UID != -1 {
-		t.Fatal("explicit Founder migration rejected quarantined legacy agent", migrated, err)
+		t.Fatal("explicit Founder recovery rejected quarantined identity", migrated, err)
 	}
-	migrated, _ = securityActivate(t, restored, migrated, freshLegacy, 5102)
+	migrated, _ = securityActivate(t, restored, migrated, freshOther, 4102)
 	for _, identity := range []domain.AgentIdentity{recoveredFounder, recoveredWorker, migrated} {
 		agent, err := restored.Me(ctx, identity.AgentID)
 		if err != nil || !agent.Active || agent.Founder != (identity.AgentID == founder.AgentID) {
@@ -295,7 +266,7 @@ func TestSecurityRestoredSnapshotQuarantineRequiresFreshRecovery(t *testing.T) {
 	}
 }
 
-func TestSecurityRestoredRegisteredMigrationPreservesBansAndRetiredKeys(t *testing.T) {
+func TestSecurityRestoredRecoveryPreservesBansAndRetiredKeys(t *testing.T) {
 	ctx := context.Background()
 	f := newSecurityFixture(t)
 	worker, keys, _ := f.register(t, "worker", 5101)
@@ -313,15 +284,17 @@ func TestSecurityRestoredRegisteredMigrationPreservesBansAndRetiredKeys(t *testi
 	}
 	founder, _ = securityActivate(t, f.s, founder, freshFounder, f.founder.UID)
 	founderCtx := securityOwnerContext(t, f.s, founder)
-	_, err = f.s.RegisterIdentity(founderCtx, founder.AgentID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: worker.AgentID, Identity: keys.public})
+	_, err = f.s.RecoverIdentity(founderCtx, founder.AgentID, worker.AgentID, domain.RecoverIdentityRequest{Command: op(), Reason: "retired key must not be reused", Identity: keys.public})
 	assertCode(t, err, domain.Conflict)
 	fresh := securityPublic(t, "fresh worker migration")
-	worker, err = f.s.RegisterIdentity(founderCtx, founder.AgentID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: worker.AgentID, Identity: fresh.public})
+	worker, err = f.s.RecoverIdentity(founderCtx, founder.AgentID, worker.AgentID, domain.RecoverIdentityRequest{Command: op(), Reason: "explicit restored worker recovery", Identity: fresh.public})
 	if err != nil || worker.State != "pending" || worker.UID != -1 || worker.Generation != 3 {
 		t.Fatal("registered restore migration did not require fresh pending keys", worker, err)
 	}
-	_, err = f.s.RegisterIdentity(founderCtx, founder.AgentID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: banned.AgentID, Identity: securityPublic(t, "ban bypass").public})
-	assertCode(t, err, domain.Denied)
+	quarantinedBan, err := get[domain.Agent](ctx, f.s.db, "agents", banned.AgentID)
+	if err != nil || !quarantinedBan.Banned {
+		t.Fatal("restore recovery silently removed another identity's ban", err)
+	}
 	retained, err := get[domain.Agent](ctx, f.s.db, "agents", banned.AgentID)
 	if err != nil || !retained.Banned || retained.Active || retained.BanReason != "retained explicit ban" {
 		t.Fatal("restore or migration cleared an explicit ban", retained, err)
@@ -362,67 +335,16 @@ BEGIN SELECT RAISE(ABORT,'fixture quarantine failure'); END`); err != nil {
 	}
 }
 
-func TestSecurityLegacySnapshotQuarantineRequiresFounderApprovedMigration(t *testing.T) {
+func TestSecurityQuarantineRejectsMissingCurrentIdentityAtomically(t *testing.T) {
 	ctx := context.Background()
-	path := filepath.Join(securityDirectory(t), "private", "legacy-snapshot.sqlite")
-	db, err := database.Open(ctx, path, []string{schema})
-	if err != nil {
+	f := newSecurityFixture(t)
+	if _, err := f.s.db.Exec("DELETE FROM agent_identities WHERE id=?", f.founder.AgentID); err != nil {
 		t.Fatal(err)
 	}
-	founder := domain.Agent{ID: domain.NewID("agent"), Name: "retained Founder", Founder: true, Active: true, CreatedAt: 101}
-	worker := domain.Agent{ID: domain.NewID("agent"), Name: "retained worker", Active: true, CreatedAt: 102}
-	tokens := map[string]string{}
-	for _, agent := range []domain.Agent{founder, worker} {
-		data, _ := encode(agent)
-		tokens[agent.ID] = domain.NewToken()
-		if _, err := db.Exec("INSERT INTO agents(id,data,credential_hash,active) VALUES(?,?,?,1)", agent.ID, data, domain.Hash(tokens[agent.ID])); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := db.Close(); err != nil {
-		t.Fatal(err)
-	}
-	store, err := Open(ctx, path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	if err := store.QuarantineRestoredIdentities(ctx); err != nil {
-		t.Fatal(err)
-	}
-	managed, err := store.ManagedIdentities(ctx)
-	if err != nil || len(managed) != 2 {
-		t.Fatal("legacy restored agents have no explicit quarantine state", err)
-	}
-	for _, identity := range managed {
-		if identity.State != identityRestorePending || identity.UID != -1 || identity.SSHKey != "" || identity.AuthKey != "" {
-			t.Fatal("keyless legacy snapshot became automatically provisionable", identity.AgentID)
-		}
-		_, err := store.Authenticate(ctx, tokens[identity.AgentID])
-		assertCode(t, err, domain.Denied)
-	}
-	keys := securityPublic(t, "fresh root-maintenance keys")
-	identity, err := store.RecoverFounderOffline(ctx, domain.RecoverIdentityRequest{Command: op(), Reason: "explicit legacy restore adoption", Identity: keys.public})
-	if err != nil || identity.AgentID != founder.ID || identity.State != "pending" || identity.UID != -1 {
-		t.Fatal("quarantined keyless Founder could not be adopted", identity, err)
-	}
-	identity, _ = securityActivate(t, store, identity, keys, 5200)
-	founderCtx := securityOwnerContext(t, store, identity)
-	_, err = store.Authenticate(ctx, tokens[worker.ID])
-	assertCode(t, err, domain.Denied)
-	freshWorker := securityPublic(t, "Founder-approved restored worker")
-	migrated, err := store.RegisterIdentity(founderCtx, founder.ID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: worker.ID, Identity: freshWorker.public})
-	if err != nil || migrated.AgentID != worker.ID || migrated.State != "pending" || migrated.UID != -1 {
-		t.Fatal("explicit legacy migration did not remain pending", migrated, err)
-	}
-	_, err = store.Authenticate(ctx, tokens[worker.ID])
-	assertCode(t, err, domain.Denied)
-	migrated, _ = securityActivate(t, store, migrated, freshWorker, 5201)
-	active, err := store.Me(ctx, worker.ID)
-	if err != nil || !active.Active || active.Founder || active.Name != worker.Name || active.CreatedAt != worker.CreatedAt {
-		t.Fatal("approved migration replaced a legacy identity or its role/history", active, err)
-	}
-	if _, err := store.ValidateCertificate(ctx, migrated.UID, securityCertificate(migrated, "device"), freshWorker.auth.Public()); err != nil {
-		t.Fatal(err)
+	before := securityTableHash(t, f.s.db, "agents")
+	err := f.s.QuarantineRestoredIdentities(ctx)
+	assertCode(t, err, domain.NotFound)
+	if after := securityTableHash(t, f.s.db, "agents"); after != before {
+		t.Fatal("failed current-format quarantine partially changed agents")
 	}
 }

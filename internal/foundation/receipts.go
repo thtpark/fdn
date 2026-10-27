@@ -34,8 +34,6 @@ func resultReceipt(value any) ([]byte, error) {
 			return nil, err
 		}
 		ref = storedResult{Kind: "agent-status", ID: v.Receipt.AgentID, Value: data}
-	case domain.Invitation:
-		ref = storedResult{Kind: "invitations", ID: v.ID}
 	case domain.Project:
 		ref = storedResult{Kind: "projects", ID: v.ID}
 	case domain.Task:
@@ -91,8 +89,6 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, actor string, data []b
 		value, err = get[domain.Agent](ctx, tx, ref.Kind, ref.ID)
 	case "agent-status":
 		value, err = replayAgentStatus(ctx, tx, actor, ref)
-	case "invitations":
-		value, err = get[domain.Invitation](ctx, tx, ref.Kind, ref.ID)
 	case "projects":
 		value, err = get[domain.Project](ctx, tx, ref.Kind, ref.ID)
 	case "tasks":

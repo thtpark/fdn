@@ -213,12 +213,12 @@ func (s *Store) RecoverIdentity(ctx context.Context, activeFounder, id string, r
 		if !founder.Founder || founder.Banned {
 			return domain.AgentIdentity{}, domain.Fail(domain.Denied, "only active Founder may recover an identity")
 		}
-		return s.recoverIdentity(ctx, tx, activeFounder, id, req, false)
+		return s.recoverIdentity(ctx, tx, activeFounder, id, req)
 	})
 }
 
 // RecoverFounderOffline requires the caller's root-only local maintenance boundary.
-// It adopts or recovers the sole existing Founder without bearer proof or a reset.
+// It recovers the sole enrolled Founder without resetting its state.
 func (s *Store) RecoverFounderOffline(ctx context.Context, req domain.RecoverIdentityRequest) (domain.AgentIdentity, error) {
 	return s.identityMutation(ctx, "identity-founder-offline", "identity.founder-recover", req.Command, req, func(tx *sql.Tx) (domain.AgentIdentity, error) {
 		rows, err := tx.QueryContext(ctx, "SELECT id FROM agents WHERE json_extract(data,'$.founder')=1 ORDER BY id")
@@ -242,11 +242,11 @@ func (s *Store) RecoverFounderOffline(ctx context.Context, req domain.RecoverIde
 		if len(ids) != 1 {
 			return domain.AgentIdentity{}, domain.Fail(domain.Denied, "offline recovery requires exactly one existing Founder")
 		}
-		return s.recoverIdentity(ctx, tx, "identity-founder-offline", ids[0], req, true)
+		return s.recoverIdentity(ctx, tx, "identity-founder-offline", ids[0], req)
 	})
 }
 
-func (s *Store) recoverIdentity(ctx context.Context, tx *sql.Tx, actor, id string, req domain.RecoverIdentityRequest, allowLegacyFounder bool) (domain.AgentIdentity, error) {
+func (s *Store) recoverIdentity(ctx context.Context, tx *sql.Tx, actor, id string, req domain.RecoverIdentityRequest) (domain.AgentIdentity, error) {
 	if err := domain.CheckText(req.Reason, "identity recovery reason", 2048, true); err != nil {
 		return domain.AgentIdentity{}, err
 	}
@@ -265,18 +265,11 @@ func (s *Store) recoverIdentity(ctx context.Context, tx *sql.Tx, actor, id strin
 	}
 	identity, err := get[domain.AgentIdentity](ctx, tx, "agent_identities", id)
 	if err != nil {
-		if !allowLegacyFounder || !agent.Founder || domain.AsFault(err).Code != domain.NotFound {
-			return domain.AgentIdentity{}, err
-		}
-		identity, err = s.newIdentity(ctx, tx, agent, req.Identity, actor)
-		if err != nil {
-			return domain.AgentIdentity{}, err
-		}
-	} else {
-		identity, err = s.replaceIdentityKeys(ctx, tx, identity, req.Identity, actor)
-		if err != nil {
-			return domain.AgentIdentity{}, err
-		}
+		return domain.AgentIdentity{}, err
+	}
+	identity, err = s.replaceIdentityKeys(ctx, tx, identity, req.Identity, actor)
+	if err != nil {
+		return domain.AgentIdentity{}, err
 	}
 	agent.Active, agent.Banned, agent.BanReason = false, false, ""
 	agent.Screens = nil

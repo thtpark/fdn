@@ -40,7 +40,7 @@ func probe(ctx context.Context, profile config.Screen) (rectangle, bool, error) 
 		return rectangle{}, false, nil
 	}
 	if profile.Scope == "desktop" {
-		if profile.ID != LegacyDesktopID && (desktop.Width != profile.Width || desktop.Height != profile.Height) {
+		if desktop.Width != profile.Width || desktop.Height != profile.Height {
 			return rectangle{}, false, domain.Fail(domain.Prerequisite, "existing desktop geometry does not match the verified fallback profile")
 		}
 		return desktop, true, nil
@@ -219,7 +219,7 @@ func macGeometry(profile config.Screen, screens []macMonitor) (rectangle, bool, 
 	}
 	if profile.Scope == "desktop" && present {
 		desktop := rectangle{minX, minY, maxX - minX, maxY - minY}
-		if desktop.Width > 32768 || desktop.Height > 32768 || (profile.ID != LegacyDesktopID && (profile.Width != desktop.Width || profile.Height != desktop.Height)) {
+		if desktop.Width > 32768 || desktop.Height > 32768 || profile.Width != desktop.Width || profile.Height != desktop.Height {
 			return rectangle{}, false, domain.Fail(domain.Prerequisite, "native desktop dimensions do not match the verified whole-desktop backend")
 		}
 		return desktop, true, nil

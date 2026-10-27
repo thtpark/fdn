@@ -178,8 +178,6 @@ func TestSecurityBootstrapRegistrationAndFounderOnlyPolicy(t *testing.T) {
 	if err := f.s.db.QueryRow("SELECT credential_hash FROM agents WHERE id=?", founder.AgentID).Scan(&placeholder); err != nil || !domain.ValidHash(placeholder) {
 		t.Fatal("missing unique unusable placeholder", err)
 	}
-	_, err = f.s.Authenticate(ctx, placeholder)
-	assertCode(t, err, domain.Denied)
 	workerKeys := securityPublic(t, "worker")
 	req := domain.RegisterIdentityRequest{Command: op(), Identity: workerKeys.public}
 	worker, err := f.s.RegisterIdentity(ctx, founder.AgentID, req)
@@ -211,8 +209,6 @@ func TestSecurityBootstrapRegistrationAndFounderOnlyPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = f.s.RegisterIdentity(ctx, worker.AgentID, domain.RegisterIdentityRequest{Command: op(), Identity: securityPublic(t, "unauthorized").public})
-	assertCode(t, err, domain.Denied)
-	_, err = f.s.Invite(ctx, worker.AgentID, domain.InvitationRequest{Command: op(), TokenHash: domain.Hash(domain.NewToken()), ExpiresAt: f.now.Unix() + 60})
 	assertCode(t, err, domain.Denied)
 	pendingKeys := securityPublic(t, "another pending")
 	if _, err := f.s.RegisterIdentity(ctx, founder.AgentID, domain.RegisterIdentityRequest{Command: op(), Identity: pendingKeys.public}); err != nil {
@@ -500,10 +496,10 @@ func TestSecurityUIDRequestAndCanonicalKeyRaces(t *testing.T) {
 	}
 }
 
-func TestSecurityMigrationPreservesVersionTwoRecordsAndExplicitMigration(t *testing.T) {
+func TestSecurityBaselineRejectionPreservesVersionTwoRecords(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(securityDirectory(t), "private", "foundation.sqlite")
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema})
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -541,61 +537,40 @@ func TestSecurityMigrationPreservesVersionTwoRecordsAndExplicitMigration(t *test
 		t.Fatal(err)
 	}
 	store, err := Open(ctx, path)
+	if store != nil {
+		store.Close()
+		t.Fatal("prebaseline server state was adopted")
+	}
+	assertCode(t, err, domain.Prerequisite)
+	probe, err := database.Open(ctx, path, []string{schema, autonomousSchema}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer store.Close()
+	defer probe.Close()
 	var version int
-	if err := store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 5 {
-		t.Fatal("server did not append migrations three and four", version, err)
+	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 2 {
+		t.Fatal("rejection changed the retained schema", version, err)
 	}
 	for id, previous := range oldData {
 		var data string
-		if err := store.db.QueryRow("SELECT data FROM agents WHERE id=?", id).Scan(&data); err != nil || data != previous {
-			t.Fatal("migration rewrote operational identity", id, err)
+		if err := probe.QueryRow("SELECT data FROM agents WHERE id=?", id).Scan(&data); err != nil || data != previous {
+			t.Fatal("rejection rewrote retained identity", id, err)
 		}
 	}
 	var retained, fingerprint string
-	if err := store.db.QueryRow("SELECT value FROM settings WHERE key='retained-setting'").Scan(&retained); err != nil || retained != "retained-value" {
-		t.Fatal("migration erased service settings", err)
+	if err := probe.QueryRow("SELECT value FROM settings WHERE key='retained-setting'").Scan(&retained); err != nil || retained != "retained-value" {
+		t.Fatal("rejection erased service settings", err)
 	}
-	if err := store.db.QueryRow("SELECT fingerprint FROM operations WHERE actor_id=? AND operation_id=?", founder.ID, originalOp).Scan(&fingerprint); err != nil || fingerprint != domain.Hash("old immutable proposal") {
-		t.Fatal("migration erased operation fingerprints", err)
+	if err := probe.QueryRow("SELECT fingerprint FROM operations WHERE actor_id=? AND operation_id=?", founder.ID, originalOp).Scan(&fingerprint); err != nil || fingerprint != domain.Hash("old immutable proposal") {
+		t.Fatal("rejection erased operation fingerprints", err)
 	}
-	if _, err := store.Authenticate(ctx, workerToken); err != nil {
-		t.Fatal("legacy fixture helper records did not survive", err)
-	}
-	_, err = store.BootstrapIdentity(ctx, securityPublic(t, "new Founder").public, op().OperationID)
-	assertCode(t, err, domain.Conflict)
-	keys := securityPublic(t, "verified migration request")
-	migrated, err := store.RegisterIdentity(ctx, founder.ID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: worker.ID, Identity: keys.public})
-	if err != nil || migrated.AgentID != worker.ID || migrated.State != "pending" || migrated.UID != -1 {
-		t.Fatal("explicit verified migration did not bind retained agent", migrated, err)
-	}
-	var credential string
-	if err := store.db.QueryRow("SELECT credential_hash FROM agents WHERE id=?", worker.ID).Scan(&credential); err != nil || credential != domain.Hash(workerToken) {
-		t.Fatal("explicit migration replaced legacy fixture credentials", err)
-	}
-	migrated, _ = securityActivate(t, store, migrated, keys, 4301)
-	got, err := store.Me(ctx, worker.ID)
-	if err != nil || got.Name != worker.Name || got.CreatedAt != worker.CreatedAt || got.Mode != worker.Mode || got.Founder {
-		t.Fatal("migration changed retained agent properties", got, err)
-	}
-	if _, err := store.Project(ctx, worker.ID, project.ID); err != nil {
-		t.Fatal("migration lost application state", err)
-	}
-	_, err = store.RegisterIdentity(ctx, founder.ID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: worker.ID, Identity: securityPublic(t, "migration is not recovery").public})
-	assertCode(t, err, domain.Conflict)
 	var historyReason string
-	if err := store.db.QueryRow("SELECT reason FROM histories WHERE source_id=?", project.ID).Scan(&historyReason); err != nil || historyReason != "retained rationale" {
-		t.Fatal("migration erased history", err)
-	}
-	if err := store.Check(ctx); err != nil {
-		t.Fatal(err)
+	if err := probe.QueryRow("SELECT reason FROM histories WHERE source_id=?", project.ID).Scan(&historyReason); err != nil || historyReason != "retained rationale" {
+		t.Fatal("rejection erased history", err)
 	}
 }
 
-func TestSecurityOfflineRecoveryOfLegacyFounderAndFutureSchema(t *testing.T) {
+func TestSecurityOfflineRecoveryOfEnrolledFounderAndFutureSchema(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
 	if err := f.s.BanIdentity(ctx, f.founder.ID, "explicit legacy Founder ban"); err != nil {
@@ -606,13 +581,13 @@ func TestSecurityOfflineRecoveryOfLegacyFounderAndFutureSchema(t *testing.T) {
 	if err != nil || identity.AgentID != f.founder.ID || identity.State != "pending" {
 		t.Fatal("legacy Founder recovery created another identity", identity, err)
 	}
-	identity, _ = securityActivate(t, f.s, identity, keys, 4400)
+	identity, _ = securityActivate(t, f.s, identity, keys, 4100)
 	agent, err := f.s.Me(ctx, identity.AgentID)
 	if err != nil || agent.CreatedAt != f.founder.CreatedAt || agent.Name != f.founder.Name || !agent.Founder {
 		t.Fatal("legacy Founder recovery lost provenance", agent, err)
 	}
 	path := filepath.Join(securityDirectory(t), "private", "future.sqlite")
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, "SELECT 1;"})
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, "SELECT 1;"}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -625,7 +600,7 @@ func TestSecurityOfflineRecoveryOfLegacyFounderAndFutureSchema(t *testing.T) {
 		t.Fatal("future schema was opened")
 	}
 	assertCode(t, err, domain.Prerequisite)
-	probe, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, "SELECT 1;"})
+	probe, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, "SELECT 1;"}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}

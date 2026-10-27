@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/foundation"
+	"github.com/thtpark/fdn/internal/testidentity"
 )
 
 func TestDefaultAPIRejectsBearerAndSpoofedIdentityWithoutKernelPeer(t *testing.T) {
@@ -23,11 +23,8 @@ func TestDefaultAPIRejectsBearerAndSpoofedIdentityWithoutKernelPeer(t *testing.T
 		t.Fatal(err)
 	}
 	defer store.Close()
-	invitation, token := domain.NewToken(), domain.NewToken()
-	if _, err := store.Bootstrap(ctx, domain.Hash(invitation), time.Now().Unix()+600); err != nil {
-		t.Fatal(err)
-	}
-	actor, err := store.Enroll(ctx, domain.EnrollRequest{Command: domain.Command{OperationID: "fixture-enroll"}, InvitationToken: invitation, CredentialHash: domain.Hash(token), Name: "fixture Founder"})
+	token := domain.NewToken()
+	actor, err := testidentity.Register(ctx, store, "", "fixture-Founder", 4100)
 	if err != nil {
 		t.Fatal(err)
 	}

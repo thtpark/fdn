@@ -47,8 +47,8 @@ func TestNativeWorkerUsesOnlyLocalIdentityAndPreservesMigrationState(t *testing.
 			return nil
 		}
 		data, err := os.ReadFile(path)
-		if err == nil && (bytes.Contains(data, []byte("PRIVATE KEY-----")) || bytes.Contains(data, []byte(w.fixtureToken))) {
-			t.Fatal("worker-owned files contain a private identity key or fixture bearer credential")
+		if err == nil && bytes.Contains(data, []byte("PRIVATE KEY-----")) {
+			t.Fatal("worker-owned files contain a private identity key")
 		}
 		return err
 	}); err != nil {
@@ -71,26 +71,34 @@ func TestNativeWorkerUsesOnlyLocalIdentityAndPreservesMigrationState(t *testing.
 		t.Fatal(err)
 	}
 	state.Close()
-	legacy := config.Credential{AgentID: w.agent.ID, Token: domain.NewToken()}
+	legacy := struct {
+		AgentID string `json:"agent_id"`
+		Token   string `json:"token"`
+	}{AgentID: w.agent.ID, Token: domain.NewToken()}
 	if err := config.Write(w.config.CredentialFile, legacy); err != nil {
 		t.Fatal(err)
 	}
 	reply, code, diagnostic := run(t, "agent-cli", []string{"--config", w.configFile, "connect"}, nil)
-	if code == 0 || reply.OK || reply.Error == nil || reply.Error.Code != domain.Prerequisite {
-		t.Fatal("legacy bearer silently migrated without the explicit switch", reply.Error)
+	if code == 0 || reply.OK || reply.Error == nil {
+		t.Fatal("removed credential format was accepted", reply.Error)
 	}
 	if strings.Contains(diagnostic, legacy.Token) || strings.Contains(string(reply.Data), legacy.Token) {
 		t.Fatal("migration handoff exposed the retained legacy credential")
 	}
-	var unchanged config.Credential
-	if err := config.Read(w.config.CredentialFile, &unchanged); err != nil || unchanged != legacy {
+	var retained struct {
+		AgentID string `json:"agent_id"`
+		Token   string `json:"token"`
+	}
+	if err := config.Read(w.config.CredentialFile, &retained); err != nil || retained != legacy {
 		t.Fatal("failed migration destroyed retained evidence", err)
 	}
-	must[domain.Agent](t, "agent-cli", []string{"--config", w.configFile, "connect", "--migrate"}, nil)
-	unchanged = config.Credential{}
-	if err := config.Read(w.config.CredentialFile, &unchanged); err != nil || unchanged.AgentID != w.agent.ID || unchanged.Token != "" {
-		t.Fatal("native explicit migration retained a bearer secret", err)
+	if reply, code, _ := run(t, "agent-cli", []string{"--config", w.configFile, "connect", "--migrate"}, nil); code == 0 || reply.OK {
+		t.Fatal("removed migration command was accepted")
 	}
+	if err := config.Write(w.config.CredentialFile, config.Credential{AgentID: w.agent.ID}); err != nil {
+		t.Fatal(err)
+	}
+	must[domain.Agent](t, "agent-cli", []string{"--config", w.configFile, "connect"}, nil)
 	state, err = local.Open(ctx, w.config.StateDir)
 	if err != nil {
 		t.Fatal(err)
@@ -104,11 +112,11 @@ func TestNativeWorkerUsesOnlyLocalIdentityAndPreservesMigrationState(t *testing.
 	if err := config.Write(w.config.CredentialFile, wrong); err != nil {
 		t.Fatal(err)
 	}
-	reply, code, _ = run(t, "agent-cli", []string{"--config", w.configFile, "connect", "--migrate"}, nil)
+	reply, code, _ = run(t, "agent-cli", []string{"--config", w.configFile, "connect"}, nil)
 	if code == 0 || reply.OK || reply.Error == nil || reply.Error.Code != domain.Denied {
 		t.Fatal("attachment reused state bound to a different actor", reply.Error)
 	}
-	unchanged = config.Credential{}
+	var unchanged config.Credential
 	if err := config.Read(w.config.CredentialFile, &unchanged); err != nil || unchanged != wrong {
 		t.Fatal("identity mismatch rewrote the existing binding", err)
 	}

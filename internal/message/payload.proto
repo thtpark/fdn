@@ -332,14 +332,6 @@ message Go_DiagnosticRefreshRequest {
   String reason = 3;
 }
 
-message Go_EnrollRequest {
-  String operation_id = 1;
-  Signed expected_revision = 2;
-  String invitation_token = 3;
-  String name = 4;
-  String credential_hash = 5;
-}
-
 message Go_Entry {
   Go_ReviewReference review = 1;
   String id = 2;
@@ -437,21 +429,6 @@ message Go_IdentityChallenge {
   String instance_id = 3;
   Signed generation = 4;
   Signed expires_at = 5;
-}
-
-message Go_Invitation {
-  String id = 1;
-  String sponsor_id = 2;
-  Bool founder = 3;
-  Signed expires_at = 4;
-  String used_by = 5;
-}
-
-message Go_InvitationRequest {
-  String operation_id = 1;
-  Signed expected_revision = 2;
-  String token_hash = 3;
-  Signed expires_at = 4;
 }
 
 message Go_ListQuery {
@@ -679,10 +656,11 @@ message Go_RecoverIdentityRequest {
 }
 
 message Go_RegisterIdentityRequest {
+  reserved 4;
+  reserved "existing_agent_id";
   String operation_id = 1;
   Signed expected_revision = 2;
   Go_PublicIdentity identity = 3;
-  String existing_agent_id = 4;
 }
 
 message Go_RelayChunk {
@@ -1225,11 +1203,6 @@ message List_Go_DiagnosticRefreshRequest {
   bool present = 2;
 }
 
-message List_Go_EnrollRequest {
-  repeated Go_EnrollRequest items = 1;
-  bool present = 2;
-}
-
 message List_Go_Entry {
   repeated Go_Entry items = 1;
   bool present = 2;
@@ -1287,16 +1260,6 @@ message List_Go_IdentityCertificate {
 
 message List_Go_IdentityChallenge {
   repeated Go_IdentityChallenge items = 1;
-  bool present = 2;
-}
-
-message List_Go_Invitation {
-  repeated Go_Invitation items = 1;
-  bool present = 2;
-}
-
-message List_Go_InvitationRequest {
-  repeated Go_InvitationRequest items = 1;
   bool present = 2;
 }
 
@@ -1750,11 +1713,6 @@ message List_Page_Go_DiagnosticRefreshRequest {
   bool present = 2;
 }
 
-message List_Page_Go_EnrollRequest {
-  repeated Page_Go_EnrollRequest items = 1;
-  bool present = 2;
-}
-
 message List_Page_Go_Entry {
   repeated Page_Go_Entry items = 1;
   bool present = 2;
@@ -1812,16 +1770,6 @@ message List_Page_Go_IdentityCertificate {
 
 message List_Page_Go_IdentityChallenge {
   repeated Page_Go_IdentityChallenge items = 1;
-  bool present = 2;
-}
-
-message List_Page_Go_Invitation {
-  repeated Page_Go_Invitation items = 1;
-  bool present = 2;
-}
-
-message List_Page_Go_InvitationRequest {
-  repeated Page_Go_InvitationRequest items = 1;
   bool present = 2;
 }
 
@@ -2475,16 +2423,6 @@ message Map_Go_DiagnosticRefreshRequest_Entry {
   Go_DiagnosticRefreshRequest value = 2;
 }
 
-message Map_Go_EnrollRequest {
-  repeated Map_Go_EnrollRequest_Entry items = 1;
-  bool present = 2;
-}
-
-message Map_Go_EnrollRequest_Entry {
-  optional string key = 1;
-  Go_EnrollRequest value = 2;
-}
-
 message Map_Go_Entry {
   repeated Map_Go_Entry_Entry items = 1;
   bool present = 2;
@@ -2603,26 +2541,6 @@ message Map_Go_IdentityChallenge {
 message Map_Go_IdentityChallenge_Entry {
   optional string key = 1;
   Go_IdentityChallenge value = 2;
-}
-
-message Map_Go_Invitation {
-  repeated Map_Go_Invitation_Entry items = 1;
-  bool present = 2;
-}
-
-message Map_Go_InvitationRequest {
-  repeated Map_Go_InvitationRequest_Entry items = 1;
-  bool present = 2;
-}
-
-message Map_Go_InvitationRequest_Entry {
-  optional string key = 1;
-  Go_InvitationRequest value = 2;
-}
-
-message Map_Go_Invitation_Entry {
-  optional string key = 1;
-  Go_Invitation value = 2;
 }
 
 message Map_Go_ListQuery {
@@ -3525,16 +3443,6 @@ message Map_Page_Go_DiagnosticRefreshRequest_Entry {
   Page_Go_DiagnosticRefreshRequest value = 2;
 }
 
-message Map_Page_Go_EnrollRequest {
-  repeated Map_Page_Go_EnrollRequest_Entry items = 1;
-  bool present = 2;
-}
-
-message Map_Page_Go_EnrollRequest_Entry {
-  optional string key = 1;
-  Page_Go_EnrollRequest value = 2;
-}
-
 message Map_Page_Go_Entry {
   repeated Map_Page_Go_Entry_Entry items = 1;
   bool present = 2;
@@ -3653,26 +3561,6 @@ message Map_Page_Go_IdentityChallenge {
 message Map_Page_Go_IdentityChallenge_Entry {
   optional string key = 1;
   Page_Go_IdentityChallenge value = 2;
-}
-
-message Map_Page_Go_Invitation {
-  repeated Map_Page_Go_Invitation_Entry items = 1;
-  bool present = 2;
-}
-
-message Map_Page_Go_InvitationRequest {
-  repeated Map_Page_Go_InvitationRequest_Entry items = 1;
-  bool present = 2;
-}
-
-message Map_Page_Go_InvitationRequest_Entry {
-  optional string key = 1;
-  Page_Go_InvitationRequest value = 2;
-}
-
-message Map_Page_Go_Invitation_Entry {
-  optional string key = 1;
-  Page_Go_Invitation value = 2;
 }
 
 message Map_Page_Go_ListQuery {
@@ -4440,11 +4328,6 @@ message Page_Go_DiagnosticRefreshRequest {
   String next_cursor = 2;
 }
 
-message Page_Go_EnrollRequest {
-  List_Go_EnrollRequest items = 1;
-  String next_cursor = 2;
-}
-
 message Page_Go_Entry {
   List_Go_Entry items = 1;
   String next_cursor = 2;
@@ -4502,16 +4385,6 @@ message Page_Go_IdentityCertificate {
 
 message Page_Go_IdentityChallenge {
   List_Go_IdentityChallenge items = 1;
-  String next_cursor = 2;
-}
-
-message Page_Go_Invitation {
-  List_Go_Invitation items = 1;
-  String next_cursor = 2;
-}
-
-message Page_Go_InvitationRequest {
-  List_Go_InvitationRequest items = 1;
   String next_cursor = 2;
 }
 

@@ -90,8 +90,8 @@ go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeBinariesPhaseOneThroughF
   32-character bounds and rejection of root, empty, numeric-leading,
   multiline and unusable names.
 - New signed registrations reserve normalized names; collisions roll back
-  partial agents/keys. Existing ID-derived names survive reopen, binding and
-  fresh-key recovery. Named and legacy root inventories coexist without a reset.
+  partial agents/keys. Explicitly reserved account names survive reopen,
+  binding and fresh-key recovery without an ID-derived fallback.
 - Recording and actual Unix/protobuf account-helper tests cover the exact
   approved username, returned-name mismatch, no unmanaged adoption, retained
   UID/name/generation, named never-provisioned tombstones, stale requests and
@@ -100,7 +100,7 @@ go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeBinariesPhaseOneThroughF
 - Name/ID mention tests cover case-insensitive and spaced names, canonical
   sorted/deduplicated IDs, self-exclusion, unchanged body, replay after a name
   becomes ambiguous, atomic unknown/ambiguous-name create/edit failures,
-  inactive names, legacy ID compatibility, blocking answers and stale receipts.
+  inactive names, exact ID mentions, blocking answers and stale receipts.
   Worklogs do not create attention. Compiled-binary e2e submits a name mention
   and acknowledges the resulting ID-bound attention item.
 - Offline CLI help and embedded skill/catalog/link/hash/home-preservation tests
@@ -170,9 +170,9 @@ The actual source wrapper `--version` can additionally prove the development
 stamp without enrollment, production access, provider authentication or inference.
 
 Default-path tests verify XDG-independent `.foundation` configuration, runner
-state/workspaces/socket, explicit legacy configuration support and refusal to
-silently reset an old default identity. Guide tests cover its consolidated store,
-exact legacy discovery-link migration, retained old evidence and unchanged
+state/workspaces/socket, explicit current-format configuration paths and no
+old-layout scan/adoption. Guide tests cover its consolidated store,
+foreign discovery-link refusal, unchanged unrelated files and
 unrelated instructions. Provider shell tests cover `.foundation/bin`, the
 managed login PATH block and existing unrelated command/profile preservation.
 
@@ -236,10 +236,11 @@ completion. Binary API tests cover private threads, exact recipient decisions
 and denied ordinary access to Foundation maintenance. Thread tests admit exactly
 200 messages in insertion order and explicitly refuse larger views.
 
-`TestMessageRequestMigrationFivePreservesSQLFourRecordsAndUpdates` checks
+`TestMessageRequestCurrentSchemaPreservesRecordsAndUpdates` checks
 message bytes/order, mode, operations, scoped feed/cursors, private update triggers,
 ordinary enrolled-party constraints and SQL4-binary refusal. Existing migration/
-restore fixtures now advance through SQL5 without identity or state resets.
+restore fixtures preserve current SQL5 state and explicitly reject prebaseline
+databases without changing their records.
 Existing paused-mode, work/session/identity/approval fences remain required.
 Foundation's root-private receiver is not an ordinary agent API privilege.
 These fixtures do not certify live OS supervision, a message-driven production
@@ -278,10 +279,10 @@ their tests; planned/unimplemented cases must not be described as covered.
 | --- | --- |
 | DTO/input/CLI | Unknown/protected fields, bounded UTF-8 input, exact JSON envelope/exit code, every implemented leaf's offline help |
 | Diagnostics CLI/guidance | Typed bodyless cached GET, explicit durable Founder refresh/repair with exact replay, strict arity/flags/private-field rejection, common operation states without freshness fallback, real Unix-proxy exact method/depth/query/header bounds, existing config/enrollment/identity matching, executable help and embedded command/catalog/skill contracts |
-| Identity registration/recovery | Signed public-key possession, Founder-only registration, explicit original-agent migration, canonical-key/request/account/UID uniqueness, exact activation challenge/replay, retired generations, no legacy bearer runtime, fresh-key recovery and root-local-only Founder recovery |
+| Identity registration/recovery | Current signed public-key possession, Founder-only new registration, canonical-key/request/account/UID uniqueness, exact activation challenge/replay, retired generations, fresh-key enrolled identity recovery and root-local-only Founder recovery |
 | Tasks/policy | Named/independent eligibility, project epochs, invalidation, status gates, concurrent stale revisions, exact execution/verification claims/reports; verifier's current spec/result/discussion/epoch, independent own-provider selection, shared server slot, atomic feedback/rework approval, revoked authority/Founder pause and no self-acceptance |
 | Discussions/messages | Creator-only edits, literal mention/body generation, requested answers, private recipients, no automatic protected replies |
-| Persistence/restore | Reopen/migration/future-schema rejection, recognized backup-manifest schema 1/2 through SQL4 and future rejection, prepublication ALL-identity/owner/key quarantine, retired credential denial, sole legacy/restored Founder root-private fresh-key recovery retaining ID/history, regular fresh-key reapproval, unchanged mode/uncertain work, atomic transaction failures, immutable operation fingerprints, three-history bounds, integrity |
+| Persistence/restore | Current SQL5 reopen, prebaseline/future schema rejection without mutation, current backup manifest2 only, prepublication ALL-identity/owner/key quarantine, missing-binding refusal, enrolled restored Founder root-private fresh-key recovery retaining ID/history, regular fresh-key reapproval, unchanged mode/uncertain work, atomic failures, immutable operations, three-history bounds, integrity |
 | Worker/controller | One slot across manual/service/session/execution/verification, onboarding once, no idle inference, partial results/questions, retry/backoff/budget, offline report replay and no duplicate inference/review/merge; prepared review reply, claim-ack recovery, uncertain verifier failure, discussion/mode/workspace cancellation, disabled-binding preservation and manual resolution |
 | Providers/processes | Exact required flags, text tool isolation, prompt through stdin, private/bounded output, version/model pinning, cancellation of owned descendants, failed signed staging retains previous version; actual login PATH/bare command versions, profile preservation/collisions, current-version dispatch and real foreground-terminal input; advertised Codex/Copilot device-flow selection, legacy fallback, bounded help-only probes, protected tmux/local TTY display and public-link versus credential handling; missing-authentication to real Founder/delegate inbox before onboarding without inference, private/protected notice fields, exact replay across restart/lost ack, explicit pending failures, 15-minute expiry/legacy deadlines, no automatic renewal or receipt revival, Founder-only typed refresh including paused/offline targets, scope/authority checks, no notification spam or auth inferred from receipt acknowledgement |
 | Sessions | Request != consent != explicit open, current scope/expiry/revocation, no public listener, restart retirement, cleanup fences |
@@ -289,7 +290,7 @@ their tests; planned/unimplemented cases must not be described as covered.
 | Persistent assistance | Only Founder issues/revokes; exact requester/target/purpose/mode/provider/project; no-project authentication bootstrap; target prepares unattended without local consent; disconnect/restart/expiry retains grant; role/identity/revocation closes streams; delegate is not assumed human |
 | Native identity/ingress | Recording account adapters/in-process SSH, unique UID/account/key reservations, positive per-account generation on typed root provision/disable; stale/same-generation-key-change rejection before OS calls, exact replay, never-provisioned disable tombstones, higher-generation fresh-key UID/name preservation and pre/returned/post-bind/current registry tuple checks; no arbitrary commands/PTY/forwarding, wrong-peer/pin/certificate rejection, private root maintenance outside agent gateway; no host users/sshd/services changed |
 | Owner/current-user boundary | Device versus ephemeral owner certificate purposes, instance/agent/key/owner-generation agreement, kernel peer UID checks and owner-only IPC, same-user key ownership but no private/control export over ordinary IPC, one local owner across CLI traffic; confirmed distinct live owner proofs plus fresh incumbent binary ping ban original and contender including Founder, while stale crash/reconnect/unproved attempts do not; ban cancels API/streams, recovery keeps work fenced |
-| Native services | Recording adapters by default, one existing installing user/HOME with independent agent name, both user systemd services/macOS LaunchAgents, unchanged HOME/groups/shell, no root/sudo/runuser/new account requirements, private 0700/0600 IPC, explicit legacy migration refusal and retained state, raw scalar systemd paths, user-bus environment only for registration |
+| Native services | Recording adapters by default, one existing installing user/HOME with independent agent name, both user systemd services/macOS LaunchAgents, unchanged HOME/groups/shell, no root/sudo/runuser/new account requirements, private 0700/0600 IPC, strict current single-user fields and retained state, raw scalar systemd paths, user-bus environment only for registration |
 | Guidance/docs | Valid skill names/frontmatter/descriptions; local links/command coverage; no legacy checkout dependency; hashes/version completeness; preserve home instructions/unrelated skills; prompt inclusion; isolated homes; native and Debian guide content |
 | Release/install | Merged-release-only event/commit guards, pinned Actions, two matching builds including agent-identity, native/worker binary lists and executable bytes/modes, all four archive binaries allowed/required/activated, missing identity payload denied before prefix changes, Debian parent directories and real unprivileged extraction with executable hashes, trusted manifest, immutable/idempotent installation and state preservation |
 

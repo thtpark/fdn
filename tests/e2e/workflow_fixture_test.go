@@ -11,7 +11,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -22,12 +21,13 @@ import (
 	"github.com/thtpark/fdn/internal/foundation"
 	"github.com/thtpark/fdn/internal/message"
 	"github.com/thtpark/fdn/internal/pki"
+	"github.com/thtpark/fdn/internal/testidentity"
 	"github.com/thtpark/fdn/internal/transport"
 )
 
 // workflowAPI is a business-workflow fixture, not a standalone Foundation server.
 // Its same-UID proxies do not establish production account/key isolation.
-// Only this test process holds the fixture bearer values; workers receive no keys.
+// Only this test process injects business actors; workers receive no keys.
 type workflowAPI struct {
 	store   *foundation.Store
 	service *api.Server
@@ -49,7 +49,7 @@ func newWorkflowAPI(t *testing.T, root string) *workflowAPI {
 		t.Fatal(err)
 	}
 	service, err := api.NewAuthenticated(store, slog.New(slog.NewTextHandler(io.Discard, nil)), func(r *http.Request) (domain.Agent, error) {
-		return store.Authenticate(r.Context(), strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+		return testidentity.Authenticate(store, r)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -71,28 +71,25 @@ func newWorkflowAPI(t *testing.T, root string) *workflowAPI {
 	return fixture
 }
 
-func (f *workflowAPI) seed(t *testing.T, founderID, name string) (domain.Agent, string) {
+func (f *workflowAPI) seed(t *testing.T, founderID, name string) domain.Agent {
 	t.Helper()
 	ctx := context.Background()
-	invitation, token := domain.NewToken(), domain.NewToken()
-	if founderID == "" {
-		if _, err := f.store.Bootstrap(ctx, domain.Hash(invitation), time.Now().Unix()+600); err != nil {
+	agents := 0
+	if founderID != "" {
+		current, err := f.store.Agents(ctx, founderID)
+		if err != nil {
 			t.Fatal(err)
 		}
-	} else if _, err := f.store.Invite(ctx, founderID, domain.InvitationRequest{
-		Command: domain.Command{OperationID: domain.NewID("op")}, TokenHash: domain.Hash(invitation), ExpiresAt: time.Now().Unix() + 600,
-	}); err != nil {
-		t.Fatal(err)
+		agents = len(current)
 	}
-	agent, err := f.store.Enroll(ctx, domain.EnrollRequest{Command: domain.Command{OperationID: domain.NewID("op")},
-		Name: name, InvitationToken: invitation, CredentialHash: domain.Hash(token)})
+	agent, err := testidentity.Register(ctx, f.store, founderID, name, int64(4100+agents))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return agent, token
+	return agent
 }
 
-func (f *workflowAPI) localProxy(t *testing.T, socket string, agent domain.Agent, token string) {
+func (f *workflowAPI) localProxy(t *testing.T, socket string, agent domain.Agent) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(socket), 0700); err != nil {
 		t.Fatal(err)

@@ -74,7 +74,7 @@ func TestBinaryTunnelUsesPinnedSSHAndReusableMutualTLSSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	if client.HTTP != nil || !client.IsMessageClient() || client.Credential.Token != "" {
+	if client.HTTP != nil || !client.IsMessageClient() {
 		t.Fatal("native tunnel retained HTTP or bearer transport")
 	}
 	for range 2 {

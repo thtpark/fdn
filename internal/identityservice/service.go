@@ -311,7 +311,7 @@ func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile
 			if err != nil {
 				return err
 			}
-			if client == nil || (!client.IsMessageClient() && (client.HTTP == nil || client.HTTP.Transport == nil)) || client.Credential.Token != "" || client.BaseURL != worker.URL {
+			if client == nil || (!client.IsMessageClient() && (client.HTTP == nil || client.HTTP.Transport == nil)) || client.BaseURL != worker.URL {
 				if client != nil {
 					client.Close()
 				}

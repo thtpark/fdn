@@ -217,7 +217,7 @@ func validateIdentityServiceConfiguration(o IdentityServiceOptions, identity con
 	if identity.StateDir != o.StateDir || filepath.Dir(identity.Socket) != o.SocketDir || !filepath.IsAbs(identity.Socket) || filepath.Clean(identity.Socket) != identity.Socket ||
 		len(identity.Socket) > 103 || strings.ContainsAny(identity.Socket, "\x00\r\n") ||
 		(identity.WorkerUID != 0 && identity.WorkerUID != o.UID) || (identity.WorkerGID != 0 && identity.WorkerGID != o.GID) {
-		return domain.Fail(domain.Conflict, "identity configuration must match the installing user's state/IPC; legacy foreign worker UID/GID requires explicit migration")
+		return domain.Fail(domain.Conflict, "identity configuration must match the installing user's state, IPC and UID/GID")
 	}
 	if worker.StateDir != o.WorkerStateDir || worker.IdentitySocket != identity.Socket || worker.SSH != nil ||
 		!identityPathWithin(o.WorkerStateDir, worker.CredentialFile) || !identityPathWithin(o.Home, worker.CAFile) ||

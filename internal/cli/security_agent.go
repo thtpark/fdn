@@ -14,7 +14,6 @@ import (
 
 func (a *app) connect(ctx context.Context, args []string) (any, error) {
 	fs := flag.NewFlagSet("connect", flag.ContinueOnError)
-	migrate := fs.Bool("migrate", false, "replace this same identity's legacy bearer file after Founder-approved migration")
 	if err := parse(fs, args); err != nil {
 		return nil, err
 	}
@@ -45,9 +44,6 @@ func (a *app) connect(ctx context.Context, args []string) (any, error) {
 	if err := config.Read(c.CredentialFile, &old); err == nil {
 		if old.AgentID != me.ID {
 			return nil, domain.Fail(domain.Denied, "worker state belongs to a different identity; never copy credentials")
-		}
-		if old.Token != "" && !*migrate {
-			return nil, domain.Fail(domain.Prerequisite, "use connect --migrate only after Founder has approved this original worker's key binding")
 		}
 	} else if !os.IsNotExist(err) {
 		return nil, err
@@ -93,7 +89,6 @@ func (a *app) identityCommand(ctx context.Context, r *resources, args []string) 
 	fs := flag.NewFlagSet("agent "+kind, flag.ContinueOnError)
 	input := fs.String("input", "", "target's signed public identity request")
 	output := fs.String("output", "", "public pinned connection profile")
-	existing := fs.String("existing-agent", "", "explicitly migrate the designated original existing agent")
 	reason := fs.String("reason", "", "intentional identity recovery reason")
 	if err := parse(fs, tail); err != nil {
 		return nil, err
@@ -108,15 +103,12 @@ func (a *app) identityCommand(ctx context.Context, r *resources, args []string) 
 	var raw json.RawMessage
 	var err error
 	if kind == "register" {
-		req := domain.RegisterIdentityRequest{Identity: public, ExistingAgentID: *existing}
+		req := domain.RegisterIdentityRequest{Identity: public}
 		if err := a.metadata(&req.Command); err != nil {
 			return nil, err
 		}
 		raw, err = a.write(ctx, r, "/v1/identity/register", req, "")
 	} else {
-		if *existing != "" {
-			return nil, domain.Fail(domain.Invalid, "recovery names its target before flags, not --existing-agent")
-		}
 		req := domain.RecoverIdentityRequest{Reason: *reason, Identity: public}
 		if err := a.metadata(&req.Command); err != nil {
 			return nil, err

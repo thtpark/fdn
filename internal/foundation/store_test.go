@@ -11,13 +11,13 @@ import (
 )
 
 type fixture struct {
-	s            *Store
-	now          time.Time
-	founder      domain.Agent
-	worker       domain.Agent
-	other        domain.Agent
-	founderToken string
-	workerToken  string
+	s           *Store
+	now         time.Time
+	founder     domain.Agent
+	worker      domain.Agent
+	other       domain.Agent
+	keys        map[string]securityKeys
+	activations map[string]domain.ActivateIdentityRequest
 }
 
 func op() domain.Command { return domain.Command{OperationID: domain.NewID("op")} }
@@ -34,43 +34,49 @@ func newFixture(t *testing.T) *fixture {
 			t.Error(err)
 		}
 	})
-	f := &fixture{s: s, now: time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)}
+	f := &fixture{s: s, now: time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC),
+		keys: map[string]securityKeys{}, activations: map[string]domain.ActivateIdentityRequest{}}
 	s.now = func() time.Time { return f.now }
-	token := domain.NewToken()
-	if _, err := s.Bootstrap(ctx, domain.Hash(token), f.now.Unix()+900); err != nil {
-		t.Fatal(err)
-	}
-	f.founderToken = domain.NewToken()
-	f.founder, err = s.Enroll(ctx, domain.EnrollRequest{Command: op(), InvitationToken: token, Name: "founder", CredentialHash: domain.Hash(f.founderToken)})
+	keys := securityPublic(t, "founder")
+	identity, err := s.BootstrapIdentity(ctx, keys.public, op().OperationID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.worker, f.workerToken = f.enroll(t, "worker")
-	f.other, _ = f.enroll(t, "other")
+	identity, activation := securityActivate(t, s, identity, keys, 4100)
+	f.keys[identity.AgentID], f.activations[identity.AgentID] = keys, activation
+	f.founder, err = s.Me(ctx, identity.AgentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.worker = f.enroll(t, "worker")
+	f.other = f.enroll(t, "other")
 	return f
 }
 
-func (f *fixture) enroll(t *testing.T, name string) (domain.Agent, string) {
+func (f *fixture) enroll(t *testing.T, name string) domain.Agent {
 	t.Helper()
-	token, credential := domain.NewToken(), domain.NewToken()
-	_, err := f.s.Invite(context.Background(), f.founder.ID, domain.InvitationRequest{Command: op(), TokenHash: domain.Hash(token), ExpiresAt: f.now.Unix() + 600})
+	ctx := context.Background()
+	keys := securityPublic(t, name)
+	req := domain.RegisterIdentityRequest{Command: op(), Identity: keys.public}
+	identity, err := f.s.RegisterIdentity(ctx, f.founder.ID, req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := domain.EnrollRequest{Command: op(), InvitationToken: token, Name: name, CredentialHash: domain.Hash(credential)}
-	agent, err := f.s.Enroll(context.Background(), req)
+	replayed, err := f.s.RegisterIdentity(ctx, f.founder.ID, req)
+	if err != nil || replayed.AgentID != identity.AgentID {
+		t.Fatal("lost registration acknowledgment replay", err)
+	}
+	agents, err := f.s.Agents(ctx, f.founder.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	replayed, err := f.s.Enroll(context.Background(), req)
-	if err != nil || replayed.ID != agent.ID {
-		t.Fatal("lost enrollment acknowledgment replay", err)
+	identity, activation := securityActivate(t, f.s, identity, keys, 4100+int64(len(agents)-1))
+	f.keys[identity.AgentID], f.activations[identity.AgentID] = keys, activation
+	agent, err := f.s.Me(ctx, identity.AgentID)
+	if err != nil {
+		t.Fatal(err)
 	}
-	req.Command = op()
-	if _, err := f.s.Enroll(context.Background(), req); err == nil {
-		t.Fatal("invitation replay accepted")
-	}
-	return agent, credential
+	return agent
 }
 
 func (f *fixture) change(t *testing.T, actor, id, kind string, set func(*domain.TaskChange)) domain.Task {
@@ -164,7 +170,8 @@ func TestProjectEpochAndRetainedReasons(t *testing.T) {
 func TestEnrollmentAuthorityAndRevocation(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
-	_, err := f.s.Invite(ctx, f.worker.ID, domain.InvitationRequest{Command: op(), TokenHash: domain.Hash(domain.NewToken()), ExpiresAt: f.now.Unix() + 300})
+	request := domain.RegisterIdentityRequest{Command: op(), Identity: securityPublic(t, "not-authorized").public}
+	_, err := f.s.RegisterIdentity(ctx, f.worker.ID, request)
 	assertCode(t, err, domain.Denied)
 	project, err := f.s.CreateProject(ctx, f.founder.ID, domain.ProjectRequest{Command: op(), Name: "delegated"})
 	if err != nil {
@@ -176,20 +183,21 @@ func TestEnrollmentAuthorityAndRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	token := domain.NewToken()
-	_, err = f.s.Invite(ctx, f.worker.ID, domain.InvitationRequest{Command: op(), TokenHash: domain.Hash(token), ExpiresAt: f.now.Unix() + 300})
+	request.Command = op()
+	_, err = f.s.RegisterIdentity(ctx, f.worker.ID, request)
 	assertCode(t, err, domain.Denied)
 	g = domain.GrantRequest{Command: op(), AgentID: f.worker.ID, Revoke: true}
 	g.ExpectedRevision = project.Revision
 	if _, err := f.s.Delegate(ctx, f.founder.ID, project.ID, g); err != nil {
 		t.Fatal(err)
 	}
-	_, err = f.s.Enroll(ctx, domain.EnrollRequest{Command: op(), Name: "late", InvitationToken: token, CredentialHash: domain.Hash(domain.NewToken())})
+	request.Command = op()
+	_, err = f.s.RegisterIdentity(ctx, f.worker.ID, request)
 	assertCode(t, err, domain.Denied)
 	if _, err := f.s.Revoke(ctx, f.founder.ID, f.worker.ID, domain.AgentRequest{Command: op()}); err != nil {
 		t.Fatal(err)
 	}
-	_, err = f.s.Authenticate(ctx, f.workerToken)
+	_, err = f.s.Me(ctx, f.worker.ID)
 	assertCode(t, err, domain.Denied)
 	_, err = f.s.Agents(ctx, f.worker.ID)
 	assertCode(t, err, domain.Denied)

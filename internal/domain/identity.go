@@ -21,8 +21,7 @@ type PublicIdentity struct {
 
 type RegisterIdentityRequest struct {
 	Command
-	Identity        PublicIdentity `json:"identity"`
-	ExistingAgentID string         `json:"existing_agent_id,omitempty"`
+	Identity PublicIdentity `json:"identity"`
 }
 
 type AgentIdentity struct {

@@ -13,6 +13,7 @@ import (
 	"github.com/thtpark/fdn/internal/foundation"
 	"github.com/thtpark/fdn/internal/pki"
 	"github.com/thtpark/fdn/internal/secure"
+	"github.com/thtpark/fdn/internal/testidentity"
 )
 
 func TestEncryptedSnapshotRestoreAndTamper(t *testing.T) {
@@ -24,11 +25,7 @@ func TestEncryptedSnapshotRestoreAndTamper(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	token, credential := domain.NewToken(), domain.NewToken()
-	if _, err := store.Bootstrap(ctx, domain.Hash(token), time.Now().Unix()+600); err != nil {
-		t.Fatal(err)
-	}
-	agent, err := store.Enroll(ctx, domain.EnrollRequest{Command: domain.Command{OperationID: "enroll"}, InvitationToken: token, CredentialHash: domain.Hash(credential), Name: "founder"})
+	agent, err := testidentity.Register(ctx, store, "", "founder", 4100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +41,7 @@ func TestEncryptedSnapshotRestoreAndTamper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := config.Server{StateDir: serverRoot, Listen: "127.0.0.1:8443", CertFile: filepath.Join(serverRoot, "server.pem"), KeyFile: filepath.Join(serverRoot, "server-key.pem")}
+	c := config.Server{StateDir: serverRoot, CertFile: filepath.Join(serverRoot, "server.pem"), KeyFile: filepath.Join(serverRoot, "server-key.pem")}
 	output := filepath.Join(root, "backup.age")
 	if err := Create(ctx, store, c, output, recipient); err != nil {
 		t.Fatal(err)
@@ -58,10 +55,10 @@ func TestEncryptedSnapshotRestoreAndTamper(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restored.Close()
-	if _, err := restored.Authenticate(ctx, credential); err == nil {
-		t.Fatal("restored snapshot resurrected an old credential")
+	if _, err := restored.Me(ctx, agent.ID); err == nil {
+		t.Fatal("restored snapshot resurrected the old identity")
 	}
-	public, _, _, err := device.Generate("recovered Founder")
+	public, _, _, err := device.Generate("recovered-Founder")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +67,7 @@ func TestEncryptedSnapshotRestoreAndTamper(t *testing.T) {
 		t.Fatal("restoration lost the immutable Founder identity", identity, err)
 	}
 	restoredConfig, err := config.LoadServer(filepath.Join(recovered, "server.json"))
-	if err != nil || restoredConfig.Listen != "" || restoredConfig.IngressSocket == "" || restoredConfig.JoinSocket == "" {
+	if err != nil || restoredConfig.IngressSocket == "" || restoredConfig.JoinSocket == "" {
 		t.Fatal("restore recreated a legacy TCP listener", restoredConfig, err)
 	}
 	if err := Restore(ctx, output, keyFile, recovered); err == nil {

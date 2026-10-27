@@ -286,34 +286,20 @@ func TestOpenBindsChosenScreenApplicationAndFallbackExactly(t *testing.T) {
 	}
 }
 
-func TestLegacyDesktopNeedsOwnDisplayEvidenceAndExplicitScope(t *testing.T) {
+func TestPerWorkerVNCDoesNotFabricateScreenProfiles(t *testing.T) {
 	f := screenFixtureFor(t)
 	c := config.DefaultWorker(f.config.StateDir)
 	c.VNCAddress, c.VNCVerified = f.left.address, true
 	t.Setenv("DISPLAY", "")
 	got, err := Inventory(context.Background(), c)
-	if len(got) != 0 {
-		t.Fatal("legacy VNC configuration alone fabricated a desktop", got, err)
+	if len(got) != 0 || err == nil {
+		t.Fatal("removed VNC configuration fabricated a desktop", got, err)
 	}
 	t.Setenv("DISPLAY", ":41.0")
 	t.Setenv("XAUTHORITY", "")
 	got, err = Inventory(context.Background(), c)
-	if err != nil || len(got) != 1 || got[0].ID != LegacyDesktopID || got[0].Scope != "desktop" || got[0].Width != 2560 || len(got[0].Applications) != 0 {
-		t.Fatal(got, err)
-	}
-	session := validSession(LegacyDesktopID)
-	if _, err := Open(context.Background(), c, session); err == nil {
-		t.Fatal("legacy whole desktop opened without explicit fallback scope")
-	}
-	session.DesktopFallback = true
-	endpoint, err := Open(context.Background(), c, session)
-	if err != nil {
-		t.Fatal(err)
-	}
-	endpoint.Close()
-	session.ScreenID = ""
-	if _, err := Open(context.Background(), c, session); err == nil {
-		t.Fatal("blank legacy session inferred screen authorization")
+	if len(got) != 0 || err == nil {
+		t.Fatal("display environment bypassed explicit profile requirements", got, err)
 	}
 }
 

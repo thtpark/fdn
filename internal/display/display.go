@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -17,8 +16,6 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/process"
 )
-
-const LegacyDesktopID = "legacy-desktop"
 
 const inventoryTimeout = 8 * time.Second
 
@@ -67,13 +64,6 @@ func inventory(ctx context.Context, c config.Worker) ([]available, error) {
 	inventoryCtx, cancel := context.WithTimeout(ctx, inventoryTimeout)
 	defer cancel()
 	profiles := slices.Clone(c.Screens)
-	if c.VNCAddress != "" && c.VNCVerified && len(profiles) < 16 {
-		legacy := config.Screen{ID: LegacyDesktopID, Name: "Whole desktop (fallback)", Scope: "desktop", VNCAddress: c.VNCAddress,
-			VNCVerified: true, Display: os.Getenv("DISPLAY"), XAuthority: os.Getenv("XAUTHORITY"), Primary: len(profiles) == 0}
-		if legacy.Display != "" {
-			profiles = append(profiles, legacy)
-		}
-	}
 	var problems error
 	for _, profile := range profiles {
 		if err := contextError(inventoryCtx); err != nil {
@@ -110,11 +100,8 @@ func inventory(ctx context.Context, c config.Worker) ([]available, error) {
 		}
 		slices.Sort(apps)
 		width, height := profile.Width, profile.Height
-		if profile.ID == LegacyDesktopID {
-			width, height = rect.Width, rect.Height
-		}
 		name := profile.Name
-		if profile.Scope == "desktop" && profile.ID != LegacyDesktopID {
+		if profile.Scope == "desktop" {
 			const suffix = " (desktop fallback)"
 			for len(name) > 128-len(suffix) {
 				_, size := utf8.DecodeLastRuneInString(name)

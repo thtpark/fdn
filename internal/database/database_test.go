@@ -10,7 +10,7 @@ func TestMigrationsPersistAndRejectFuture(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "private", "db.sqlite")
 	migrations := []string{"CREATE TABLE example(id INTEGER PRIMARY KEY);"}
-	db, err := Open(ctx, path, migrations)
+	db, err := Open(ctx, path, migrations, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func TestMigrationsPersistAndRejectFuture(t *testing.T) {
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err = Open(ctx, path, migrations)
+	db, err = Open(ctx, path, migrations, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestMigrationsPersistAndRejectFuture(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.Close()
-	if _, err := Open(ctx, path, migrations); err == nil {
+	if _, err := Open(ctx, path, migrations, 1); err == nil {
 		t.Fatal("future schema accepted")
 	}
 }

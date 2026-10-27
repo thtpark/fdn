@@ -1,6 +1,6 @@
 ---
 name: foundation-install
-description: "Use when installing Foundation or a worker under the existing installing user, preparing native Linux/macOS computers and per-user services, migrating legacy split-account workers, verifying durable release packages, provisioning narrow native upgrade policies, or applying a Founder-authorized upgrade without losing identity and state."
+description: "Use when installing Foundation or a worker under the existing installing user, preparing native Linux/macOS computers and per-user services, verifying current-format durable release packages, provisioning narrow native upgrade policies, or applying a Founder-authorized upgrade without losing identity and state."
 ---
 
 # Install or upgrade Foundation
@@ -69,10 +69,10 @@ commands.
    Non-Founder targets are unattended. Only Founder may explicitly request a
    global mode pause/resumption; delegates and target-local commands cannot.
    Deploy the server migration before new workers and preserve unexplained
-   legacy pauses for explicit Founder reconciliation, never silent resumption.
+   unexplained pauses for explicit Founder reconciliation, never silent resumption.
    A restored snapshot quarantines every identity/owner/key epoch; root-private
    fresh Founder recovery retains its ID/history, then Founder reapproves regulars
-   with fresh signed keys. Manifest1/2 migration to SQL5 never reactivates old
+   with fresh signed keys. Current manifest2/SQL5 restore never reactivates old
    tokens/certificates, changes mode automatically or resets runner state.
    The transport cutover requires all four compatible binaries/guide; there is
    no native HTTP compatibility window. Resolve exact machines/state paths
@@ -93,9 +93,8 @@ commands.
    Existing HOME mode, groups and shell stay unchanged. Both Linux units use
    `systemctl --user`; both macOS services are the user's GUI LaunchAgents.
    Missing user-manager/login prerequisites fail, never invoke root, sudo or
-   runuser or create accounts. Legacy split-account options need the explicit
-   stopped, state-preserving migration in MIGRATION.md; never move keys/reset
-   state automatically. Native manager/GUI and Windows runtime qualification
+   runuser or create accounts. Only current single-user service options are
+   accepted; never move keys or reset state automatically. Native manager/GUI and Windows runtime qualification
    remain separate; Windows adapters are not implemented.
 9. Verify actual process owner, exact version/source, enabled/running manager,
    SQLite/TLS health, private listeners, SSH route and guide discovery. Do not

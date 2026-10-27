@@ -35,24 +35,14 @@ func TestUnixIdentityBoundaryRejectsSpoofedCredentials(t *testing.T) {
 		t.Fatal("request did not carry the actual Unix peer UID")
 	}
 	ctx := context.Background()
-	invitation, token := domain.NewToken(), domain.NewToken()
-	if _, err := h.store.Invite(ctx, h.identity.AgentID, domain.InvitationRequest{Command: command(), TokenHash: domain.Hash(invitation), ExpiresAt: time.Now().Unix() + 60}); err != nil {
-		t.Fatal(err)
-	}
-	legacy, err := h.store.Enroll(ctx, domain.EnrollRequest{Command: command(), Name: "legacy bearer", InvitationToken: invitation, CredentialHash: domain.Hash(token)})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if authenticated, err := h.store.Authenticate(ctx, token); err != nil || authenticated.ID != legacy.ID {
-		t.Fatal("negative test did not seed a valid legacy bearer", err)
-	}
+	token, forgedID := domain.NewToken(), domain.NewID("agent")
 	request, err := http.NewRequest("GET", owner.client.BaseURL+"/v1/me", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	request.Header.Set("Authorization", "Bearer "+token)
 	for _, header := range []string{"X-Fdn-Agent-ID", "X-Fdn-Identity", "X-Agent-ID", "X-Forwarded-User", "X-Remote-User"} {
-		request.Header.Set(header, legacy.ID)
+		request.Header.Set(header, forgedID)
 	}
 	request.Header.Set("X-Fdn-UID", "0")
 	response, err := owner.client.HTTP.Do(request)
@@ -87,7 +77,7 @@ func TestUnixIdentityBoundaryRejectsSpoofedCredentials(t *testing.T) {
 		change func(*domain.CertificateIdentity)
 	}{
 		{"other-instance", func(c *domain.CertificateIdentity) { c.InstanceID = domain.NewID("instance") }},
-		{"other-agent", func(c *domain.CertificateIdentity) { c.AgentID = legacy.ID }},
+		{"other-agent", func(c *domain.CertificateIdentity) { c.AgentID = forgedID }},
 		{"retired-device-generation", func(c *domain.CertificateIdentity) { c.Generation++ }},
 		{"unadmitted-owner-generation", func(c *domain.CertificateIdentity) { c.OwnerGeneration++ }},
 	} {
@@ -302,8 +292,6 @@ func TestUnixIdentityRegistrationRequiresFounderSignedKeys(t *testing.T) {
 			req := domain.RegisterIdentityRequest{Command: command(), Identity: keys.public}
 			registered, err := api.Call[domain.AgentIdentity](ctx, owner.client, "POST", "/v1/identity/register", req)
 			if !founder {
-				identityCode(t, err, domain.Denied)
-				_, err = h.store.Invite(ctx, h.identity.AgentID, domain.InvitationRequest{Command: command(), TokenHash: domain.Hash(domain.NewToken()), ExpiresAt: time.Now().Unix() + 60})
 				identityCode(t, err, domain.Denied)
 				return
 			}
@@ -623,8 +611,6 @@ func TestUnixRevokedCertificatesRequireFreshKeyRecovery(t *testing.T) {
 	if err == nil || response == nil || response.StatusCode != http.StatusForbidden {
 		t.Fatal("revoked device certificate was reusable", err)
 	}
-	_, err = h.store.RegisterIdentity(ctx, h.founder.AgentID, domain.RegisterIdentityRequest{Command: command(), ExistingAgentID: before.AgentID, Identity: newIdentityKeys(t, "no migration revival").public})
-	identityCode(t, err, domain.Denied)
 	_, err = h.store.RecoverIdentity(ctx, h.founder.AgentID, before.AgentID, domain.RecoverIdentityRequest{Command: command(), Reason: "old keys are not recovery", Identity: oldKeys.public})
 	identityCode(t, err, domain.Conflict)
 	fresh := newIdentityKeys(t, "explicitly recovered worker")

@@ -45,16 +45,16 @@ func TestAccountHelperKernelUIDFixedOperationsAndClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	account, err := client.Provision(context.Background(), AccountProvisionRequest{AgentID: accountTestAgent, PublicKey: accountTestKey(t), Generation: 1})
+	account, err := client.Provision(context.Background(), AccountProvisionRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: accountTestKey(t), Generation: 1})
 	if err != nil || account.State != AccountActive || account.UID != manager.options.UIDMin {
 		t.Fatal(account, err)
 	}
-	disabled, err := client.Disable(context.Background(), AccountDisableRequest{AgentID: account.AgentID, Generation: account.Generation + 1})
+	disabled, err := client.Disable(context.Background(), AccountDisableRequest{AgentID: account.AgentID, Username: account.Username, Generation: account.Generation + 1})
 	if err != nil || disabled.UID != account.UID || disabled.State != AccountDisabled || disabled.Generation != account.Generation+1 || !system.disabled[account.Username] {
 		t.Fatal(disabled, err)
 	}
 	mutations, lookups := len(system.mutations), system.lookups
-	if _, err := client.Provision(context.Background(), AccountProvisionRequest{AgentID: account.AgentID, PublicKey: account.PublicKey, Generation: account.Generation}); err == nil {
+	if _, err := client.Provision(context.Background(), AccountProvisionRequest{AgentID: account.AgentID, Username: account.Username, PublicKey: account.PublicKey, Generation: account.Generation}); err == nil {
 		t.Fatal("typed RPC replay reinstalled a pre-disable SSH key")
 	}
 	if mutations != len(system.mutations) || lookups != system.lookups {
@@ -119,7 +119,7 @@ func TestAccountHelperRejectsWrongKernelUID(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	if _, err := client.Provision(context.Background(), AccountProvisionRequest{AgentID: accountTestAgent, PublicKey: accountTestKey(t), Generation: 1}); err == nil {
+	if _, err := client.Provision(context.Background(), AccountProvisionRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: accountTestKey(t), Generation: 1}); err == nil {
 		t.Fatal("another OS UID reached root operations")
 	}
 }

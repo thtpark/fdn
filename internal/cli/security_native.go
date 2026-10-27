@@ -49,9 +49,6 @@ type nativeInitReceipt struct {
 }
 
 func validateNativeServer(c config.Server) error {
-	if c.Listen != "" {
-		return domain.Fail(domain.Prerequisite, "legacy TCP configuration is not a native identity boundary; migrate explicitly without resetting state")
-	}
 	for _, path := range []string{c.StateDir, c.CertFile, c.KeyFile, c.IngressSocket, c.JoinSocket, c.AccountSocket} {
 		if !filepath.IsAbs(path) || filepath.Clean(path) != path || path == "/" || strings.ContainsAny(path, "\x00\r\n") {
 			return domain.Fail(domain.Invalid, "native server paths must be absolute and canonical")

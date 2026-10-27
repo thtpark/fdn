@@ -583,8 +583,8 @@ runner state, workspace root and identity socket by default. Identity private
 commands still require their explicit configuration. Native service definitions,
 shell login profiles and tool discovery links retain their platform-required
 locations. System Foundation server/account state does not move.
-Explicit existing paths remain valid; move an existing installation only with
-the [stopped layout migration](MIGRATION.md#consolidating-user-foundation-files).
+Explicit current-format paths remain valid and are not rewritten.
+See [explicit configuration and current paths](MIGRATION.md#explicit-configuration-and-current-paths).
 
 `platform.IdentityServiceOptions` uses these exact JSON fields:
 
@@ -601,9 +601,9 @@ the [stopped layout migration](MIGRATION.md#consolidating-user-foundation-files)
 No special account marker, named primary group, supplementary membership or
 private 0700 HOME is required. The existing HOME remains unchanged. Configurations
 and private state must already exist as this user; missing/untrusted state is an
-explicit failure. Legacy `identity_*`/`worker_*` **account selectors** are rejected,
-not used to create accounts, move keys or change ownership. See
-[legacy ownership migration](MIGRATION.md#migrating-legacy-split-account-workers).
+explicit failure. Service options accept only the current single-user fields;
+they never create accounts, move keys or change ownership. See the
+[supported baseline](MIGRATION.md#supported-baseline).
 
 | Native OS | Exact definition paths (`NAME`, `HOME` are plan values) |
 | --- | --- |
@@ -648,16 +648,12 @@ override. Real OS emergency stops remain OS actions, not a fabricated mode grant
 
 Upgrade Foundation before workers: API/schema is 2, native message protocol 2,
 server SQLite migration 5,
-local SQLite remains 1. Migration 2's mode/assistance attribution is retained;
-migration 3 adds identity/account/key/generation fences without erasing old
-agents, tasks or operation evidence. Old bearer files cannot run v2. An active
-Founder binds a designated original non-Founder with `agent register --input
-PUBLIC_REQUEST --existing-agent AGENT [--output PUBLIC_PROFILE]`; then that
-runner explicitly uses `connect --migrate` against its separate identity proxy.
-This replaces only the matching legacy credential file with public AgentID and
-preserves knowledge, journals, bindings and outbox. A legacy Founder must first
-use the authorized root-local recovery route with fresh keypairs. Never migrate
-by copying another computer's keys or resetting its database.
+local SQLite remains 1. Existing server databases must already be SQL5 or a
+newer supported version; older state is rejected without modification.
+New enrollment uses signed `agent register`, while `connect` attaches that
+same enrolled identity through its private proxy. Current configurations,
+knowledge, journals, bindings and outbox are retained. Never copy another
+computer's keys or reset its database to bypass an incompatibility.
 
 The binary transport is a clean cutover, not an HTTP compatibility window.
 Replace all four compatible binaries and their guide, then verify the actual
@@ -1122,12 +1118,11 @@ owner and matching native definition. A restored configuration is not proof of
 working host groups/socket policy or permission to enable TCP/bearer fallback.
 Then, on that Foundation, authorized root must use private Unix
 `recover-founder --input NEW_PUBLIC --reason REASON` to reapprove fresh Founder
-keys, retaining its original AgentID/history. The same channel can adopt the
-**sole existing** keyless legacy Founder during the first v2 upgrade; zero or
-multiple existing Founders fail closed, and no target/rotation flag is invented.
+keys, retaining its original enrolled AgentID/history. Zero or multiple existing
+Founders, or a missing current identity binding, fail closed.
 Then active Founder explicitly reapproves each regular identity with fresh signed
-keys and its approved public profile, using the documented recovery/original-
-agent registration path. Do not copy old credentials back to resume access.
+keys and its approved public profile using the documented identity recovery
+path. Do not copy old credentials back to resume access.
 Keep affected workers stopped until identity/work/mode decisions are reconciled;
 recovery never automatically changes mode or grants task retry/readiness.
 

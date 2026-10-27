@@ -21,6 +21,7 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/foundation"
 	"github.com/thtpark/fdn/internal/pki"
+	"github.com/thtpark/fdn/internal/testidentity"
 )
 
 type harness struct {
@@ -51,7 +52,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	// This adapter preserves business-policy coverage, not the production identity boundary.
 	service, err := api.NewAuthenticated(store, slog.New(slog.NewTextHandler(io.Discard, nil)), func(r *http.Request) (domain.Agent, error) {
-		return store.Authenticate(r.Context(), strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+		return testidentity.Authenticate(store, r)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -75,17 +76,13 @@ func newHarness(t *testing.T) *harness {
 			t.Error(err)
 		}
 	})
-	bootstrap := domain.NewToken()
-	if _, err := store.Bootstrap(ctx, domain.Hash(bootstrap), time.Now().Unix()+600); err != nil {
-		t.Fatal(err)
-	}
-	h.founder, h.founderAgent = h.enroll(t, "Founder", bootstrap)
+	h.founder, h.founderAgent = h.enroll(t, "Founder", "", 4100)
 	for _, name := range []string{"worker", "other"} {
-		token := domain.NewToken()
-		if _, err := store.Invite(ctx, h.founderAgent.ID, domain.InvitationRequest{Command: command(), TokenHash: domain.Hash(token), ExpiresAt: time.Now().Unix() + 600}); err != nil {
-			t.Fatal(err)
+		uid := int64(4101)
+		if name == "other" {
+			uid++
 		}
-		client, agent := h.enroll(t, name, token)
+		client, agent := h.enroll(t, name, h.founderAgent.ID, uid)
 		if name == "worker" {
 			h.worker, h.workerAgent = client, agent
 		} else {
@@ -95,18 +92,18 @@ func newHarness(t *testing.T) *harness {
 	return h
 }
 
-func (h *harness) enroll(t *testing.T, name, invitation string) (*api.Client, domain.Agent) {
+func (h *harness) enroll(t *testing.T, name, founder string, uid int64) (*api.Client, domain.Agent) {
 	t.Helper()
-	token := domain.NewToken()
 	c, err := api.NewClient(h.server.URL, filepath.Join(h.root, "ca.pem"), "", config.Credential{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent, err := h.store.Enroll(context.Background(), domain.EnrollRequest{Command: command(), Name: name, InvitationToken: invitation, CredentialHash: domain.Hash(token)})
+	agent, err := testidentity.Register(context.Background(), h.store, founder, name, uid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Credential = config.Credential{AgentID: agent.ID, Token: token}
+	c.Credential = config.Credential{AgentID: agent.ID}
+	c.HTTP.Transport = testidentity.Transport(c.HTTP.Transport, agent.ID)
 	return c, agent
 }
 
@@ -266,7 +263,7 @@ func TestConsentRelayTransfersBytesAndClosesOnWithdrawal(t *testing.T) {
 		t.Fatal(err)
 	}
 	url := "wss" + strings.TrimPrefix(h.server.URL, "https") + api.Path("sessions", session.ID, "relay", "target")
-	headers := http.Header{"Authorization": []string{"Bearer " + h.worker.Credential.Token}}
+	headers := http.Header{testidentity.ActorHeader: []string{h.workerAgent.ID}}
 	if conn, _, err := websocket.Dial(ctx, url, &websocket.DialOptions{HTTPClient: h.worker.HTTP, HTTPHeader: headers}); err == nil {
 		conn.CloseNow()
 		t.Fatal("consent alone opened a route")
@@ -283,7 +280,7 @@ func TestConsentRelayTransfersBytesAndClosesOnWithdrawal(t *testing.T) {
 	}
 	defer target.CloseNow()
 	requesterURL := "wss" + strings.TrimPrefix(h.server.URL, "https") + api.Path("sessions", session.ID, "relay", "requester")
-	requester, _, err := websocket.Dial(ctx, requesterURL, &websocket.DialOptions{HTTPClient: h.founder.HTTP, HTTPHeader: http.Header{"Authorization": []string{"Bearer " + h.founder.Credential.Token}}})
+	requester, _, err := websocket.Dial(ctx, requesterURL, &websocket.DialOptions{HTTPClient: h.founder.HTTP, HTTPHeader: http.Header{testidentity.ActorHeader: []string{h.founderAgent.ID}}})
 	if err != nil {
 		t.Fatal(err)
 	}

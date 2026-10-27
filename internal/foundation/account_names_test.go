@@ -49,7 +49,7 @@ func TestSecurityInvalidNewAccountNamesDoNotLeaveIdentityState(t *testing.T) {
 	}
 }
 
-func TestSecurityLegacyAccountNameSurvivesReopenAndRecovery(t *testing.T) {
+func TestSecurityExplicitAccountBindingSurvivesReopenAndRecovery(t *testing.T) {
 	ctx := context.Background()
 	f := securityEmptyStore(t)
 	keys := securityPublic(t, "Founder")
@@ -57,15 +57,12 @@ func TestSecurityLegacyAccountNameSurvivesReopenAndRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	legacy, err := identitySSHUser(identity.AgentID)
-	if err != nil {
-		t.Fatal(err)
-	}
+	retained := "reserved-founder"
 	tx, finish, err := f.s.beginWrite(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity.SSHUser = legacy
+	identity.SSHUser = retained
 	if err := saveIdentity(ctx, tx, identity); err != nil {
 		finish()
 		t.Fatal(err)
@@ -86,7 +83,7 @@ func TestSecurityLegacyAccountNameSurvivesReopenAndRecovery(t *testing.T) {
 	f.s.now = func() time.Time { return f.now }
 	fresh := securityPublic(t, "Different recovery display name")
 	recovered, err := f.s.RecoverFounderOffline(ctx, domain.RecoverIdentityRequest{Command: op(), Identity: fresh.public, Reason: "explicit legacy recovery"})
-	if err != nil || recovered.SSHUser != legacy {
+	if err != nil || recovered.SSHUser != retained {
 		t.Fatal("recovery recomputed a retained account name", recovered, err)
 	}
 	recovered, _ = securityActivate(t, f.s, recovered, fresh, identity.UID)

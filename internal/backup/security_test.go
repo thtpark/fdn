@@ -90,7 +90,7 @@ func manifestVersionFixture(t *testing.T, input, keyFile, output string, version
 	}
 }
 
-func TestRestoreAcceptsKnownOlderManifestAndRejectsFuture(t *testing.T) {
+func TestRestoreRejectsNoncurrentManifestsWithoutPublishingState(t *testing.T) {
 	ctx := context.Background()
 	root := filepath.Join(t.TempDir(), "private")
 	state := filepath.Join(root, "state")
@@ -118,8 +118,12 @@ func TestRestoreAcceptsKnownOlderManifestAndRejectsFuture(t *testing.T) {
 	}
 	legacy := filepath.Join(root, "known-older.age")
 	manifestVersionFixture(t, original, keyFile, legacy, 1)
-	if err := Restore(ctx, legacy, keyFile, filepath.Join(root, "legacy-restored")); err != nil {
-		t.Fatal("known manifest became unrestorable", err)
+	oldDestination := filepath.Join(root, "old-restored")
+	if err := Restore(ctx, legacy, keyFile, oldDestination); err == nil {
+		t.Fatal("obsolete backup manifest was accepted")
+	}
+	if _, err := os.Stat(oldDestination); !os.IsNotExist(err) {
+		t.Fatal("obsolete restore published partial state")
 	}
 	future := filepath.Join(root, "future.age")
 	manifestVersionFixture(t, original, keyFile, future, domain.SchemaVersion+1)

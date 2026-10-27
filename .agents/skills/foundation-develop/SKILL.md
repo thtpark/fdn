@@ -17,8 +17,9 @@ The checkout's root documents are canonical; no old source tree is required.
    configuration/state/keys/IPC/binaries live under HOME/.foundation. Leave
    existing XDG/provider/GitHub/Cloud SDK/credential settings available rather
    than overriding or clearing them; this is not isolated provider auth.
-   Go still compiles without manual install/release packaging. Preserve legacy
-   state through an explicit stopped migration; never copy live owner keys.
+   Go still compiles without manual install/release packaging. Other layouts
+   are not scanned or imported; preserve explicit current-format paths and
+   never copy live owner keys.
 2. Find existing helpers first. Keep server authority transactional, DTO/input
    validation narrow, errors explicit, and transport/provider/native boundaries
    testable. Do not enforce security only in a friendly CLI.
@@ -47,10 +48,10 @@ The checkout's root documents are canonical; no old source tree is required.
    server SQL migration 5, local SQL 1. SQL5 preserves private message bytes,
    insertion order, receipts and scoped updates while admitting the exact
    Foundation maintenance mailbox, never an enrolled synthetic agent.
-   Retain old identities/tasks/operations and private worker state without
-   authorizing legacy bearer runtime. Explicit Founder binding and runner
-   `connect --migrate` preserve the designated original non-Founder; a keyless
-   legacy Founder needs root-local recovery. Future schemas fail closed; binary
+   SQL5 is the existing server-state floor; older and future unsupported
+   formats fail closed unchanged. Shipped SQL statements remain immutable
+   initialization/history. Registration creates a new signed identity;
+   current-format fresh-key recovery preserves an enrolled identity. Binary
    rollback is not automatically database rollback.
 6. Update command/reference/skill behavior together. Skills need matching names,
    meaningful trigger descriptions and complete current procedures. Documentation
@@ -84,8 +85,8 @@ The checkout's root documents are canonical; no old source tree is required.
    `agent-identity service plan/install/status` takes current-user OPTIONS, not
    `--config`; test defaults from the actual OS user, independent agent names,
    one existing account, both user services, no sudo/runuser/account creation or
-   HOME chmod, private IPC and explicit stopped legacy migration with retained
-   state. Windows adapters remain separate, unimplemented work. Fresh recovery
+   HOME chmod, private IPC and strict current single-user option decoding.
+   Windows adapters remain separate, unimplemented work. Fresh recovery
    uses a new empty sub-StateDir in the same user's HOME and retains old keys/
    all runner state; never invent `--rotate` or rotate during normal retries.
 9. PRs into main run separate Linux/macOS suites. Real packaging only follows

@@ -120,13 +120,16 @@ func TestIdentityServiceLifecycleCLIRejectsUnknownOptionsFlagsAndUIDBypasses(t *
 			t.Fatal("native lifecycle accepted unsupported flags, arbitrary commands or account bypass", args, code)
 		}
 	}
-	options.IdentityUser = "legacy-identity-user"
-	if err := config.Write(file, options); err != nil {
+	removed := struct {
+		platform.IdentityServiceOptions
+		IdentityUser string `json:"identity_user"`
+	}{IdentityServiceOptions: options, IdentityUser: "removed-account-selector"}
+	if err := config.Write(file, removed); err != nil {
 		t.Fatal(err)
 	}
 	output.Reset()
-	if code := runWithServiceFactory(context.Background(), []string{"service", "install", "--input", file, "--apply"}, &output, &stderr, factory); code != 6 || called {
-		t.Fatal("legacy split-account service options silently created/adopted accounts", code)
+	if code := runWithServiceFactory(context.Background(), []string{"service", "install", "--input", file, "--apply"}, &output, &stderr, factory); code != 2 || called {
+		t.Fatal("removed split-account options were accepted", code)
 	}
 	if err := os.WriteFile(file, []byte(`{"os":"linux","test_uid":0}`), 0600); err != nil {
 		t.Fatal(err)

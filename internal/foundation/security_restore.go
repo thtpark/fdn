@@ -29,27 +29,14 @@ func (s *Store) QuarantineRestoredIdentities(ctx context.Context) error {
 	for _, agent := range agents {
 		identity, err := get[domain.AgentIdentity](ctx, tx, "agent_identities", agent.ID)
 		if err != nil {
-			if domain.AsFault(err).Code != domain.NotFound {
-				return err
-			}
-			instance, err := identityInstance(ctx, tx)
-			if err != nil {
-				return err
-			}
-			user, err := identitySSHUser(agent.ID)
-			if err != nil {
-				return err
-			}
-			identity = domain.AgentIdentity{AgentID: agent.ID, InstanceID: instance, SSHUser: user, UID: -1,
-				Generation: 1, OwnerGeneration: 1, State: identityRestorePending, Assurance: "software", BanReason: agent.BanReason}
-		} else {
-			if !agent.Active && identity.State == identityRestorePending && identity.OwnerKey == "" {
-				continue
-			}
-			identity.Generation++
-			identity.OwnerGeneration++
-			identity.State, identity.OwnerKey = identityRestorePending, ""
+			return err
 		}
+		if !agent.Active && identity.State == identityRestorePending && identity.OwnerKey == "" {
+			continue
+		}
+		identity.Generation++
+		identity.OwnerGeneration++
+		identity.State, identity.OwnerKey = identityRestorePending, ""
 		agent.Active = false
 		agent.Screens = nil
 		agent.Revision++

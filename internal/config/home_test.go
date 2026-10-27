@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/thtpark/fdn/internal/domain"
 )
 
 func TestUserDefaultsStayUnderFoundationRegardlessOfXDG(t *testing.T) {
@@ -34,15 +32,15 @@ func TestUserDefaultsStayUnderFoundationRegardlessOfXDG(t *testing.T) {
 	}
 }
 
-func TestLegacyDefaultRequiresExplicitConfigurationOrMigration(t *testing.T) {
+func TestDefaultsIgnoreOtherConfigurationsAndPreserveExplicitPaths(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	legacy := filepath.Join(home, ".config", "fdn", "agent.json")
 	if err := Write(legacy, DefaultWorker(filepath.Join(home, "retained-state"))); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := DefaultConfig(); domain.AsFault(err).Code != domain.Prerequisite {
-		t.Fatal("legacy configuration was silently ignored", err)
+	if path, err := DefaultConfig(); err != nil || path != filepath.Join(home, ".foundation", "config", "agent.json") {
+		t.Fatal("unrelated configuration changed the current default", path, err)
 	}
 	if _, err := LoadWorker(legacy); err != nil {
 		t.Fatal("explicit existing configuration no longer works", err)

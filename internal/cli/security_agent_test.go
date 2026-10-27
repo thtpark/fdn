@@ -90,7 +90,7 @@ func TestConnectAttachesPublicIdentityWithoutCopyingCredentials(t *testing.T) {
 	if err := config.Read(c.CredentialFile, &credential); err != nil {
 		t.Fatal(err)
 	}
-	if credential.AgentID != id || credential.Token != "" {
+	if credential.AgentID != id {
 		t.Fatalf("runner received a secret or wrong identity: %+v", credential)
 	}
 	state, err := local.Open(context.Background(), c.StateDir)
@@ -103,7 +103,7 @@ func TestConnectAttachesPublicIdentityWithoutCopyingCredentials(t *testing.T) {
 	}
 }
 
-func TestConnectRequiresMatchingLiveIdentityAndExplicitLegacyMigration(t *testing.T) {
+func TestConnectRequiresMatchingIdentityAndRejectsRemovedCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	id := domain.NewID("agent")
 	for _, item := range []struct {
@@ -126,21 +126,27 @@ func TestConnectRequiresMatchingLiveIdentityAndExplicitLegacyMigration(t *testin
 	}
 	c, path := identityAttachmentFixture(t, id, id, true)
 	token := domain.NewToken()
-	if err := config.Write(c.CredentialFile, config.Credential{AgentID: id, Token: token}); err != nil {
+	old := struct {
+		AgentID string `json:"agent_id"`
+		Token   string `json:"token"`
+	}{AgentID: id, Token: token}
+	if err := config.Write(c.CredentialFile, old); err != nil {
 		t.Fatal(err)
 	}
 	if reply, code := attach(t, path); code == 0 || reply.OK {
 		t.Fatal("legacy secret silently migrated")
 	}
-	var unchanged config.Credential
+	var unchanged struct {
+		AgentID string `json:"agent_id"`
+		Token   string `json:"token"`
+	}
 	if err := config.Read(c.CredentialFile, &unchanged); err != nil || unchanged.Token != token {
 		t.Fatal("failed migration changed retained evidence", err)
 	}
-	if reply, code := attach(t, path, "--migrate"); code != 0 || !reply.OK {
-		t.Fatalf("same-identity approved migration failed: %+v", reply)
+	if reply, code := attach(t, path, "--migrate"); code == 0 || reply.OK {
+		t.Fatalf("removed migration flag was accepted: %+v", reply)
 	}
-	unchanged = config.Credential{}
-	if err := config.Read(c.CredentialFile, &unchanged); err != nil || unchanged.Token != "" {
-		t.Fatal("migration retained a bearer secret", err)
+	if err := config.Read(c.CredentialFile, &unchanged); err != nil || unchanged.Token != token {
+		t.Fatal("rejected migration changed retained input", err)
 	}
 }
