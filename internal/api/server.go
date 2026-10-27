@@ -379,7 +379,8 @@ func (s *Server) routes() {
 	// Retain presence so ordinary direct/session messages cannot supply even a zero expiry.
 	body(s, "POST /v1/messages", false, func(r *operationRequest, a domain.Agent, q domain.MessageCommand) (domain.Message, error) {
 		request := domain.MessageRequest{Command: q.Command, RecipientID: q.RecipientID, Body: q.Body,
-			Origin: q.Origin, Kind: q.Kind, Urgent: q.Urgent, ResponseRequest: q.ResponseRequest}
+			Origin: q.Origin, Kind: q.Kind, Urgent: q.Urgent, ResponseRequest: q.ResponseRequest,
+			ReplyToID: q.ReplyToID, Insistence: q.Insistence, Request: q.Request}
 		if q.ExpiresAt != nil {
 			if q.Kind != "authentication" && q.Kind != "permission" {
 				return domain.Message{}, domain.Fail(domain.Invalid, "only authentication and permission messages may set an expiry")
@@ -400,6 +401,12 @@ func (s *Server) routes() {
 	})
 	read(s, "GET /v1/messages/{id}", func(r *operationRequest, a domain.Agent) (domain.Message, error) {
 		return s.Store.Message(r.Context(), a.ID, r.PathValue("id"))
+	})
+	read(s, "GET /v1/messages/{id}/thread", func(r *operationRequest, a domain.Agent) ([]domain.Message, error) {
+		return s.Store.MessageThread(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/messages/{id}/request", false, func(r *operationRequest, a domain.Agent, q domain.MessageActionReport) (domain.Message, error) {
+		return s.Store.ReportMessageAction(r.Context(), a.ID, r.PathValue("id"), q)
 	})
 	body(s, "POST /v1/messages/{id}/read", false, func(r *operationRequest, a domain.Agent, q domain.MessageReadRequest) (domain.Message, error) {
 		return s.Store.ReadMessage(r.Context(), a.ID, r.PathValue("id"), q)

@@ -469,6 +469,33 @@ func (s *Server) updateMessageRoutes() {
 
 func (s *Server) serveMaintenanceMessages(ctx context.Context, conn net.Conn) error {
 	session, err := message.NewSession(ctx, conn, func(call context.Context, request message.Request) ([]byte, error) {
+		if request.Operation == "query.maintenance.requests" {
+			if request.Target != "" || len(request.Query) != 0 || len(request.Payload) != 0 {
+				return nil, domain.Fail(domain.Denied, "Foundation maintenance inbox accepts no caller scope or body")
+			}
+			items, err := s.Store.SystemMessageRequests(call)
+			if err != nil {
+				return nil, err
+			}
+			return message.MarshalPayload(items)
+		}
+		if request.Operation == "command.maintenance.request-result" {
+			if request.Target != "" || len(request.Query) != 0 {
+				return nil, domain.Fail(domain.Denied, "unknown Foundation maintenance result selector")
+			}
+			var input domain.MessageWorkerCommand
+			if err := message.UnmarshalPayload(request.Payload, &input); err != nil {
+				return nil, err
+			}
+			if input.MessageID == "" || input.Report == nil {
+				return nil, domain.Fail(domain.Invalid, "maintenance result requires its exact request and decision")
+			}
+			result, err := s.Store.ReportSystemMessageAction(call, input.MessageID, *input.Report)
+			if err != nil {
+				return nil, err
+			}
+			return message.MarshalPayload(result)
+		}
 		leaseSpec, _, err := resolveOperation("POST", "/v1/upgrades/lease")
 		if err != nil {
 			return nil, err

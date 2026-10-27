@@ -317,6 +317,11 @@ type Message struct {
 	Revision              int64                  `json:"revision"`
 	AuthenticationRefresh *AuthenticationRefresh `json:"authentication_refresh,omitempty"`
 	AgentOperation        *AgentOperation        `json:"agent_operation,omitempty"`
+	ThreadID              string                 `json:"thread_id,omitempty"`
+	ReplyToID             string                 `json:"reply_to_id,omitempty"`
+	Insistence            bool                   `json:"insistence,omitempty"`
+	Request               *MessageActionState    `json:"request,omitempty"`
+	RequestUpdate         *MessageActionUpdate   `json:"request_update,omitempty"`
 }
 
 type Session struct {

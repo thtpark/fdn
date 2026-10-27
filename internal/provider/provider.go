@@ -36,9 +36,13 @@ type Reply struct {
 	SafeToRetry        bool       `json:"safe_to_retry"`
 	Checkpoint         string     `json:"checkpoint,omitempty"`
 	MessageRead        bool       `json:"message_read,omitempty"`
+	RequestDecision    string     `json:"request_decision,omitempty"`
 }
 
 func (r Reply) Validate() error {
+	if r.RequestDecision != "" && (r.Outcome != "responded" || !slices.Contains([]string{"accept", "defer", "decline", "answer"}, r.RequestDecision)) {
+		return domain.Fail(domain.Provider, "request_decision requires responded and accept/defer/decline/answer")
+	}
 	if !slices.Contains([]string{"reviewed", "clear", "blocked", "completed", "paused", "failed", "responded", "researched"}, r.Outcome) {
 		return domain.Fail(domain.Provider, "provider reply has an unsupported outcome")
 	}

@@ -38,17 +38,17 @@ var AgentCommands = []string{
 	"agent list", "agent status", "agent diagnose", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "mention list", "mention acknowledge", "watch",
-	"message send", "message show", "message read", "message diagnose", "message inbox", "message receipt", "session request", "session list", "session show", "session change", "session open",
+	"message send", "message show", "message read", "message diagnose", "message inbox", "message receipt", "message thread", "message request-report", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
 	"work prompt", "work status", "work run", "work recover", "service plan", "service install", "service status",
 	"upgrade check", "upgrade plan", "upgrade apply", "upgrade status",
-	"upgrade-lease",
+	"upgrade-lease", "message-worker",
 }
 
-var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install", "upgrade-helper"}
-var ServiceCommands = []string{"serve", "status", "upgrade-helper"}
+var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install", "upgrade-helper", "request-worker"}
+var ServiceCommands = []string{"serve", "status", "upgrade-helper", "request-worker"}
 var GuideCommands = []string{"guide list", "guide show", "guide install"}
 var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance request", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open"}
 
@@ -123,13 +123,15 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			case "upgrade plan":
 				usage = "upgrade plan --input TARGETS --output PLAN; Founder-only native target challenges, exact version/commit/hash and off-host age recovery key; no service stop or installation"
 			case "upgrade apply":
-				usage = "upgrade apply --input PLAN; explicit Founder rollout through separately administrator-provisioned narrow updaters; pause, encrypted cold backups, Foundation first, exact source and retained identity/fence checks; leave automation paused, never retry uncertain installation or roll back databases"
+				usage = "upgrade apply --input PLAN; authorize and queue exact private recipient-owned maintenance request messages; no direct remote installation; queued is not executed, targets decide and report in message threads; preserve pause, OS policy and work fences"
 			case "upgrade status":
 				usage = "upgrade status --input PLAN; inspect exact native receipts after an uncertain rollout; never repeats installation"
 			case "upgrade-helper":
 				usage = "upgrade-helper --policy FILE; separately provisioned native OS updater, bounded protobuf stdin/stdout only; requires pinned Foundation-signed authorization and fixed local policy, not an ordinary agent message or generic root command"
 			case "upgrade-lease":
 				usage = "upgrade-lease; internal native updater start proof using bounded protobuf stdin/stdout; exact current target or issuer only, rechecks current Founder/generations/pause and starts no installation or inference"
+			case "request-worker":
+				usage = "request-worker --policy FILE [--once]; separately provisioned independent native maintenance receiver; decides exact queued requests under current authority/OS policy, preserves uncertainty and posts result messages; never run inside the units it stops"
 			case "agent diagnose":
 				usage = "agent diagnose AGENT_ID [--refresh]; default is read-only latest saved observations for Founder or self; --refresh queues a Founder-only check with a fixed 15-minute lifespan, not fresh success; inspect agent operation REQUEST_ID; no login, inference or mode change"
 			case "agent repair":
@@ -155,7 +157,7 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 	if a.configFile == "" && tail[0] != "guide" {
 		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "default configuration unavailable; specify --config"), homeErr))
 	}
-	longRunning := tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" ||
+	longRunning := tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" || tail[0] == "request-worker" ||
 		(tail[0] == "upgrade" && len(tail) > 1 && tail[1] == "apply") ||
 		(tail[0] == "accounts" && len(tail) > 1 && tail[1] == "serve") || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
 	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open")) {

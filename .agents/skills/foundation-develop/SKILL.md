@@ -44,7 +44,9 @@ The checkout's root documents are canonical; no old source tree is required.
    adapters must prove non-prompting coding approval and tool-disabled text calls.
 5. Add ordered compatibility-tested migrations, never rewrite shipped schemas
    or reset state. Application/schema contract is 2, native message protocol 2,
-   server SQL migration 4, local SQL 1.
+   server SQL migration 5, local SQL 1. SQL5 preserves private message bytes,
+   insertion order, receipts and scoped updates while admitting the exact
+   Foundation maintenance mailbox, never an enrolled synthetic agent.
    Retain old identities/tasks/operations and private worker state without
    authorizing legacy bearer runtime. Explicit Founder binding and runner
    `connect --migrate` preserve the designated original non-Founder; a keyless
@@ -94,6 +96,10 @@ The checkout's root documents are canonical; no old source tree is required.
    Never overwrite a release/tag or let updater discovery fall back to Actions
    artifacts. Permission signatures for native upgrade permits/start leases
    are not artifact code signing/attestation.
+   Operational requests use private durable message decision/result threads.
+   Preserve current authority, recipient autonomy/reasons, linked non-forcing
+   insistence and immediate central safety controls. Test queued, not installed,
+   upgrade submission plus separately supervised native target receivers.
    Test Founder-only `upgrade check/plan/apply/status`, administrator-pinned
    native policies/operator SSH, current nonce-bound start authority, encrypted
    cold backups, server-first order, preserved keys/journals/fences, unknown/

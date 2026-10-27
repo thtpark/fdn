@@ -247,13 +247,52 @@ the trusted Founder and keep both backups and recovery key owner-only.
 These snapshots and retained immutable releases are recovery evidence, not an
 automatically qualified whole-host restore or safe SQL rollback.
 
-Workers stop/back up before Foundation. Installation and actual version/
-identity/fence/service checks run Foundation first, then workers. Automation
+Upgrade submission queues private request/result conversations. Each recipient
+decides at a safe opportunity, then stops/backs up its own services. Foundation's
+completed result precedes dependent agent requests. Actual version/
+identity/fence/service checks remain target-owned. Automation
 stays manual; sign-in, scope approval and explicit resumption remain separate.
 Busy/uncertain invocations/reports, changed identities/policy/source, missing
 native services and expired permits fail closed. No task retry, fence clearing,
 provider upgrade, cloud operation, financial permission or release publication
 is implied by a software update request.
+
+### Independent native message receiver
+
+Provision one independently supervised maintenance process per fixed policy:
+
+```sh
+# Explicit authorized native administrator context, outside the units it stops:
+fdn-service request-worker --policy /etc/fdn/updater.json
+# Worker counterpart under the policy's authorized updater account:
+agent-service request-worker --policy /etc/fdn/updater.json
+```
+
+`--once` inspects/processes at most one available request for bounded checks.
+Do not invoke this receiver as a child of the identity/runner/Foundation/account
+service it must stop. Its private `request-worker.lock` prevents duplicate
+receivers; retained `message-inflight.json` and native receipts preserve uncertain
+effects. The inflight record retains the exact report before sending, including
+its operation/revision/reason. Lost or unavailable acknowledgements remain pending
+delivery, never a new refusal or permission to repeat installation. Replay the
+same report first when the mailbox returns. A restart can report an exact verified
+native receipt; an interrupted admission without one fails with a reason and
+requires review. Native evidence stays under the administrator's existing policy state.
+The Foundation receiver uses only the peer-checked root-private maintenance
+socket. Agent receivers use the target's own same-user inbox adapter. Neither
+starts a new application identity or exports private keys to a sender.
+
+This receiver performs no AI inference. It accepts only the exact authenticated
+Founder permit for that target, refuses invalid authority with a result reason,
+waits on preceding result messages, and leaves global mode unchanged.
+Failed/deferred/declined prerequisites produce a target defer reply rather than
+leaving dependent requests queued indefinitely. Ordinary
+model-reviewed work requests wait while paused and use the serial controller,
+current task approval/workspace/spending limits. Insistence is a new linked
+request, never a force or permission/retry reset. A queued request may expire
+before native admission; only an explicit newly authorized request can renew
+its proposal. Request/result protocol changes require a compatible coordinated
+software rollout; installing source changes does not deploy receivers.
 
 After a lost response, use the same private `upgrade status --input PLAN`.
 It works from retained original-Founder evidence plus the separate operator
@@ -608,7 +647,7 @@ Targets and delegates cannot self-set manual or bypass it with manual work.
 override. Real OS emergency stops remain OS actions, not a fabricated mode grant.
 
 Upgrade Foundation before workers: API/schema is 2, native message protocol 2,
-server SQLite migration 4,
+server SQLite migration 5,
 local SQLite remains 1. Migration 2's mode/assistance attribution is retained;
 migration 3 adds identity/account/key/generation fences without erasing old
 agents, tasks or operation evidence. Old bearer files cannot run v2. An active

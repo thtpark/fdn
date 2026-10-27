@@ -76,7 +76,7 @@ func (e *Engine) requestedAuthentication(ctx context.Context, c config.Worker, m
 		}
 		for index := range page.Items {
 			message := &page.Items[index]
-			if message.Kind == "direct" && message.ResponseRequest {
+			if (message.Kind == "direct" || message.Kind == "request" && message.Request != nil && message.Request.Action.Kind == "work") && message.ResponseRequest {
 				launches = append(launches, Launch{Message: message})
 			}
 		}

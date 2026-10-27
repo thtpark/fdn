@@ -183,12 +183,12 @@ errors, credentials, process arguments and workspace paths out of safe results.
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
 version is **2**; native message protocol is **2**, server SQLite migration is
-**4**, local SQLite remains **1**.
+**5**, local SQLite remains **1**.
 Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
 - Reject databases newer than the binary rather than resetting them. Restore
-  recognizes manifest schema 1/2 separately from SQL4, rejects future formats,
+  recognizes manifest schema 1/2 separately from SQL5, rejects future formats,
   and quarantines all restored identity/owner/key epochs before publication.
   Test root-private sole-legacy-Founder adoption preserving ID/history, regular
   fresh-key reapproval, retired credential denial and unchanged mode/work fences.
@@ -285,6 +285,15 @@ before any stop; the accepted exact maintenance job then proceeds from its
 durable receipt under the original 15-minute authorization. These are permission
 signatures, not release code signing/attestation. Never extend the account
 provisioner into a generic updater/root shell.
+
+Operational execution requests are private message conversations with explicit
+target decisions and progress/results. Upgrade submission queues exact permits;
+it must never call remote prepare/install from the sender CLI. Native consumers
+are separately supervised outside the services they stop; Foundation uses the
+root-private deterministic handler, agents their own peer-checked inbox.
+Preserve current authority/generation/project epochs, task approval/spending/
+pause/session fences, exact prepared decisions and non-forcing insistence.
+Keep immediate central safety/authority state and narrow auth/diagnostic controls.
 
 Test helper process/filesystem/network effects through existing injected runners,
 temporary homes and synthetic release bytes. No local test registers services,

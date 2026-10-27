@@ -89,6 +89,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.upgradeCommand(ctx, r, tail)
 	case "upgrade-lease":
 		return a.upgradeLease(ctx, r, tail)
+	case "message-worker":
+		return a.messageWorker(ctx, r, tail)
 	case "watch":
 		return a.watchCommand(ctx, r, tail)
 	default:
@@ -439,6 +441,24 @@ func (a *app) messageCommand(ctx context.Context, r *resources, args []string) (
 		return nil, domain.Fail(domain.Invalid, "message command required")
 	}
 	switch args[0] {
+	case "thread":
+		if err := requireArgs(args, 2); err != nil {
+			return nil, err
+		}
+		return api.Call[[]domain.Message](ctx, r.client, "GET", api.Path("messages", args[1], "thread"), nil)
+	case "request-report":
+		id, tail, err := idArgs(args[1:])
+		if err != nil {
+			return nil, err
+		}
+		var req domain.MessageActionReport
+		if err := a.input(tail, &req); err != nil {
+			return nil, err
+		}
+		if err := a.metadata(&req.Command); err != nil {
+			return nil, err
+		}
+		return a.write(ctx, r, api.Path("messages", id, "request"), req, api.Path("messages", id))
 	case "show":
 		if err := requireArgs(args, 2); err != nil {
 			return nil, err
@@ -480,7 +500,11 @@ func (a *app) messageCommand(ctx context.Context, r *resources, args []string) (
 			req.Origin = "human"
 		}
 		if req.Kind == "" {
-			req.Kind = "direct"
+			if req.Request != nil {
+				req.Kind, req.ResponseRequest = "request", true
+			} else {
+				req.Kind = "direct"
+			}
 		}
 		if err := a.metadata(&req.Command); err != nil {
 			return nil, err

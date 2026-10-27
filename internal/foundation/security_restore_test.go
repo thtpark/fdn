@@ -83,7 +83,7 @@ func TestSecurityLegacyFounderAdoptionAfterOrderedMigration(t *testing.T) {
 			}
 			defer store.Close()
 			var currentVersion int
-			if err := store.db.QueryRow("PRAGMA user_version").Scan(&currentVersion); err != nil || currentVersion != 4 {
+			if err := store.db.QueryRow("PRAGMA user_version").Scan(&currentVersion); err != nil || currentVersion != 5 {
 				t.Fatal("legacy schema did not migrate in order", currentVersion, err)
 			}
 			_, err = store.Identity(ctx, founder.ID)

@@ -44,20 +44,7 @@ CREATE TABLE update_changes (
 		if table == "agents" {
 			changed = "json_remove(OLD.data,'$.last_seen','$.status') IS NOT json_remove(NEW.data,'$.last_seen','$.status')"
 		}
-		fmt.Fprintf(&sql, `
-CREATE TRIGGER updates_%[1]s_insert AFTER INSERT ON %[1]s BEGIN
- INSERT INTO update_changes(source_table,source_id,before_data,after_data) VALUES('%[1]s',NEW.id,NULL,NEW.data)
- ON CONFLICT(source_table,source_id) DO UPDATE SET after_data=excluded.after_data;
-END;
-CREATE TRIGGER updates_%[1]s_update AFTER UPDATE ON %[1]s WHEN %[2]s BEGIN
- INSERT INTO update_changes(source_table,source_id,before_data,after_data) VALUES('%[1]s',NEW.id,OLD.data,NEW.data)
- ON CONFLICT(source_table,source_id) DO UPDATE SET after_data=excluded.after_data;
-END;
-CREATE TRIGGER updates_%[1]s_delete AFTER DELETE ON %[1]s BEGIN
- INSERT INTO update_changes(source_table,source_id,before_data,after_data) VALUES('%[1]s',OLD.id,OLD.data,NULL)
- ON CONFLICT(source_table,source_id) DO UPDATE SET after_data=excluded.after_data;
-END;
-`, table, changed)
+		sql.WriteString(dataUpdateTriggers(table, changed))
 	}
 	for _, change := range []struct {
 		table, key, data string
@@ -84,4 +71,21 @@ END;
 `, change.table, ref(change.key, "NEW"), ref(change.data, "NEW"), ref(change.key, "OLD"), ref(change.data, "OLD"))
 	}
 	return sql.String()
+}
+
+func dataUpdateTriggers(table, changed string) string {
+	return fmt.Sprintf(`
+CREATE TRIGGER updates_%[1]s_insert AFTER INSERT ON %[1]s BEGIN
+ INSERT INTO update_changes(source_table,source_id,before_data,after_data) VALUES('%[1]s',NEW.id,NULL,NEW.data)
+ ON CONFLICT(source_table,source_id) DO UPDATE SET after_data=excluded.after_data;
+END;
+CREATE TRIGGER updates_%[1]s_update AFTER UPDATE ON %[1]s WHEN %[2]s BEGIN
+ INSERT INTO update_changes(source_table,source_id,before_data,after_data) VALUES('%[1]s',NEW.id,OLD.data,NEW.data)
+ ON CONFLICT(source_table,source_id) DO UPDATE SET after_data=excluded.after_data;
+END;
+CREATE TRIGGER updates_%[1]s_delete AFTER DELETE ON %[1]s BEGIN
+ INSERT INTO update_changes(source_table,source_id,before_data,after_data) VALUES('%[1]s',OLD.id,OLD.data,NULL)
+ ON CONFLICT(source_table,source_id) DO UPDATE SET after_data=excluded.after_data;
+END;
+`, table, changed)
 }

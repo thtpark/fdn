@@ -6,6 +6,15 @@ import (
 )
 
 func (s *Server) upgradeRoutes() {
+	read(s, "GET /v1/message-requests", func(r *operationRequest, a domain.Agent) ([]domain.Message, error) {
+		return s.Store.NativeMessageRequests(r.Context(), a.ID)
+	})
+	read(s, "GET /v1/maintenance/requests", func(r *operationRequest, a domain.Agent) ([]domain.Message, error) {
+		return nil, domain.Fail(domain.Denied, "Foundation maintenance inbox is available only through the root-private native handler")
+	})
+	body(s, "POST /v1/maintenance/request-result", false, func(r *operationRequest, a domain.Agent, req domain.MessageWorkerCommand) (domain.Message, error) {
+		return domain.Message{}, domain.Fail(domain.Denied, "Foundation maintenance results require the root-private native handler")
+	})
 	read(s, "GET /v1/upgrades/context", func(r *operationRequest, a domain.Agent) (domain.UpgradeContext, error) {
 		if err := agentOperationRead(r, false); err != nil {
 			return domain.UpgradeContext{}, err

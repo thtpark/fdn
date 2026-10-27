@@ -239,11 +239,14 @@ or an older server/client fallback.
 | --- | --- |
 | `agent-cli upgrade check` | `[--platform linux-amd64\|linux-arm64\|darwin-arm64] [--input TARGETS]`; Founder-only latest published release and optional actual native inventory; no mode/package/service changes |
 | `agent-cli upgrade plan` | `--input TARGETS --output PLAN`; private exact target/source/nonce/hash plan and off-host `PLAN.agekey`; no installation; output must be new |
-| `agent-cli upgrade apply` | `--input PLAN`; explicit Founder authorization, pause, encrypted cold backups, Foundation-first native rollout and actual verification; leaves workers manual |
+| `agent-cli upgrade apply` | `--input PLAN`; authorize exact permits, retain pause and queue private target-owned maintenance requests; returns queued, never installed |
 | `agent-cli upgrade status` | `--input PLAN`; original Founder's retained local evidence and native receipts, including when Foundation is offline; no installation/renewed authority |
 | `agent-cli upgrade-lease` | Internal native-helper command, bounded protobuf stdin/stdout only; exact issuer/target requests a fresh server nonce proof; no installer/inference |
 | `agent-service upgrade-helper` | `--policy FILE`; administrator-provisioned worker updater, bounded protobuf stdin/stdout only |
 | `fdn-service upgrade-helper` | `--policy FILE`; administrator-provisioned Foundation updater, bounded protobuf stdin/stdout only; not the ordinary SSH agent gateway |
+| `agent-cli message-worker` | Internal same-user native maintenance inbox/result adapter, bounded protobuf stdin/stdout; not an agent owner or model call |
+| `agent-service request-worker` | `--policy FILE [--once]`; independently supervised native receiver for exact queued maintenance requests |
+| `fdn-service request-worker` | `--policy FILE [--once]`; deterministic independently supervised Foundation maintenance receiver, root-private inbox/result channel |
 
 `check` uses only the pinned public `thtpark/fdn` stable GitHub release channel,
 not the current working tree, branch HEAD, provider updates or expiring Actions
@@ -274,7 +277,13 @@ All targets in one plan must resolve to one release version and source commit.
 
 `apply` authenticates Founder on the server, pauses affected agents (all agents
 for a Foundation upgrade), signs immutable 15-minute exact permits and persists
-submission before native effects. Each helper independently validates its pinned
+submission before queueing private request messages. It never directly invokes
+remote prepare/install. The plan retains each message ID; use `message show` and
+`message thread` for decisions/results. Queued/accepted is not executed.
+Requests depend on the preceding target's completed result, Foundation first.
+Each target's independently provisioned `request-worker` decides whether it can
+accept, then performs native preparation/install and posts an actual result.
+Each helper independently validates its pinned
 Foundation CA, exact current challenge/policy/source and a fresh 30-second
 nonce-bound server start lease. Recovery/revocation, changed pause/generation,
 active ownership or assistance before native start denies the lease.
@@ -282,8 +291,9 @@ Once the exact maintenance job is admitted and services are stopped, completion
 uses its durable receipt and original fixed permit expiry; it is not a new
 revocable session or permission to resume work.
 
-Workers prepare/stop before Foundation; package installation/start/verification
-is Foundation first, then workers. Pending/uncertain invocations/reports block
+Targets prepare/stop themselves only after accepting the exact request.
+Package installation/start/verification is Foundation first, then dependent
+workers. Pending/uncertain invocations/reports block
 admission; existing session/text/work fences are retained, not force-cleared.
 Native phases are `planned`, `stopping`, `prepared`, `installing`, `verified`;
 an interrupted mutating phase without a live helper is `operator-required`
@@ -293,7 +303,9 @@ No automatic inference, provider login/update, key rotation, disk wipe, release
 publication, native policy/sudoers installation or cloud operation follows.
 
 First install an upgrade-capable Foundation and target service binary through
-an authorized operator, and provision each native policy once. Existing releases
+an authorized operator, provision each native policy and an independent
+native request worker once. Never supervise that worker under the identity,
+runner, Foundation or account-helper unit it must stop. Existing releases
 without these routes/helpers cannot bootstrap themselves. Detailed policy,
 operator-target and service prerequisites are in
 [DEPLOYMENT.md](DEPLOYMENT.md#founder-controlled-native-upgrades).
@@ -655,6 +667,43 @@ codes and secret-bearing sign-in state must not enter an AI context.
 | `agent-cli message diagnose` | Exactly `MESSAGE_ID`; read-only `MessageDiagnostics` from `GET /v1/messages/{id}/diagnostics`, private to sender/recipient; `state` is observed lifecycle (not-requested, queued/shared-slot waiting, generating, blocked, awaiting-delivery, handled), `stage` is lower-level phase; not proof of authoritative receipt or AI completion |
 | `agent-cli message inbox` | `[--cursor CURSOR --limit N --urgent]`; recipient's pending messages |
 | `agent-cli message receipt` | `MESSAGE --input FILE`: state handled/deferred/stale, or pending only from deferred; does not acknowledge reading |
+| `agent-cli message thread` | `MESSAGE`; bounded sender/recipient-private conversation including target decisions/results |
+| `agent-cli message request-report` | `MESSAGE --input FILE`: exact revision, state and nonempty reason; recipient-only accepted/deferred/declined/executing/completed/failed lifecycle |
+
+### Agent-owned operational requests
+
+Operational execution is requested through durable messages, not a remote CLI
+effect. The CLI/API remains a transport for sending/reading conversations and
+the controller's internal approved actions. Central authority/safety changes
+(Founder pause, revocation, project/task records) remain immediately enforced.
+Protected authentication, screen/tmux and diagnostic controls keep their narrow
+native interfaces; they are not arbitrary model prompts.
+
+For a work request, send `kind:"request"`, `response_requested:true`, and
+`request:{"kind":"work","project_id":"PROJECT","task_id":"TASK"}` alongside the
+normal recipient/body. Founder may make an unscoped informational request.
+Project delegates require their current project authority. Work acceptance does
+not create task approval, workspace permission or spending authority; execution
+uses the existing approved assigned task and serial slot.
+
+The recipient explicitly accepts, defers or declines with a reason at its next
+safe opportunity. Ordinary model review stays queued while paused. Protected
+preauthorized native maintenance may run without inference under its fixed OS
+policy. Accepted/executing requests remain pending until an actual completion
+or failure. Results are private `request-update` replies, not automatic model
+requests; an informational answer does not claim external tool effects.
+
+Use `reply_to_id` to keep replies in a conversation. A sender can insist by
+sending a new request with `insistence:true` and `reply_to_id` naming its earlier
+request. The earlier decision stays final; the new request is independently
+reviewed with current authority/generations. Insistence never forces acceptance,
+renews an expired permit, clears a fence or grants a retry.
+
+Exact upgrade request descriptors carry only the approved public permit and
+bounded predecessor request IDs, never operator keys/paths or private backup
+identities. Foundation is addressed by its instance ID and handles only this
+deterministic maintenance type through the root-private receiver. Delegates
+may request scoped work but do not gain Founder-only native-upgrade authority.
 
 Reading is an **explicit recipient assertion**, not inferred from delivery,
 listing, peeking with `message show`, diagnostics, processing, a reply or a
@@ -889,7 +938,7 @@ current exact retry authority; recovery is not permission to rerun.
 ## API map for development
 
 Application/schema contract version is **2**, native message protocol **2**,
-server SQLite migration **4**, local SQLite **1**. Native processes exchange
+server SQLite migration **5**, local SQLite **1**. Native processes exchange
 bounded protobuf frames over pinned SSH stdio/inner mTLS and peer-checked local
 Unix sockets. There is no internal HTTP/gRPC listener or HTTP downgrade.
 JSON envelopes remain CLI output and local evidence, not native wire payloads.
@@ -930,7 +979,8 @@ Read-only diagnostic routes are `GET /v1/agents/{id}/diagnostics`
 `domain.HeartbeatRequest`: existing command metadata plus optional version-1
 `health`. Legacy bodies remain accepted and the result remains `domain.Agent`.
 Latest reports/incidents use bounded service-owned settings; health itself needs
-no migration beyond the current SQL4 scoped-update contract.
+no migration beyond the SQL4 scoped-update contract. SQL5 adds the Foundation
+maintenance mailbox while preserving that feed, existing messages and receipts.
 
 `GET /v1/updates?since=CURSOR&limit=N&wait=true` selects a recipient-scoped
 blocking update request. An empty cursor returns the initial current watermark;

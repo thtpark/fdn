@@ -34,6 +34,7 @@ type Native struct {
 	Now           func() time.Time
 	Lease         func(context.Context, domain.UpgradeLeaseRequest) (domain.UpgradeLease, error)
 	CheckServices func(context.Context) error
+	Mailbox       func(context.Context, domain.MessageWorkerCommand) (domain.MessageWorkerReply, error)
 }
 
 type nativeJob struct {
@@ -52,6 +53,7 @@ func NewNative(policy Policy) *Native {
 	native := &Native{Policy: policy, Runner: process.Native{}, Catalog: NewCatalog(), Now: time.Now}
 	native.Lease = native.fetchLease
 	native.CheckServices = native.checkServices
+	native.Mailbox = native.messageMailbox
 	return native
 }
 

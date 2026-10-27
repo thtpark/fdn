@@ -61,6 +61,14 @@ explicit prerequisite, not success or an empty-work result.
 
 ## Read-only worker health and stuck-work diagnostics
 
+Operational execution coordination is message-first: private typed requests,
+recipient-owned acceptance/refusal/defer reasons, linked non-forcing follow-ups
+and actual result replies. Work still uses existing approved task execution;
+exact native upgrades use independent policy-bound request receivers, including
+a deterministic Foundation handler. Central safety/authority records remain
+immediate. Source fixtures do not imply receiver provisioning, protocol rollout
+or a live upgraded request workflow.
+
 The supported inspection leaves are `agent-cli agent diagnose AGENT_ID` and
 `agent-cli message diagnose MESSAGE_ID`, using typed authenticated read-only
 endpoints. General agent diagnosis is Founder/self; message diagnosis remains
@@ -72,7 +80,7 @@ and non-authentication blockers remain visible, including after sign-in.
 Workers optionally piggyback version-1 observations on existing 30-second
 heartbeats; old bodies and the `Agent` response remain compatible. Bounded
 service-owned latest-report/incident settings need no new migration (API/schema
-2, server SQL 4, local SQL 1). The non-AI server watchdog monitors missing
+2, server SQL 5, local SQL 1). The non-AI server watchdog monitors missing
 heartbeat/report (90 seconds), deadline plus grace (30 seconds) and eligible
 unexplained queued replies (120 seconds), including manual Founder. It does not
 classify pause/no-response-requested/idle/in-deadline work as stuck. Protected
@@ -120,7 +128,7 @@ or version bump is part of this source-only work.
 
 ## Current acceptance gate: software-first identity security
 
-API/schema contract **2**, server SQL migration **4** and preserved local SQL
+API/schema contract **2**, server SQL migration **5** and preserved local SQL
 **1** are the current implementation target. This is mandatory security work,
 not an optional hardware milestone or permission to bypass existing project/
 work policies. Source integration and exact test outcomes must be confirmed
@@ -153,7 +161,7 @@ before marking this gate complete.
   confirmed strict Unix/attachment source results do not finish all-suite
   acceptance after subsequent restore/lifecycle changes; see
   [TEST_PLAN.md](TEST_PLAN.md) and [SCENARIOS.md](tests/e2e/SCENARIOS.md).
-- Known backup manifest schemas 1/2 migrate through server SQL4; future formats
+- Known backup manifest schemas 1/2 migrate through server SQL5; future formats
   fail closed. Restore quarantines ALL identity/owner/key epochs before
   publication. Root-private fresh-key recovery adopts/recovers the sole existing
   legacy/restored Founder retaining ID/history, then active Founder explicitly

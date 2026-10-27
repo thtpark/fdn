@@ -14,16 +14,22 @@ func (s *Store) SendMessage(ctx context.Context, actor string, req domain.Messag
 		if err := domain.CheckText(req.Body, "message body", 32768, true); err != nil {
 			return domain.Message{}, err
 		}
-		if _, err := activeIdentitySubject(ctx, tx, req.RecipientID); err != nil {
+		action, system, err := s.prepareMessageAction(ctx, tx, a, req)
+		if err != nil {
 			return domain.Message{}, err
 		}
-		if !slices.Contains([]string{"human", "ai", "service"}, req.Origin) || !slices.Contains([]string{"direct", "authentication", "permission", "session"}, req.Kind) {
+		if !system {
+			if _, err := activeIdentitySubject(ctx, tx, req.RecipientID); err != nil {
+				return domain.Message{}, err
+			}
+		}
+		if !slices.Contains([]string{"human", "ai", "service"}, req.Origin) || !slices.Contains([]string{"direct", "request", "authentication", "permission", "session"}, req.Kind) {
 			return domain.Message{}, domain.Fail(domain.Invalid, "message requires a supported declared origin and kind")
 		}
 		if req.Kind == "permission" && req.Origin != "service" {
 			return domain.Message{}, domain.Fail(domain.Invalid, "permission handoffs require service origin")
 		}
-		if req.Kind != "direct" && req.ResponseRequest {
+		if req.Kind != "direct" && req.Kind != "request" && req.ResponseRequest {
 			return domain.Message{}, domain.Fail(domain.Invalid, "protected handoffs cannot request automatic AI responses")
 		}
 		now := s.timestamp()
@@ -40,6 +46,26 @@ func (s *Store) SendMessage(ctx context.Context, actor string, req domain.Messag
 		}
 		m := domain.Message{ID: domain.NewID("message"), SenderID: a.ID, RecipientID: req.RecipientID, Body: req.Body,
 			Origin: req.Origin, Kind: req.Kind, Urgent: req.Urgent, ResponseRequest: req.ResponseRequest, State: "pending", CreatedAt: now, ExpiresAt: expiresAt, Revision: 1}
+		m.ThreadID, m.Request, m.Insistence = m.ID, action, req.Insistence
+		if req.ReplyToID != "" {
+			parent, err := get[domain.Message](ctx, tx, "messages", req.ReplyToID)
+			if err != nil {
+				return domain.Message{}, err
+			}
+			if parent.Kind == "agent-operation" || parent.AgentOperation != nil ||
+				!((parent.SenderID == a.ID && parent.RecipientID == req.RecipientID) || (parent.RecipientID == a.ID && parent.SenderID == req.RecipientID)) {
+				return domain.Message{}, domain.Fail(domain.Denied, "reply must stay between the original private message parties")
+			}
+			if req.Insistence && (parent.Request == nil || parent.SenderID != a.ID || action == nil) {
+				return domain.Message{}, domain.Fail(domain.Denied, "only the issuer may insist through a new independently authorized request")
+			}
+			m.ThreadID, m.ReplyToID = parent.ThreadID, parent.ID
+			if m.ThreadID == "" {
+				m.ThreadID = parent.ID
+			}
+		} else if req.Insistence {
+			return domain.Message{}, domain.Fail(domain.Invalid, "insistence requires a linked earlier request")
+		}
 		return insertMessage(ctx, tx, m)
 	})
 }
@@ -139,6 +165,9 @@ func (s *Store) ReceiveMessage(ctx context.Context, actor, id string, req domain
 		}
 		if m.RecipientID != a.ID {
 			return m, domain.Fail(domain.Denied, "only the recipient changes disposition")
+		}
+		if m.Request != nil {
+			return domain.Message{}, domain.Fail(domain.Denied, "operational requests require an explicit decision/result with a reason, not a handled receipt")
 		}
 		if m.Kind == "agent-operation" || m.AgentOperation != nil {
 			return domain.Message{}, domain.Fail(domain.Denied, "ordinary receipts cannot change a protected agent operation")

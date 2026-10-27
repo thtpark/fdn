@@ -279,6 +279,51 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 		if _, err := commit[domain.Entry](ctx, e, "POST", api.Path("tasks", task.ID, "entries"), domain.EntryRequest{Command: domain.Command{OperationID: j.ID + ".worklog"}, Kind: "worklog", Body: "Preparation/review: " + reply.Summary}); err != nil {
 			return err
 		}
+	case "request":
+		if launch.Message == nil || launch.Message.Request == nil || reply.Outcome != "responded" {
+			return domain.Fail(domain.Provider, "request decision omitted its exact supplied request")
+		}
+		source, err := api.Call[domain.Message](ctx, e.Client, "GET", api.Path("messages", launch.Message.ID), nil)
+		if err != nil {
+			return err
+		}
+		if reply.MessageRead {
+			if _, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", source.ID, "read"),
+				domain.MessageReadRequest{Command: domain.Command{OperationID: j.ID + ".read"}}); err != nil {
+				return err
+			}
+		}
+		state := "declined"
+		switch reply.RequestDecision {
+		case "accept":
+			if launch.Task == nil || launch.Task.AssigneeID != e.Client.Credential.AgentID ||
+				launch.Task.Status != domain.Todo || launch.Project == nil || launch.Task.Readiness == nil ||
+				launch.Task.Readiness.SpecGeneration != launch.Task.SpecGeneration || launch.Task.Readiness.ProjectEpoch != launch.Project.Epoch {
+				return domain.Fail(domain.Provider, "accepting operational execution requires an existing current approved assigned task")
+			}
+			state = "accepted"
+		case "defer":
+			state = "deferred"
+		case "decline":
+		case "answer":
+			if source.Request.Action.TaskID != "" {
+				return domain.Fail(domain.Provider, "a tool-disabled answer cannot fulfill a linked execution request")
+			}
+			state = "accepted"
+		default:
+			return domain.Fail(domain.Provider, "request review has no supported decision")
+		}
+		decided, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", source.ID, "request"),
+			domain.MessageActionReport{Command: domain.Command{OperationID: j.ID + ".decision", ExpectedRevision: source.Revision}, State: state, Reason: neutralMentions(reply.Summary)})
+		if err != nil {
+			return err
+		}
+		if reply.RequestDecision == "answer" {
+			if _, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", source.ID, "request"),
+				domain.MessageActionReport{Command: domain.Command{OperationID: j.ID + ".answered", ExpectedRevision: decided.Revision}, State: "completed", Reason: neutralMentions(reply.Summary)}); err != nil {
+				return err
+			}
+		}
 	case "message":
 		if launch.Message == nil || launch.Message.Kind != "direct" || reply.Outcome != "responded" || len(reply.Questions) != 0 {
 			return domain.Fail(domain.Provider, "message reply must be a tool-disabled text response")
@@ -303,7 +348,7 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 				return errors.Join(domain.Fail(domain.Prerequisite, "explicit message read acknowledgement remains pending; reconcile the exact receipt without another model call"), err)
 			}
 		}
-		if _, err := commit[domain.Message](ctx, e, "POST", "/v1/messages", domain.MessageRequest{Command: domain.Command{OperationID: j.ID + ".reply"}, RecipientID: source.SenderID, Body: neutralMentions(reply.Summary), Origin: "ai", Kind: "direct"}); err != nil {
+		if _, err := commit[domain.Message](ctx, e, "POST", "/v1/messages", domain.MessageRequest{Command: domain.Command{OperationID: j.ID + ".reply"}, RecipientID: source.SenderID, Body: neutralMentions(reply.Summary), Origin: "ai", Kind: "direct", ReplyToID: source.ID}); err != nil {
 			return err
 		}
 		if _, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", source.ID, "receipt"), domain.MessageReceipt{Command: domain.Command{OperationID: j.ID + ".receipt", ExpectedRevision: source.Revision}, State: "handled"}); err != nil {

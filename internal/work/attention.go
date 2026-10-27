@@ -29,6 +29,40 @@ func (e *Engine) messages(ctx context.Context, c config.Worker, urgent, manual b
 			return false, err
 		}
 		for _, message := range page.Items {
+			if message.Request != nil {
+				if handled, err := e.reconcileMessageAction(ctx, message); handled || err != nil {
+					return handled, err
+				}
+				if message.Request.Action.Kind != "work" || message.Request.State != "queued" {
+					continue
+				}
+				var task *domain.Task
+				if message.Request.Action.TaskID != "" {
+					value, err := api.Call[domain.Task](ctx, e.Client, "GET", api.Path("tasks", message.Request.Action.TaskID), nil)
+					if err != nil {
+						return false, err
+					}
+					task = &value
+				}
+				launch, err := e.launch(ctx, "request", task)
+				if err != nil {
+					return false, err
+				}
+				launch.Message = &message
+				if message.ReplyToID != "" {
+					parent, err := api.Call[domain.Message](ctx, e.Client, "GET", api.Path("messages", message.ReplyToID), nil)
+					if err != nil {
+						return false, err
+					}
+					launch.RequestParent = &parent
+				}
+				_, err = e.text(ctx, c, launch, manual)
+				var fenced textResponseFenced
+				if errors.As(err, &fenced) {
+					continue
+				}
+				return true, err
+			}
 			if message.Kind != "direct" || !message.ResponseRequest {
 				continue
 			}

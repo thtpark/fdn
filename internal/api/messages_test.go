@@ -119,3 +119,45 @@ func TestMessageBlockedSubscriptionDoesNotBlockQueriesPingOrCancellation(t *test
 		t.Fatal("priority subscription cancellation exceeded one second")
 	}
 }
+
+func TestBinaryMessageRequestDecisionsThreadPrivacyAndMaintenanceBoundary(t *testing.T) {
+	f := newAuthenticationAPIFixture(t)
+	ctx := context.Background()
+	sender := messageFixtureClient(t, f.server, f.founder.ID)
+	recipient := messageFixtureClient(t, f.server, f.target.ID)
+	unrelated := messageFixtureClient(t, f.server, f.delegate.ID)
+	source, err := Call[domain.Message](ctx, sender, "POST", "/v1/messages", domain.MessageRequest{
+		Command: domain.Command{OperationID: domain.NewID("op")}, RecipientID: f.target.ID,
+		Body: "Please review this informational request.", Origin: "human", Kind: "request",
+		ResponseRequest: true, Request: &domain.MessageAction{Kind: "work"},
+	})
+	if err != nil || source.Request == nil || source.Request.State != "queued" || source.ReadAt != 0 {
+		t.Fatal("binary request delivery manufactured execution or a read acknowledgement", source, err)
+	}
+	report := domain.MessageActionReport{Command: domain.Command{OperationID: domain.NewID("op"), ExpectedRevision: source.Revision},
+		State: "declined", Reason: "The recipient cannot satisfy this request in its current scope."}
+	if _, err := Call[domain.Message](ctx, sender, "POST", Path("messages", source.ID, "request"), report); domain.AsFault(err).Code != domain.Denied {
+		t.Fatal("sender decided an agent's own request", err)
+	}
+	decided, err := Call[domain.Message](ctx, recipient, "POST", Path("messages", source.ID, "request"), report)
+	if err != nil || decided.Request.State != "declined" {
+		t.Fatal("target decision failed across the binary boundary", decided, err)
+	}
+	if _, err := Call[domain.Message](ctx, recipient, "POST", Path("messages", source.ID, "request"), report); err != nil {
+		t.Fatal("binary exact decision replay failed", err)
+	}
+	thread, err := Call[[]domain.Message](ctx, sender, "GET", Path("messages", source.ID, "thread"), nil)
+	if err != nil || len(thread) != 2 || thread[1].RequestUpdate == nil || thread[1].RequestUpdate.State != "declined" {
+		t.Fatal("binary request decision/result thread was missing or duplicated", thread, err)
+	}
+	if _, err := Call[[]domain.Message](ctx, unrelated, "GET", Path("messages", source.ID, "thread"), nil); domain.AsFault(err).Code != domain.Denied {
+		t.Fatal("unrelated actor read the private request thread", err)
+	}
+	for _, client := range []*Client{sender, recipient} {
+		for _, operation := range []string{"query.maintenance.requests", "command.maintenance.request-result"} {
+			if _, err := client.Message(ctx, message.Request{Operation: operation}); domain.AsFault(err).Code != domain.Denied {
+				t.Fatal("ordinary agent ingress exposed the Foundation maintenance receiver", operation, err)
+			}
+		}
+	}
+}

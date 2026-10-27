@@ -82,6 +82,7 @@ type Launch struct {
 	Capabilities  []local.Observation `json:"capabilities"`
 	Knowledge     []local.Knowledge   `json:"selected_private_knowledge"`
 	Message       *domain.Message     `json:"message,omitempty"`
+	RequestParent *domain.Message     `json:"request_parent,omitempty"`
 	Attention     *domain.Attention   `json:"attention,omitempty"`
 	InventoryHash string              `json:"inventory_hash,omitempty"`
 	ActionKey     string              `json:"action_key,omitempty"`

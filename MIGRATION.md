@@ -97,9 +97,40 @@ Older installed binaries may retain legacy hard-coded guide/launcher locations;
 keep their compatibility files until a separately authorized matching upgrade.
 System server paths such as `/var/lib/fdn` and `/etc/fdn` remain unchanged.
 
+## Queued agent request/result conversations
+
+Operational requests now use durable private message descriptors and explicit
+target decisions/results. Ordinary text is context, not executable authority.
+Existing authority remains current: delegates retain scoped work permissions,
+Founder-only native host upgrades remain Founder-only, and central pause/
+revocation/task records are still enforced immediately. Targets may accept,
+defer or decline with intentional reasons; an insistence is a new linked
+request, never force, new permissions or a retry-budget reset.
+
+Upgrade apply queues messages and returns queued, not installed. Existing
+direct native operator primitives remain internal recovery/administration,
+not the sender's normal remote execution path. A separately provisioned
+`request-worker --policy FILE` receiver must be independently supervised;
+never put it in a runner/identity/Foundation/account unit it needs to stop.
+Foundation's receiver uses the root-private maintenance inbox. Agents use
+their own authenticated mailbox. Root policy provisioning, native process
+independence and matching transport versions remain explicit prerequisites.
+
+SQL5 rebuilds only the message table to admit the exact Foundation maintenance
+mailbox without a synthetic enrolled agent. It preserves message bytes/insertion
+order, both indexes, update triggers, operation receipts, identities, modes,
+scoped feed/cursors and local journals. Ordinary parties still require enrolled
+agents; instance messages are restricted to native requests/service replies.
+There is no SQL reset. Native payload additions change the locked schema and
+require a compatible coordinated deployment. SQL4 binaries reject the newer
+database; an uncertain install must not automatically roll back the database.
+An existing 0.3.3 installation is not upgraded by editing this checkout.
+Do not renew a stale timed proposal or replay uncertain installation; inspect
+the exact message/native receipts and obtain explicit current authority.
+
 ## Current Go security upgrade
 
-API/schema contract **2** uses server SQLite migration **4**; local worker SQL
+API/schema contract **2** uses server SQLite migration **5**; local worker SQL
 remains **1**. Ordered migrations retain existing agents, tasks, mode/assistance
 attribution and operation receipts. This is not an importer for historical
 non-Go state. Old hashes/invitations may remain as records but cannot authorize
@@ -144,7 +175,8 @@ The existing typed root provision/disable messages add the approved `username`
 field with appended protobuf field numbers. Update the helper with the server
 before creating named accounts. Missing username preserves legacy ID-derived
 requests, not a fallback for a conflicting retained name. Root inventory format
-1, API/schema 2, native protocol 2, server SQL4 and local SQL1 remain unchanged.
+1, API/schema 2, native protocol 2 and local SQL1 remain unchanged by named
+accounts; the current request mailbox separately requires server SQL5.
 
 New/edited bodies accept `@{Agent1}` as well as `@{AGENT_ID}`. Name resolution
 is case-insensitive, active-only and transactional; ambiguous legacy names
@@ -203,7 +235,8 @@ Do not fix either failure by resetting state or preparing another identity.
    separately recovering a compromised/banned identity. It grants no task retry,
    mode change or permission to clear an uncertain fence.
 
-API/schema 2, native protocol 2, server SQL4 and local SQL1 remain unchanged.
+The existing-user layout itself needs no SQL migration. Current API/schema 2,
+native protocol 2 and local SQL1 remain unchanged; requests use server SQL5.
 Fixture tests exercise same-user admission, migration refusal and retained state,
 not administrator cross-UID transfer or a completed native host migration.
 Older binaries may still enforce split-account ownership and cannot be assumed
@@ -220,7 +253,7 @@ source changes do not authorize deleting unidentified live state.
 ## Backup compatibility and quarantined authority
 
 Backup-manifest schema 1 and current schema 2 are recognized independently of
-SQLite `user_version`: known old server SQL migrates through version 4, while
+SQLite `user_version`: known old server SQL migrates through version 5, while
 future manifest versions above 2 and future SQL are rejected. Restore validates
 the encrypted archive/database before publishing a fresh destination and
 quarantines **all** restored agent/key/owner epochs, including Founder and legacy
@@ -259,8 +292,8 @@ reviewed native helper/CA/operator policies once before asking Founder to roll
 out a subsequent release. Older servers lack the new context/authorization/lease
 routes and fail explicitly; there is no success-shaped fallback, generic remote
 root route or automatic policy/sudoers installation. These additive payloads and
-service-owned authorization settings do not change API/schema2, protocol2,
-server SQL4 or local SQL1.
+service-owned authorization settings do not change API/schema2, protocol2 or
+local SQL1. The queued Foundation maintenance mailbox separately requires SQL5.
 
 Preserve private plans, age recovery keys, native receipts/backups, original keys,
 user state and work fences. `upgrade status` works from the original Founder's

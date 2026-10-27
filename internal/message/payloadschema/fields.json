@@ -1402,6 +1402,10 @@
       "id": 1,
       "name": "id"
     },
+    "Insistence": {
+      "id": 18,
+      "name": "insistence"
+    },
     "Kind": {
       "id": 6,
       "name": "kind"
@@ -1417,6 +1421,18 @@
     "RecipientID": {
       "id": 3,
       "name": "recipient_id"
+    },
+    "ReplyToID": {
+      "id": 17,
+      "name": "reply_to_id"
+    },
+    "Request": {
+      "id": 19,
+      "name": "request"
+    },
+    "RequestUpdate": {
+      "id": 20,
+      "name": "request_update"
     },
     "ResponseRequest": {
       "id": 8,
@@ -1434,9 +1450,105 @@
       "id": 9,
       "name": "state"
     },
+    "ThreadID": {
+      "id": 16,
+      "name": "thread_id"
+    },
     "Urgent": {
       "id": 7,
       "name": "urgent"
+    }
+  },
+  "MessageAction": {
+    "Dependencies": {
+      "id": 5,
+      "name": "dependencies"
+    },
+    "Kind": {
+      "id": 1,
+      "name": "kind"
+    },
+    "ProjectID": {
+      "id": 2,
+      "name": "project_id"
+    },
+    "TaskID": {
+      "id": 3,
+      "name": "task_id"
+    },
+    "Upgrade": {
+      "id": 4,
+      "name": "upgrade"
+    }
+  },
+  "MessageActionReport": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 4,
+      "name": "reason"
+    },
+    "State": {
+      "id": 3,
+      "name": "state"
+    }
+  },
+  "MessageActionState": {
+    "Action": {
+      "id": 1,
+      "name": "action"
+    },
+    "ProjectEpoch": {
+      "id": 6,
+      "name": "project_epoch"
+    },
+    "Reason": {
+      "id": 3,
+      "name": "reason"
+    },
+    "RecipientGeneration": {
+      "id": 5,
+      "name": "recipient_generation"
+    },
+    "ResultGeneration": {
+      "id": 8,
+      "name": "result_generation"
+    },
+    "SenderGeneration": {
+      "id": 4,
+      "name": "sender_generation"
+    },
+    "SpecGeneration": {
+      "id": 7,
+      "name": "spec_generation"
+    },
+    "State": {
+      "id": 2,
+      "name": "state"
+    },
+    "UpdatedAt": {
+      "id": 9,
+      "name": "updated_at"
+    }
+  },
+  "MessageActionUpdate": {
+    "Reason": {
+      "id": 3,
+      "name": "reason"
+    },
+    "RequestID": {
+      "id": 1,
+      "name": "request_id"
+    },
+    "State": {
+      "id": 2,
+      "name": "state"
     }
   },
   "MessageCommand": {
@@ -1451,6 +1563,10 @@
     "ExpiresAt": {
       "id": 9,
       "name": "expires_at"
+    },
+    "Insistence": {
+      "id": 11,
+      "name": "insistence"
     },
     "Kind": {
       "id": 6,
@@ -1467,6 +1583,14 @@
     "RecipientID": {
       "id": 3,
       "name": "recipient_id"
+    },
+    "ReplyToID": {
+      "id": 10,
+      "name": "reply_to_id"
+    },
+    "Request": {
+      "id": 12,
+      "name": "request"
     },
     "ResponseRequest": {
       "id": 8,
@@ -1560,6 +1684,10 @@
       "id": 9,
       "name": "expires_at"
     },
+    "Insistence": {
+      "id": 11,
+      "name": "insistence"
+    },
     "Kind": {
       "id": 6,
       "name": "kind"
@@ -1576,6 +1704,14 @@
       "id": 3,
       "name": "recipient_id"
     },
+    "ReplyToID": {
+      "id": 10,
+      "name": "reply_to_id"
+    },
+    "Request": {
+      "id": 12,
+      "name": "request"
+    },
     "ResponseRequest": {
       "id": 8,
       "name": "response_requested"
@@ -1583,6 +1719,30 @@
     "Urgent": {
       "id": 7,
       "name": "urgent"
+    }
+  },
+  "MessageWorkerCommand": {
+    "MessageID": {
+      "id": 1,
+      "name": "message_id"
+    },
+    "Report": {
+      "id": 2,
+      "name": "report"
+    }
+  },
+  "MessageWorkerReply": {
+    "Error": {
+      "id": 3,
+      "name": "error"
+    },
+    "Message": {
+      "id": 2,
+      "name": "message"
+    },
+    "Messages": {
+      "id": 1,
+      "name": "messages"
     }
   },
   "ModeRequest": {
