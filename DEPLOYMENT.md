@@ -284,7 +284,7 @@ commands. A non-login Foundation service account is not a coding agent; install
 the guide separately for the authorized operator account that uses an AI.
 
 Worker `config init` and daemon startup also install/update their own guide.
-The managed guide lives below `$HOME/.local/share/fdn/guidance`, with immutable
+The managed guide lives below `$HOME/.foundation/guidance`, with immutable
 content/source manifests and an atomic `current` link. Portable/Codex discovery
 uses `$HOME/.agents/skills`; Copilot discovery also uses `$HOME/.copilot/skills`.
 A managed section in HOME's `AGENTS.md` points to the current guide. Existing
@@ -536,6 +536,16 @@ not stdin. This is different from the runner-only `agent-cli service` interface.
 Neither command creates accounts/groups, changes the user's HOME permissions,
 sets a no-login shell, enables linger or switches users. The user's native
 manager/login domain must already be available.
+
+New user-owned files share one private `$HOME/.foundation` directory:
+`config/{agent,identity}.json`, runner `state`, key `identity`, IPC `run`,
+`workspaces`, managed command `bin`, and `guidance`. `config init` selects that
+runner state, workspace root and identity socket by default. Identity private
+commands still require their explicit configuration. Native service definitions,
+shell login profiles and tool discovery links retain their platform-required
+locations. System Foundation server/account state does not move.
+Explicit existing paths remain valid; move an existing installation only with
+the [stopped layout migration](MIGRATION.md#consolidating-user-foundation-files).
 
 `platform.IdentityServiceOptions` uses these exact JSON fields:
 
@@ -867,11 +877,11 @@ status invokes paid inference.
 
 Providers are installed in private version directories, not globally with npm.
 Install/update and daemon startup expose stable `codex`/`copilot` commands in the
-account's `.local/bin` and preserve a managed PATH block in its login profile.
+account's `.foundation/bin` and preserve a managed PATH block in its login profile.
 Verify the actual login shell with `command -v codex`, `command -v copilot`,
 `codex --version`, and `copilot --version`, not only absolute managed paths.
 For older installations run `agent-cli --config FILE provider link` as the worker
-and reconnect (or export `.local/bin` in the current shell). Never use global
+and reconnect (or export `.foundation/bin` in the current shell). Never use global
 reinstallation or another account's credentials to fix a PATH omission.
 Launchers resolve the active version on each call; interactive native sessions
 share the local slot and require the human's terminal. Version/help probes are

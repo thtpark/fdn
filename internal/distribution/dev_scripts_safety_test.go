@@ -12,7 +12,7 @@ func TestDevelopmentScriptsRejectUnsafeBinaryDestinations(t *testing.T) {
 	for _, kind := range []string{"symlink-file", "symlink-directory", "directory"} {
 		t.Run(kind, func(t *testing.T) {
 			root, home := developmentFixture(t)
-			bin := filepath.Join(root, ".local", ".bin")
+			bin := filepath.Join(root, ".local", ".foundation", "bin")
 			if err := os.MkdirAll(bin, 0700); err != nil {
 				t.Fatal(err)
 			}
@@ -54,7 +54,7 @@ func TestDevelopmentScriptsRejectUnsafeBinaryDestinations(t *testing.T) {
 
 func TestDevelopmentScriptsPreserveExistingIdentityConfiguration(t *testing.T) {
 	root, _ := developmentFixture(t)
-	configDir := filepath.Join(root, ".local", ".config", "fdn")
+	configDir := filepath.Join(root, ".local", ".foundation", "config")
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		t.Fatal(err)
 	}

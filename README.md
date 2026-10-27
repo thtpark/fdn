@@ -112,9 +112,11 @@ Use the source wrappers without a manual build/install:
 ```
 
 They automatically use cached development builds, preserve native signals/exit
-codes and isolate HOME/config/identity/provider file state under ignored `.local`.
-Configuration lives in `.local/.config/fdn`; no production identity is copied
-or enrolled. See the [complete source workflow](DEVELOPMENT.md#running-source-with-an-isolated-testing-identity).
+codes and set HOME to ignored `.local`. Foundation-owned configuration, state,
+keys, IPC and cached builds live beneath `.local/.foundation`; existing XDG,
+Codex, GitHub, Cloud SDK and credential environment settings are left unchanged.
+No production identity is copied or enrolled. See the
+[complete source workflow](DEVELOPMENT.md#running-source-with-an-isolated-testing-identity).
 
 ## Release checks and explicit Founder rollout
 
@@ -258,9 +260,8 @@ binary owner-control session. Founder uses its operator-assembled profile the sa
 Run the runner CLI/provider service as that **same user**:
 
 ```sh
-agent-cli --config "$HOME/.config/fdn/agent.json" config init \
-  --state "$HOME/.local/share/fdn" --identity-socket "$HOME/.local/state/fdn-ipc/identity.sock"
-agent-cli --config "$HOME/.config/fdn/agent.json" connect
+agent-cli config init
+agent-cli connect
 agent-cli agent identity
 agent-cli doctor
 ```
@@ -390,10 +391,10 @@ agent-cli provider update --provider copilot
 ```
 
 The installer exposes managed `codex` and `copilot` launchers in the account's
-`.local/bin` and adds it to the applicable login profile without replacing user
+`.foundation/bin` and adds it to the applicable login profile without replacing user
 settings. Worker startup repairs older installs; `agent-cli provider link` does
 the same offline. Start a new login shell after repair, or run
-`export PATH="$HOME/.local/bin:$PATH"; hash -r` in the current shell.
+`export PATH="$HOME/.foundation/bin:$PATH"; hash -r` in the current shell.
 Bare commands select the current managed version, not an old pinned executable.
 Interactive use shares the local work slot and requires a human terminal;
 `--version`/`--help` are safe non-inference probes. No global npm installation or
@@ -428,7 +429,7 @@ The handoff never changes mode, signs in, or opens/consents to a remote session.
 agent-cli preferences set --input preferences.json
 # Founder explicitly resumes a target using {"mode":"ai","reason":"..."}:
 agent-cli agent mode AGENT --input mode.json
-agent-service --config "$HOME/.config/fdn/agent.json" serve
+agent-service --config "$HOME/.foundation/config/agent.json" serve
 # Or perform one bounded manual controller step:
 agent-cli work run
 agent-cli work status

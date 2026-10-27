@@ -14,6 +14,9 @@ protected-account commands; it has no `guide` or `config init` leaf.
    version. A display name, provider sign-in or copied bearer file is not an
    identity. No v2 bearer invitation or token-only runtime is supported.
    Source wrappers use an isolated ignored `.local` HOME and testing identity.
+   New user files share HOME/.foundation (config, state, identity and run).
+   Explicit existing paths remain valid; move them only while stopped without
+   rotating keys or resetting journals. External tool settings remain available.
    They do not inherit Founder authority or migrate a running owner. Use a
    signed new request and explicit old-owner stop/rebinding, never cloned keys.
 2. Verify native prerequisites, private ownership and approved CA/SSH host pins.

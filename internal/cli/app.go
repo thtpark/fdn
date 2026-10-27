@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
@@ -66,8 +65,8 @@ func RunService(ctx context.Context, args []string, in io.Reader, out, diagnosti
 func run(ctx context.Context, role string, args []string, in io.Reader, out, diagnostic io.Writer) int {
 	a := &app{in: in, out: out, diagnostic: diagnostic}
 	defaultConfig, homeErr := config.DefaultConfig()
-	if role == "foundation" && defaultConfig != "" {
-		defaultConfig = filepath.Join(filepath.Dir(defaultConfig), "server.json")
+	if role == "foundation" {
+		defaultConfig, homeErr = config.DefaultServerConfig()
 	}
 	flags := flag.NewFlagSet(role, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -154,7 +153,7 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 		}
 	}
 	if a.configFile == "" && tail[0] != "guide" {
-		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "HOME unavailable; specify --config"), homeErr))
+		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "default configuration unavailable; specify --config"), homeErr))
 	}
 	longRunning := tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" ||
 		(tail[0] == "upgrade" && len(tail) > 1 && tail[1] == "apply") ||

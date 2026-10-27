@@ -16,6 +16,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/secure"
 )
@@ -173,7 +174,7 @@ func homeInstructions(name, current string) ([]byte, []byte, os.FileMode, error)
 	return nil, nil, 0, domain.Fail(domain.Conflict, "home instructions contain an ambiguous Foundation managed block; preserve them and resolve it explicitly")
 }
 
-func checkLink(name, expected string) (bool, error) {
+func checkLink(name, expected, legacy string) (bool, error) {
 	info, err := os.Lstat(name)
 	if os.IsNotExist(err) {
 		return false, nil
@@ -190,6 +191,9 @@ func checkLink(name, expected string) (bool, error) {
 	target, err := os.Readlink(name)
 	if err != nil {
 		return false, err
+	}
+	if target == legacy {
+		return false, nil
 	}
 	if target != expected {
 		return false, domain.Fail(domain.Conflict, "an unmanaged symlink occupies a Foundation discovery path")
@@ -251,7 +255,8 @@ func Install(home string) (result Installation, err error) {
 	if err := ownedDirectory(home); err != nil {
 		return result, err
 	}
-	root := filepath.Join(home, ".local", "share", "fdn", "guidance")
+	root := filepath.Join(home, config.UserDirectory, "guidance")
+	legacyCurrent := filepath.Join(home, ".local", "share", "fdn", "guidance", "current")
 	if err := secure.Dir(root); err != nil {
 		return result, err
 	}
@@ -283,7 +288,8 @@ func Install(home string) (result Installation, err error) {
 			return result, err
 		}
 		for _, skill := range manifest.Skills {
-			if _, err := checkLink(filepath.Join(base, skill), filepath.Join(current, ".agents", "skills", skill)); err != nil {
+			if _, err := checkLink(filepath.Join(base, skill), filepath.Join(current, ".agents", "skills", skill),
+				filepath.Join(legacyCurrent, ".agents", "skills", skill)); err != nil {
 				return result, err
 			}
 		}
@@ -356,7 +362,7 @@ func Install(home string) (result Installation, err error) {
 	for _, base := range result.SkillRoots {
 		for _, skill := range manifest.Skills {
 			destination, target := filepath.Join(base, skill), filepath.Join(current, ".agents", "skills", skill)
-			exists, err := checkLink(destination, target)
+			exists, err := checkLink(destination, target, filepath.Join(legacyCurrent, ".agents", "skills", skill))
 			if err != nil {
 				return result, err
 			}

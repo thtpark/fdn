@@ -29,6 +29,15 @@ state directories and owners are checked. Private directories/files and IPC
 use 0700/0600; the user's existing HOME permissions are not changed.
 `PRAGMA user_version` is local to each database. Future versions fail closed.
 
+New user defaults are grouped under `$HOME/.foundation`: private `config`,
+runner `state`, key `identity`, socket `run`, owned `workspaces`, managed `bin`
+and `guidance`. Explicit configuration/native service paths are not rewritten.
+Changing this filesystem layout needs no API, native message or SQL version
+change and never re-enrolls an identity. Existing legacy defaults require an
+explicit stopped migration or `--config` naming the retained configuration.
+External tool directories/environment settings and platform discovery/service
+locations retain their own contracts.
+
 ### Server tables
 
 | Table | Contract |

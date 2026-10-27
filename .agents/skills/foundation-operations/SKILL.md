@@ -113,6 +113,9 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
     status for transport or account/key/owner-generation errors. Identity,
     providers and runner share the existing installing user; that user owns the
     keys, with distinct private state and no key bytes in model/shared output.
+    New defaults share HOME/.foundation. Retain explicit legacy paths until an
+    authorized stopped filesystem migration; it changes no identity generation,
+    mode, retry or authority. Keep external tool configuration/discovery intact.
     Local username need not match agent name. Legacy split-account settings
     require the explicit stopped ownership migration in MIGRATION.md, preserving
     keys, profiles, provider state, journals/outbox and fences; never auto-transfer

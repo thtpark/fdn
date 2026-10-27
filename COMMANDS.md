@@ -16,7 +16,7 @@ agent-cli --config /PRIVATE/agent.json --json --non-interactive \
 
 | Global flag | Contract |
 | --- | --- |
-| `--config PATH` | Private configuration. Worker default: `$HOME/.config/fdn/agent.json`; server default uses `server.json` in that directory |
+| `--config PATH` | Private configuration. Worker default: `$HOME/.foundation/config/agent.json`; user server default uses `server.json` in that directory; installed system servers retain their explicit paths |
 | `--json` | Structured output; ordinary commands already use JSON. Disables protected terminal UI |
 | `--non-interactive` | No protected terminal UI/hidden credential prompt |
 | `--timeout SECONDS` | 1-300 seconds, default 60; does not extend task/session authority |
@@ -24,6 +24,14 @@ agent-cli --config /PRIVATE/agent.json --json --non-interactive \
 | `--expected-rev N` | Explicit optimistic revision for applicable mutations |
 | `--version` | Version, commit, API/schema contract versions |
 | `help`, `--help`, leaf `--help` | Offline command discovery; no initialization/network |
+
+User-owned Foundation files share `$HOME/.foundation`: `config`, runner `state`,
+key `identity`, IPC `run`, `workspaces`, managed `bin` and `guidance`.
+`config init` defaults to this state/workspace root and `run/identity.sock`;
+explicit path flags remain supported. Existing legacy defaults require an
+explicit stopped migration or `--config` pointing to the retained file, never
+an automatic unenrolled reset. External tool environment settings are not
+overridden; platform service/discovery files keep their standard locations.
 
 JSON inputs use `--input FILE` or explicit `--input -` for bounded UTF-8 stdin.
 Unknown fields and bodies over 1 MiB are rejected. Inputs may include
@@ -835,13 +843,13 @@ status may be credentials-present-unverified; do not report live authentication
 from that alone. Copilot has bounded read-only authentication/model RPC.
 
 Provider install/update and worker daemon startup install managed `codex` and
-`copilot` launchers in `$HOME/.local/bin`. They dispatch through `provider exec`,
+`copilot` launchers in `$HOME/.foundation/bin`. They dispatch through `provider exec`,
 so upgrades select the current private managed version rather than a shell link
 to a stale release. A preserved managed block in the applicable sh/bash/zsh
 login profile adds that directory to PATH without duplicates. Existing unrelated
 commands/profiles are never replaced; unmanaged name collisions fail explicitly.
 Use `provider link` to repair an older installation, then open a new login shell
-or run `export PATH="$HOME/.local/bin:$PATH"; hash -r` in the current one.
+or run `export PATH="$HOME/.foundation/bin:$PATH"; hash -r` in the current one.
 
 Native `--version`/`--help` probes do not need a TTY or a work slot. Other bare
 provider commands are explicit human sessions, share admission with automatic

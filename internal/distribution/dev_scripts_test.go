@@ -53,7 +53,14 @@ while [ "$#" -gt 0 ]; do
 done
 cat > "$output" <<'STUB'
 #!/bin/sh
-printf 'PID=%s\nHOME=%s\nCONFIG_HOME=%s\nCODEX_HOME=%s\nTOKEN=%s\n' "$$" "$HOME" "$XDG_CONFIG_HOME" "$CODEX_HOME" "${GH_TOKEN-unset}"
+printf 'PID=%s\nHOME=%s\n' "$$" "$HOME"
+for variable in XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME CODEX_HOME GH_CONFIG_DIR CLOUDSDK_CONFIG GH_TOKEN SSH_AUTH_SOCK; do
+  if value=$(printenv "$variable"); then
+    printf '%s=%s\n' "$variable" "$value"
+  else
+    printf '%s=unset\n' "$variable"
+  fi
+done
 printf 'ARG=%s\n' "$@"
 cat
 exit "${FDN_TEST_EXIT:-0}"
@@ -66,7 +73,9 @@ if [ "${FDN_TEST_BUILD_FAIL:-}" = yes ]; then exit 19; fi
 	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("GH_TOKEN", "fixture-token-must-not-leak")
+	for _, name := range []string{"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "CODEX_HOME", "GH_CONFIG_DIR", "CLOUDSDK_CONFIG", "GH_TOKEN", "SSH_AUTH_SOCK"} {
+		t.Setenv(name, "fixture-preserved-"+name)
+	}
 	t.Setenv("PATH", tools+string(os.PathListSeparator)+os.Getenv("PATH"))
 	return root, home
 }
@@ -88,15 +97,18 @@ func TestDevelopmentScriptsIsolateAllEntrypointsAndPreserveArgumentsInputAndPID(
 			}
 			for _, expected := range []string{
 				"PID=" + strconv.Itoa(pid), "HOME=" + filepath.Join(root, ".local"),
-				"CONFIG_HOME=" + filepath.Join(root, ".local", ".config"),
-				"CODEX_HOME=" + filepath.Join(root, ".local", ".codex"), "TOKEN=unset",
 				"ARG=literal argument with spaces", "bounded fixture input",
 			} {
 				if !strings.Contains(output.String(), expected) {
 					t.Fatal("source runner lost isolation/exec/arguments/stdin", expected, output.String())
 				}
 			}
-			identity := filepath.Join(root, ".local", ".config", "fdn", "identity.json")
+			for _, name := range []string{"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "CODEX_HOME", "GH_CONFIG_DIR", "CLOUDSDK_CONFIG", "GH_TOKEN", "SSH_AUTH_SOCK"} {
+				if !strings.Contains(output.String(), name+"=fixture-preserved-"+name) {
+					t.Fatal("source runner changed an existing tool setting", name, output.String())
+				}
+			}
+			identity := filepath.Join(root, ".local", ".foundation", "config", "identity.json")
 			if info, err := os.Stat(identity); err != nil || info.Mode().Perm() != 0600 {
 				t.Fatal("testing identity configuration is not private", err)
 			}
@@ -121,7 +133,7 @@ func TestDevelopmentScriptsPreserveExitStatusAndCleanFailedBuild(t *testing.T) {
 	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 19 {
 		t.Fatal("source runner swallowed a build failure", string(output), err)
 	}
-	entries, err := os.ReadDir(filepath.Join(root, ".local", ".bin"))
+	entries, err := os.ReadDir(filepath.Join(root, ".local", ".foundation", "bin"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +150,11 @@ func TestDevelopmentScriptsRejectSymlinkedConfigurationAndRetainIdentity(t *test
 	if err := os.Mkdir(local, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(home, filepath.Join(local, ".config")); err != nil {
+	foundation := filepath.Join(local, ".foundation")
+	if err := os.Mkdir(foundation, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(home, filepath.Join(foundation, "config")); err != nil {
 		t.Fatal(err)
 	}
 	command := exec.Command(filepath.Join(root, "scripts", "agent-identity.sh"), "--help")

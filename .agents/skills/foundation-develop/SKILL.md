@@ -13,9 +13,12 @@ The checkout's root documents are canonical; no old source tree is required.
    Preserve user changes, operational identities and retained evidence.
    `scripts/agent-cli.sh`, `scripts/agent-service.sh` and
    `scripts/agent-identity.sh` automatically refresh cached development builds,
-   exec the selected program and isolate HOME/config/identity/provider file
-   state under ignored `.local`. Go still compiles; there is no manual install
-   or release packaging. Never copy a live owner or normal-home auth into tests.
+   exec the selected program and set HOME to ignored `.local`. Foundation-owned
+   configuration/state/keys/IPC/binaries live under HOME/.foundation. Leave
+   existing XDG/provider/GitHub/Cloud SDK/credential settings available rather
+   than overriding or clearing them; this is not isolated provider auth.
+   Go still compiles without manual install/release packaging. Preserve legacy
+   state through an explicit stopped migration; never copy live owner keys.
 2. Find existing helpers first. Keep server authority transactional, DTO/input
    validation narrow, errors explicit, and transport/provider/native boundaries
    testable. Do not enforce security only in a friendly CLI.

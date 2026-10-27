@@ -162,11 +162,19 @@ go run ./tools/protocol --check
 ```
 
 `TestDevelopmentScripts*` uses an owned disposable checkout, mock Go builder and
-isolated HOME. It checks all three source entrypoints, `.local/.config` identity,
-unchanged real HOME, cleared inherited credentials, literal arguments/stdin,
+isolated HOME. It checks all three source entrypoints, `.local/.foundation`
+configuration/state, unchanged real HOME and inherited external-tool/credential
+settings (including unset overrides), literal arguments/stdin,
 same PID/native exit status, rejected symlink escape and failed-build cleanup.
 The actual source wrapper `--version` can additionally prove the development
 stamp without enrollment, production access, provider authentication or inference.
+
+Default-path tests verify XDG-independent `.foundation` configuration, runner
+state/workspaces/socket, explicit legacy configuration support and refusal to
+silently reset an old default identity. Guide tests cover its consolidated store,
+exact legacy discovery-link migration, retained old evidence and unchanged
+unrelated instructions. Provider shell tests cover `.foundation/bin`, the
+managed login PATH block and existing unrelated command/profile preservation.
 
 Upgrade cases cover stable semantic versions and no downgrade/same-version
 replacement; pinned GitHub hosts, independent API ZIP digest, exact manifest/

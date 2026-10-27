@@ -44,13 +44,10 @@ No separate manual build/install is needed:
 
 ```sh
 ./scripts/agent-cli.sh --version
-./scripts/agent-cli.sh config init \
-  --state "$PWD/.local/.state/worker" \
-  --identity-socket "$PWD/.local/.state/ipc/identity.sock" \
-  --workspace-root "$PWD/.local/workspaces"
-./scripts/agent-identity.sh prepare --name LocalTest --output "$PWD/.local/public-request.json"
+./scripts/agent-cli.sh config init
+./scripts/agent-identity.sh prepare --name LocalTest --output "$PWD/.local/.foundation/public-request.json"
 # After explicit signed registration/profile approval:
-./scripts/agent-identity.sh connect --profile "$PWD/.local/public-profile.json"
+./scripts/agent-identity.sh connect --profile "$PWD/.local/.foundation/public-profile.json"
 ./scripts/agent-identity.sh serve
 # Other terminals, while that identity process is running:
 ./scripts/agent-cli.sh connect
@@ -58,22 +55,31 @@ No separate manual build/install is needed:
 ```
 
 Go still compiles: the wrappers use Go's existing build/module caches and
-automatically refresh all three development executables in `.local/.bin`,
+automatically refresh all three development executables in `.local/.foundation/bin`,
 then `exec` the selected executable so native signals, stdin, arguments and
 exit codes survive. They stamp `VERSION-dev` and the actual commit/dirty source,
 not a release identity. They never package a release.
 
 The wrappers set the testing HOME to this checkout's ignored `.local`.
-Configuration is `.local/.config/fdn/{agent,identity}.json`; private identity
-state/IPC is `.local/.state/{identity,ipc}`. Default knowledge/guide/provider
-state follows that isolated HOME unless explicitly configured otherwise.
-Provider file-based sign-in stays there, not the normal HOME; inherited
-common provider/GitHub/cloud credential overrides and the SSH agent are removed.
-This is path isolation, not an OS sandbox or a claim that same-user tools cannot
-read other files/OS credential stores. Go's build/module caches are intentionally
-shared; do not put credentials in the cache.
+Foundation-owned files are grouped beneath `HOME/.foundation`: `config` holds
+the two private configurations, `state` holds runner data, `identity` holds keys,
+`run` holds the IPC socket, and `workspaces`, `bin`, and `guidance` hold their
+respective managed files. The same layout applies outside development with the
+actual HOME; system server paths remain explicit and unchanged.
 
-Existing identity configuration is not overwritten. Symlinked or other-user-
+The wrappers do not set or clear XDG, Codex, GitHub, Cloud SDK, SSH-agent or
+credential environment settings. Existing values remain available; otherwise
+each tool chooses its own defaults for the selected HOME. Those external tool
+directories are not Foundation state and are not moved into `.foundation`.
+This is not an OS sandbox or a guarantee of isolated provider authentication:
+inherited overrides or OS credential stores may still provide access. Go's
+existing build/module caches remain shared.
+
+Existing identity configuration is not overwritten. Old `.config/fdn` or
+development `.state/identity` bindings require an explicit stopped migration;
+the wrappers never create a second identity alongside them. See
+[the state-preserving layout migration](MIGRATION.md#consolidating-user-foundation-files).
+Symlinked or other-user-
 writable test directories fail before adoption. Keep `.local` out of Git and
 never copy a running production identity into it. Moving Founder still needs
 explicit old-owner shutdown and root-local fresh-key rebinding; wrappers do

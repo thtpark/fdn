@@ -31,6 +31,10 @@ commands.
    The local username need not match the enrolled agent name. That user owns
    keys and all worker state; separate processes organize lifecycle, not
    isolation from its tools. Keep state/configuration and IPC owner-only.
+   New user defaults share HOME/.foundation (config, state, identity, run,
+   workspaces, bin and guidance). Keep explicit existing paths; migrate them
+   only while stopped, preserving keys/journals and native options. External
+   tool configuration and platform service/discovery paths stay separate.
    Foundation still needs
    one dedicated SSH account/UID per identity, including Founder, separate from
    the unprivileged server. A new Agent1 uses `agent1` for Foundation SSH even
