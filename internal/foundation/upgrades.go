@@ -128,7 +128,12 @@ func (s *Store) LeaseUpgrade(ctx context.Context, actor string, request domain.U
 		(maintenance && challenge.Role != "foundation") {
 		return lease, domain.Fail(domain.Denied, "native upgrade lease is expired or requested outside its exact current parties")
 	}
-	founder, err := s.actor(ctx, tx, permit.ActorID)
+	if !maintenance {
+		if _, err := s.actor(ctx, tx, actor); err != nil {
+			return lease, err
+		}
+	}
+	founder, err := activeIdentitySubject(ctx, tx, permit.ActorID)
 	if err != nil {
 		return lease, err
 	}
@@ -140,7 +145,7 @@ func (s *Store) LeaseUpgrade(ctx context.Context, actor string, request domain.U
 		return lease, domain.Fail(domain.Denied, "native upgrade issuer is no longer the current paused Founder identity")
 	}
 	if challenge.Role == "agent" {
-		target, err := s.actor(ctx, tx, challenge.TargetID)
+		target, err := activeIdentitySubject(ctx, tx, challenge.TargetID)
 		if err != nil {
 			return lease, err
 		}
