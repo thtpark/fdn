@@ -4,10 +4,8 @@ import (
 	"context"
 	"crypto"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"strings"
 
 	"github.com/thtpark/fdn/internal/device"
 	"github.com/thtpark/fdn/internal/domain"
@@ -101,17 +99,6 @@ func identityByUID(ctx context.Context, q queryer, uid int64) (domain.AgentIdent
 
 func (s *Store) IdentityByUID(ctx context.Context, uid int64) (domain.AgentIdentity, error) {
 	return identityByUID(ctx, s.db, uid)
-}
-
-func identitySSHUser(agentID string) (string, error) {
-	value := strings.TrimPrefix(agentID, "agent_")
-	if value == agentID || len(value) < 20 || value != strings.ToLower(value) {
-		return "", domain.Fail(domain.Invalid, "agent ID cannot name a dedicated account")
-	}
-	if _, err := hex.DecodeString(value); err != nil {
-		return "", domain.Fail(domain.Invalid, "agent ID cannot name a dedicated account")
-	}
-	return "fdna_" + value[:20], nil
 }
 
 func identityConstraint(err error) error {
@@ -324,7 +311,7 @@ func (s *Store) BootstrapIdentity(ctx context.Context, public domain.PublicIdent
 			return domain.AgentIdentity{}, err
 		}
 		if count != 0 {
-			return domain.AgentIdentity{}, domain.Fail(domain.Conflict, "Foundation already has an identity; explicit migration or recovery is required")
+			return domain.AgentIdentity{}, domain.Fail(domain.Conflict, "Foundation already has an identity; use explicit recovery")
 		}
 		agent := domain.Agent{ID: domain.NewID("agent"), Name: public.Name, Founder: true, Revision: 1,
 			Mode: "manual", CreatedAt: s.timestamp()}
@@ -347,7 +334,7 @@ func (s *Store) BootstrapIdentity(ctx context.Context, public domain.PublicIdent
 }
 
 func (s *Store) RegisterIdentity(ctx context.Context, actor string, req domain.RegisterIdentityRequest) (domain.AgentIdentity, error) {
-	proposal := identityProposal{Kind: "register", Target: req.ExistingAgentID, Identity: req.Identity}
+	proposal := identityProposal{Kind: "register", Identity: req.Identity}
 	return s.identityMutation(ctx, actor, "identity.register", req.Command, req, func(tx *sql.Tx) (domain.AgentIdentity, error) {
 		founder, err := s.actor(ctx, tx, actor)
 		if err != nil {
@@ -361,51 +348,14 @@ func (s *Store) RegisterIdentity(ctx context.Context, actor string, req domain.R
 		}
 		agent := domain.Agent{ID: domain.NewID("agent"), Name: req.Identity.Name, SponsorID: actor,
 			CreatedAt: s.timestamp(), Revision: 1, Mode: "ai"}
-		var quarantined *domain.AgentIdentity
-		if req.ExistingAgentID != "" {
-			agent, err = get[domain.Agent](ctx, tx, "agents", req.ExistingAgentID)
-			if err != nil {
-				return domain.AgentIdentity{}, err
-			}
-			if agent.Banned {
-				return domain.AgentIdentity{}, domain.Fail(domain.Denied, "migration cannot restore a banned agent")
-			}
-			existing, identityErr := get[domain.AgentIdentity](ctx, tx, "agent_identities", agent.ID)
-			if identityErr != nil && domain.AsFault(identityErr).Code != domain.NotFound {
-				return domain.AgentIdentity{}, identityErr
-			}
-			if identityErr == nil && existing.State == identityRestorePending {
-				quarantined = &existing
-			}
-			if !agent.Active && quarantined == nil {
-				return domain.AgentIdentity{}, domain.Fail(domain.Denied, "migration cannot restore a revoked agent")
-			}
-			if identityErr == nil && quarantined == nil {
-				return domain.AgentIdentity{}, domain.Fail(domain.Conflict, "agent already has an identity; use explicit recovery")
-			}
-			agent.Active = false
-			agent.Revision++
-			if err := saveIdentityAgent(ctx, tx, agent); err != nil {
-				return domain.AgentIdentity{}, err
-			}
-			if err := s.stopIdentityWork(ctx, tx, agent.ID, actor, "identity-migrated"); err != nil {
-				return domain.AgentIdentity{}, err
-			}
-		} else {
-			data, err := encode(agent)
-			if err != nil {
-				return domain.AgentIdentity{}, err
-			}
-			if _, err := tx.ExecContext(ctx, "INSERT INTO agents(id,data,credential_hash,active) VALUES(?,?,?,0)", agent.ID, data, domain.Hash(domain.NewToken())); err != nil {
-				return domain.AgentIdentity{}, err
-			}
+		data, err := encode(agent)
+		if err != nil {
+			return domain.AgentIdentity{}, err
 		}
-		var identity domain.AgentIdentity
-		if quarantined != nil {
-			identity, err = s.replaceIdentityKeys(ctx, tx, *quarantined, req.Identity, actor)
-		} else {
-			identity, err = s.newIdentity(ctx, tx, agent, req.Identity, actor)
+		if _, err := tx.ExecContext(ctx, "INSERT INTO agents(id,data,credential_hash,active) VALUES(?,?,?,0)", agent.ID, data, domain.Hash(domain.NewToken())); err != nil {
+			return domain.AgentIdentity{}, err
 		}
+		identity, err := s.newIdentity(ctx, tx, agent, req.Identity, actor)
 		if err != nil {
 			return identity, err
 		}

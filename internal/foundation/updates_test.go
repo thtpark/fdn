@@ -25,6 +25,25 @@ func updateWatermark(t *testing.T, s *Store, actor string) string {
 	return page.NextCursor
 }
 
+func seedUpdateIdentity(t *testing.T, db *sql.DB, agent domain.Agent) {
+	t.Helper()
+	keys := securityPublic(t, "fixture")
+	sshFingerprint, authFingerprint, _, err := validateIdentityKeys(keys.public)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := domain.AgentIdentity{AgentID: agent.ID, InstanceID: "instance_retained", RequestID: keys.public.RequestID,
+		SSHUser: "fixture", UID: 4100, Generation: 1, State: "active", Assurance: "software",
+		SSHKey: keys.public.SSHKey, AuthKey: keys.public.AuthKey, SSHFingerprint: sshFingerprint, AuthFingerprint: authFingerprint}
+	data, err := encode(identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("INSERT INTO agent_identities(id,data,ssh_user,uid) VALUES(?,?,?,?)", agent.ID, data, identity.SSHUser, identity.UID); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func updateReplay(t *testing.T, s *Store, actor, since string) domain.Page[domain.Update] {
 	t.Helper()
 	page, err := s.Updates(context.Background(), actor, since, 200)
@@ -588,10 +607,10 @@ func TestUpdatesCloseUnblocksSharedSubscribers(t *testing.T) {
 	}
 }
 
-func TestUpdatesMigrationFourPreservesSQLThreeState(t *testing.T) {
+func TestUpdatesCurrentSchemaReopenPreservesState(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(securityDirectory(t), "private", "sql-three.sqlite")
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema})
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,9 +619,13 @@ func TestUpdatesMigrationFourPreservesSQLThreeState(t *testing.T) {
 	if _, err := db.Exec("INSERT INTO agents(id,data,credential_hash,active) VALUES(?,?,?,1)", agent.ID, data, domain.Hash(domain.NewToken())); err != nil {
 		t.Fatal(err)
 	}
+	seedUpdateIdentity(t, db, agent)
 	message := domain.Message{ID: domain.NewID("message"), SenderID: agent.ID, RecipientID: agent.ID, Body: "Retained private message", ReadAt: 110, CreatedAt: 103, State: "handled", Revision: 2, Origin: "human", Kind: "direct"}
 	data, _ = encode(message)
 	if _, err := db.Exec("INSERT INTO messages(id,data,sender_id,recipient_id,state,urgent) VALUES(?,?,?,?,?,0)", message.ID, data, agent.ID, agent.ID, message.State); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("DELETE FROM update_changes"); err != nil {
 		t.Fatal(err)
 	}
 	before := map[string]string{}

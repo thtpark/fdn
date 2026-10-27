@@ -128,7 +128,7 @@ func TestMissingAuthenticationReachesFounderBeforeOnboardingWithoutInference(t *
 					t.Fatal("request omitted an actionable boundary/reference", expected, message.Body)
 				}
 			}
-			for _, private := range []string{h.worker.Credential.Token, engine.Config.StateDir, "/PRIVATE_PROVIDER_PATH_MUST_NOT_BE_SENT"} {
+			for _, private := range []string{engine.Config.StateDir, "/PRIVATE_PROVIDER_PATH_MUST_NOT_BE_SENT"} {
 				if strings.Contains(message.Body, private) {
 					t.Fatal("private provider/credential material entered a message")
 				}

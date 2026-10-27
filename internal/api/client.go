@@ -89,9 +89,6 @@ func (c *Client) Request(ctx context.Context, method, path string, input, output
 	if input != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if c.Credential.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Credential.Token)
-	}
 	response, err := c.HTTP.Do(req)
 	if err != nil {
 		if ctx.Err() != nil && ctx.Err() == context.Canceled {

@@ -18,12 +18,6 @@ if printf '%s' "$root" | LC_ALL=C grep '[[:cntrl:]]' >/dev/null; then
   printf '%s\n' 'Development checkout paths must not contain control characters.' >&2
   exit 2
 fi
-for legacy in "$HOME/.config/fdn/agent.json" "$HOME/.config/fdn/identity.json" "$HOME/.state/identity/device.json"; do
-  if [ -e "$legacy" ] || [ -L "$legacy" ]; then
-    printf '%s\n' 'Legacy Foundation files exist; explicitly migrate them under .local/.foundation before using the development wrappers. Existing identity/state will not be replaced.' >&2
-    exit 4
-  fi
-done
 foundation="$HOME/.foundation"
 for directory in "$HOME" "$foundation" "$foundation/bin" "$foundation/config" "$foundation/state" "$foundation/identity" "$foundation/run"; do
   if [ -L "$directory" ]; then

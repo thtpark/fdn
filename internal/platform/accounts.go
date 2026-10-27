@@ -174,21 +174,9 @@ func newAccountManager(options AccountOptions, system AccountSystem, filesystemR
 	return &AccountManager{options: options, system: system, filesystemRoot: filesystemRoot}, nil
 }
 
-// AccountUsername retains the ID-derived naming used by existing installations.
-func AccountUsername(agentID string) (string, error) {
+func accountUsername(agentID, name string) (string, error) {
 	if !agentAccountID.MatchString(agentID) {
 		return "", errors.New("managed accounts require an immutable Foundation agent ID")
-	}
-	return "fdna_" + agentID[len("agent_"):len("agent_")+20], nil
-}
-
-func accountUsername(agentID, name string) (string, error) {
-	legacy, err := AccountUsername(agentID)
-	if err != nil {
-		return "", err
-	}
-	if name == "" {
-		return legacy, nil
 	}
 	if !domain.ValidAccountUsername(name) {
 		return "", errors.New("managed accounts require a non-root OS-safe username")

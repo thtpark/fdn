@@ -22,7 +22,6 @@ import (
 
 type Server struct {
 	StateDir      string `json:"state_dir"`
-	Listen        string `json:"listen,omitempty"`
 	CertFile      string `json:"cert_file"`
 	KeyFile       string `json:"key_file"`
 	IngressSocket string `json:"ingress_socket,omitempty"`
@@ -59,7 +58,7 @@ type Worker struct {
 	InvocationTimeoutSeconds int               `json:"invocation_timeout_seconds"`
 	ResearchIntervalHours    int               `json:"research_interval_hours"`
 	VNCAddress               string            `json:"vnc_address,omitempty"`
-	VNCVerified              bool              `json:"vnc_verified"`
+	VNCVerified              bool              `json:"vnc_verified,omitempty"`
 	Screens                  []Screen          `json:"screens,omitempty"`
 	SSH                      *SSH              `json:"ssh,omitempty"`
 	sourcePath               string
@@ -89,13 +88,6 @@ type ScreenApplication struct {
 
 type Credential struct {
 	AgentID string `json:"agent_id"`
-	Token   string `json:"token,omitempty"`
-}
-
-type InvitationBundle struct {
-	Token       string `json:"token"`
-	OperationID string `json:"operation_id"`
-	ExpiresAt   int64  `json:"expires_at"`
 }
 
 const UserDirectory = ".foundation"
@@ -145,13 +137,10 @@ func (c Server) Validate() error {
 	if !filepath.IsAbs(c.StateDir) || !filepath.IsAbs(c.CertFile) || !filepath.IsAbs(c.KeyFile) {
 		return domain.Fail(domain.Invalid, "server paths must be absolute")
 	}
-	if c.IngressSocket != "" || c.JoinSocket != "" {
-		if c.Listen != "" || !filepath.IsAbs(c.IngressSocket) || !filepath.IsAbs(c.JoinSocket) || c.IngressSocket == c.JoinSocket || c.IngressGroup < -1 || (c.AccountSocket != "" && !filepath.IsAbs(c.AccountSocket)) {
-			return domain.Fail(domain.Invalid, "secure Foundation uses distinct absolute Unix sockets, not a TCP listener")
-		}
-		return nil
+	if !filepath.IsAbs(c.IngressSocket) || !filepath.IsAbs(c.JoinSocket) || c.IngressSocket == c.JoinSocket || c.IngressGroup < -1 || (c.AccountSocket != "" && !filepath.IsAbs(c.AccountSocket)) {
+		return domain.Fail(domain.Invalid, "Foundation requires distinct absolute Unix ingress sockets")
 	}
-	return Loopback(c.Listen)
+	return nil
 }
 
 func (c Worker) Validate() error {
@@ -230,19 +219,12 @@ func (c Worker) validateScreensForOwner(ownerUID uint32) error {
 	}
 	ids, endpoints := map[string]bool{}, map[string]bool{}
 	primary := false
-	if c.VNCAddress != "" {
-		if err := Loopback(c.VNCAddress); err != nil {
-			return err
-		}
-		if c.VNCVerified {
-			_, port, _ := net.SplitHostPort(c.VNCAddress)
-			number, _ := strconv.Atoi(port)
-			endpoints[strconv.Itoa(number)] = true
-		}
+	if c.VNCAddress != "" || c.VNCVerified {
+		return domain.Fail(domain.Invalid, "configure explicit screen profiles; per-worker VNC options are not supported")
 	}
 	for _, screen := range c.Screens {
-		if !ValidScreenID(screen.ID) || screen.ID == "legacy-desktop" || ids[screen.ID] {
-			return domain.Fail(domain.Invalid, "screen IDs must be unique safe identifiers of at most 64 bytes; legacy-desktop is reserved")
+		if !ValidScreenID(screen.ID) || ids[screen.ID] {
+			return domain.Fail(domain.Invalid, "screen IDs must be unique safe identifiers of at most 64 bytes")
 		}
 		ids[screen.ID] = true
 		if err := domain.CheckText(screen.Name, "screen name", 128, true); err != nil {
@@ -418,17 +400,5 @@ func defaultConfig(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	path := filepath.Join(root, "config", name)
-	if _, err := os.Lstat(path); err == nil {
-		return path, nil
-	} else if !os.IsNotExist(err) {
-		return "", err
-	}
-	legacy := filepath.Join(filepath.Dir(root), ".config", "fdn", name)
-	if _, err := os.Lstat(legacy); err == nil {
-		return "", domain.Fail(domain.Prerequisite, "legacy Foundation configuration exists; use --config with its existing path or explicitly migrate it under HOME/.foundation before using new defaults")
-	} else if !os.IsNotExist(err) {
-		return "", err
-	}
-	return path, nil
+	return filepath.Join(root, "config", name), nil
 }

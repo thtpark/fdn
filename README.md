@@ -3,8 +3,9 @@
 A self-contained Go implementation of Foundation through **Phase 5**, with an
 authoritative SQLite-backed service, a native worker daemon, and one structured
 CLI for people and coding agents. Development and operation need no companion
-checkout. Existing legacy configuration, credentials, and databases are **not
-imported or overwritten**. The API/schema **2** software-first security upgrade
+checkout. The supported baseline is 0.3.5: API/schema **2**, native protocol
+**2**, server SQL **5** and local SQL **1**. Older formats/layouts are not
+imported or overwritten. The software-first security model
 is being integrated; source-bound acceptance and native qualification are
 separate. No hardware adapter or attestation is claimed.
 
@@ -276,11 +277,10 @@ separate processes organize lifecycle, not isolation from its own tools.
 Founder initially uses manual mode; regular agents use
 server-controlled ai. Provider sign-in remains separate from enrollment.
 
-For a designated original existing non-Founder, Founder first uses
-`agent register --existing-agent AGENT --input PUBLIC [--output PROFILE]`;
-then that runner explicitly uses `connect --migrate`, preserving local SQLite 1,
-knowledge, journals, bindings and outbox. Legacy Founder recovery is root-local.
-Do not copy another identity, share SSH accounts or use old tokens as fallback.
+Registration creates a new signed identity. Existing enrolled identities use
+explicit fresh-key recovery, then attach with `connect` while retaining local
+SQLite 1, knowledge, journals, bindings and outbox. Founder recovery is root-local.
+Do not copy another identity, share SSH accounts or use tokens as fallback.
 
 A confirmed simultaneous different owner bans the **whole identity**, including
 the original and Founder, and closes API/streams. Recovery requires fresh
@@ -572,8 +572,9 @@ fdn-service restore --input /PRIVATE/BACKUPS/foundation.age \
 Backups stream age-encrypted archives of a consistent SQLite hot snapshot and
 TLS trust/keys with verified file hashes. Restore authenticates the full stream,
 rejects unexpected/duplicate/traversing entries, checks schema/database integrity,
-accepts manifest schema 1/2 through supported SQL 3 migration and rejects future
-formats. Before publishing the complete fresh destination it retires sessions
+requires current manifest schema 2 and a supported server database at or above
+SQL5. Older and future unsupported formats fail closed. Before publishing the
+complete fresh destination it retires sessions
 and quarantines **all restored identities/owner/key epochs**: old tokens, keys
 and certificates cannot regain API access. Root-local fresh Founder recovery
 (retaining ID/history), then explicit Founder fresh-key reapproval of regular
@@ -596,8 +597,7 @@ use that existing user's private configurations and fixed user-definition paths.
 They never create users/groups, change HOME mode or switch users with sudo.
 Both Linux units use the existing `systemctl --user` manager; both macOS
 services are GUI LaunchAgents for the same user. Windows native adapters remain
-unimplemented. Legacy split-account options require explicit stopped migration
-while retaining keys and all runner state. See
+unimplemented. Only current single-user service options are supported. See
 [DEPLOYMENT.md](DEPLOYMENT.md#native-identity-and-runner-services) for complete
 options/prerequisites and explicitly unperformed native qualification.
 

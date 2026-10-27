@@ -95,8 +95,8 @@ func TestAgentOperationsFounderOnlyPrivateProtectedAndNonexecuting(t *testing.T)
 		t.Fatal(err)
 	}
 	operation, err := f.s.RequestDiagnosticRefresh(ctx, f.founder.ID, f.worker.ID, request)
-	if err != nil || operation.State != "queued" || operation.Result != nil || operation.RequesterGeneration != 0 || operation.TargetGeneration != 0 || operation.ExpiresAt != operation.CreatedAt+900 {
-		t.Fatal("fresh request fabricated completion or changed the generation-zero fixture contract", operation, err)
+	if err != nil || operation.State != "queued" || operation.Result != nil || operation.RequesterGeneration != 1 || operation.TargetGeneration != 1 || operation.ExpiresAt != operation.CreatedAt+900 {
+		t.Fatal("fresh request fabricated completion or lost current identity generations", operation, err)
 	}
 	for _, actor := range []string{f.founder.ID, f.worker.ID} {
 		read, err := f.s.GetAgentOperation(ctx, actor, operation.ID)
@@ -389,7 +389,7 @@ func seedOperationIdentity(t *testing.T, f *fixture, agent domain.Agent, generat
 	return identity
 }
 
-func TestAgentOperationCurrentGenerationFencesIncludingZero(t *testing.T) {
+func TestAgentOperationCurrentGenerationFences(t *testing.T) {
 	for _, subject := range []string{"target", "issuer"} {
 		t.Run(subject, func(t *testing.T) {
 			f := newFixture(t)
@@ -401,10 +401,10 @@ func TestAgentOperationCurrentGenerationFencesIncludingZero(t *testing.T) {
 			if subject == "issuer" {
 				agent, uid = f.founder, 61002
 			}
-			seedOperationIdentity(t, f, agent, 1, uid)
+			seedOperationIdentity(t, f, agent, 2, uid)
 			projected, err := f.s.GetAgentOperation(ctx, f.worker.ID, operation.ID)
 			if err != nil || projected.State != "rejected" || projected.Result.Code != "authority-changed" || projected.Result.Observation != nil {
-				t.Fatal("zero-generation control dispatched to a fresh key identity", projected, err)
+				t.Fatal("old-generation control dispatched to a fresh key identity", projected, err)
 			}
 			page, err := f.s.ListAgentOperations(ctx, f.worker.ID, "", 200)
 			if err != nil || len(page.Items) != 0 {
@@ -419,11 +419,11 @@ func TestAgentOperationCurrentGenerationFencesIncludingZero(t *testing.T) {
 				t.Fatal("request replay renewed stale key authority", replayed, err)
 			}
 			fresh, _ := requestDiagnosticOperation(t, f)
-			if (subject == "issuer" && fresh.RequesterGeneration != 1) || (subject == "target" && fresh.TargetGeneration != 1) {
+			if (subject == "issuer" && fresh.RequesterGeneration != 2) || (subject == "target" && fresh.TargetGeneration != 2) {
 				t.Fatal("fresh control did not bind current generation", fresh)
 			}
-			seedOperationIdentity(t, f, agent, 2, uid)
-			stale := WithIdentityFence(ctx, domain.CertificateIdentity{AgentID: agent.ID, InstanceID: "instance_fixture", Generation: 1, OwnerGeneration: 1, Purpose: "owner"})
+			seedOperationIdentity(t, f, agent, 3, uid)
+			stale := WithIdentityFence(ctx, domain.CertificateIdentity{AgentID: agent.ID, InstanceID: "instance_fixture", Generation: 2, OwnerGeneration: 1, Purpose: "owner"})
 			_, err = f.s.GetAgentOperation(stale, agent.ID, fresh.ID)
 			assertCode(t, err, domain.Denied)
 			_, err = f.s.ReportAgentOperation(ctx, f.worker.ID, fresh.ID, domain.AgentOperationReport{Command: domain.Command{OperationID: op().OperationID, ExpectedRevision: 1}, State: "checking"})

@@ -10,10 +10,10 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 )
 
-func TestAutonomyMigrationPreservesIdentityAndRejectsUnapprovedModeWrites(t *testing.T) {
+func TestPrebaselineModeStateIsRejectedWithoutAdoption(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "state", "foundation.sqlite")
-	db, err := database.Open(ctx, path, []string{schema})
+	db, err := database.Open(ctx, path, []string{schema}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,19 +30,11 @@ func TestAutonomyMigrationPreservesIdentityAndRejectsUnapprovedModeWrites(t *tes
 		t.Fatal(err)
 	}
 	store, err := Open(ctx, path)
-	if err != nil {
-		t.Fatal(err)
+	if store != nil {
+		store.Close()
+		t.Fatal("prebaseline state was adopted")
 	}
-	defer store.Close()
-	got, err := store.Authenticate(ctx, token)
-	if err != nil || got.ID != agent.ID || got.Mode != "ai" || got.Revision != 1 || got.CreatedAt != 100 {
-		t.Fatal("migration replaced identity or invented manual authority", got, err)
-	}
-	req := domain.ModeRequest{Command: op(), Mode: "manual", Reason: "self pause"}
-	req.ExpectedRevision = got.Revision
-	if _, err := store.SetMode(ctx, got.ID, got.ID, req); err == nil {
-		t.Fatal("non-Founder requested mode")
-	}
+	assertCode(t, err, domain.Prerequisite)
 }
 
 func TestPersistentAssistanceSurvivesStoreReopenAndSessionRetirement(t *testing.T) {
@@ -53,11 +45,13 @@ func TestPersistentAssistanceSurvivesStoreReopenAndSessionRetirement(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	bootstrap, token := domain.NewToken(), domain.NewToken()
-	if _, err := store.Bootstrap(ctx, domain.Hash(bootstrap), time.Now().Unix()+900); err != nil {
+	keys := securityPublic(t, "Founder")
+	identity, err := store.BootstrapIdentity(ctx, keys.public, op().OperationID)
+	if err != nil {
 		t.Fatal(err)
 	}
-	founder, err := store.Enroll(ctx, domain.EnrollRequest{Command: op(), InvitationToken: bootstrap, CredentialHash: domain.Hash(token), Name: "Founder"})
+	identity, _ = securityActivate(t, store, identity, keys, 4100)
+	founder, err := store.Me(ctx, identity.AgentID)
 	if err != nil {
 		t.Fatal(err)
 	}

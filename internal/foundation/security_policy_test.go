@@ -48,7 +48,7 @@ func TestSecurityBanRecoveryAndRetiredGenerations(t *testing.T) {
 	assertCode(t, err, domain.Denied)
 	_, err = f.s.SetIdentityOwner(ctx, identity.AgentID, owner.public.AuthKey, identity.Generation)
 	assertCode(t, err, domain.Denied)
-	_, err = f.s.RegisterIdentity(ctx, f.founder.AgentID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: identity.AgentID, Identity: securityPublic(t, "bypass").public})
+	_, err = f.s.RecoverIdentity(ctx, identity.AgentID, identity.AgentID, domain.RecoverIdentityRequest{Command: op(), Reason: "unauthorized self recovery", Identity: securityPublic(t, "bypass").public})
 	assertCode(t, err, domain.Denied)
 	if err := f.s.BanIdentity(ctx, identity.AgentID, "a retry must not change the original ban"); err != nil {
 		t.Fatal(err)
@@ -188,12 +188,10 @@ func TestSecurityFounderBanRequiresExplicitOfflineRecovery(t *testing.T) {
 func TestSecurityBanPreservesFencedWorkAndSurvivesReopen(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
-	keys := securityPublic(t, "worker migration")
-	identity, err := f.s.RegisterIdentity(ctx, f.founder.ID, domain.RegisterIdentityRequest{Command: op(), Identity: keys.public, ExistingAgentID: f.worker.ID})
+	identity, err := f.s.Identity(ctx, f.worker.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity, _ = securityActivate(t, f.s, identity, keys, 4101)
 	task := f.ready(t)
 	run, err := f.s.Claim(ctx, f.worker.ID, task.ID, domain.ClaimRequest{Command: domain.Command{OperationID: op().OperationID, ExpectedRevision: task.Revision}, SpecGeneration: task.SpecGeneration, TokenHash: domain.Hash(domain.NewToken()), Provider: "codex"})
 	if err != nil {

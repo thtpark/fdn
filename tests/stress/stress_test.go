@@ -13,6 +13,7 @@ import (
 
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/foundation"
+	"github.com/thtpark/fdn/internal/testidentity"
 )
 
 func op() domain.Command { return domain.Command{OperationID: domain.NewID("stress")} }
@@ -26,11 +27,7 @@ func TestThousandTasksContentionPaginationAndThreeHistoryBound(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	token := domain.NewToken()
-	if _, err := store.Bootstrap(ctx, domain.Hash(token), time.Now().Unix()+600); err != nil {
-		t.Fatal(err)
-	}
-	actor, err := store.Enroll(ctx, domain.EnrollRequest{Command: op(), InvitationToken: token, Name: "stress Founder", CredentialHash: domain.Hash(domain.NewToken())})
+	actor, err := testidentity.Register(ctx, store, "", "stress-Founder", 4100)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -22,6 +22,7 @@ import (
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/process"
 	"github.com/thtpark/fdn/internal/secure"
+	"github.com/thtpark/fdn/internal/testidentity"
 	"github.com/thtpark/fdn/internal/transport"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -161,6 +162,7 @@ func TestNativeOpenSSHTunnelPinsHostAndCarriesRealTLS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.HTTP.Transport = testidentity.Transport(client.HTTP.Transport, h.workerAgent.ID)
 	agent, err := api.Call[struct {
 		ID string `json:"id"`
 	}](ctx, client, "GET", "/v1/me", nil)

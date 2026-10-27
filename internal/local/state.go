@@ -32,7 +32,7 @@ func Open(ctx context.Context, root string) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
-	db, err := database.Open(ctx, filepath.Join(root, "local.sqlite"), []string{schema})
+	db, err := database.Open(ctx, filepath.Join(root, "local.sqlite"), []string{schema}, 1)
 	if err != nil {
 		return nil, err
 	}

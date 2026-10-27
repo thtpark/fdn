@@ -34,9 +34,6 @@ func Dial(ctx context.Context, client *api.Client, sessionID, side string) (net.
 		url = "ws" + strings.TrimPrefix(client.BaseURL, "http") + api.Path("sessions", sessionID, "relay", side)
 	}
 	header := make(http.Header)
-	if !client.Local && client.Credential.Token != "" {
-		header.Set("Authorization", "Bearer "+client.Credential.Token)
-	}
 	conn, response, err := websocket.Dial(ctx, url, &websocket.DialOptions{HTTPClient: client.HTTP, HTTPHeader: header, CompressionMode: websocket.CompressionDisabled})
 	if err != nil {
 		if response != nil && response.Body != nil {

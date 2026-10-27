@@ -134,8 +134,8 @@ not an optional hardware milestone or permission to bypass existing project/
 work policies. Source integration and exact test outcomes must be confirmed
 before marking this gate complete.
 
-- Signed public preparation/Founder registration and explicit original-agent
-  migration; no bearer invitation, token-only runtime or public TCP bootstrap.
+- Current signed public preparation/Founder registration and enrolled-identity
+  recovery; no bearer invitation, token-only runtime or public TCP bootstrap.
 - Root-local narrow account provisioning, unique Foundation-host SSH UID for
   every agent including Founder, protected forced stdio and separate private
   Founder-maintenance channel; main server remains unprivileged. Internal
@@ -149,7 +149,7 @@ before marking this gate complete.
   Supported `agent-identity service plan/install/status --input OPTIONS` uses
   current-user defaults and two user service definitions, with explicit `--apply`
   and no root, hidden users, group provisioning or privileged switching.
-  Legacy split-account plans require explicit state-preserving migration.
+  Only current single-user service fields are accepted; foreign accounts fail.
   Fresh-key recovery uses an empty sub-StateDir in the same user's HOME while
   retaining old evidence and all runner state; no automatic rotation.
   Device/ephemeral owner mTLS still agrees with Foundation ingress peer and epochs.
@@ -161,10 +161,11 @@ before marking this gate complete.
   confirmed strict Unix/attachment source results do not finish all-suite
   acceptance after subsequent restore/lifecycle changes; see
   [TEST_PLAN.md](TEST_PLAN.md) and [SCENARIOS.md](tests/e2e/SCENARIOS.md).
-- Known backup manifest schemas 1/2 migrate through server SQL5; future formats
+- Current backup manifest schema2 and supported server SQL5-or-newer are required;
+  obsolete and future unknown formats
   fail closed. Restore quarantines ALL identity/owner/key epochs before
-  publication. Root-private fresh-key recovery adopts/recovers the sole existing
-  legacy/restored Founder retaining ID/history, then active Founder explicitly
+  publication. Root-private fresh-key recovery recovers the sole enrolled
+  restored/banned Founder retaining ID/history, then active Founder explicitly
   reapproves regulars. No old credential resurrection or automatic mode change;
   enhanced restore and final all-suite acceptance remain pending.
 - `agent-identity` belongs in reproducible builds, every native archive,

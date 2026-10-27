@@ -18,8 +18,8 @@
 // 0700 directory and 0600 socket. No new account, group or HOME is required.
 // The user owns its keys: separate processes organize lifecycle, not isolation
 // from same-user tools. Linux SO_PEERCRED and macOS LOCAL_PEERCRED must identify
-// this user's UID/GID before any message bytes are admitted. Explicit legacy
-// foreign UID/GID settings require state-preserving migration. There is no
+// this user's UID/GID before any message bytes are admitted. Explicit
+// foreign UID/GID settings are rejected. There is no
 // runtime test-UID flag.
 //
 // GET /local/status returns public agent/identity and connection readiness;

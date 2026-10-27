@@ -75,10 +75,9 @@ This is not an OS sandbox or a guarantee of isolated provider authentication:
 inherited overrides or OS credential stores may still provide access. Go's
 existing build/module caches remain shared.
 
-Existing identity configuration is not overwritten. Old `.config/fdn` or
-development `.state/identity` bindings require an explicit stopped migration;
-the wrappers never create a second identity alongside them. See
-[the state-preserving layout migration](MIGRATION.md#consolidating-user-foundation-files).
+Existing current-layout identity configuration is not overwritten.
+Other locations are neither scanned nor adopted. See
+[explicit configuration and current paths](MIGRATION.md#explicit-configuration-and-current-paths).
 Symlinked or other-user-
 writable test directories fail before adoption. Keep `.local` out of Git and
 never copy a running production identity into it. Moving Founder still needs
@@ -188,9 +187,9 @@ Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
 - Reject databases newer than the binary rather than resetting them. Restore
-  recognizes manifest schema 1/2 separately from SQL5, rejects future formats,
+  requires manifest schema 2 and a supported SQL5-or-newer server database,
   and quarantines all restored identity/owner/key epochs before publication.
-  Test root-private sole-legacy-Founder adoption preserving ID/history, regular
+  Test root-private enrolled-Founder recovery preserving ID/history, regular
   fresh-key reapproval, retired credential denial and unchanged mode/work fences.
 - Test migration of representative prior state, unknown/future versions, crash
   recovery and reopen/integrity. Preserve existing identities, operation IDs,
@@ -198,18 +197,16 @@ Read [SCHEMA.md](SCHEMA.md) before changing either database.
 - Do not assume binary rollback can read an upgraded schema. Define and verify
   a compatibility/restore path before deployment.
 - Version an incompatible API/DTO and document upgrade order. Do not add a hidden
-  success-shaped fallback for an older client. Migration 3 retains old agents,
-  tasks and operation evidence but does not authorize their old bearer files.
-  Founder explicitly binds the designated original non-Founder agent with
-  `agent register --existing-agent`; the runner then uses `connect --migrate`.
-  A legacy Founder needs the root-local recovery route before it can register
-  others. Preserve worker SQLite 1, knowledge, journals, outbox and bindings.
+  success-shaped fallback for an older client. Existing server SQL below 5 is
+  rejected unchanged; immutable shipped statements still initialize an empty
+  database. Registration creates a new signed identity; recovery retains an
+  enrolled identity. Preserve worker SQLite1, knowledge, journals, outbox and bindings.
 - Keep long-term keys in private state owned by the existing installing user,
   never provider prompts or shared output. The runner and identity process use
   the same UID/HOME; no new local account/group or UID-based key compartment is
   required. Test current-user defaults independently of the enrolled agent name,
   unchanged HOME permissions, private 0700/0600 IPC, user native-manager calls
-  without sudo/runuser and explicit state-preserving legacy migration refusal.
+  without sudo/runuser and strict current single-user option decoding.
   Validate Foundation ingress peer UID against certificate instance/agent/key/
   owner generations and recheck the fence inside authoritative transactions.
   New SSH account names use the shared agent-name normalization; existing

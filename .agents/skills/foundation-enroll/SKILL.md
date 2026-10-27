@@ -1,6 +1,6 @@
 ---
 name: foundation-enroll
-description: "Use when preparing Founder or Agent1 signed public identity requests under the existing installing user, registering or migrating a computer, attaching its identity proxy, recovering a banned identity with fresh keys, or granting project authority with pinned SSH and mutual TLS."
+description: "Use when preparing Founder or Agent1 signed public identity requests under the existing installing user, registering a computer, attaching its identity proxy, recovering an enrolled identity with fresh keys, or granting project authority with pinned SSH and mutual TLS."
 ---
 
 # Register and recover the correct identity
@@ -30,7 +30,7 @@ protected-account commands; it has no `guide` or `config init` leaf.
    must agree; never weaken pins or share an SSH account to make connect work.
 3. As the existing installing user, prepare private identity configuration/state
    under its HOME. Omitted/zero worker_uid/worker_gid means current user;
-   explicit foreign values require legacy migration and native execution rejects
+   explicit foreign values are rejected and native execution rejects
    root. Stop the identity service before offline preparation/profile changes.
    As that same user, use `agent-identity --config PRIVATE_CONFIG prepare --name
    NAME --output PUBLIC_REQUEST`. Export only the signed public request; keep
@@ -59,12 +59,11 @@ protected-account commands; it has no `guide` or `config init` leaf.
    public AgentID. Use `agent identity`, `doctor`, `status` and `agent list` to
    verify matching account/role/key-generation/owner state. Founder starts
    manual; regular agents use authoritative ai unless Founder pauses them.
-8. For a designated original existing non-Founder, Founder first registers its
-   freshly prepared request using `--existing-agent AGENT`; only then use that
-   runner's `connect --migrate`. Preserve local SQLite 1, knowledge, bindings,
-   journals/outbox and identity. A keyless legacy Founder requires root-local
-   recovery before it can register others. Migration never borrows another
-   computer's state/keys/provider login or erases a pending operation.
+8. Registration creates a new signed identity. For an existing enrolled agent,
+   use explicit fresh-key recovery, then attach its validated profile and
+   `connect` while retaining local SQLite1, knowledge, bindings and journals/
+   outbox. Missing identity bindings and obsolete credential formats fail
+   closed; never borrow another computer's keys, login or pending operation.
 9. A proved second different live owner key plus a fresh incumbent binary control
    ping bans the entire identity, including the original and Founder, and closes
    API/streams. Stale crashes/reconnects, ordinary CLI calls, public collisions
@@ -83,7 +82,7 @@ protected-account commands; it has no `guide` or `config init` leaf.
     [--output PUBLIC_PROFILE]` for a non-Founder. Founder itself requires
     authorized root-local `fdn-service recover-founder --input NEW_PUBLIC
     --reason REASON` on private maintenance, never an agent gateway/API exemption.
-    It adopts/recovers exactly one existing legacy/restored Founder, retaining
+    It recovers exactly one enrolled restored/banned Founder, retaining
     AgentID/history; no extra target flag, second Founder or mode reset. After
     restore ALL identity/owner/key epochs are quarantined before publication:
     old tokens/certificates cannot return, and regulars need active Founder's

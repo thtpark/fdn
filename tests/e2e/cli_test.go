@@ -210,11 +210,10 @@ func must[T any](t *testing.T, name string, args []string, input any) T {
 }
 
 type worker struct {
-	configFile   string
-	config       config.Worker
-	agent        domain.Agent
-	client       *api.Client
-	fixtureToken string
+	configFile string
+	config     config.Worker
+	agent      domain.Agent
+	client     *api.Client
 }
 type lab struct {
 	root         string
@@ -285,9 +284,9 @@ func (l *lab) newWorker(t *testing.T, name, providerName string) *worker {
 	if l.founder != nil {
 		founderID = l.founder.agent.ID
 	}
-	w.agent, w.fixtureToken = l.fixture.seed(t, founderID, name)
+	w.agent = l.fixture.seed(t, founderID, name)
 	socket := filepath.Join(l.root, name, "identity.sock")
-	l.fixture.localProxy(t, socket, w.agent, w.fixtureToken)
+	l.fixture.localProxy(t, socket, w.agent)
 	state := filepath.Join(l.root, name, "state")
 	args := []string{"--config", w.configFile, "config", "init", "--state", state, "--identity-socket", socket,
 		"--provider", providerName, "--workspace-root", filepath.Join(l.root, "workspaces", name), "--allow-workspace-tools"}
@@ -308,7 +307,7 @@ func (l *lab) newWorker(t *testing.T, name, providerName string) *worker {
 	if err := config.Read(w.config.CredentialFile, &credential); err != nil {
 		t.Fatal(err)
 	}
-	if credential.AgentID != w.agent.ID || credential.Token != "" {
+	if credential.AgentID != w.agent.ID {
 		t.Fatal("worker credential must contain only its local identity binding")
 	}
 	w.client, err = api.NewLocalClient(w.config)
@@ -423,9 +422,6 @@ func TestNativeBinariesPhaseOneThroughFive(t *testing.T) {
 			for _, journal := range journals {
 				if journal.Kind == "onboarding" {
 					reviews++
-				}
-				if strings.Contains(string(journal.Context), l.worker.fixtureToken) {
-					t.Fatal("credential entered model context")
 				}
 				prompt, err := os.ReadFile(filepath.Join(l.worker.config.StateDir, "invocations", journal.ID, "prompt.txt"))
 				if err != nil || !bytes.Contains(prompt, []byte("FDN_OPERATING_GUIDANCE")) || !bytes.Contains(prompt, []byte("name: foundation-work")) {

@@ -174,12 +174,12 @@ func TestSecurityFencedDistinctSubjectsAndSessionAccess(t *testing.T) {
 func TestSecurityRevocationRetiresRegistryAndPreservesWorkFence(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
-	keys := securityPublic(t, "registered fixture worker")
-	identity, err := f.s.RegisterIdentity(ctx, f.founder.ID, domain.RegisterIdentityRequest{Command: op(), ExistingAgentID: f.worker.ID, Identity: keys.public})
+	keys := f.keys[f.worker.ID]
+	identity, err := f.s.Identity(ctx, f.worker.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity, activation := securityActivate(t, f.s, identity, keys, 4101)
+	activation := f.activations[f.worker.ID]
 	owner := securityPublic(t, "worker owner")
 	identity, err = f.s.SetIdentityOwner(ctx, identity.AgentID, owner.public.AuthKey, identity.Generation)
 	if err != nil {
@@ -207,7 +207,11 @@ func TestSecurityRevocationRetiresRegistryAndPreservesWorkFence(t *testing.T) {
 		t.Fatal("regular revocation failed to retire registry epochs and preserve account reservation", revoked, err)
 	}
 	managed, err := f.s.ManagedIdentities(ctx)
-	if err != nil || len(managed) != 1 || managed[0] != revoked {
+	found := false
+	for _, current := range managed {
+		found = found || current == revoked
+	}
+	if err != nil || !found {
 		t.Fatal("native reconciliation cannot observe revoked account", managed, err)
 	}
 	var retired, challenges int

@@ -80,14 +80,6 @@ type Agent struct {
 	Status          *AgentTextStatus `json:"status,omitempty"`
 }
 
-type Invitation struct {
-	ID        string `json:"id"`
-	SponsorID string `json:"sponsor_id,omitempty"`
-	Founder   bool   `json:"founder"`
-	ExpiresAt int64  `json:"expires_at"`
-	UsedBy    string `json:"used_by,omitempty"`
-}
-
 type Project struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`

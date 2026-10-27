@@ -306,7 +306,7 @@ func TestAssistanceHelpCurrentRecipientsFounderRequiredAndAtomicDelivery(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	newDelegate, _ := f.enroll(t, "new current delegate")
+	newDelegate := f.enroll(t, "new-current-delegate")
 	if _, err := f.s.Delegate(ctx, f.founder.ID, project.ID, domain.GrantRequest{Command: domain.Command{OperationID: op().OperationID, ExpectedRevision: project.Revision}, AgentID: newDelegate.ID}); err != nil {
 		t.Fatal(err)
 	}

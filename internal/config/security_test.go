@@ -15,8 +15,7 @@ func TestSecureServerConfigurationCannotMixUnixIngressAndTCP(t *testing.T) {
 		name   string
 		change func(*Server)
 	}{
-		{"loopback-tcp", func(c *Server) { c.Listen = "127.0.0.1:8443" }},
-		{"public-tcp", func(c *Server) { c.Listen = "0.0.0.0:8443" }},
+		{"missing-api", func(c *Server) { c.IngressSocket = "" }},
 		{"missing-join", func(c *Server) { c.JoinSocket = "" }},
 		{"same-socket", func(c *Server) { c.JoinSocket = c.IngressSocket }},
 		{"relative-api", func(c *Server) { c.IngressSocket = "api.sock" }},

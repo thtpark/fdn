@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/foundation"
+	"github.com/thtpark/fdn/internal/testidentity"
 )
 
 func TestAccessAuditCorrelatesActorWithoutLoggingRequestSecrets(t *testing.T) {
@@ -24,11 +24,7 @@ func TestAccessAuditCorrelatesActorWithoutLoggingRequestSecrets(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	invitation := domain.NewToken()
-	if _, err := store.Bootstrap(ctx, domain.Hash(invitation), time.Now().Unix()+600); err != nil {
-		t.Fatal(err)
-	}
-	actor, err := store.Enroll(ctx, domain.EnrollRequest{Command: domain.Command{OperationID: "audit-fixture"}, InvitationToken: invitation, CredentialHash: domain.Hash(domain.NewToken()), Name: "audit fixture"})
+	actor, err := testidentity.Register(ctx, store, "", "audit-fixture", 4100)
 	if err != nil {
 		t.Fatal(err)
 	}

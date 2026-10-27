@@ -155,6 +155,11 @@ guide includes this file, all skills, and the development references.
 
 ## Development contract
 
+The source baseline is 0.3.5: current signed identities, server SQL5, local SQL1
+and backup manifest2. Older formats/layouts are unsupported, not automatically
+adopted. Preserve current state and explicit configuration paths; compatibility
+removal is not authorization to delete installations or recovery evidence.
+
 Read [DEVELOPMENT.md](DEVELOPMENT.md), [SCHEMA.md](SCHEMA.md), and
 [TEST_PLAN.md](TEST_PLAN.md). Make surgical changes; preserve identity, mode,
 knowledge, workspaces, journals, and user modifications. Tests run locally with

@@ -55,7 +55,7 @@ func TestAgentOperationRawAPIFounderAuthorityTargetPrivacyAndDurableResults(t *t
 	}
 	envelope, status := f.request(t, f.founder, http.MethodPost, path, request)
 	queued := apiAgentOperation(t, envelope, status)
-	if queued.State != "queued" || queued.Result != nil || envelope.OperationID != request.OperationID || queued.ID == request.OperationID || queued.ExpiresAt-queued.CreatedAt != 900 || queued.TargetGeneration != 0 || queued.RequesterGeneration != 0 {
+	if queued.State != "queued" || queued.Result != nil || envelope.OperationID != request.OperationID || queued.ID == request.OperationID || queued.ExpiresAt-queued.CreatedAt != 900 || queued.TargetGeneration != 1 || queued.RequesterGeneration != 1 {
 		t.Fatal("raw API fabricated a fresh result or changed immutable submission identity", queued, envelope)
 	}
 	operationPath := "/v1/agent-operations/" + queued.ID

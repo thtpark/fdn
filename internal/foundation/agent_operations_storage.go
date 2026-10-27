@@ -39,9 +39,6 @@ func getAgentOperation(ctx context.Context, q queryer, id string) (domain.AgentO
 func agentOperationIdentity(ctx context.Context, q queryer, a domain.Agent) (int64, bool, error) {
 	identity, err := get[domain.AgentIdentity](ctx, q, "agent_identities", a.ID)
 	if err != nil {
-		if domain.AsFault(err).Code == domain.NotFound {
-			return 0, a.Active && !a.Banned, nil
-		}
 		return 0, false, err
 	}
 	return identity.Generation, identity.AgentID == a.ID && identity.Generation > 0 && identity.State == "active" && a.Active && !a.Banned, nil

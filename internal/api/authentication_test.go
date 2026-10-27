@@ -16,6 +16,7 @@ import (
 
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/foundation"
+	"github.com/thtpark/fdn/internal/testidentity"
 )
 
 type authenticationAPIFixture struct {
@@ -39,27 +40,22 @@ func newAuthenticationAPIFixture(t *testing.T) *authenticationAPIFixture {
 		}
 	})
 	f := &authenticationAPIFixture{store: store}
-	invitation := domain.NewToken()
-	if _, err := store.Bootstrap(ctx, domain.Hash(invitation), time.Now().Unix()+600); err != nil {
+	f.founder, err = testidentity.Register(ctx, store, "", "Founder-fixture", 4100)
+	if err != nil {
 		t.Fatal(err)
 	}
-	enroll := func(name string) domain.Agent {
-		agent, err := store.Enroll(ctx, domain.EnrollRequest{Command: domain.Command{OperationID: domain.NewID("op")}, Name: name, InvitationToken: invitation, CredentialHash: domain.Hash(domain.NewToken())})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return agent
-	}
-	f.founder = enroll("Founder fixture")
 	for _, target := range []struct {
 		name  string
 		agent *domain.Agent
-	}{{"delegate fixture", &f.delegate}, {"target fixture", &f.target}} {
-		invitation = domain.NewToken()
-		if _, err := store.Invite(ctx, f.founder.ID, domain.InvitationRequest{Command: domain.Command{OperationID: domain.NewID("op")}, TokenHash: domain.Hash(invitation), ExpiresAt: time.Now().Unix() + 600}); err != nil {
+	}{{"delegate-fixture", &f.delegate}, {"target-fixture", &f.target}} {
+		uid := int64(4101)
+		if target.agent == &f.target {
+			uid++
+		}
+		*target.agent, err = testidentity.Register(ctx, store, f.founder.ID, target.name, uid)
+		if err != nil {
 			t.Fatal(err)
 		}
-		*target.agent = enroll(target.name)
 	}
 	f.project, err = store.CreateProject(ctx, f.founder.ID, domain.ProjectRequest{Command: domain.Command{OperationID: domain.NewID("op")}, Name: "refresh scope"})
 	if err != nil {

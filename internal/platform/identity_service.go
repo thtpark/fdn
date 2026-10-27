@@ -28,16 +28,6 @@ type IdentityServiceOptions struct {
 	SocketDir          string `json:"socket_dir"`
 	IdentityDefinition string `json:"identity_definition"`
 	WorkerDefinition   string `json:"worker_definition"`
-
-	// Decode legacy plans only to require explicit state-preserving migration.
-	IdentityUser string `json:"identity_user,omitempty"`
-	IdentityUID  int    `json:"identity_uid,omitempty"`
-	IdentityGID  int    `json:"identity_gid,omitempty"`
-	IdentityHome string `json:"identity_home,omitempty"`
-	WorkerUser   string `json:"worker_user,omitempty"`
-	WorkerUID    int    `json:"worker_uid,omitempty"`
-	WorkerGID    int    `json:"worker_gid,omitempty"`
-	WorkerHome   string `json:"worker_home,omitempty"`
 }
 
 func ResolveIdentityServiceUser(o IdentityServiceOptions) (IdentityServiceOptions, error) {
@@ -93,10 +83,6 @@ func identityPathWithin(parent, child string) bool {
 
 func RenderIdentityServices(o IdentityServiceOptions) (IdentityServicePlan, error) {
 	var plan IdentityServicePlan
-	if o.IdentityUser != "" || o.IdentityUID != 0 || o.IdentityGID != 0 || o.IdentityHome != "" ||
-		o.WorkerUser != "" || o.WorkerUID != 0 || o.WorkerGID != 0 || o.WorkerHome != "" {
-		return plan, domain.Fail(domain.Prerequisite, "legacy split-account service options require explicit migration to the installing user; preserve keys and runner state, stop old services, and follow DEPLOYMENT.md")
-	}
 	if (o.OS != "linux" && o.OS != "darwin") || !username.MatchString(o.Name) || o.User == "" ||
 		len(o.User) > 256 || strings.ContainsAny(o.User, "\x00\r\n") || o.UID <= 0 || o.UID > 1<<31-1 || o.GID < 0 || o.GID > 1<<31-1 {
 		return plan, domain.Fail(domain.Invalid, "worker services require one existing non-root installing user on Linux or macOS; the local username is independent of the enrolled agent name")
@@ -138,7 +124,7 @@ func RenderIdentityServices(o IdentityServiceOptions) (IdentityServicePlan, erro
 		"Both processes run as the existing installing user. No account, group, login shell, HOME permissions or supplementary membership is created or changed.",
 		"The enrolled agent name and signed public profile choose the Foundation SSH identity; the local OS username need not match it.",
 		"The installing user owns the whole worker, including its identity keys. Separate processes and state directories organize lifecycle, not isolation from that user's tools. Keep private state/configuration at 0700/0600 and IPC at 0700/0600.",
-		"Installation requires explicit --apply as that user, never sudo, runuser, a system daemon or another account. Legacy split-account services require explicit stopped, state-preserving migration.",
+		"Installation requires explicit --apply as that user, never sudo, runuser, a system daemon or another account.",
 	}
 	if o.OS == "linux" {
 		quote := func(value string) string { return strconv.Quote(strings.ReplaceAll(value, "%", "%%")) }

@@ -290,7 +290,11 @@ func applyTestAccount(t *testing.T, manager *AccountManager, agent, key string) 
 			}
 		}
 	}
-	plan, err := manager.Plan(context.Background(), AccountRequest{AgentID: agent, PublicKey: key, Generation: generation})
+	name := "agent1"
+	if agent == accountTestOther {
+		name = "agent2"
+	}
+	plan, err := manager.Plan(context.Background(), AccountRequest{AgentID: agent, Username: name, PublicKey: key, Generation: generation})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,11 +308,11 @@ func applyTestAccount(t *testing.T, manager *AccountManager, agent, key string) 
 func TestManagedAccountPlanApplyAndRetainedReplay(t *testing.T) {
 	manager, system := accountFixture(t)
 	key := accountTestKey(t)
-	plan, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, PublicKey: strings.TrimSpace(key) + " comment\n", Generation: 1})
+	plan, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: strings.TrimSpace(key) + " comment\n", Generation: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plan.Username != "fdna_aaaaaaaaaaaaaaaaaaaa" || plan.UID != manager.options.UIDMin || plan.PublicKey != key {
+	if plan.Username != "agent1" || plan.UID != manager.options.UIDMin || plan.PublicKey != key {
 		t.Fatal(plan)
 	}
 	if _, err := os.Lstat(manager.options.StateDir); !errors.Is(err, os.ErrNotExist) || len(system.mutations) != 0 {
@@ -370,7 +374,7 @@ func TestManagedAccountRetirementReservationsAndExplicitRecovery(t *testing.T) {
 	manager, system := accountFixture(t)
 	key := accountTestKey(t)
 	account := applyTestAccount(t, manager, accountTestAgent, key)
-	disabled, err := manager.Disable(context.Background(), AccountDisableRequest{AgentID: accountTestAgent, Generation: account.Generation + 1}, true)
+	disabled, err := manager.Disable(context.Background(), AccountDisableRequest{AgentID: accountTestAgent, Username: "agent1", Generation: account.Generation + 1}, true)
 	if err != nil || disabled.State != AccountDisabled || !system.disabled[account.Username] {
 		t.Fatal(disabled, err)
 	}
@@ -378,7 +382,7 @@ func TestManagedAccountRetirementReservationsAndExplicitRecovery(t *testing.T) {
 	if err != nil || len(data) != 0 {
 		t.Fatal("retirement left authorized keys", err)
 	}
-	if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, PublicKey: accountTestKey(t), Generation: disabled.Generation + 1}); !errors.Is(err, ErrAccountRetired) {
+	if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: accountTestKey(t), Generation: disabled.Generation + 1}); !errors.Is(err, ErrAccountRetired) {
 		t.Fatal("implicit resurrection", err)
 	}
 	delete(system.users, account.Username)
@@ -388,7 +392,7 @@ func TestManagedAccountRetirementReservationsAndExplicitRecovery(t *testing.T) {
 	if _, exists := system.users[account.Username]; exists {
 		t.Fatal("recreated retired account")
 	}
-	if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestOther, PublicKey: key, Generation: 1}); !errors.Is(err, ErrAccountConflict) {
+	if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestOther, Username: "agent2", PublicKey: key, Generation: 1}); !errors.Is(err, ErrAccountConflict) {
 		t.Fatal("retired key reused", err)
 	}
 	other := applyTestAccount(t, manager, accountTestOther, accountTestKey(t))
@@ -396,10 +400,10 @@ func TestManagedAccountRetirementReservationsAndExplicitRecovery(t *testing.T) {
 		t.Fatal("retired UID recycled", other)
 	}
 	collidingID := "agent_" + strings.Repeat("a", 20) + strings.Repeat("b", 12)
-	if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: collidingID, PublicKey: accountTestKey(t), Generation: 1}); !errors.Is(err, ErrAccountConflict) {
+	if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: collidingID, Username: "agent1", PublicKey: accountTestKey(t), Generation: 1}); !errors.Is(err, ErrAccountConflict) {
 		t.Fatal("username collision adopted", err)
 	}
-	recovery, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, PublicKey: accountTestKey(t), Generation: disabled.Generation + 1, Reactivate: true})
+	recovery, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: accountTestKey(t), Generation: disabled.Generation + 1, Reactivate: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,7 +411,7 @@ func TestManagedAccountRetirementReservationsAndExplicitRecovery(t *testing.T) {
 	if err != nil || recovered.UID != account.UID || recovered.Username != account.Username || recovered.State != AccountActive {
 		t.Fatal("same-identity recovery changed reservation", recovered, err)
 	}
-	if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, PublicKey: key, Generation: recovered.Generation + 1}); !errors.Is(err, ErrAccountRetired) {
+	if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: key, Generation: recovered.Generation + 1}); !errors.Is(err, ErrAccountRetired) {
 		t.Fatal("compromised old key restored", err)
 	}
 }
@@ -421,7 +425,7 @@ func TestManagedAccountInterruptedProvisionAndFailedPolicyStayClosed(t *testing.
 			} else {
 				system.fail = failure
 			}
-			plan, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, PublicKey: accountTestKey(t), Generation: 1})
+			plan, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: accountTestKey(t), Generation: 1})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -459,7 +463,7 @@ func TestManagedAccountUnmanagedCollisionsAndPlanTampering(t *testing.T) {
 	for _, collision := range []string{"name", "group-name", "group-gid", "server-gid"} {
 		t.Run(collision, func(t *testing.T) {
 			manager, system := accountFixture(t)
-			name, _ := AccountUsername(accountTestAgent)
+			name := "agent1"
 			switch collision {
 			case "name":
 				system.users[name] = AccountUser{Username: name, UID: 55555}
@@ -470,14 +474,14 @@ func TestManagedAccountUnmanagedCollisionsAndPlanTampering(t *testing.T) {
 			default:
 				system.groups[manager.options.ServerGroup] = AccountGroup{Name: manager.options.ServerGroup, GID: 55555}
 			}
-			if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, PublicKey: accountTestKey(t), Generation: 1}); err == nil || len(system.mutations) != 0 {
+			if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: accountTestKey(t), Generation: 1}); err == nil || len(system.mutations) != 0 {
 				t.Fatal("adopted unmanaged identity", err)
 			}
 		})
 	}
 	manager, system := accountFixture(t)
 	system.users["existing"] = AccountUser{Username: "existing", UID: manager.options.UIDMin}
-	plan, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, PublicKey: accountTestKey(t), Generation: 1})
+	plan, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: accountTestKey(t), Generation: 1})
 	if err != nil || plan.UID != manager.options.UIDMin+1 {
 		t.Fatal("occupied UID not skipped", plan, err)
 	}
@@ -502,7 +506,7 @@ func TestManagedAccountKeyRotationAndGroupDriftReconciliation(t *testing.T) {
 	if rotated.UID != account.UID || !slices.Contains(rotated.PreviousFingerprints, account.Fingerprint) {
 		t.Fatal("rotation lost reservation", rotated)
 	}
-	if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestOther, PublicKey: oldKey, Generation: 1}); !errors.Is(err, ErrAccountConflict) {
+	if _, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestOther, Username: "agent2", PublicKey: oldKey, Generation: 1}); !errors.Is(err, ErrAccountConflict) {
 		t.Fatal("rotated key reassigned", err)
 	}
 	user := system.users[account.Username]
@@ -561,7 +565,7 @@ func TestManagedAccountInventoryAndPolicyPathProtection(t *testing.T) {
 	if err := os.Symlink(protected, keyPath); err != nil {
 		t.Fatal(err)
 	}
-	plan, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, PublicKey: accountTestKey(t), Generation: account.Generation + 1})
+	plan, err := manager.Plan(context.Background(), AccountRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: accountTestKey(t), Generation: account.Generation + 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -590,7 +594,7 @@ func TestManagedAccountCanonicalPublicKeys(t *testing.T) {
 			t.Fatal("accepted invalid SSH key")
 		}
 	}
-	if _, err := AccountUsername("founder"); err == nil {
+	if _, err := accountUsername("founder", "agent1"); err == nil {
 		t.Fatal("display name became account identity")
 	}
 }

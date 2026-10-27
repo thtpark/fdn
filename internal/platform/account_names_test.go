@@ -55,10 +55,10 @@ func TestManagedAgentNameAccountsRetainNameUIDAndGenerationFences(t *testing.T) 
 	}
 }
 
-func TestManagedAgentNameTombstonesAndLegacyAccountsCoexist(t *testing.T) {
+func TestManagedAgentNameTombstonesAndExplicitAccountsCoexist(t *testing.T) {
 	ctx := context.Background()
 	manager, system := accountFixture(t)
-	legacyPlan, err := manager.Plan(ctx, AccountRequest{AgentID: accountTestAgent, PublicKey: accountTestKey(t), Generation: 1})
+	legacyPlan, err := manager.Plan(ctx, AccountRequest{AgentID: accountTestAgent, Username: "reserved-agent", PublicKey: accountTestKey(t), Generation: 1})
 	if err != nil {
 		t.Fatal(err)
 	}

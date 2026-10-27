@@ -9,11 +9,11 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 )
 
-func TestMessageRequestMigrationFivePreservesSQLFourRecordsAndUpdates(t *testing.T) {
+func TestMessageRequestCurrentSchemaPreservesRecordsAndUpdates(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(securityDirectory(t), "private", "sql-four.sqlite")
-	migrations := []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema}
-	db, err := database.Open(ctx, path, migrations)
+	migrations := []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema}
+	db, err := database.Open(ctx, path, migrations, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,6 +22,7 @@ func TestMessageRequestMigrationFivePreservesSQLFourRecordsAndUpdates(t *testing
 	if _, err := db.Exec("INSERT INTO agents(id,data,credential_hash,active) VALUES(?,?,?,1)", agent.ID, data, domain.Hash(domain.NewToken())); err != nil {
 		t.Fatal(err)
 	}
+	seedUpdateIdentity(t, db, agent)
 	if _, err := db.Exec("INSERT INTO settings(key,value) VALUES('instance_id','instance_retained')"); err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +42,7 @@ func TestMessageRequestMigrationFivePreservesSQLFourRecordsAndUpdates(t *testing
 VALUES(17,'message','message_z_first','','',0,103)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO update_recipients(actor_id,key_generation,sequence) VALUES(?,0,17)", agent.ID); err != nil {
+	if _, err := db.Exec("INSERT INTO update_recipients(actor_id,key_generation,sequence) VALUES(?,1,17)", agent.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec("DELETE FROM update_changes"); err != nil {
@@ -90,7 +91,7 @@ VALUES(17,'message','message_z_first','','',0,103)`); err != nil {
 	if err := s.Check(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if old, err := database.Open(ctx, path, migrations); err == nil {
+	if old, err := database.Open(ctx, path, migrations[:4], 1); err == nil {
 		old.Close()
 		t.Fatal("an older SQL4 binary accepted the migrated mailbox database")
 	} else {

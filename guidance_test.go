@@ -91,11 +91,11 @@ func TestGuideDocumentsCurrentUserWorkerOwnership(t *testing.T) {
 		"COMMANDS.md":   {"existing installing user", "without sudo or new users/groups"},
 		"DEPLOYMENT.md": {"local user", "without sudo", "no hidden account"},
 		"README.md":     {"same user", "Windows native adapters remain unimplemented"},
-		".agents/skills/foundation-install/SKILL.md":       {"existing installing user", "systemctl --user", "Legacy split-account options"},
+		".agents/skills/foundation-install/SKILL.md":       {"existing installing user", "systemctl --user", "Only current single-user service options"},
 		".agents/skills/foundation-enroll/SKILL.md":        {"existing installing user", "local worker uses its existing OS user"},
 		".agents/skills/foundation-work/SKILL.md":          {"existing installing user owns all worker state"},
 		".agents/skills/foundation-provider-auth/SKILL.md": {"same existing installing user", "process separation does not isolate keys"},
-		".agents/skills/foundation-operations/SKILL.md":    {"existing installing user", "Legacy split-account settings"},
+		".agents/skills/foundation-operations/SKILL.md":    {"existing installing user", "only current single-user service options"},
 		".agents/skills/foundation-develop/SKILL.md":       {"current-user OPTIONS", "no new worker account/group"},
 	} {
 		data, err := guidance.Read(file)

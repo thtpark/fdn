@@ -40,8 +40,6 @@ func (a *app) localCommand(ctx context.Context, r *resources, group string, args
 				AutomaticProviderUpdates *bool             `json:"automatic_provider_updates"`
 				AllowWorkspaceTools      *bool             `json:"allow_workspace_tools"`
 				ProviderPaths            map[string]string `json:"provider_paths"`
-				VNCAddress               *string           `json:"vnc_address"`
-				VNCVerified              *bool             `json:"vnc_verified"`
 				Screens                  *[]config.Screen  `json:"screens"`
 				SSH                      *config.SSH       `json:"ssh"`
 			}
@@ -74,12 +72,6 @@ func (a *app) localCommand(ctx context.Context, r *resources, group string, args
 			}
 			if patch.ProviderPaths != nil {
 				c.ProviderPaths = patch.ProviderPaths
-			}
-			if patch.VNCAddress != nil {
-				c.VNCAddress = *patch.VNCAddress
-			}
-			if patch.VNCVerified != nil {
-				c.VNCVerified = *patch.VNCVerified
 			}
 			if patch.Screens != nil {
 				c.Screens = *patch.Screens

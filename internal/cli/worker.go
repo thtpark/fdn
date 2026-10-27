@@ -59,9 +59,9 @@ func (a *app) load(ctx context.Context, network bool) (*resources, error) {
 		}
 		return nil, err
 	}
-	if credential.AgentID == "" || credential.Token != "" {
+	if credential.AgentID == "" {
 		state.Close()
-		return nil, domain.Fail(domain.Prerequisite, "legacy credentials cannot authenticate; migrate through Founder-approved key enrollment and connect to the local identity service")
+		return nil, domain.Fail(domain.Prerequisite, "connect this worker to its enrolled local identity first")
 	}
 	client, err := api.NewLocalClient(c)
 	if err != nil {

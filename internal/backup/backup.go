@@ -220,7 +220,7 @@ func Restore(ctx context.Context, input, identityFile, destination string) (err 
 	if err := config.Read(filepath.Join(stage, "manifest.json"), &manifest); err != nil {
 		return err
 	}
-	if manifest.Schema < 1 || manifest.Schema > domain.SchemaVersion || len(manifest.Files) != len(filenames) {
+	if manifest.Schema != domain.SchemaVersion || len(manifest.Files) != len(filenames) {
 		return domain.Fail(domain.Prerequisite, "incompatible backup schema")
 	}
 	for _, name := range filenames {

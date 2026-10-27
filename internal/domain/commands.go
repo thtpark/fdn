@@ -1,18 +1,5 @@
 package domain
 
-type EnrollRequest struct {
-	Command
-	InvitationToken string `json:"invitation_token"`
-	Name            string `json:"name"`
-	CredentialHash  string `json:"credential_hash"`
-}
-
-type InvitationRequest struct {
-	Command
-	TokenHash string `json:"token_hash"`
-	ExpiresAt int64  `json:"expires_at"`
-}
-
 type AgentRequest struct {
 	Command
 	Name string `json:"name,omitempty"`

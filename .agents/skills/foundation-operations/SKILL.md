@@ -1,6 +1,6 @@
 ---
 name: foundation-operations
-description: "Use when checking Foundation or identity-proxy health, requesting fresh diagnostics, recovering proven session fences or identity keys, diagnosing blocked workers/replies, migrating split-account workers, pausing automation, reconciling runs/sessions, managing knowledge/backups/TLS, or checking, applying and inspecting Founder-authorized software upgrade plans and native receipts."
+description: "Use when checking Foundation or identity-proxy health, requesting fresh diagnostics, recovering proven session fences or enrolled identity keys, diagnosing blocked workers/replies, pausing automation, reconciling runs/sessions, managing current-format knowledge/backups/TLS, or checking, applying and inspecting Founder-authorized software upgrade plans and native receipts."
 ---
 
 # Operate and recover without hiding uncertainty
@@ -83,8 +83,8 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    public recipient, and use `fdn-service backup --output FILE --recipient
    RECIPIENT`. Restore only to a fresh directory with the private identity
    supplied through a protected file. Verify full archive/integrity/compatible
-   schema. Manifest schema 1/2 is supported through SQL5 migration; future
-   manifest/SQL versions fail closed. Restore quarantines ALL identity/owner/key
+   schema. Manifest schema2 and supported server SQL5-or-newer are required;
+   obsolete or future unknown formats fail closed. Restore quarantines ALL identity/owner/key
    epochs before publication, so old tokens/keys/certificates never reactivate.
    Root-private fresh-key Founder recovery retains ID/history, then Founder
    explicitly reapproves regulars with fresh signed keys; no automatic mode
@@ -116,12 +116,11 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
     status for transport or account/key/owner-generation errors. Identity,
     providers and runner share the existing installing user; that user owns the
     keys, with distinct private state and no key bytes in model/shared output.
-    New defaults share HOME/.foundation. Retain explicit legacy paths until an
-    authorized stopped filesystem migration; it changes no identity generation,
-    mode, retry or authority. Keep external tool configuration/discovery intact.
-    Local username need not match agent name. Legacy split-account settings
-    require the explicit stopped ownership migration in MIGRATION.md, preserving
-    keys, profiles, provider state, journals/outbox and fences; never auto-transfer
+    Defaults share HOME/.foundation. Explicit current-format configuration paths
+    are respected without old-layout discovery. Keep external tool settings
+    intact. Local username need not match agent name; only current single-user
+    service options are accepted. Preserve keys, profiles, provider state,
+    journals/outbox and fences; never auto-transfer
     ownership or create another identity to bypass an access failure.
     Legacy bearer files, TCP ingress, shared SSH accounts or another owner
     process are never recovery shortcuts. Root account reconciliation is also

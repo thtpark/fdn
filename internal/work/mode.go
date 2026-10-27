@@ -40,7 +40,7 @@ func ReconcileMode(ctx context.Context, state *local.State, c config.Worker, pat
 	}
 	apply := func(current config.Worker) (config.Worker, error) {
 		if current.Mode == "manual" && agent.Mode == "ai" && agent.ModeRequestedBy == "" {
-			return current, domain.Fail(domain.Prerequisite, "legacy local manual pause needs an explicit Founder resume decision; it is not silently reset")
+			return current, domain.Fail(domain.Prerequisite, "a local manual pause needs an explicit Founder resume decision; it is not silently reset")
 		}
 		current.Mode = agent.Mode
 		return current, nil

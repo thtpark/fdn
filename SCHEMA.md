@@ -27,23 +27,31 @@ existing installing user's UID/HOME. That user owns the keys, profiles, provider
 credentials and runner database. Application databases, configurations, locks,
 state directories and owners are checked. Private directories/files and IPC
 use 0700/0600; the user's existing HOME permissions are not changed.
-`PRAGMA user_version` is local to each database. Future versions fail closed.
+`PRAGMA user_version` is local to each database. Server SQL5 is the minimum
+existing database version; older and future unsupported versions fail closed.
+Fresh empty databases use the immutable ordered initialization statements.
 
 New user defaults are grouped under `$HOME/.foundation`: private `config`,
 runner `state`, key `identity`, socket `run`, owned `workspaces`, managed `bin`
 and `guidance`. Explicit configuration/native service paths are not rewritten.
 Changing this filesystem layout needs no API, native message or SQL version
-change and never re-enrolls an identity. Existing legacy defaults require an
-explicit stopped migration or `--config` naming the retained configuration.
+change and never re-enrolls an identity. Other layouts are not automatically
+discovered; explicit current-format configuration paths remain valid.
 External tool directories/environment settings and platform discovery/service
 locations retain their own contracts.
+
+Screens require explicit current profiles with verified geometry and a matching
+local backend. Per-worker `vnc_address`/`vnc_verified` are unsupported; only their
+empty/false serialized slots are accepted when reading current baseline
+configurations, and new writes omit them. No display environment implicitly
+creates a whole-desktop profile or screen authorization.
 
 ### Server tables
 
 | Table | Contract |
 | --- | --- |
-| `agents` | Immutable identity, display name, Founder/active/banned state, sponsor, timestamps, mode/revision and Founder mode-request attribution; legacy credential hashes are retained but cannot authenticate v2 |
-| `invitations` | Retained legacy records only; no bearer invitation/bootstrap redemption in v2 |
+| `agents` | Immutable identity, display name, Founder/active/banned state, sponsor, timestamps, mode/revision and Founder mode-request attribution; the historical credential-hash column is unused by authentication |
+| `invitations` | Historical SQL storage retained by immutable schema definitions; no input type, runtime operation or receipt adapter exists |
 | `agent_identities` | Instance/agent/request binding, unique dedicated SSH user/UID, approved public keys/fingerprints, key and owner generations, active/banned state and software assurance |
 | `identity_accounts` | Durable one-agent/one-UID/one-SSH-user reservation; no reuse by another identity |
 | `identity_keys` | Canonical public-key fingerprints, owning agent/generation/kind and retired-key reservations |
@@ -354,7 +362,8 @@ mentions resolve to immutable AgentIDs; neither a name nor a matching username
 authenticates an actor or grants authority.
 Operation IDs match `[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}`. Run ownership tokens
 remain random 32-byte values with server-side SHA-256 hashes; they are not agent
-login credentials. Legacy bearer hashes are recovery evidence only. Do not
+login credentials. Historical reserved database columns do not provide a
+credential API. Do not
 accept private credentials as plaintext command-line arguments.
 
 Timestamps are UTC Unix seconds. Local clocks do not prove human presence or
@@ -562,8 +571,8 @@ claim a Windows runtime port.
   separate root-local Unix provisioner, never arbitrary command execution.
   Its typed provision/disable RPCs carry the registry-approved `username` and
   require the **positive identity key generation**, retained per account in the
-  private root inventory. Omitted usernames retain only the legacy ID-derived
-  request convention; new server requests always send the exact reserved name.
+  private root inventory. Usernames are required; every request names the exact
+  registry-reserved account without an ID-derived fallback.
   A changed name is rejected even with a newer generation. Lower
   generations and same-generation different keys are rejected before OS
   commands; exact same-generation retries are idempotent. A newer disable
@@ -584,9 +593,9 @@ claim a Windows runtime port.
   separate user-owned 0700 IPC directory exposes a 0600 proxy socket; kernel
   peer checks pin this user's UID/GID. Omitted/zero private configuration
   `worker_uid`/`worker_gid` defaults to the actual current user; explicit foreign
-  values fail with migration guidance before native serving or key transfer.
-  No special group membership is required. Legacy split-account options fail
-  explicitly; keys, profiles, journals and account ownership are never moved,
+  values fail before native serving or key transfer.
+  No special group membership is required. Service plans accept only the
+  current single-user fields; keys, profiles, journals and account ownership are never moved,
   rotated or reset automatically.
 - `agent-identity prepare` retains fresh keypairs and emits only a signed public
   request: version, request ID, name, SSH/auth public keys and both possession
@@ -697,34 +706,31 @@ on ordinary prepare retry, reconnect or restart.
 
 ### Restored identities are quarantined, not reactivated
 
-A verified backup restore accepts known manifest schema 1/2 and applies
-supported SQL migrations through server SQL 5; future manifest/SQL versions
-fail closed. Before publishing the fresh destination, restore retires sessions
+A verified backup restore requires manifest schema 2 and server SQL5 or a newer
+supported schema. Older and future unsupported formats fail closed.
+Before publishing the fresh destination, restore retires sessions
 and quarantines every restored agent/key/owner epoch, including Founder and
-legacy agents without a prior key binding. Old bearer files, signed requests,
+all enrolled agents. Missing identity bindings are rejected. Old signed requests,
 certificates, challenges or owner leases cannot resume access. Existing IDs,
 retained histories, mode values and uncertain work remain evidence, not
 reactivated authority. Quarantine is not a global mode change or task retry.
 
 Root-private Unix `recover-founder --input NEW_PUBLIC --reason REASON` requires
 exactly one existing Founder, retains its AgentID/history and approves fresh
-signed keys for a restored or keyless legacy Founder; it does not create a
+signed keys for a restored or banned enrolled Founder; it does not create a
 replacement actor or choose by display name. The sole existing Founder lookup
-is the designation mechanism, not an extra adoption/target-ID flag. Active Founder then explicitly reapproves regular identities with
-fresh keys through normal recovery/original-binding policy. Restored-original
-migration cannot bypass an existing ban; explicit fresh-key recovery is needed.
+is the designation mechanism, not an extra adoption/target-ID flag. Active Founder
+then explicitly reapproves regular identities through fresh-key recovery.
 Revoked identities stay inactive until explicit Founder fresh-key reapproval.
 Native account
 cleanup/reprovisioning and all worker private state stay separate; old or empty
 restored keys must never be provisioned automatically. Enhanced restore still
 requires final integrated/all-suite verification, not native qualification.
 
-Migration 3 preserves prior identities/tasks/operations; it does not silently
-turn old bearer credentials into this trust binding. Founder explicitly binds
-the designated original non-Founder via `agent register --existing-agent`;
-`connect --migrate` then replaces only that runner's matching legacy file with
-its public AgentID. Legacy Founder binding requires root-local recovery. Local
-SQLite schema 1 and its private knowledge/bindings/journals/outbox are preserved.
+Registration creates a new signed identity; recovery retains an existing one.
+There is no bearer invitation, original-agent adoption or credential migration.
+Local SQLite schema 1 and its private knowledge/bindings/journals/outbox remain
+preserved through current-format identity attachment.
 
 ## Authority
 

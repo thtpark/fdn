@@ -36,7 +36,7 @@ func TestDevelopmentScriptsDoNotInventExternalToolDirectories(t *testing.T) {
 	}
 }
 
-func TestDevelopmentScriptsRefuseImplicitLegacyIdentityReset(t *testing.T) {
+func TestDevelopmentScriptsIgnoreOtherLayoutsWithoutChangingThem(t *testing.T) {
 	for _, name := range []string{".config/fdn/agent.json", ".config/fdn/identity.json", ".state/identity/device.json"} {
 		t.Run(name, func(t *testing.T) {
 			root, _ := developmentFixture(t)
@@ -49,12 +49,14 @@ func TestDevelopmentScriptsRefuseImplicitLegacyIdentityReset(t *testing.T) {
 			}
 			command := exec.Command(filepath.Join(root, "scripts", "agent-cli.sh"), "--help")
 			output, err := command.CombinedOutput()
-			if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 4 ||
-				!strings.Contains(string(output), "Legacy Foundation files exist") {
-				t.Fatal("legacy identity was silently replaced", string(output), err)
+			if err != nil {
+				t.Fatal("unrelated files blocked the current source runner", string(output), err)
 			}
-			if _, err := os.Stat(filepath.Join(root, ".local", ".foundation")); !os.IsNotExist(err) {
-				t.Fatal("legacy guard created a second Foundation state", err)
+			if data, err := os.ReadFile(legacy); err != nil || string(data) != "retained fixture" {
+				t.Fatal("unrelated files were modified", err)
+			}
+			if _, err := os.Stat(filepath.Join(root, ".local", ".foundation", "config", "identity.json")); err != nil {
+				t.Fatal("current source configuration was not initialized", err)
 			}
 		})
 	}

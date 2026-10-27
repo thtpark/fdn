@@ -203,7 +203,7 @@ func TestNativeDelegatedPullRequestWorkflow(t *testing.T) {
 				t.Fatal("idle/restart duplicated PR, review, or merge side effects")
 			}
 			assertScenarioResults(t, l, delegate, github, approved, final, workerTrace, delegateTrace, answerIDs)
-			tokens := []string{workerToken, delegateToken, l.worker.fixtureToken, delegate.fixtureToken, l.founder.fixtureToken}
+			tokens := []string{workerToken, delegateToken}
 			assertPrivateScenarioJournals(t, l.worker, workerNote, delegateNote, tokens)
 			assertPrivateScenarioJournals(t, delegate, delegateNote, workerNote, tokens)
 			assertSharedScenarioPrivacy(t, l, final, delegate, append(tokens, workerNote, delegateNote, l.root)...)

@@ -31,6 +31,7 @@ import (
 	"github.com/thtpark/fdn/internal/message"
 	"github.com/thtpark/fdn/internal/message/wire"
 	"github.com/thtpark/fdn/internal/pki"
+	"github.com/thtpark/fdn/internal/testidentity"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -411,17 +412,7 @@ func newMessageFleet(t *testing.T, identities, samples int) *messageFleet {
 	}
 	agents := []domain.Agent{a.founder, a.delegate, a.target}
 	for index := len(agents); index < identities; index++ {
-		token := domain.NewToken()
-		if _, err := a.store.Invite(ctx, a.founder.ID, domain.InvitationRequest{
-			Command:   domain.Command{OperationID: domain.NewID("op")},
-			TokenHash: domain.Hash(token), ExpiresAt: time.Now().Unix() + 600,
-		}); err != nil {
-			t.Fatal(err)
-		}
-		agent, err := a.store.Enroll(ctx, domain.EnrollRequest{
-			Command: domain.Command{OperationID: domain.NewID("op")}, Name: fmt.Sprintf("isolated fleet %04d", index),
-			InvitationToken: token, CredentialHash: domain.Hash(domain.NewToken()),
-		})
+		agent, err := testidentity.Register(ctx, a.store, a.founder.ID, fmt.Sprintf("isolated-fleet-%04d", index), int64(4100+index))
 		if err != nil {
 			t.Fatal(err)
 		}
