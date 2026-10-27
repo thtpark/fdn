@@ -69,7 +69,7 @@ commands.
    Non-Founder targets are unattended. Only Founder may explicitly request a
    global mode pause/resumption; delegates and target-local commands cannot.
    Deploy the server migration before new workers and preserve unexplained
-   unexplained pauses for explicit Founder reconciliation, never silent resumption.
+   pauses for explicit Founder reconciliation, never silent resumption.
    A restored snapshot quarantines every identity/owner/key epoch; root-private
    fresh Founder recovery retains its ID/history, then Founder reapproves regulars
    with fresh signed keys. Current manifest2/SQL5 restore never reactivates old
