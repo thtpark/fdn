@@ -186,6 +186,10 @@ paused exact target key generation, all-agent pause for Foundation, active
 execution/independent verifier/assistance admission, bounded immutable receipts,
 expired/foreign proposals and no replay renewal. Fresh nonce-bound start leases
 recheck current issuer/target generations and active work before stopping.
+`TestUpgradeStartLeaseBindsCallerCertificateNotOtherPermitSubjects` exercises
+both current issuer and target with distinct owner-certificate fences, denies
+caller substitution and stale owners before signing, and prevents treating
+other permit subjects as the authenticated caller.
 Root-maintenance service leases are not ordinary agent recovery or arbitrary
 root operations; proxy method/depth/query allowlists remain strict.
 

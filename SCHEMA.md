@@ -430,7 +430,10 @@ nonce proof through `POST /v1/upgrades/lease`. Only the exact current issuer or
 target can request it; Foundation's root-only private maintenance socket can
 request only its own previously approved service target. The server rechecks
 current Founder/target generations, authoritative pause, task ownership and
-assistance. Its domain-separated CA signature binds the permit fingerprint,
+assistance. The authenticated requester's certificate/owner fence binds only
+that requester; the other permit parties are independently checked as current
+identity subjects, never impersonated using the requester's certificate.
+Its domain-separated CA signature binds the permit fingerprint,
 nonce and 30-second validity. The native requester also bounds the request using
 monotonic elapsed time. This is a current-authority permission proof, not release
 code signing/attestation, identity enrollment or an arbitrary root capability.
