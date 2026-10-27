@@ -11,7 +11,7 @@ The checkout's root documents are canonical; no old source tree is required.
 
 1. Establish the current request/contract, source state and related tests.
    Preserve user changes, operational identities and retained evidence.
-   `scripts/agent-cli.sh`, `scripts/agent_service.sh` and
+   `scripts/agent-cli.sh`, `scripts/agent-service.sh` and
    `scripts/agent-identity.sh` automatically refresh cached development builds,
    exec the selected program and isolate HOME/config/identity/provider file
    state under ignored `.local`. Go still compiles; there is no manual install

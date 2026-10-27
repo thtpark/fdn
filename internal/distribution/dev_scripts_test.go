@@ -20,7 +20,7 @@ func developmentFixture(t *testing.T) (string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"agent-cli.sh", "agent_service.sh", "agent-identity.sh", "dev-agent.sh"} {
+	for _, name := range []string{"agent-cli.sh", "agent-service.sh", "agent-identity.sh", "dev-agent.sh"} {
 		source, err := os.ReadFile(filepath.Join("..", "..", "scripts", name))
 		if err != nil {
 			t.Fatal(err)
@@ -72,7 +72,7 @@ if [ "${FDN_TEST_BUILD_FAIL:-}" = yes ]; then exit 19; fi
 }
 
 func TestDevelopmentScriptsIsolateAllEntrypointsAndPreserveArgumentsInputAndPID(t *testing.T) {
-	for _, name := range []string{"agent-cli.sh", "agent_service.sh", "agent-identity.sh"} {
+	for _, name := range []string{"agent-cli.sh", "agent-service.sh", "agent-identity.sh"} {
 		t.Run(name, func(t *testing.T) {
 			root, home := developmentFixture(t)
 			command := exec.Command(filepath.Join(root, "scripts", name), "show", "literal argument with spaces")

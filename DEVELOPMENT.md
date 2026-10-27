@@ -54,7 +54,7 @@ No separate manual build/install is needed:
 ./scripts/agent-identity.sh serve
 # Other terminals, while that identity process is running:
 ./scripts/agent-cli.sh connect
-./scripts/agent_service.sh serve
+./scripts/agent-service.sh serve
 ```
 
 Go still compiles: the wrappers use Go's existing build/module caches and

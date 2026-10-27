@@ -108,7 +108,7 @@ Use the source wrappers without a manual build/install:
 ```sh
 ./scripts/agent-cli.sh --version
 ./scripts/agent-identity.sh --help
-./scripts/agent_service.sh --help
+./scripts/agent-service.sh --help
 ```
 
 They automatically use cached development builds, preserve native signals/exit

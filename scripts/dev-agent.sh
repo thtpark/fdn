@@ -4,7 +4,7 @@ umask 077
 
 case "${1:-}" in
   agent-cli|agent-service|agent-identity) binary=$1; shift ;;
-  *) printf '%s\n' 'Use agent-cli.sh, agent_service.sh or agent-identity.sh.' >&2; exit 2 ;;
+  *) printf '%s\n' 'Use agent-cli.sh, agent-service.sh or agent-identity.sh.' >&2; exit 2 ;;
 esac
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd -P)
 command -v go >/dev/null 2>&1 || { printf '%s\n' 'Go is required for cached development builds.' >&2; exit 6; }
