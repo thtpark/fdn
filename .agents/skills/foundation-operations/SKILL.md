@@ -1,6 +1,6 @@
 ---
 name: foundation-operations
-description: "Use when checking Foundation or identity-proxy health, requesting fresh remote diagnostics, recovering exact proven closed-session fences, diagnosing blocked workers or private replies, recovering fresh identity keys or duplicate-owner bans, migrating legacy split-account workers, pausing automation, reconciling runs/sessions, managing private knowledge, backing up SQLite/trust, renewing TLS, or planning a state-preserving upgrade."
+description: "Use when checking Foundation or identity-proxy health, requesting fresh diagnostics, recovering proven session fences or identity keys, diagnosing blocked workers/replies, migrating split-account workers, pausing automation, reconciling runs/sessions, managing knowledge/backups/TLS, or checking, applying and inspecting Founder-authorized software upgrade plans and native receipts."
 ---
 
 # Operate and recover without hiding uncertainty
@@ -97,8 +97,18 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 10. For upgrades, follow foundation-install: verify a source-bound package,
      compatible schema and recovery point; stop/join actual work; preserve mode,
      identity, auth, knowledge, bindings, workspaces, journals/outbox and HOME
-     instructions; start and verify exact binary and guide versions. No generic
-     force/upgrade/reset command is implemented.
+     instructions; start and verify exact binary and guide versions.
+     Founder `upgrade check [--input TARGETS]` is read-only. Plan pins current
+     identity/generation/policy/source, exact greater release/hash, native nonce
+     and public age recipient; it does not install. `upgrade apply --input PLAN`
+     also needs separately administrator-provisioned helper policy/operator SSH.
+     It pauses, obtains current signed authority, creates encrypted cold backups,
+     installs Foundation before workers, verifies actual results and stays manual.
+     Native phases and evidence remain private. An interrupted mutation projects
+     operator-required with its original phase code; inspect the same plan with
+     `upgrade status --input PLAN`, even while Foundation is offline, without
+     pretending a fresh authorization or repeating installation. Never reset
+     retry/fence state, auto-renew permits or assume binary rollback restores SQL.
 11. Inspect `agent identity` and the protected identity-service/Unix proxy
     status for transport or account/key/owner-generation errors. Identity,
     providers and runner share the existing installing user; that user owns the

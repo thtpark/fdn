@@ -85,6 +85,187 @@ package ownership conflicts. The packaged Foundation unit expects ingress group
 regenerate the reviewed unit for different actual names/paths; installation does
 not itself provision ingress or start the root helper.
 
+## Founder-controlled native upgrades
+
+Local development can run from source using
+[the isolated source wrappers](DEVELOPMENT.md#running-source-with-an-isolated-testing-identity).
+The normal release path is:
+
+1. Fix and test code; send a reviewed PR into `main`.
+2. Increment VERSION for new immutable contents and send the qualified source
+   through a separately tested PR into `release`.
+3. Only that actual merge builds packages. After every platform succeeds,
+   the guarded publisher checks exact source/checksums and completed pre-merge
+   acceptance, uploads all bundles as a draft `vVERSION` GitHub release, then
+   publishes. Existing tags/releases are never rebound or overwritten.
+4. As enrolled Founder, discover, prepare an exact plan and explicitly apply:
+
+   ```sh
+   agent-cli upgrade check
+   agent-cli upgrade check --input /PRIVATE/targets.json
+   agent-cli --timeout 300 upgrade plan --input /PRIVATE/targets.json --output /PRIVATE/plan.json
+   agent-cli upgrade apply --input /PRIVATE/plan.json
+   agent-cli upgrade status --input /PRIVATE/plan.json
+   ```
+
+`check` is read-only. Plan generates native challenges and an off-host age key
+beside the private plan, without stopping services/installing. Apply needs both
+current Founder authority and independent preprovisioned OS permission on each
+target. Updater policy is **not** installed by an ordinary agent request.
+Bootstrap an upgrade-capable server/worker release once through an authorized
+operator; old binaries and the previous Actions-artifact-only channel cannot
+upgrade themselves into these capabilities. No source change implies that a
+new release, helper policy or rollout is already deployed.
+
+### Provision a narrow native policy once
+
+An OS administrator reviews and installs an owner-only policy file plus an
+independently obtained **public** Foundation CA. A Linux package updater runs
+under its own root-controlled state outside the application/backup paths.
+It never uses the identity-account provisioner as a generic root command runner.
+
+Example Foundation Debian policy (substitute the actual instance ID and
+preexisting paths; the CA file contains no private key):
+
+```json
+{
+  "role": "foundation",
+  "name": "foundation",
+  "instance_id": "instance_ACTUAL",
+  "target_id": "instance_ACTUAL",
+  "ca_file": "/etc/fdn/updater-ca.pem",
+  "state_dir": "/var/lib/fdn-updater",
+  "method": "debian",
+  "binary_dir": "/usr/bin",
+  "user": "fdn",
+  "home": "/var/lib/fdn",
+  "config_file": "/var/lib/fdn/server.json",
+  "backup_paths": [
+    "/var/lib/fdn-accounts",
+    "/etc/fdn",
+    "/etc/systemd/system/fdn-accounts.service",
+    "/usr/bin/fdn-service"
+  ]
+}
+```
+
+For a Debian worker use `role:"agent"`, its exact stable `target_id`, installation
+`name`, existing `user`/`home`, runner `config_file`, `identity_config` and
+`service_options`. `method:"debian"` fixes `binary_dir` to `/usr/bin` and requires
+explicit Linux root execution. Add the actual existing native definitions,
+provider credential paths and old role binaries to `backup_paths`. The helper
+also includes the configured application/identity state and private configs in
+its cold snapshot. Additional paths must exist; do not list the filesystem root
+or include updater evidence inside a snapshot of itself.
+
+For a managed native archive, `method:"archive"` requires `prefix` and
+`binary_dir: PREFIX/bin`, using the existing immutable archive installer and
+fixed managed activation links. macOS worker updaters run as the existing
+installing user and restart its two GUI LaunchAgents, not root/system daemons.
+The two definitions must already exist at their standard paths. Foundation
+upgrading remains Linux-only; this is not Windows support.
+
+Policies/configurations/CA pins must have real protected ancestors, with no
+symlink or group/other-write substitution. The policy is private to the updater
+account (root for Debian); targets use the actual existing non-root service
+user/HOME. No worker account/group or key rotation is introduced. Changing a
+native policy invalidates its previously prepared challenge hash.
+
+Provision only the exact operator entrypoint needed, for example a reviewed
+sudoers rule allowing this **fixed complete command**, not arbitrary service
+arguments, policy paths, shell commands or a general installer:
+
+```text
+/usr/bin/fdn-service upgrade-helper --policy /etc/fdn/updater.json
+```
+
+Use the corresponding `agent-service` command on workers. A helper accepts only
+bounded protobuf `inspect`, `challenge`, `prepare`, `apply`, `status`; arbitrary
+commands, paths or package URLs cannot be supplied in that protocol.
+Inspection and status do not confer install authority.
+
+### Configure the Founder's operator targets
+
+Example private target file, using an already opened loopback IAP tunnel to
+Foundation's SSH port (not an API listener):
+
+```json
+{
+  "targets": [
+    {
+      "role": "foundation",
+      "target_id": "instance_ACTUAL",
+      "platform": "linux-amd64",
+      "ssh": {
+        "host": "127.0.0.1",
+        "port": 2222,
+        "user": "operator",
+        "identity_file": "/PRIVATE/operator-key",
+        "known_hosts_file": "/PRIVATE/known-hosts"
+      },
+      "helper": "/usr/bin/fdn-service",
+      "policy_file": "/etc/fdn/updater.json",
+      "sudo": true
+    }
+  ]
+}
+```
+
+Add worker entries with role `agent`, exact AgentID and target native platform,
+separate operator endpoint as needed, and `agent-service` helper. Operator keys
+are separate from Foundation signing keys. Authenticate each host pin out of band;
+never accept unknown keys or route the helper through the forced `fdn-api`/
+`fdn-join` account. The client deliberately ignores ordinary SSH configuration,
+agents and proxy settings. A plan targets 1-32 computers; split larger changes
+into explicit bounded maintenance batches rather than infer fleet qualification.
+
+### Authority, backups and failure handling
+
+The server transaction requires current Founder and paused enrolled target key
+generations, exact native source/policy hash and no active task ownership or live
+assistance. Foundation upgrades require every active agent paused. Its signed
+permit is fixed for 15 minutes; exact replay never extends it.
+Immediately before stopping, a helper proves a fresh nonce to the server and
+requires its 30-second signed start lease. Workers obtain it through their own
+peer-checked identity proxy; Foundation uses the root-only private maintenance
+socket. The lease rechecks current parties, key generations, pause and work.
+It authorizes admitting the exact maintenance job, not arbitrary future restarts.
+Expiry/revocation before admission fails explicitly. Admitted stopped jobs use
+their durable receipt and original expiry; they do not regain work authority.
+
+Every helper downloads only the exact pinned repository asset and verifies its
+GitHub API ZIP digest, contained manifest, native platform/version/commit and all
+payload hashes before stopping. Package/file replacement uses only the policy's
+fixed native role/method. Development builds, same-version replacement, source
+mismatches, downgrade and arbitrary download origins are rejected.
+
+Stopped-process cold snapshots are age-encrypted using the plan's public
+recipient. The private key remains beside the Founder's private plan, never on a
+target or in messages/model output. Native snapshots can include server CA keys,
+identity state and provider authentication: provision this capability only for
+the trusted Founder and keep both backups and recovery key owner-only.
+These snapshots and retained immutable releases are recovery evidence, not an
+automatically qualified whole-host restore or safe SQL rollback.
+
+Workers stop/back up before Foundation. Installation and actual version/
+identity/fence/service checks run Foundation first, then workers. Automation
+stays manual; sign-in, scope approval and explicit resumption remain separate.
+Busy/uncertain invocations/reports, changed identities/policy/source, missing
+native services and expired permits fail closed. No task retry, fence clearing,
+provider upgrade, cloud operation, financial permission or release publication
+is implied by a software update request.
+
+After a lost response, use the same private `upgrade status --input PLAN`.
+It works from retained original-Founder evidence plus the separate operator
+channel even while Foundation is offline. `prepared` means stopped and backed up,
+not installed. `operator-required` plus the original mutating `code` requires
+inspection; never blindly repeat apply, erase journals, replace a plan in place
+or automatically roll back an upgraded database.
+
+Native tests use synthetic bundles, recording managers and isolated actual-user
+files; they do not register host services, upgrade a live host, prove reboot
+recovery, certify production security or perform paid inference.
+
 ## Ensure operating knowledge is installed
 
 `agent-cli`, `agent-service` and `fdn-service` expose `guide list/show/install`

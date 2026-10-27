@@ -2581,6 +2581,230 @@
       "name": "urgent"
     }
   },
+  "UpgradeAuthorizationRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Proposal": {
+      "id": 3,
+      "name": "proposal"
+    }
+  },
+  "UpgradeChallenge": {
+    "CurrentCommit": {
+      "id": 8,
+      "name": "current_commit"
+    },
+    "CurrentVersion": {
+      "id": 7,
+      "name": "current_version"
+    },
+    "ExpiresAt": {
+      "id": 9,
+      "name": "expires_at"
+    },
+    "Generation": {
+      "id": 6,
+      "name": "generation"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "InstanceID": {
+      "id": 3,
+      "name": "instance_id"
+    },
+    "Nonce": {
+      "id": 2,
+      "name": "nonce"
+    },
+    "PolicySHA256": {
+      "id": 10,
+      "name": "policy_sha256"
+    },
+    "Role": {
+      "id": 5,
+      "name": "role"
+    },
+    "TargetID": {
+      "id": 4,
+      "name": "target_id"
+    }
+  },
+  "UpgradeContext": {
+    "Agents": {
+      "id": 4,
+      "name": "agents"
+    },
+    "Commit": {
+      "id": 3,
+      "name": "commit"
+    },
+    "InstanceID": {
+      "id": 1,
+      "name": "instance_id"
+    },
+    "Version": {
+      "id": 2,
+      "name": "version"
+    }
+  },
+  "UpgradeLease": {
+    "ExpiresAt": {
+      "id": 4,
+      "name": "expires_at"
+    },
+    "IssuedAt": {
+      "id": 3,
+      "name": "issued_at"
+    },
+    "Nonce": {
+      "id": 2,
+      "name": "nonce"
+    },
+    "PermitSHA256": {
+      "id": 1,
+      "name": "permit_sha256"
+    },
+    "Signature": {
+      "id": 5,
+      "name": "signature"
+    }
+  },
+  "UpgradeLeaseRequest": {
+    "Nonce": {
+      "id": 2,
+      "name": "nonce"
+    },
+    "PermitSHA256": {
+      "id": 1,
+      "name": "permit_sha256"
+    }
+  },
+  "UpgradeNativeReply": {
+    "BackupSHA256": {
+      "id": 5,
+      "name": "backup_sha256"
+    },
+    "Challenge": {
+      "id": 1,
+      "name": "challenge"
+    },
+    "Code": {
+      "id": 8,
+      "name": "code"
+    },
+    "Commit": {
+      "id": 4,
+      "name": "commit"
+    },
+    "Error": {
+      "id": 6,
+      "name": "error"
+    },
+    "Lease": {
+      "id": 7,
+      "name": "lease"
+    },
+    "State": {
+      "id": 2,
+      "name": "state"
+    },
+    "Version": {
+      "id": 3,
+      "name": "version"
+    }
+  },
+  "UpgradeNativeRequest": {
+    "Action": {
+      "id": 1,
+      "name": "action"
+    },
+    "ID": {
+      "id": 2,
+      "name": "id"
+    },
+    "Permit": {
+      "id": 3,
+      "name": "permit"
+    }
+  },
+  "UpgradePermit": {
+    "ActorGeneration": {
+      "id": 3,
+      "name": "actor_generation"
+    },
+    "ActorID": {
+      "id": 2,
+      "name": "actor_id"
+    },
+    "ExpiresAt": {
+      "id": 5,
+      "name": "expires_at"
+    },
+    "IssuedAt": {
+      "id": 4,
+      "name": "issued_at"
+    },
+    "Proposal": {
+      "id": 1,
+      "name": "proposal"
+    },
+    "Signature": {
+      "id": 6,
+      "name": "signature"
+    }
+  },
+  "UpgradeProposal": {
+    "BackupRecipient": {
+      "id": 3,
+      "name": "backup_recipient"
+    },
+    "Challenge": {
+      "id": 1,
+      "name": "challenge"
+    },
+    "Reason": {
+      "id": 4,
+      "name": "reason"
+    },
+    "Release": {
+      "id": 2,
+      "name": "release"
+    }
+  },
+  "UpgradeRelease": {
+    "BundleBytes": {
+      "id": 6,
+      "name": "bundle_bytes"
+    },
+    "BundleSHA256": {
+      "id": 5,
+      "name": "bundle_sha256"
+    },
+    "BundleURL": {
+      "id": 4,
+      "name": "bundle_url"
+    },
+    "Commit": {
+      "id": 2,
+      "name": "commit"
+    },
+    "Platform": {
+      "id": 3,
+      "name": "platform"
+    },
+    "Version": {
+      "id": 1,
+      "name": "version"
+    }
+  },
   "Waiting": {
     "Kind": {
       "id": 1,

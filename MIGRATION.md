@@ -186,6 +186,33 @@ HOMEs and native services remain separate recovery work; enhanced restore and
 final all-suite acceptance are still pending, native root/group qualification
 unperformed.
 
+## Upgrade-channel bootstrap compatibility
+
+New source runners keep test identities and default configuration in ignored
+`.local`, not the installing user's normal HOME. They do not move a live Founder
+or reuse the cloud identity; explicit fresh-key rebinding remains necessary.
+Development-stamped executables cannot be installed by the release updater.
+
+The merged-release workflow now also publishes durable native ZIP bundles to
+immutable `vVERSION` GitHub releases after all package jobs and exact-source
+pre-merge acceptance. Existing Actions artifacts remain usable for explicit
+operator bootstrap but are not the native upgrade-discovery channel.
+Earlier release artifacts are not retroactively called a published upgrade.
+
+Install upgrade-capable Foundation/worker service binaries and the explicitly
+reviewed native helper/CA/operator policies once before asking Founder to roll
+out a subsequent release. Older servers lack the new context/authorization/lease
+routes and fail explicitly; there is no success-shaped fallback, generic remote
+root route or automatic policy/sudoers installation. These additive payloads and
+service-owned authorization settings do not change API/schema2, protocol2,
+server SQL4 or local SQL1.
+
+Preserve private plans, age recovery keys, native receipts/backups, original keys,
+user state and work fences. `upgrade status` works from the original Founder's
+retained local evidence even when Foundation is down. An uncertain installer
+requires inspection; binary/database rollback and automatic task resumption
+are not inferred. No live migration or deployment is performed by source tests.
+
 ## Evidence that must not be inherited
 
 Historical Rust/CouchDB phase acceptance, test counts, coverage, package hashes,

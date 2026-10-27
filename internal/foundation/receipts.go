@@ -48,6 +48,8 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "messages", ID: v.ID}
 	case domain.AgentOperation:
 		ref = storedResult{Kind: "agent-operation", ID: v.ID}
+	case domain.UpgradePermit:
+		ref = storedResult{Kind: "upgrade-permit", ID: domain.Hash(v.Signature)}
 	case domain.Session:
 		ref = storedResult{Kind: "sessions", ID: v.ID}
 	case domain.AssistanceGrant:
@@ -103,6 +105,17 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, actor string, data []b
 		value, err = get[domain.Message](ctx, tx, ref.Kind, ref.ID)
 	case "agent-operation":
 		value, err = getAgentOperation(ctx, tx, ref.ID)
+	case "upgrade-permit":
+		var data string
+		err = tx.QueryRowContext(ctx, "SELECT value FROM settings WHERE key=?", "upgrade-permit:"+ref.ID).Scan(&data)
+		if err == nil {
+			var permit domain.UpgradePermit
+			err = json.Unmarshal([]byte(data), &permit)
+			if err == nil && (permit.ActorID != actor || domain.Hash(permit.Signature) != ref.ID) {
+				err = domain.Fail(domain.Denied, "upgrade receipt does not belong to this exact actor and signed proposal")
+			}
+			value = permit
+		}
 	case "sessions":
 		value, err = get[domain.Session](ctx, tx, ref.Kind, ref.ID)
 	case "assistance_grants":

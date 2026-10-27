@@ -19,6 +19,8 @@ import (
 
 func (a *app) foundation(ctx context.Context, args []string) (any, error) {
 	switch args[0] {
+	case "upgrade-helper":
+		return a.upgradeHelper(ctx, args[1:])
 	case "init":
 		return a.initFoundation(ctx, args[1:])
 	case "serve":

@@ -9,6 +9,10 @@ Read `agent-cli guide show COMMANDS.md` and `guide show SCHEMA.md` for exact
 inputs. During controller-managed text phases, tools remain disabled: return the
 required structured reply and let the controller publish permitted changes.
 These workflows do not grant extra tools, authority or another work slot.
+Software release checking/rollout is separate: ordinary messages/mentions never
+authorize package replacement. Founder must explicitly use the exact upgrade
+plan under separately provisioned native OS policy; preserve all work/session
+fences and do not infer automatic resumption from a successful software install.
 The daemon receives durable scoped updates over the protected binary SSH session,
 not repeated inbox/task discovery polls. Delivery does not mark a message read,
 grant approval, start inference while paused, or clear a recovery fence.

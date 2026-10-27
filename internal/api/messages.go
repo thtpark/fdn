@@ -19,6 +19,7 @@ import (
 	"github.com/thtpark/fdn/internal/ingress"
 	"github.com/thtpark/fdn/internal/message"
 	"github.com/thtpark/fdn/internal/pki"
+	"github.com/thtpark/fdn/internal/upgrade"
 )
 
 type operationRequest struct {
@@ -201,6 +202,7 @@ func messageCatalog() map[string]*messageOperation {
 		s.identityRoutes()
 		s.healthRoutes()
 		s.agentOperationRoutes()
+		s.upgradeRoutes()
 		s.updateMessageRoutes()
 		registerQuery(s, "GET /local/status", func(*operationRequest, domain.Agent) (LocalStatus, error) {
 			return LocalStatus{}, nil
@@ -467,6 +469,26 @@ func (s *Server) updateMessageRoutes() {
 
 func (s *Server) serveMaintenanceMessages(ctx context.Context, conn net.Conn) error {
 	session, err := message.NewSession(ctx, conn, func(call context.Context, request message.Request) ([]byte, error) {
+		leaseSpec, _, err := resolveOperation("POST", "/v1/upgrades/lease")
+		if err != nil {
+			return nil, err
+		}
+		if request.Operation == leaseSpec.name {
+			if request.Target != "" || len(request.Query) != 0 {
+				return nil, domain.Fail(domain.Denied, "unknown private upgrade lease selector")
+			}
+			var input domain.UpgradeLeaseRequest
+			if err := message.UnmarshalPayload(request.Payload, &input); err != nil {
+				return nil, err
+			}
+			lease, err := s.Store.LeaseUpgrade(call, "", input, true, func(lease domain.UpgradeLease) (string, error) {
+				return upgrade.SignLease(lease, s.identity.key)
+			})
+			if err != nil {
+				return nil, err
+			}
+			return message.MarshalPayload(lease)
+		}
 		spec, _, err := resolveOperation("POST", "/v1/identity/recover-founder")
 		if err != nil {
 			return nil, err

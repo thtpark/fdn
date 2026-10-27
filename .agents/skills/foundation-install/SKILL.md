@@ -1,6 +1,6 @@
 ---
 name: foundation-install
-description: "Use when installing Foundation or a worker under the existing installing user, preparing a native Linux/macOS computer, registering per-user systemd/launchd services, migrating legacy split-account workers, verifying release packages, or upgrading an installation without losing identity and state."
+description: "Use when installing Foundation or a worker under the existing installing user, preparing native Linux/macOS computers and per-user services, migrating legacy split-account workers, verifying durable release packages, provisioning narrow native upgrade policies, or applying a Founder-authorized upgrade without losing identity and state."
 ---
 
 # Install or upgrade Foundation
@@ -19,6 +19,10 @@ commands.
 3. Obtain the platform's source-bound Actions release and independently trusted
    checksum-manifest digest. Real packages exist only after a PR merges into
    `release`; never build on a target or fabricate a local release event.
+   Durable `vVERSION` GitHub release ZIPs are published only after all native
+   jobs and exact-source pre-merge acceptance succeed. Use GitHub's independent
+   asset digest and every contained manifest checksum; no arbitrary URL or
+   expired Actions-artifact fallback is an upgrade channel.
 4. Verify source/version/platform/digests before native archive/Debian install.
    Preserve immutable releases and all existing state. Keep signing/attestation
    claims separate from checksum verification.
@@ -42,7 +46,18 @@ commands.
 6. For upgrades, inspect `work status` and native state; stop/join active work
    before replacement. Retain exact mode, identity, credentials, provider homes,
    knowledge, bindings, journals, outbox and session fences. No manual database
-   edits or hidden `--force`/upgrade command exists.
+   edits or hidden `--force`/reset command exists. Founder can explicitly use
+   `upgrade check`, `upgrade plan --input TARGETS --output PLAN`, `upgrade apply
+   --input PLAN` and `upgrade status --input PLAN` after an operator bootstraps
+   upgrade-capable binaries and each protected native policy/CA/operator key.
+   Founder authority alone is not OS privilege. The helper accepts only exact
+   bounded protobuf operations, validates the signed 15-minute proposal and
+   fresh 30-second nonce start proof, then snapshots/stops workers before
+   installing/verifying Foundation first. No ordinary message starts an update.
+   Keep PLAN and its off-host age key private; native backups can include CA/
+   identity/provider keys. Retain all original work fences and leave manual.
+   A lost/failed install needs exact `upgrade status`, including when Foundation
+   is offline; never rerun apply, renew its permit or auto-roll back SQL.
    Non-Founder targets are unattended. Only Founder may explicitly request a
    global mode pause/resumption; delegates and target-local commands cannot.
    Deploy the server migration before new workers and preserve unexplained

@@ -875,6 +875,87 @@ message Go_Update {
   Bool urgent = 6;
 }
 
+message Go_UpgradeAuthorizationRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  Go_UpgradeProposal proposal = 3;
+}
+
+message Go_UpgradeChallenge {
+  String id = 1;
+  String nonce = 2;
+  String instance_id = 3;
+  String target_id = 4;
+  String role = 5;
+  Signed generation = 6;
+  String current_version = 7;
+  String current_commit = 8;
+  Signed expires_at = 9;
+  String policy_sha256 = 10;
+}
+
+message Go_UpgradeContext {
+  String instance_id = 1;
+  String version = 2;
+  String commit = 3;
+  List_Go_Agent agents = 4;
+}
+
+message Go_UpgradeLease {
+  String permit_sha256 = 1;
+  String nonce = 2;
+  Signed issued_at = 3;
+  Signed expires_at = 4;
+  String signature = 5;
+}
+
+message Go_UpgradeLeaseRequest {
+  String permit_sha256 = 1;
+  String nonce = 2;
+}
+
+message Go_UpgradeNativeReply {
+  Go_UpgradeChallenge challenge = 1;
+  String state = 2;
+  String version = 3;
+  String commit = 4;
+  String backup_sha256 = 5;
+  Go_Fault error = 6;
+  Go_UpgradeLease lease = 7;
+  String code = 8;
+}
+
+message Go_UpgradeNativeRequest {
+  String action = 1;
+  String id = 2;
+  Go_UpgradePermit permit = 3;
+}
+
+message Go_UpgradePermit {
+  Go_UpgradeProposal proposal = 1;
+  String actor_id = 2;
+  Signed actor_generation = 3;
+  Signed issued_at = 4;
+  Signed expires_at = 5;
+  String signature = 6;
+}
+
+message Go_UpgradeProposal {
+  Go_UpgradeChallenge challenge = 1;
+  Go_UpgradeRelease release = 2;
+  String backup_recipient = 3;
+  String reason = 4;
+}
+
+message Go_UpgradeRelease {
+  String version = 1;
+  String commit = 2;
+  String platform = 3;
+  String bundle_url = 4;
+  String bundle_sha256 = 5;
+  Signed bundle_bytes = 6;
+}
+
 message Go_Waiting {
   String kind = 1;
   String reason = 2;
@@ -1359,6 +1440,56 @@ message List_Go_Update {
   bool present = 2;
 }
 
+message List_Go_UpgradeAuthorizationRequest {
+  repeated Go_UpgradeAuthorizationRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradeChallenge {
+  repeated Go_UpgradeChallenge items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradeContext {
+  repeated Go_UpgradeContext items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradeLease {
+  repeated Go_UpgradeLease items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradeLeaseRequest {
+  repeated Go_UpgradeLeaseRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradeNativeReply {
+  repeated Go_UpgradeNativeReply items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradeNativeRequest {
+  repeated Go_UpgradeNativeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradePermit {
+  repeated Go_UpgradePermit items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradeProposal {
+  repeated Go_UpgradeProposal items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradeRelease {
+  repeated Go_UpgradeRelease items = 1;
+  bool present = 2;
+}
+
 message List_Go_Waiting {
   repeated Go_Waiting items = 1;
   bool present = 2;
@@ -1801,6 +1932,56 @@ message List_Page_Go_TaskRequest {
 
 message List_Page_Go_Update {
   repeated Page_Go_Update items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeAuthorizationRequest {
+  repeated Page_Go_UpgradeAuthorizationRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeChallenge {
+  repeated Page_Go_UpgradeChallenge items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeContext {
+  repeated Page_Go_UpgradeContext items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeLease {
+  repeated Page_Go_UpgradeLease items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeLeaseRequest {
+  repeated Page_Go_UpgradeLeaseRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeNativeReply {
+  repeated Page_Go_UpgradeNativeReply items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeNativeRequest {
+  repeated Page_Go_UpgradeNativeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradePermit {
+  repeated Page_Go_UpgradePermit items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeProposal {
+  repeated Page_Go_UpgradeProposal items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeRelease {
+  repeated Page_Go_UpgradeRelease items = 1;
   bool present = 2;
 }
 
@@ -2719,6 +2900,106 @@ message Map_Go_Update_Entry {
   Go_Update value = 2;
 }
 
+message Map_Go_UpgradeAuthorizationRequest {
+  repeated Map_Go_UpgradeAuthorizationRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeAuthorizationRequest_Entry {
+  optional string key = 1;
+  Go_UpgradeAuthorizationRequest value = 2;
+}
+
+message Map_Go_UpgradeChallenge {
+  repeated Map_Go_UpgradeChallenge_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeChallenge_Entry {
+  optional string key = 1;
+  Go_UpgradeChallenge value = 2;
+}
+
+message Map_Go_UpgradeContext {
+  repeated Map_Go_UpgradeContext_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeContext_Entry {
+  optional string key = 1;
+  Go_UpgradeContext value = 2;
+}
+
+message Map_Go_UpgradeLease {
+  repeated Map_Go_UpgradeLease_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeLeaseRequest {
+  repeated Map_Go_UpgradeLeaseRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeLeaseRequest_Entry {
+  optional string key = 1;
+  Go_UpgradeLeaseRequest value = 2;
+}
+
+message Map_Go_UpgradeLease_Entry {
+  optional string key = 1;
+  Go_UpgradeLease value = 2;
+}
+
+message Map_Go_UpgradeNativeReply {
+  repeated Map_Go_UpgradeNativeReply_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeNativeReply_Entry {
+  optional string key = 1;
+  Go_UpgradeNativeReply value = 2;
+}
+
+message Map_Go_UpgradeNativeRequest {
+  repeated Map_Go_UpgradeNativeRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeNativeRequest_Entry {
+  optional string key = 1;
+  Go_UpgradeNativeRequest value = 2;
+}
+
+message Map_Go_UpgradePermit {
+  repeated Map_Go_UpgradePermit_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradePermit_Entry {
+  optional string key = 1;
+  Go_UpgradePermit value = 2;
+}
+
+message Map_Go_UpgradeProposal {
+  repeated Map_Go_UpgradeProposal_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeProposal_Entry {
+  optional string key = 1;
+  Go_UpgradeProposal value = 2;
+}
+
+message Map_Go_UpgradeRelease {
+  repeated Map_Go_UpgradeRelease_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeRelease_Entry {
+  optional string key = 1;
+  Go_UpgradeRelease value = 2;
+}
+
 message Map_Go_Waiting {
   repeated Map_Go_Waiting_Entry items = 1;
   bool present = 2;
@@ -3609,6 +3890,106 @@ message Map_Page_Go_Update_Entry {
   Page_Go_Update value = 2;
 }
 
+message Map_Page_Go_UpgradeAuthorizationRequest {
+  repeated Map_Page_Go_UpgradeAuthorizationRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeAuthorizationRequest_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeAuthorizationRequest value = 2;
+}
+
+message Map_Page_Go_UpgradeChallenge {
+  repeated Map_Page_Go_UpgradeChallenge_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeChallenge_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeChallenge value = 2;
+}
+
+message Map_Page_Go_UpgradeContext {
+  repeated Map_Page_Go_UpgradeContext_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeContext_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeContext value = 2;
+}
+
+message Map_Page_Go_UpgradeLease {
+  repeated Map_Page_Go_UpgradeLease_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeLeaseRequest {
+  repeated Map_Page_Go_UpgradeLeaseRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeLeaseRequest_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeLeaseRequest value = 2;
+}
+
+message Map_Page_Go_UpgradeLease_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeLease value = 2;
+}
+
+message Map_Page_Go_UpgradeNativeReply {
+  repeated Map_Page_Go_UpgradeNativeReply_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeNativeReply_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeNativeReply value = 2;
+}
+
+message Map_Page_Go_UpgradeNativeRequest {
+  repeated Map_Page_Go_UpgradeNativeRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeNativeRequest_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeNativeRequest value = 2;
+}
+
+message Map_Page_Go_UpgradePermit {
+  repeated Map_Page_Go_UpgradePermit_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradePermit_Entry {
+  optional string key = 1;
+  Page_Go_UpgradePermit value = 2;
+}
+
+message Map_Page_Go_UpgradeProposal {
+  repeated Map_Page_Go_UpgradeProposal_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeProposal_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeProposal value = 2;
+}
+
+message Map_Page_Go_UpgradeRelease {
+  repeated Map_Page_Go_UpgradeRelease_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeRelease_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeRelease value = 2;
+}
+
 message Map_Page_Go_Waiting {
   repeated Map_Page_Go_Waiting_Entry items = 1;
   bool present = 2;
@@ -4091,6 +4472,56 @@ message Page_Go_TaskRequest {
 
 message Page_Go_Update {
   List_Go_Update items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeAuthorizationRequest {
+  List_Go_UpgradeAuthorizationRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeChallenge {
+  List_Go_UpgradeChallenge items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeContext {
+  List_Go_UpgradeContext items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeLease {
+  List_Go_UpgradeLease items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeLeaseRequest {
+  List_Go_UpgradeLeaseRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeNativeReply {
+  List_Go_UpgradeNativeReply items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeNativeRequest {
+  List_Go_UpgradeNativeRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradePermit {
+  List_Go_UpgradePermit items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeProposal {
+  List_Go_UpgradeProposal items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeRelease {
+  List_Go_UpgradeRelease items = 1;
   String next_cursor = 2;
 }
 

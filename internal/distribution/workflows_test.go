@@ -18,8 +18,10 @@ type workflow struct {
 	} `yaml:"on"`
 	Permissions map[string]string `yaml:"permissions"`
 	Jobs        map[string]struct {
-		If    string `yaml:"if"`
-		Steps []struct {
+		If          string            `yaml:"if"`
+		Needs       []string          `yaml:"needs"`
+		Permissions map[string]string `yaml:"permissions"`
+		Steps       []struct {
 			Uses string         `yaml:"uses"`
 			Run  string         `yaml:"run"`
 			With map[string]any `yaml:"with"`
@@ -91,7 +93,7 @@ func TestWorkflowTriggersAndIndependentSuites(t *testing.T) {
 	}
 	release := loadWorkflow(t, "package.yml")
 	pr = release.On["pull_request"]
-	if !reflect.DeepEqual(pr.Branches, []string{"release"}) || !reflect.DeepEqual(pr.Types, []string{"closed"}) || len(release.Jobs) != 1 {
+	if !reflect.DeepEqual(pr.Branches, []string{"release"}) || !reflect.DeepEqual(pr.Types, []string{"closed"}) || len(release.Jobs) != 2 {
 		t.Fatal("release workflow has extra paths")
 	}
 	job := release.Jobs["package"]
@@ -109,5 +111,19 @@ func TestWorkflowTriggersAndIndependentSuites(t *testing.T) {
 	}
 	if !exactCheckout || !guardedBuild {
 		t.Fatal("packaging does not bind the merged source and runtime event guard")
+	}
+	publication := release.Jobs["publish"]
+	if publication.If != job.If || !reflect.DeepEqual(publication.Needs, []string{"package"}) ||
+		publication.Permissions["contents"] != "write" || publication.Permissions["actions"] != "read" {
+		t.Fatal("durable release publication is not bound to all successful native packages and its narrow permission scope")
+	}
+	var commands string
+	for _, step := range publication.Steps {
+		commands += step.Run + "\n"
+	}
+	for _, required := range []string{"go run ./tools/publish", "--target \"$RELEASE_COMMIT\"", "--draft", "--draft=false --latest", "Release already exists"} {
+		if !strings.Contains(commands, required) {
+			t.Fatal("release publication lost source/immutability/draft protection", required)
+		}
 	}
 }

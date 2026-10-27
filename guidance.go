@@ -23,6 +23,9 @@ import (
 //go:embed AGENTS.md README.md DEVELOPMENT.md DEPLOYMENT.md COMMANDS.md SCHEMA.md TEST_PLAN.md IMPLEMENTATION_PLAN.md CAPACITY.md MIGRATION.md .agents/skills/*/SKILL.md
 var content embed.FS
 
+//go:embed scripts/install.sh
+var NativeInstaller string
+
 const maxFileBytes = 512 << 10
 const blockStart = "<!-- foundation-guide:start -->"
 const blockEnd = "<!-- foundation-guide:end -->"

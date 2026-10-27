@@ -72,6 +72,14 @@ func TestPublicIdentityStatusAndFounderRevocationRemainOrdinaryRoutes(t *testing
 		{http.MethodGet, "/v1/identity/challenge", false},
 		{http.MethodPost, "/v1/identity/activate", false},
 		{http.MethodPost, "/v1/identity/recover-founder", false},
+		{http.MethodGet, "/v1/upgrades/context", true},
+		{http.MethodPost, "/v1/upgrades/authorize", true},
+		{http.MethodPost, "/v1/upgrades/lease", true},
+		{http.MethodGet, "/v1/upgrades/context?force=true", false},
+		{http.MethodPost, "/v1/upgrades/authorize?sudo=true", false},
+		{http.MethodPost, "/v1/upgrades/lease?root=true", false},
+		{http.MethodPost, "/v1/upgrades/authorize/extra", false},
+		{http.MethodPut, "/v1/upgrades/authorize", false},
 		{http.MethodPost, "/local/restart", false},
 	} {
 		t.Run(item.method+item.path, func(t *testing.T) {

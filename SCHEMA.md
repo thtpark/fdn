@@ -388,6 +388,77 @@ work-priority rules still apply.
 Mentions never assign work or confer project, identity or OS authority.
 No database migration or mention backfill is performed.
 
+## Founder-authorized software maintenance
+
+Software upgrade discovery and native mutation are separate from task execution,
+ordinary messages, provider updates, identity recovery and financial authority.
+`GET /v1/upgrades/context` is bodyless/queryless and Founder-only. It reports the
+actual Foundation source/version, instance ID and registry. Public release
+discovery uses the stable versioned `thtpark/fdn` GitHub release channel; optional
+native inventory is read-only and requires separately configured operator SSH.
+No missing/unknown observation becomes "up to date".
+
+`POST /v1/upgrades/authorize` checks current active paused Founder/key generation
+inside the authoritative transaction. The exact proposal binds a native nonce/
+ID, target Foundation/agent identity, key generation, current version/commit,
+native policy hash, platform, new strictly greater VERSION/commit, exact official
+bundle URL/digest/size, public age backup recipient and reason. A Foundation
+target names this service instance and requires every active agent paused.
+Active execution/verification ownership or a live assistance session blocks
+authorization. No display name, message acknowledgement or OS UID creates it.
+
+The server stores the immutable signed public permit under its service-owned
+`settings` key `upgrade-permit:SHA256(signature)`; operation/audit receipts retain
+only bounded references, not mutable snapshots or repeated signatures. Exact
+operation replay returns the original 900-second permit without renewal.
+Permit retention follows existing operation/audit evidence policy, not the
+three-snapshot rule. No SQL migration/backfill is needed: server SQL4, local SQL1,
+API/schema2 and native protocol2 remain unchanged; payload fields are additive
+and old clients cannot infer upgrade support.
+
+Immediately before stopping, the native updater requests a fresh unpredictable
+nonce proof through `POST /v1/upgrades/lease`. Only the exact current issuer or
+target can request it; Foundation's root-only private maintenance socket can
+request only its own previously approved service target. The server rechecks
+current Founder/target generations, authoritative pause, task ownership and
+assistance. Its domain-separated CA signature binds the permit fingerprint,
+nonce and 30-second validity. The native requester also bounds the request using
+monotonic elapsed time. This is a current-authority permission proof, not release
+code signing/attestation, identity enrollment or an arbitrary root capability.
+
+Native OS permission is separately preprovisioned in a protected updater policy,
+operator SSH account and pinned CA. The one-shot `upgrade-helper` accepts only
+bounded protobuf inspect/challenge/prepare/apply/status. Worker start proofs use
+that worker's same-user identity proxy via the internal bounded-protobuf
+`upgrade-lease` CLI, never another owner or copied credentials. The account
+provisioner's root surface and ordinary forced SSH gateway are not expanded.
+
+The helper's private durable challenge/job binds the exact policy and accepted
+permit. It verifies release ZIP metadata and every contained checksum before
+stopping; pending/uncertain local invocations/reports deny admission. Under the
+existing application work/server lock it writes an age-encrypted cold snapshot
+to separate updater state; only the public recipient reaches targets.
+The Founder's private plan and off-host age key are owner-only.
+Admitted stopped maintenance completes from its exact receipt and original fixed
+permit expiry; it does not create ongoing authority or a new automation mode.
+
+Plans stop/back up workers before Foundation, then install/start/verify Foundation
+before workers. Installed source, actual services, current identity generation,
+authoritative/local pause, pending work and retained session fence are checked.
+Keys, provider auth, workspaces, knowledge, journals/outbox and unrelated HOME
+instructions are not reset. No automatic task/inference retry, fence clearing,
+provider sign-in, provider update, release publication, cloud action or resumption
+is implied. Native receipts distinguish stopped/prepared/installing/verified;
+interrupted mutating phases become operator-required, not success.
+Read-only status can inspect retained original-Founder evidence over the separate
+operator channel while Foundation is offline. Repeating apply or automatically
+rolling back SQL after an uncertain install is forbidden.
+
+Initial installation of upgrade-capable binaries and administrator policy is
+explicit; an older deployment cannot upgrade itself into this permission.
+Source fixture tests do not qualify native privileged installs, live vendor
+readiness, host restore/reboot, Windows or a larger fleet.
+
 ## Software-first identity and transport
 
 The v2 contract uses software keys. Hardware-backed native signers are optional
