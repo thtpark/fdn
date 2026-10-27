@@ -1,6 +1,6 @@
 ---
 name: foundation-develop
-description: "Use when developing Foundation Go code, extending its CLI/API/schema/providers, updating documentation or skills, validating local tests, reviewing migration/recovery behavior, or preparing a source-bound main/release pull request."
+description: "Use when developing Foundation Go code, running isolated source wrappers, extending CLI/API/schema/providers or Founder software upgrades, updating documentation or skills, validating local tests, reviewing migration/recovery behavior, or preparing a source-bound main/release pull request."
 ---
 
 # Develop using this repository only
@@ -11,6 +11,14 @@ The checkout's root documents are canonical; no old source tree is required.
 
 1. Establish the current request/contract, source state and related tests.
    Preserve user changes, operational identities and retained evidence.
+   `scripts/agent-cli.sh`, `scripts/agent-service.sh` and
+   `scripts/agent-identity.sh` automatically refresh cached development builds,
+   exec the selected program and set HOME to ignored `.local`. Foundation-owned
+   configuration/state/keys/IPC/binaries live under HOME/.foundation. Leave
+   existing XDG/provider/GitHub/Cloud SDK/credential settings available rather
+   than overriding or clearing them; this is not isolated provider auth.
+   Go still compiles without manual install/release packaging. Preserve legacy
+   state through an explicit stopped migration; never copy live owner keys.
 2. Find existing helpers first. Keep server authority transactional, DTO/input
    validation narrow, errors explicit, and transport/provider/native boundaries
    testable. Do not enforce security only in a friendly CLI.
@@ -81,6 +89,15 @@ The checkout's root documents are canonical; no old source tree is required.
 9. PRs into main run separate Linux/macOS suites. Real packaging only follows
    an authorized PR merge into release on the exact source commit. Never
    fabricate a local Actions event or build/test on a deployment target.
+   The all-platform publisher verifies exact artifacts and pre-merge acceptance,
+   creates all versioned GitHub release assets as a draft, then publishes once.
+   Never overwrite a release/tag or let updater discovery fall back to Actions
+   artifacts. Permission signatures for native upgrade permits/start leases
+   are not artifact code signing/attestation.
+   Test Founder-only `upgrade check/plan/apply/status`, administrator-pinned
+   native policies/operator SSH, current nonce-bound start authority, encrypted
+   cold backups, server-first order, preserved keys/journals/fences, unknown/
+   expired/changed-source denial and uncertain replay without native reruns.
 10. Verify reproducible builds, safe extraction, notices/guidance, trusted
     manifest and native installation behavior before a rollout. New immutable
     contents require a new VERSION. Signing/attestation and live-provider/

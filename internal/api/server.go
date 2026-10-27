@@ -51,6 +51,7 @@ func New(store *foundation.Store, log *slog.Logger) (*Server, error) {
 	s.identityRoutes()
 	s.healthRoutes()
 	s.agentOperationRoutes()
+	s.upgradeRoutes()
 	s.updateMessageRoutes()
 	s.health = s.startHealthMonitor(15*time.Second, 10*time.Second)
 	return s, nil

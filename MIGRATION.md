@@ -42,6 +42,61 @@ enrollment creates fresh authority. Retain old disks/backups as protected
 recovery material; do not borrow an old identity or copy another account's login
 as a migration shortcut.
 
+## Consolidating user Foundation files
+
+New CLI/worker defaults use one owner-only `$HOME/.foundation` root:
+
+| Purpose | Current user default |
+| --- | --- |
+| Runner configuration | `.foundation/config/agent.json` |
+| Identity configuration | `.foundation/config/identity.json` (explicit for native identity commands) |
+| Runner database, journals, bindings, provider installations | `.foundation/state` |
+| Private identity keys, profile and owner evidence | `.foundation/identity` |
+| Local identity socket | `.foundation/run/identity.sock` |
+| Generated workspace parent | `.foundation/workspaces` |
+| Managed commands/development builds | `.foundation/bin` |
+| Versioned guide store | `.foundation/guidance` |
+
+Development wrappers set HOME to the ignored checkout `.local` but otherwise
+preserve the existing XDG, Codex, GitHub, Cloud SDK, SSH-agent and credential
+environment. External tools choose their own directories; their configuration
+and sign-in are not migrated with Foundation state. This is not a sandbox or
+a claim that overriding HOME isolates every provider credential.
+
+Existing explicit configurations continue to work. A legacy default
+`.config/fdn/agent.json` is not silently replaced by an unenrolled default.
+Development wrappers likewise refuse old `.config/fdn` or `.state/identity`
+files instead of creating another identity.
+
+For an authorized same-account filesystem migration:
+
+1. Capture current identity/generation/mode, native definitions, work/status,
+   pending reports/journals, paths and private recovery evidence. Keep the
+   exact current source-compatible executables. Stop/join work and its identity
+   proxy before moving SQLite, keys or socket/configuration bindings.
+2. Retain owner-only backups of configurations and native options; move only
+   proven Foundation-owned directories into an empty private `.foundation`.
+   Preserve every key, certificate, journal, outbox, binding and workspace.
+   Do not copy provider authentication or alter HOME permissions. Existing
+   workspace paths/Git worktrees need their supported relocation, not blind
+   string replacement or direct SQLite edits.
+3. Update intended absolute paths in configuration and native options. Preserve
+   the original account, AgentID, key generation, profile/CA/host pins and mode.
+   Binary activation links and managed shell/guide links need their supported
+   installers; never replace unrelated files or symlinks.
+4. Restart only processes that were running before the move. Verify matching
+   identity/generation, private IPC, doctor/status, pending work/fences and
+   actual process owners. Keep a user-managed stopped worker stopped. This is
+   not fresh-key recovery, a mode change, task retry or software/protocol upgrade.
+
+The guide installer can repoint exact owned legacy discovery links to its new
+store while preserving the previous store and unrelated HOME instructions.
+Required `AGENTS.md`, `.agents/skills`, `.copilot/skills`, login profiles and
+systemd/LaunchAgent definitions remain at their ecosystem discovery locations.
+Older installed binaries may retain legacy hard-coded guide/launcher locations;
+keep their compatibility files until a separately authorized matching upgrade.
+System server paths such as `/var/lib/fdn` and `/etc/fdn` remain unchanged.
+
 ## Current Go security upgrade
 
 API/schema contract **2** uses server SQLite migration **4**; local worker SQL
@@ -185,6 +240,33 @@ or auto-provision restored old/empty keys. Root account inventory/SSH policy,
 HOMEs and native services remain separate recovery work; enhanced restore and
 final all-suite acceptance are still pending, native root/group qualification
 unperformed.
+
+## Upgrade-channel bootstrap compatibility
+
+New source runners keep test identities and default configuration in ignored
+`.local`, not the installing user's normal HOME. They do not move a live Founder
+or reuse the cloud identity; explicit fresh-key rebinding remains necessary.
+Development-stamped executables cannot be installed by the release updater.
+
+The merged-release workflow now also publishes durable native ZIP bundles to
+immutable `vVERSION` GitHub releases after all package jobs and exact-source
+pre-merge acceptance. Existing Actions artifacts remain usable for explicit
+operator bootstrap but are not the native upgrade-discovery channel.
+Earlier release artifacts are not retroactively called a published upgrade.
+
+Install upgrade-capable Foundation/worker service binaries and the explicitly
+reviewed native helper/CA/operator policies once before asking Founder to roll
+out a subsequent release. Older servers lack the new context/authorization/lease
+routes and fail explicitly; there is no success-shaped fallback, generic remote
+root route or automatic policy/sudoers installation. These additive payloads and
+service-owned authorization settings do not change API/schema2, protocol2,
+server SQL4 or local SQL1.
+
+Preserve private plans, age recovery keys, native receipts/backups, original keys,
+user state and work fences. `upgrade status` works from the original Founder's
+retained local evidence even when Foundation is down. An uncertain installer
+requires inspection; binary/database rollback and automatic task resumption
+are not inferred. No live migration or deployment is performed by source tests.
 
 ## Evidence that must not be inherited
 

@@ -98,11 +98,13 @@ type InvitationBundle struct {
 	ExpiresAt   int64  `json:"expires_at"`
 }
 
+const UserDirectory = ".foundation"
+
 func DefaultWorker(stateDir string) Worker {
 	return Worker{StateDir: stateDir, URL: "https://localhost:8443",
 		CAFile: filepath.Join(stateDir, "ca.pem"), CredentialFile: filepath.Join(stateDir, "credential.json"),
 		Mode: "ai", Provider: "codex", ProviderPaths: map[string]string{}, AutomaticProviderUpdates: true,
-		WorkspaceRoot: filepath.Join(filepath.Dir(stateDir), "fdn-workspaces"),
+		WorkspaceRoot: filepath.Join(filepath.Dir(stateDir), "workspaces"),
 		PollSeconds:   30, InvocationTimeoutSeconds: 3600, ResearchIntervalHours: 12}
 }
 
@@ -395,10 +397,38 @@ func LoadServer(path string) (Server, error) {
 	return c, c.Validate()
 }
 
-func DefaultConfig() (string, error) {
+func DefaultRoot() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".config", "fdn", "agent.json"), nil
+	return filepath.Join(home, UserDirectory), nil
+}
+
+func DefaultConfig() (string, error) {
+	return defaultConfig("agent.json")
+}
+
+func DefaultServerConfig() (string, error) {
+	return defaultConfig("server.json")
+}
+
+func defaultConfig(name string) (string, error) {
+	root, err := DefaultRoot()
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(root, "config", name)
+	if _, err := os.Lstat(path); err == nil {
+		return path, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	legacy := filepath.Join(filepath.Dir(root), ".config", "fdn", name)
+	if _, err := os.Lstat(legacy); err == nil {
+		return "", domain.Fail(domain.Prerequisite, "legacy Foundation configuration exists; use --config with its existing path or explicitly migrate it under HOME/.foundation before using new defaults")
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return path, nil
 }

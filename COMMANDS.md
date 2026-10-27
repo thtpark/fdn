@@ -16,7 +16,7 @@ agent-cli --config /PRIVATE/agent.json --json --non-interactive \
 
 | Global flag | Contract |
 | --- | --- |
-| `--config PATH` | Private configuration. Worker default: `$HOME/.config/fdn/agent.json`; server default uses `server.json` in that directory |
+| `--config PATH` | Private configuration. Worker default: `$HOME/.foundation/config/agent.json`; user server default uses `server.json` in that directory; installed system servers retain their explicit paths |
 | `--json` | Structured output; ordinary commands already use JSON. Disables protected terminal UI |
 | `--non-interactive` | No protected terminal UI/hidden credential prompt |
 | `--timeout SECONDS` | 1-300 seconds, default 60; does not extend task/session authority |
@@ -24,6 +24,14 @@ agent-cli --config /PRIVATE/agent.json --json --non-interactive \
 | `--expected-rev N` | Explicit optimistic revision for applicable mutations |
 | `--version` | Version, commit, API/schema contract versions |
 | `help`, `--help`, leaf `--help` | Offline command discovery; no initialization/network |
+
+User-owned Foundation files share `$HOME/.foundation`: `config`, runner `state`,
+key `identity`, IPC `run`, `workspaces`, managed `bin` and `guidance`.
+`config init` defaults to this state/workspace root and `run/identity.sock`;
+explicit path flags remain supported. Existing legacy defaults require an
+explicit stopped migration or `--config` pointing to the retained file, never
+an automatic unenrolled reset. External tool environment settings are not
+overridden; platform service/discovery files keep their standard locations.
 
 JSON inputs use `--input FILE` or explicit `--input -` for bounded UTF-8 stdin.
 Unknown fields and bodies over 1 MiB are rejected. Inputs may include
@@ -224,6 +232,71 @@ or an older server/client fallback.
 | `agent-cli project change` | `PROJECT --input FILE`: reason + optional name/description/archived; current authority, advances epoch |
 | `agent-cli project delegate` | `PROJECT --input FILE`: `agent_id`, `revoke`; grant Founder-only, revoke project authority |
 | `agent-cli project authorize` | `--input FILE`: `agent_id`, `revoke`; Founder-issued specific creation authorization |
+
+## Founder software upgrades
+
+| Command | Arguments / effect |
+| --- | --- |
+| `agent-cli upgrade check` | `[--platform linux-amd64\|linux-arm64\|darwin-arm64] [--input TARGETS]`; Founder-only latest published release and optional actual native inventory; no mode/package/service changes |
+| `agent-cli upgrade plan` | `--input TARGETS --output PLAN`; private exact target/source/nonce/hash plan and off-host `PLAN.agekey`; no installation; output must be new |
+| `agent-cli upgrade apply` | `--input PLAN`; explicit Founder authorization, pause, encrypted cold backups, Foundation-first native rollout and actual verification; leaves workers manual |
+| `agent-cli upgrade status` | `--input PLAN`; original Founder's retained local evidence and native receipts, including when Foundation is offline; no installation/renewed authority |
+| `agent-cli upgrade-lease` | Internal native-helper command, bounded protobuf stdin/stdout only; exact issuer/target requests a fresh server nonce proof; no installer/inference |
+| `agent-service upgrade-helper` | `--policy FILE`; administrator-provisioned worker updater, bounded protobuf stdin/stdout only |
+| `fdn-service upgrade-helper` | `--policy FILE`; administrator-provisioned Foundation updater, bounded protobuf stdin/stdout only; not the ordinary SSH agent gateway |
+
+`check` uses only the pinned public `thtpark/fdn` stable GitHub release channel,
+not the current working tree, branch HEAD, provider updates or expiring Actions
+artifacts. A missing release, unavailable platform/digest, API/rate-limit failure,
+same-version/different-commit or development/unknown-source installation is an
+explicit error, not "up to date". Discovery does not grant upgrade permission.
+Without TARGETS, `check` reports the latest native bundle, Foundation's actual
+version/source and the local CLI development stamp. TARGETS adds actual remote
+helper observations and per-target `upgrade_available`.
+
+TARGETS is a private JSON file with `targets` (1-32 exact entries): `role`
+(`foundation`/`agent`), `target_id` (Foundation instance ID or stable agent ID),
+`platform`, `ssh` (host, user, port, identity_file, known_hosts_file), fixed
+`helper` binary, `policy_file`, and `sudo` boolean. Paths are absolute.
+This is separate, administrator-approved operator SSH access, not an SSH
+command sent through `fdn-api`, a new root project permission, or a transferred
+provider/agent key. For IAP, use explicitly opened loopback-to-SSH tunnels;
+native operator clients ignore SSH config, agents, ProxyCommand/ProxyJump and
+all inherited forwarding, and require independent host pins.
+
+Planning stores complete version/commit/platform/ZIP digest, native policy hash,
+current target key generation/source, fresh nonce, fixed challenge expiry and
+public age recipient. Keep both PLAN and `PLAN.agekey` owner-only and off targets.
+The key file is never transmitted. Plan/apply never choose another version or
+renew a challenge after expiry: prepare a new plan before any native admission.
+An already-current target needs no upgrade and must be omitted from a rollout.
+All targets in one plan must resolve to one release version and source commit.
+
+`apply` authenticates Founder on the server, pauses affected agents (all agents
+for a Foundation upgrade), signs immutable 15-minute exact permits and persists
+submission before native effects. Each helper independently validates its pinned
+Foundation CA, exact current challenge/policy/source and a fresh 30-second
+nonce-bound server start lease. Recovery/revocation, changed pause/generation,
+active ownership or assistance before native start denies the lease.
+Once the exact maintenance job is admitted and services are stopped, completion
+uses its durable receipt and original fixed permit expiry; it is not a new
+revocable session or permission to resume work.
+
+Workers prepare/stop before Foundation; package installation/start/verification
+is Foundation first, then workers. Pending/uncertain invocations/reports block
+admission; existing session/text/work fences are retained, not force-cleared.
+Native phases are `planned`, `stopping`, `prepared`, `installing`, `verified`;
+an interrupted mutating phase without a live helper is `operator-required`
+with its original phase in `code`. Repeating `apply` is rejected; use `status`
+and inspect actual effects. A binary rollback is not a database rollback.
+No automatic inference, provider login/update, key rotation, disk wipe, release
+publication, native policy/sudoers installation or cloud operation follows.
+
+First install an upgrade-capable Foundation and target service binary through
+an authorized operator, and provision each native policy once. Existing releases
+without these routes/helpers cannot bootstrap themselves. Detailed policy,
+operator-target and service prerequisites are in
+[DEPLOYMENT.md](DEPLOYMENT.md#founder-controlled-native-upgrades).
 
 ## Concise public agent status
 
@@ -770,13 +843,13 @@ status may be credentials-present-unverified; do not report live authentication
 from that alone. Copilot has bounded read-only authentication/model RPC.
 
 Provider install/update and worker daemon startup install managed `codex` and
-`copilot` launchers in `$HOME/.local/bin`. They dispatch through `provider exec`,
+`copilot` launchers in `$HOME/.foundation/bin`. They dispatch through `provider exec`,
 so upgrades select the current private managed version rather than a shell link
 to a stale release. A preserved managed block in the applicable sh/bash/zsh
 login profile adds that directory to PATH without duplicates. Existing unrelated
 commands/profiles are never replaced; unmanaged name collisions fail explicitly.
 Use `provider link` to repair an older installation, then open a new login shell
-or run `export PATH="$HOME/.local/bin:$PATH"; hash -r` in the current one.
+or run `export PATH="$HOME/.foundation/bin:$PATH"; hash -r` in the current one.
 
 Native `--version`/`--help` probes do not need a TTY or a work slot. Other bare
 provider commands are explicit human sessions, share admission with automatic

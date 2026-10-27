@@ -31,6 +31,7 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.nativeService(ctx, tail, "agent")
 	}
 	localOnly := slices.Contains([]string{"config", "knowledge", "inventory", "workspace", "provider", "preferences", "service", "screen"}, group) ||
+		(group == "upgrade" && len(tail) > 0 && tail[0] == "status") ||
 		(group == "mode" && len(tail) > 0 && tail[0] == "show") ||
 		(group == "work" && len(tail) > 0 && tail[0] == "status")
 	r, err := a.load(ctx, !localOnly)
@@ -84,6 +85,10 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.sessionCommand(ctx, r, tail)
 	case "assistance":
 		return a.assistanceCommand(ctx, r, tail)
+	case "upgrade":
+		return a.upgradeCommand(ctx, r, tail)
+	case "upgrade-lease":
+		return a.upgradeLease(ctx, r, tail)
 	case "watch":
 		return a.watchCommand(ctx, r, tail)
 	default:

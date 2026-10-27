@@ -154,6 +154,15 @@ registration, or paid inference. Release packages come only from a PR merged
 into `release`; PRs into `main` run separate suites. Update related docs/skills
 and exact contract tests whenever behavior changes.
 
+Development source wrappers isolate testing HOME/config/identity under ignored
+`.local` and automatically use cached development builds; they never move a
+live Founder. Software upgrades use explicit Founder check/plan/apply/status,
+the exact published release and separately administrator-provisioned native
+policy/operator access. Ordinary messages are not upgrade authority. Preserve
+private plans, off-host recovery keys, native receipts/backups and all work
+fences; uncertain installation is inspected, never blindly retried or rolled
+back into a potentially newer SQL schema. Successful installation stays paused.
+
 Do not present future work in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
 as available commands. Do not certify live providers, full-host recovery,
 security, or 1,000-agent capacity using fixture tests or historical evidence.

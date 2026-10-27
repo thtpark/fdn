@@ -39,3 +39,58 @@ jobs:
           path: dist/${{ matrix.target.os }}-${{ matrix.target.arch }}/
           if-no-files-found: error
           retention-days: 30
+
+  publish:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release'
+    needs: [package]
+    name: Publish immutable release assets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Fetch this exact run's verified native artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'fdn-*' --dir publish/input
+      - name: Require this release source's completed acceptance before its merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_CREATED: ${{ github.event.pull_request.created_at }}
+          PR_MERGED: ${{ github.event.pull_request.merged_at }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/tests.yml/runs?event=pull_request&head_sha=$RELEASE_HEAD&status=success&per_page=20" \
+            | jq -e --arg head "$RELEASE_HEAD" --arg created "$PR_CREATED" --arg merged "$PR_MERGED" \
+              '.workflow_runs | any(.head_sha == $head and .event == "pull_request" and .status == "completed" and .conclusion == "success" and .created_at >= $created and .updated_at <= $merged)'
+      - name: Verify and bundle without rebuilding
+        env:
+          RELEASE_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
+        run: go run ./tools/publish
+      - name: Publish once, after all platforms succeeded
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          version=$(tr -d '\r\n' < VERSION)
+          tag="v$version"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            printf '%s\n' 'Release already exists; immutable assets will not be overwritten. Increment VERSION.' >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+            printf '%s\n' 'Release tag already exists; it will not be rebound to another source.' >&2
+            exit 1
+          fi
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_COMMIT" --draft --title "Foundation $version" \
+            --notes "Exact merged release source: $RELEASE_COMMIT. Reproducible native binaries; unsigned and unattested. Workflow: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            publish/output/*.zip
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest

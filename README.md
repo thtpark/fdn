@@ -65,8 +65,9 @@ connection. Live connection expiry/restart does not erase that authorization.
 * `fdn-service` is the only SQLite writer exposed to computers. Its TLS API owns
   enrollment, roles, task authority, transaction boundaries, and run fences.
   Clients cannot bypass authorization with database writes or bulk endpoints.
-* `agent-service` runs under the dedicated provider-runner OS account, never the
-  protected identity-service UID. `agent-cli work run` uses the **same controller,
+* `agent-service` and `agent-identity` run as the existing installing user.
+  Separate processes organize lifecycle, not same-user key isolation.
+  `agent-cli work run` uses the **same controller,
   prompt, local slot, and server
   checks**, not a separate privileged execution path.
 * SQLite uses WAL, full synchronization, foreign keys, indexed assignment/state
@@ -80,9 +81,9 @@ connection. Live connection expiry/restart does not erase that authorization.
   client certificate's instance, agent, key generation and owner generation.
   Device certificates open only identity admission/control; ephemeral owner
   certificates authorize ordinary API requests while that owner is live.
-* `agent-identity` runs as a protected credential-service UID distinct from the
-  provider runner UID. Long-term SSH/authentication keys and device credentials
-  never reach the runner. `agent-cli`/`agent-service` use its peer-checked local
+* `agent-identity` keeps signing keys in the existing user's private identity
+  state, not prompts/shared output or ordinary IPC replies. That user owns the
+  keys and the whole worker. `agent-cli`/`agent-service` use its peer-checked local
   Unix proxy and retain only a public AgentID, not a bearer credential.
 * One enrolled identity and one active work slot belong on each computer. A
   proved second **different live owner key**, with a fresh successful incumbent
@@ -101,6 +102,46 @@ See the [domain contracts](internal/domain/), [server policy](internal/foundatio
 [controller](internal/work/).
 
 ## Local development and tests
+
+Use the source wrappers without a manual build/install:
+
+```sh
+./scripts/agent-cli.sh --version
+./scripts/agent-identity.sh --help
+./scripts/agent-service.sh --help
+```
+
+They automatically use cached development builds, preserve native signals/exit
+codes and set HOME to ignored `.local`. Foundation-owned configuration, state,
+keys, IPC and cached builds live beneath `.local/.foundation`; existing XDG,
+Codex, GitHub, Cloud SDK and credential environment settings are left unchanged.
+No production identity is copied or enrolled. See the
+[complete source workflow](DEVELOPMENT.md#running-source-with-an-isolated-testing-identity).
+
+## Release checks and explicit Founder rollout
+
+After an approved PR merges into `release`, all native builds are verified and
+published as immutable versioned GitHub release bundles. As enrolled Founder:
+
+```sh
+./scripts/agent-cli.sh upgrade check
+./scripts/agent-cli.sh upgrade check --input "$PWD/.local/targets.json"
+./scripts/agent-cli.sh --timeout 300 upgrade plan \
+  --input "$PWD/.local/targets.json" --output "$PWD/.local/upgrade-plan.json"
+./scripts/agent-cli.sh upgrade apply --input "$PWD/.local/upgrade-plan.json"
+./scripts/agent-cli.sh upgrade status --input "$PWD/.local/upgrade-plan.json"
+```
+
+Checking is read-only; planning does not install. Applying requires explicit
+Founder authorization **and** separately administrator-provisioned native helper
+policy/operator access. It preserves keys/state/fences, uses encrypted cold
+snapshots, upgrades Foundation before workers, verifies actual results and leaves
+automation paused. No arbitrary root shell, model inference, sign-in or automatic
+rollback is implied. Bootstrap upgrade-capable binaries/policies once; existing
+deployments do not acquire this capability merely from a source change.
+See [native rollout setup and recovery](DEPLOYMENT.md#founder-controlled-native-upgrades).
+
+## Local test suites
 
 Requirements: **Go 1.27+** with a working Go race-detector toolchain (including
 its platform C compiler), a Unix host (Linux or macOS), `/bin/sh`, and OpenSSH
@@ -219,9 +260,8 @@ binary owner-control session. Founder uses its operator-assembled profile the sa
 Run the runner CLI/provider service as that **same user**:
 
 ```sh
-agent-cli --config "$HOME/.config/fdn/agent.json" config init \
-  --state "$HOME/.local/share/fdn" --identity-socket "$HOME/.local/state/fdn-ipc/identity.sock"
-agent-cli --config "$HOME/.config/fdn/agent.json" connect
+agent-cli config init
+agent-cli connect
 agent-cli agent identity
 agent-cli doctor
 ```
@@ -351,10 +391,10 @@ agent-cli provider update --provider copilot
 ```
 
 The installer exposes managed `codex` and `copilot` launchers in the account's
-`.local/bin` and adds it to the applicable login profile without replacing user
+`.foundation/bin` and adds it to the applicable login profile without replacing user
 settings. Worker startup repairs older installs; `agent-cli provider link` does
 the same offline. Start a new login shell after repair, or run
-`export PATH="$HOME/.local/bin:$PATH"; hash -r` in the current shell.
+`export PATH="$HOME/.foundation/bin:$PATH"; hash -r` in the current shell.
 Bare commands select the current managed version, not an old pinned executable.
 Interactive use shares the local work slot and requires a human terminal;
 `--version`/`--help` are safe non-inference probes. No global npm installation or
@@ -389,7 +429,7 @@ The handoff never changes mode, signs in, or opens/consents to a remote session.
 agent-cli preferences set --input preferences.json
 # Founder explicitly resumes a target using {"mode":"ai","reason":"..."}:
 agent-cli agent mode AGENT --input mode.json
-agent-service --config "$HOME/.config/fdn/agent.json" serve
+agent-service --config "$HOME/.foundation/config/agent.json" serve
 # Or perform one bounded manual controller step:
 agent-cli work run
 agent-cli work status

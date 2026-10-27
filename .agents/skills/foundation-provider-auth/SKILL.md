@@ -50,10 +50,10 @@ login, inference, a session, or another worker.
    EXACT`; explicit `provider update --provider NAME` chooses latest. Keep
    integrity/signature/non-prompting checks; never force an unsupported adapter
    or silently select another provider/model.
-   Managed executables are private, with stable shell launchers in `.local/bin`.
+   Managed executables are private, with stable shell launchers in `.foundation/bin`.
    Verify actual login-shell `command -v codex/copilot` and bare `--version`;
    absolute-path success alone does not prove shell usability. Repair an older
-   install with `provider link`, then reconnect or add `.local/bin` to the
+   install with `provider link`, then reconnect or add `.foundation/bin` to the
    current PATH. Do not globally reinstall packages to mask this omission.
 3. All non-Founder targets are autonomous and unattended. Founder is the only
    human-help coordination point; delegates may be AI agents. They can coordinate

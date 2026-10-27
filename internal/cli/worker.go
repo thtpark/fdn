@@ -93,6 +93,9 @@ func (a *app) engine(r *resources) *work.Engine {
 }
 
 func (a *app) service(ctx context.Context, args []string) (value any, err error) {
+	if len(args) > 0 && args[0] == "upgrade-helper" {
+		return a.upgradeHelper(ctx, args[1:])
+	}
 	if len(args) != 1 {
 		return nil, domain.Fail(domain.Invalid, "agent-service accepts serve or status")
 	}
@@ -260,11 +263,11 @@ func (a *app) initWorker(args []string) (any, error) {
 		return nil, err
 	}
 	if *state == "" {
-		home, err := os.UserHomeDir()
+		home, err := config.DefaultRoot()
 		if err != nil {
 			return nil, err
 		}
-		*state = filepath.Join(home, ".local", "share", "fdn")
+		*state = filepath.Join(home, "state")
 	}
 	root, err := filepath.Abs(*state)
 	if err != nil {
@@ -272,6 +275,13 @@ func (a *app) initWorker(args []string) (any, error) {
 	}
 	c := config.DefaultWorker(root)
 	c.URL, c.Provider, c.AllowWorkspaceTools = *url, *providerName, *allow
+	if *identitySocket == "" {
+		home, err := config.DefaultRoot()
+		if err != nil {
+			return nil, err
+		}
+		*identitySocket = filepath.Join(home, "run", "identity.sock")
+	}
 	if *identitySocket != "" {
 		c.IdentitySocket, err = filepath.Abs(*identitySocket)
 		if err != nil {

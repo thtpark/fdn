@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
@@ -44,10 +43,12 @@ var AgentCommands = []string{
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
 	"work prompt", "work status", "work run", "work recover", "service plan", "service install", "service status",
+	"upgrade check", "upgrade plan", "upgrade apply", "upgrade status",
+	"upgrade-lease",
 }
 
-var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install"}
-var ServiceCommands = []string{"serve", "status"}
+var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install", "upgrade-helper"}
+var ServiceCommands = []string{"serve", "status", "upgrade-helper"}
 var GuideCommands = []string{"guide list", "guide show", "guide install"}
 var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance request", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open"}
 
@@ -64,8 +65,8 @@ func RunService(ctx context.Context, args []string, in io.Reader, out, diagnosti
 func run(ctx context.Context, role string, args []string, in io.Reader, out, diagnostic io.Writer) int {
 	a := &app{in: in, out: out, diagnostic: diagnostic}
 	defaultConfig, homeErr := config.DefaultConfig()
-	if role == "foundation" && defaultConfig != "" {
-		defaultConfig = filepath.Join(filepath.Dir(defaultConfig), "server.json")
+	if role == "foundation" {
+		defaultConfig, homeErr = config.DefaultServerConfig()
 	}
 	flags := flag.NewFlagSet(role, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -117,6 +118,18 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			}
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
+			case "upgrade check":
+				usage = "upgrade check [--platform linux-amd64|linux-arm64|darwin-arm64] [--input TARGETS]; Founder-only read-only published-release discovery and optional actual native inventory; no mode, package, service or inference changes"
+			case "upgrade plan":
+				usage = "upgrade plan --input TARGETS --output PLAN; Founder-only native target challenges, exact version/commit/hash and off-host age recovery key; no service stop or installation"
+			case "upgrade apply":
+				usage = "upgrade apply --input PLAN; explicit Founder rollout through separately administrator-provisioned narrow updaters; pause, encrypted cold backups, Foundation first, exact source and retained identity/fence checks; leave automation paused, never retry uncertain installation or roll back databases"
+			case "upgrade status":
+				usage = "upgrade status --input PLAN; inspect exact native receipts after an uncertain rollout; never repeats installation"
+			case "upgrade-helper":
+				usage = "upgrade-helper --policy FILE; separately provisioned native OS updater, bounded protobuf stdin/stdout only; requires pinned Foundation-signed authorization and fixed local policy, not an ordinary agent message or generic root command"
+			case "upgrade-lease":
+				usage = "upgrade-lease; internal native updater start proof using bounded protobuf stdin/stdout; exact current target or issuer only, rechecks current Founder/generations/pause and starts no installation or inference"
 			case "agent diagnose":
 				usage = "agent diagnose AGENT_ID [--refresh]; default is read-only latest saved observations for Founder or self; --refresh queues a Founder-only check with a fixed 15-minute lifespan, not fresh success; inspect agent operation REQUEST_ID; no login, inference or mode change"
 			case "agent repair":
@@ -140,9 +153,11 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 		}
 	}
 	if a.configFile == "" && tail[0] != "guide" {
-		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "HOME unavailable; specify --config"), homeErr))
+		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "default configuration unavailable; specify --config"), homeErr))
 	}
-	longRunning := tail[0] == "serve" || tail[0] == "gateway" || (tail[0] == "accounts" && len(tail) > 1 && tail[1] == "serve") || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
+	longRunning := tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" ||
+		(tail[0] == "upgrade" && len(tail) > 1 && tail[1] == "apply") ||
+		(tail[0] == "accounts" && len(tail) > 1 && tail[1] == "serve") || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
 	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open")) {
 		longRunning = true
 		flags.Visit(func(option *flag.Flag) {

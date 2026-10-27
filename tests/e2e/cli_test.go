@@ -444,7 +444,7 @@ func TestNativeBinariesPhaseOneThroughFive(t *testing.T) {
 			}
 			home := filepath.Join(filepath.Dir(l.worker.configFile), "home")
 			for _, providerName := range []string{"codex", "copilot"} {
-				command := exec.Command(filepath.Join(home, ".local", "bin", providerName), "--version")
+				command := exec.Command(filepath.Join(home, ".foundation", "bin", providerName), "--version")
 				command.Env = isolatedEnvironment([]string{"--config", l.worker.configFile})
 				if output, err := command.CombinedOutput(); err != nil || string(output) != "fixture-cli 1.2.3\n" {
 					t.Fatal("worker startup did not repair the bare managed provider command", providerName, string(output), err)

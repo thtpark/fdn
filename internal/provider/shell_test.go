@@ -10,8 +10,8 @@ import (
 
 func TestManagedShellCommandsPreserveProfilesAndFollowConfiguration(t *testing.T) {
 	home := filepath.Join(t.TempDir(), "home with spaces")
-	bin := filepath.Join(home, ".local", "bin")
-	if err := os.MkdirAll(bin, 0755); err != nil {
+	bin := filepath.Join(home, ".foundation", "bin")
+	if err := os.MkdirAll(bin, 0700); err != nil {
 		t.Fatal(err)
 	}
 	profile := filepath.Join(home, ".profile")
@@ -62,7 +62,7 @@ func TestShellCommandsRejectUnmanagedPathsAndAmbiguousProfiles(t *testing.T) {
 	for _, kind := range []string{"unmanaged", "empty", "symlink", "profile-symlink", "profile-block"} {
 		t.Run(kind, func(t *testing.T) {
 			home := filepath.Join(t.TempDir(), "home")
-			bin := filepath.Join(home, ".local", "bin")
+			bin := filepath.Join(home, ".foundation", "bin")
 			if err := os.MkdirAll(bin, 0700); err != nil {
 				t.Fatal(err)
 			}

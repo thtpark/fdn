@@ -172,7 +172,7 @@ func TestInstallPreservesInstructionsUnrelatedSkillsAndIdempotency(t *testing.T)
 	if data, err := os.ReadFile(marker); err != nil || string(data) != "unrelated skill" {
 		t.Fatal("unrelated skill changed", err)
 	}
-	if _, err := os.Stat(filepath.Join(home, ".config", "fdn", "agent.json")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(home, ".foundation", "config", "agent.json")); !os.IsNotExist(err) {
 		t.Fatal("guide installation changed/created worker configuration")
 	}
 }
@@ -227,7 +227,7 @@ func TestInstallRefusesUnmanagedCollisionsTamperingAndSymlinks(t *testing.T) {
 				t.Fatal("unsafe guidance installation was accepted")
 			}
 			if kind == "guide-tamper" {
-				data, err := os.ReadFile(filepath.Join(home, ".local", "share", "fdn", "guidance", "current", "AGENTS.md"))
+				data, err := os.ReadFile(filepath.Join(home, ".foundation", "guidance", "current", "AGENTS.md"))
 				if err != nil || string(data) != "user's local edits" {
 					t.Fatal("local guide edits were destroyed")
 				}

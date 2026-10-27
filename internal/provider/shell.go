@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/secure"
 )
@@ -142,14 +143,14 @@ func InstallShellCommands(home, configFile, cliPath, shell string) (result Shell
 	if err := ownedShellDirectory(home); err != nil {
 		return result, err
 	}
-	if err := ownedShellDirectory(filepath.Join(home, ".local")); err != nil {
+	if err := secure.Dir(filepath.Join(home, config.UserDirectory)); err != nil {
 		return result, err
 	}
-	result.Directory = filepath.Join(home, ".local", "bin")
+	result.Directory = filepath.Join(home, config.UserDirectory, "bin")
 	if err := ownedShellDirectory(result.Directory); err != nil {
 		return result, err
 	}
-	lock, err := secure.Acquire(filepath.Join(home, ".local", "share", "fdn", "provider-shell", "install.lock"))
+	lock, err := secure.Acquire(filepath.Join(home, config.UserDirectory, "provider-shell", "install.lock"))
 	if err != nil {
 		return result, err
 	}
@@ -166,7 +167,7 @@ func InstallShellCommands(home, configFile, cliPath, shell string) (result Shell
 		}
 		marker := "#!/bin/sh\n# Foundation managed provider launcher v1 " + name + " " + domain.Hash(configFile) + "\n"
 		if file.exists && !bytes.HasPrefix(file.old, []byte(marker)) {
-			return result, domain.Fail(domain.Conflict, "an unmanaged command occupies codex/copilot in the account's .local/bin; preserve it rather than overwrite")
+			return result, domain.Fail(domain.Conflict, "an unmanaged command occupies codex/copilot in the account's .foundation/bin; preserve it rather than overwrite")
 		}
 		file.next = []byte(marker + "exec " + shellQuote(cliPath) + " --config " + shellQuote(configFile) + " provider exec --provider " + name + " -- \"$@\"\n")
 		file.mode = 0700
@@ -177,7 +178,7 @@ func InstallShellCommands(home, configFile, cliPath, shell string) (result Shell
 	if err != nil {
 		return result, err
 	}
-	block := pathStart + "\ncase \":$PATH:\" in\n  *\":$HOME/.local/bin:\"*) ;;\n  *) PATH=\"$HOME/.local/bin:$PATH\" ;;\nesac\nexport PATH\n" + pathEnd
+	block := pathStart + "\ncase \":$PATH:\" in\n  *\":$HOME/.foundation/bin:\"*) ;;\n  *) PATH=\"$HOME/.foundation/bin:$PATH\" ;;\nesac\nexport PATH\n" + pathEnd
 	starts, ends := bytes.Count(profile.old, []byte(pathStart)), bytes.Count(profile.old, []byte(pathEnd))
 	if starts == 0 && ends == 0 {
 		profile.next = append(append([]byte{}, profile.old...), []byte("\n"+block+"\n")...)

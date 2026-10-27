@@ -458,6 +458,16 @@ offline/restart contention are verified through direct API and worker tests.
 
 ## Phase 8: retention, operational recovery and release qualification
 
+Implemented source workflow: cached isolated-HOME development runners; immutable
+GitHub release bundle publication after merged-release/all-platform acceptance;
+Founder `upgrade check/plan/apply/status`; domain-separated exact upgrade permits,
+fresh current-authority native start leases and separately preprovisioned narrow
+native updater policies. Native recording/file fixtures cover cold encrypted
+snapshots, server-first order, preserved identity/fences and uncertain receipts.
+See [DEPLOYMENT.md](DEPLOYMENT.md#founder-controlled-native-upgrades).
+This is not a deployed policy/release, privileged host/reboot qualification,
+Windows implementation, artifact signing or a 1,000-host rollout claim.
+
 - Define measured growth/retention for events, audit, operations, runs, journals,
   retained provider/guide releases and backups; do not erase recovery evidence.
 - Application-consistent full recovery beyond the existing SQLite/trust archive:

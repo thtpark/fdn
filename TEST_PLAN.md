@@ -152,6 +152,59 @@ Current-user regressions prove:
   Recording manager/file fixtures do not perform host service registration,
   cross-UID administrator migration or Windows runtime qualification.
 
+## Isolated source runners and Founder upgrades
+
+Focused source acceptance:
+
+```sh
+go test -race -count=1 . ./internal/upgrade ./internal/foundation ./internal/api ./internal/identityservice ./internal/cli ./internal/distribution ./tools/publish
+go run ./tools/protocol --check
+```
+
+`TestDevelopmentScripts*` uses an owned disposable checkout, mock Go builder and
+isolated HOME. It checks all three source entrypoints, `.local/.foundation`
+configuration/state, unchanged real HOME and inherited external-tool/credential
+settings (including unset overrides), literal arguments/stdin,
+same PID/native exit status, rejected symlink escape and failed-build cleanup.
+The actual source wrapper `--version` can additionally prove the development
+stamp without enrollment, production access, provider authentication or inference.
+
+Default-path tests verify XDG-independent `.foundation` configuration, runner
+state/workspaces/socket, explicit legacy configuration support and refusal to
+silently reset an old default identity. Guide tests cover its consolidated store,
+exact legacy discovery-link migration, retained old evidence and unchanged
+unrelated instructions. Provider shell tests cover `.foundation/bin`, the
+managed login PATH block and existing unrelated command/profile preservation.
+
+Upgrade cases cover stable semantic versions and no downgrade/same-version
+replacement; pinned GitHub hosts, independent API ZIP digest, exact manifest/
+metadata/payload names and hashes; all-platform durable publication with exact
+source, immutable tags/releases and pre-merge acceptance.
+
+Store/raw API/protobuf tests prove current Founder-only context/authorization,
+paused exact target key generation, all-agent pause for Foundation, active
+execution/independent verifier/assistance admission, bounded immutable receipts,
+expired/foreign proposals and no replay renewal. Fresh nonce-bound start leases
+recheck current issuer/target generations and active work before stopping.
+Root-maintenance service leases are not ordinary agent recovery or arbitrary
+root operations; proxy method/depth/query allowlists remain strict.
+
+Native updater tests use synthetic ZIP/native bytes, actual-user private files,
+recording command runners and injected release/start-lease boundaries. They
+decrypt cold snapshots using only the off-host fixture key, preserve original
+identity/fences, verify greater source activation and exact receipt replay,
+reject busy/revoked/altered requests before service stop, and retain uncertain
+installer phases as operator-required rather than repeating external effects.
+Founder CLI tests exercise actual typed local API calls and bounded protobuf
+operator requests, worker-first preparation/Foundation-first apply, exact plan
+state, private age keys, failed mid-rollout stop and offline native status.
+
+These are source fixtures, not a live privileged Linux/macOS package rollout,
+new provider login, production signing/security certification, full-host restore,
+reboot/Windows qualification or large-fleet acceptance. Full independent source
+suites remain required. Do not mark publication, policy provisioning, Founder
+migration or deployed upgrades complete from a passing local test.
+
 ## Documented test cases
 
 The [test-case catalog](tests/e2e/SCENARIOS.md#test-case-catalog) records the

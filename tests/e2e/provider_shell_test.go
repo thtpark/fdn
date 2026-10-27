@@ -57,7 +57,7 @@ func TestLoginShellFindsManagedProvidersAndSelectsUpdatedVersion(t *testing.T) {
 		return string(output)
 	}
 	output := login(`set -eu; test "$FDN_SHELL_TEST" = preserved; command -v codex; command -v copilot; codex --version; copilot --version`)
-	for _, expected := range []string{filepath.Join(home, ".local", "bin", "codex"), filepath.Join(home, ".local", "bin", "copilot"), "fixture-cli 1.2.3"} {
+	for _, expected := range []string{filepath.Join(home, ".foundation", "bin", "codex"), filepath.Join(home, ".foundation", "bin", "copilot"), "fixture-cli 1.2.3"} {
 		if !strings.Contains(output, expected) {
 			t.Fatal("bare commands missing from login PATH", expected, output)
 		}

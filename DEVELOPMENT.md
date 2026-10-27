@@ -38,6 +38,55 @@ failure. Use the smallest related suite during development, then all independent
 suites before a release. Do not build a release package locally or on a deployed
 computer. Do not run test services against an existing Foundation/state directory.
 
+## Running source with an isolated testing identity
+
+No separate manual build/install is needed:
+
+```sh
+./scripts/agent-cli.sh --version
+./scripts/agent-cli.sh config init
+./scripts/agent-identity.sh prepare --name LocalTest --output "$PWD/.local/.foundation/public-request.json"
+# After explicit signed registration/profile approval:
+./scripts/agent-identity.sh connect --profile "$PWD/.local/.foundation/public-profile.json"
+./scripts/agent-identity.sh serve
+# Other terminals, while that identity process is running:
+./scripts/agent-cli.sh connect
+./scripts/agent-service.sh serve
+```
+
+Go still compiles: the wrappers use Go's existing build/module caches and
+automatically refresh all three development executables in `.local/.foundation/bin`,
+then `exec` the selected executable so native signals, stdin, arguments and
+exit codes survive. They stamp `VERSION-dev` and the actual commit/dirty source,
+not a release identity. They never package a release.
+
+The wrappers set the testing HOME to this checkout's ignored `.local`.
+Foundation-owned files are grouped beneath `HOME/.foundation`: `config` holds
+the two private configurations, `state` holds runner data, `identity` holds keys,
+`run` holds the IPC socket, and `workspaces`, `bin`, and `guidance` hold their
+respective managed files. The same layout applies outside development with the
+actual HOME; system server paths remain explicit and unchanged.
+
+The wrappers do not set or clear XDG, Codex, GitHub, Cloud SDK, SSH-agent or
+credential environment settings. Existing values remain available; otherwise
+each tool chooses its own defaults for the selected HOME. Those external tool
+directories are not Foundation state and are not moved into `.foundation`.
+This is not an OS sandbox or a guarantee of isolated provider authentication:
+inherited overrides or OS credential stores may still provide access. Go's
+existing build/module caches remain shared.
+
+Existing identity configuration is not overwritten. Old `.config/fdn` or
+development `.state/identity` bindings require an explicit stopped migration;
+the wrappers never create a second identity alongside them. See
+[the state-preserving layout migration](MIGRATION.md#consolidating-user-foundation-files).
+Symlinked or other-user-
+writable test directories fail before adoption. Keep `.local` out of Git and
+never copy a running production identity into it. Moving Founder still needs
+explicit old-owner shutdown and root-local fresh-key rebinding; wrappers do
+not enroll, rename agents, reset journals/fences, publish or deploy.
+Use these foreground wrappers for development, not installed native service
+registration. Native managers continue to bind the actual OS user's HOME.
+
 ## Code map and extension seams
 
 | Area | Location | Responsibility |
@@ -217,6 +266,29 @@ include notices, guidance and checksums. The worker Debian payload includes
 activation must require/link all four binaries. The operator independently obtains the manifest digest
 from the trusted Actions result before deployment. Packages are unsigned and
 unattested unless that policy is explicitly changed and implemented.
+
+After every native target succeeds, the guarded publication job downloads
+only that run's artifacts, verifies the exact source/version/checksums and
+pre-merge release acceptance, then creates immutable `vVERSION` GitHub release
+assets `fdn-VERSION-PLATFORM.zip`. It publishes the draft only after all assets
+exist. Existing releases/tags are never overwritten or rebound. `tools/publish`
+bundles verified artifacts and never rebuilds. The upgrade channel uses GitHub's
+independently served asset digest, then every checksum in the contained manifest;
+it has no fallback to expiring Actions artifacts or unsigned arbitrary URLs.
+
+`agent-cli upgrade check/plan/apply/status` separates release discovery, exact
+source approval and native OS effects. The API authenticates Founder and signs
+bounded permits; each native helper needs separately administrator-provisioned
+policy/operator SSH access and the pinned Foundation CA. A fresh nonce-bound
+30-second start lease rechecks current parties, key generations, pause and work
+before any stop; the accepted exact maintenance job then proceeds from its
+durable receipt under the original 15-minute authorization. These are permission
+signatures, not release code signing/attestation. Never extend the account
+provisioner into a generic updater/root shell.
+
+Test helper process/filesystem/network effects through existing injected runners,
+temporary homes and synthetic release bytes. No local test registers services,
+uses cloud credentials, changes a production identity or invokes paid inference.
 
 No hosted job result is implied by a passing local run. No model execution,
 desktop control or privileged service registration is implied by fixture results.
