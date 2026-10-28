@@ -5,7 +5,8 @@ Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
 Native message protocol version is **2**; server SQLite migration version is
-**5**; local-worker SQLite remains **1**.
+**6**; local-worker SQLite remains **1**. Existing SQL5 databases migrate
+additively to SQL6; earlier server-state formats remain unsupported.
 Deploy the server first. Version 2 requires account-bound public-key admission
 and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
 create new runtime identities. Native multi-UID qualification is separate from
@@ -30,6 +31,8 @@ use 0700/0600; the user's existing HOME permissions are not changed.
 `PRAGMA user_version` is local to each database. Server SQL5 is the minimum
 existing database version; older and future unsupported versions fail closed.
 Fresh empty databases use the immutable ordered initialization statements.
+SQL6 appends the shared-notes table and its scoped-update triggers without
+rewriting identities, projects, tasks, private messages or operation receipts.
 
 New user defaults are grouped under `$HOME/.foundation`: private `config`,
 runner `state`, key `identity`, socket `run`, owned `workspaces`, managed `bin`
@@ -60,6 +63,7 @@ creates a whole-desktop profile or screen authorization.
 | `identity_receipts` | Exact operation receipt plus identity generation; old receipts cannot activate recovered keys |
 | `projects` | Name/description, owner, service-maintained delegate list, revision, authority/context epoch, archive state |
 | `project_creators` | Specific Founder-issued one-use project-creation authorization |
+| `notes` | One revisioned team-readable Markdown document per company/project/agent scope, explicit author/time provenance; latest three snapshots in `histories` |
 | `tasks` | Authoritative task aggregate; indexed project, assignee, status, priority, archive and active owner |
 | `runs` | Immutable execution/verification claim identity and stopped/result projection, provider/model, attempt, ownership-token hash; verification additionally binds result/discussion generations and project epoch |
 | `entries` | Creator-owned comment/worklog, body generation/revision, task/reply references, mentions; server-only run/spec/result/decision provenance on verification feedback |
@@ -80,6 +84,49 @@ creates a whole-desktop profile or screen authorization.
 The authoritative definitions are in `internal/foundation/store.go` and the DTOs
 in `internal/domain/`. Source records, runs, events and audit receipts are not
 automatically bounded by the three-snapshot rule; see [CAPACITY.md](CAPACITY.md).
+
+### Shared scoped notes and task context
+
+`Note` contains `id`, `scope`, optional `target_id`, Markdown `content`,
+`revision`, and creation/update actor IDs and timestamps. Company uses
+`note_company` with no target; project/agent documents use `note_` plus the
+stable target ID. An unset document is explicit empty content at revision 0.
+Each body is bounded to 65,536 UTF-8 bytes without NUL. `NoteRequest` requires
+content (empty explicitly clears), an intentional reason and exact optimistic
+revision (0 on create); unknown/protected input fields are rejected.
+
+Founder alone sets company notes. Founder or a current delegate sets an active
+project's notes; Founder can also maintain archived-project notes. Founder/self
+can set an active agent's notes. Another editor must be a current delegate of
+an active project with an unarchived nonterminal task assigned to that agent.
+Delegates cannot edit Founder's agent notes. The write transaction rechecks
+identity, current assignments/delegation, revision and target existence; stale,
+revoked or unrelated authority cannot create or change a document. Scope is not
+read privacy: shared notes and their three retained histories are team-readable.
+
+Writes, bounded source-reference receipts, history, bodyless events and scoped
+push invalidations commit together. Company invalidations reach active agents;
+project invalidations reach project parties/dependents; agent invalidations
+reach the target and Founder. No note bytes enter those invalidation records.
+Notes changes do not mutate agent/project/task revisions, project epochs,
+approvals, active claims, mode or retry state.
+
+The controller fetches one atomic company/current-project/own-agent snapshot
+before every newly prepared provider invocation, including task preparation,
+execution and independent verification. Taskless calls omit project notes.
+Verification uses the reviewer's own agent notes. All applicable scopes are
+cumulative context, not authority or an operating-contract override; material
+conflicts require clarification. Missing, malformed or unavailable context
+blocks inference. Selected private knowledge remains separate and local.
+The complete prompt remains bounded; there is no silent truncation.
+
+An in-flight or retained invocation keeps its original snapshot in private
+`Launch.shared_notes` journal context and prompt hash. Edits apply to the next
+new invocation, without cancelling current work, replaying inference, resetting
+text-response/retry fences or manufacturing approval. Markdown may contain
+custom instructions, skills, missions, visions, goals and file/website/GitHub
+references, but no automatic fetching, cloning, attachment storage, skill
+installation or publication of private local knowledge is implied.
 
 ### Concise team-visible agent activity
 

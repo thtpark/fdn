@@ -464,6 +464,35 @@ func (r *updateRouter) route(change updateChange) error {
 		if err := r.agentParties(change.id, parties); err != nil {
 			return err
 		}
+	case "notes":
+		values, err := changeValues[domain.Note](change)
+		if err != nil {
+			return err
+		}
+		u.Topic = "note"
+		for _, note := range values {
+			switch note.Scope {
+			case domain.CompanyNotes:
+				if err := r.partyRows("SELECT id,id FROM agents WHERE active=1 AND COALESCE(json_extract(data,'$.banned'),0)=0", parties); err != nil {
+					return err
+				}
+			case domain.ProjectNotes:
+				u.ProjectID = note.TargetID
+				if err := r.project(note.TargetID, parties); err != nil {
+					return err
+				}
+				if err := r.projectDependents(note.TargetID, parties); err != nil {
+					return err
+				}
+			case domain.AgentNotes:
+				parties.add(note.TargetID)
+				if err := r.includeFounders(parties); err != nil {
+					return err
+				}
+			default:
+				return domain.Fail(domain.Internal, "unrecognized notes scope in update routing")
+			}
+		}
 	case "project_creators":
 		values, err := changeValues[struct {
 			AgentID string `json:"agent_id"`

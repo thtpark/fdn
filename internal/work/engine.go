@@ -81,6 +81,7 @@ type Launch struct {
 	Discussion    []domain.Entry      `json:"discussion"`
 	Capabilities  []local.Observation `json:"capabilities"`
 	Knowledge     []local.Knowledge   `json:"selected_private_knowledge"`
+	SharedNotes   []domain.Note       `json:"shared_notes"`
 	Message       *domain.Message     `json:"message,omitempty"`
 	RequestParent *domain.Message     `json:"request_parent,omitempty"`
 	Attention     *domain.Attention   `json:"attention,omitempty"`
@@ -637,6 +638,9 @@ func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manua
 	}
 	health, model, err := e.selected(ctx, c, launch)
 	if err != nil {
+		return local.Journal{}, err
+	}
+	if err := e.refreshNotes(ctx, &launch); err != nil {
 		return local.Journal{}, err
 	}
 	j, err := e.newJournal(launch, health, model)

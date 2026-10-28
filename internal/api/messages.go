@@ -77,6 +77,10 @@ func operationQueries(pattern string) map[string]bool {
 	allowed := map[string]bool{}
 	var names []string
 	switch pattern {
+	case "GET /v1/notes":
+		names = []string{"scope", "target"}
+	case "GET /v1/note-context":
+		names = []string{"project"}
 	case "GET /v1/tasks":
 		names = []string{"project", "assignee", "status", "include_archived", "limit", "cursor"}
 	case "GET /v1/events":

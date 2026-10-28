@@ -45,7 +45,7 @@ The checkout's root documents are canonical; no old source tree is required.
    adapters must prove non-prompting coding approval and tool-disabled text calls.
 5. Add ordered compatibility-tested migrations, never rewrite shipped schemas
    or reset state. Application/schema contract is 2, native message protocol 2,
-   server SQL migration 5, local SQL 1. SQL5 preserves private message bytes,
+   server SQL migration 6, local SQL 1. SQL5 preserves private message bytes,
    insertion order, receipts and scoped updates while admitting the exact
    Foundation maintenance mailbox, never an enrolled synthetic agent.
    SQL5 is the existing server-state floor; older and future unsupported
@@ -53,6 +53,11 @@ The checkout's root documents are canonical; no old source tree is required.
    initialization/history. Registration creates a new signed identity;
    current-format fresh-key recovery preserves an enrolled identity. Binary
    rollback is not automatically database rollback.
+   SQL6 adds shared scoped Markdown notes and update triggers without rewriting
+   current SQL5 data. Keep Founder/project/self and current-assignment delegate
+   edits transactional; every new text/coding invocation gets an atomic applicable
+   note snapshot. Preserve pinned journals, epochs, approvals and retry fences;
+   never auto-fetch references or publish selected private knowledge.
 6. Update command/reference/skill behavior together. Skills need matching names,
    meaningful trigger descriptions and complete current procedures. Documentation
    must distinguish implemented capability, planned work and evidence limits.

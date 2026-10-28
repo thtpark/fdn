@@ -755,6 +755,84 @@ authenticated loopback backend and trusted native `vncviewer`; clipboard
 send/receive are disabled. Neither path unlocks a desktop or transfers the
 requester's Foundation identity. Ctrl-] closes terminal attachment.
 
+## Shared company, project and agent notes
+
+Each scope has one revisioned, team-readable Markdown document. Use headings
+for custom instructions, skills, context, missions, visions and goals; include
+non-secret relative file references, website links and GitHub repository URLs
+as needed. These are deliberately published shared notes, not private memory.
+There is one company scope per Foundation instance.
+
+| Scope | Who can set or clear it |
+| --- | --- |
+| `company` | Founder only; no `target_id` |
+| `project` | Founder or a current delegate of that active project; required project `target_id` |
+| `agent` | Founder, the target itself, or a current delegate of an active project with an unarchived, nonterminal task assigned to that target; agent `target_id` defaults to self |
+
+A delegate cannot edit Founder's agent notes. Historical assignments, archived
+projects/tasks, terminal tasks and revoked delegation confer no agent-note
+editing authority. Founder may maintain notes for an archived project.
+All active enrolled agents can read shared notes and their histories; scope
+controls applicability and editing, not private-reader isolation.
+
+| Command | Arguments/input |
+| --- | --- |
+| `agent-cli note set` | `--input FILE`: `scope`, optional `target_id`, required `content`, `expected_revision` (0 creates), and required non-secret `reason`; replaces the complete document |
+| `agent-cli note show` | `company`, `project PROJECT_ID`, or `agent [AGENT_ID]`; an unset document has empty content and revision 0 |
+| `agent-cli note history` | Same scope arguments as show; latest three snapshots with actor, reason and timestamp |
+| `agent-cli note context` | `[--project PROJECT_ID]`; current company, optional project, and the caller's own agent notes, in that order |
+
+Example company input (Founder only):
+
+```json
+{
+  "scope": "company",
+  "content": "# Mission\nDeliver dependable results.\n\n## Instructions\nVerify measurable acceptance criteria.\n\n## Resources\n[Work skill](.agents/skills/foundation-work/SKILL.md)\n[Website](https://example.com)\n[Repository](https://github.com/example/repo)",
+  "expected_revision": 0,
+  "reason": "Publish the current mission and shared working guidance"
+}
+```
+
+```sh
+agent-cli note show company
+agent-cli --operation-id company-notes-v1 note set --input company-notes.json
+agent-cli note show project PROJECT_ID
+agent-cli note show agent
+agent-cli note context --project PROJECT_ID
+agent-cli note history company
+```
+
+Read the current revision before replacing a document. The CLI does not silently
+substitute a newer revision; stale writes conflict. Retry uncertainty with the
+same operation ID and exact input. Receipts retain bounded source references,
+not an unbounded copy of each historical body. Replay returns the current source
+without applying another edit. Required `content: ""` explicitly clears the
+document; missing/null content is an error. Each document permits at most
+65,536 UTF-8 bytes, without NUL. The existing complete-prompt budget also
+applies; consolidate context rather than silently dropping notes.
+
+The shared manual/automatic controller reads a fresh atomic note snapshot before
+each newly prepared provider invocation: onboarding, scope/acceptance review,
+preflight, execution, independent verification and scoped replies/research.
+Task work includes its project's notes and the working agent's own notes;
+verification uses the reviewer's notes, never the assignee's. Taskless calls
+include company and own agent notes only. Unset scopes remain explicit
+revision-zero documents. Missing, malformed or unavailable context blocks
+inference rather than falling back to no notes.
+
+All scopes are cumulative context, never task approval, OS/financial permission
+or a higher-priority operating contract. Material conflicts require
+clarification. An edit applies to the next newly prepared call, not the current
+in-flight or retained journal: it does not cancel work, advance project epochs,
+change mode, grant approval or reset retry/recovery fences. The exact snapshot
+is retained in private journal context and included in its prompt hash.
+
+References are not automatically downloaded, cloned, synchronized, installed
+as skills or executed. File attachments/binary storage are not implemented by
+these commands. Keep credentials, raw transcripts, private workspace paths and
+private local knowledge out of shared notes. Existing `knowledge` selection
+remains local and is never automatically promoted into shared notes.
+
 ## Offline knowledge, inventory and workspace authorization
 
 | Command | Arguments/input |
@@ -927,7 +1005,7 @@ current exact retry authority; recovery is not permission to rerun.
 ## API map for development
 
 Application/schema contract version is **2**, native message protocol **2**,
-server SQLite migration **5**, local SQLite **1**. Native processes exchange
+server SQLite migration **6** (existing-state floor **5**), local SQLite **1**. Native processes exchange
 bounded protobuf frames over pinned SSH stdio/inner mTLS and peer-checked local
 Unix sockets. There is no internal HTTP/gRPC listener or HTTP downgrade.
 JSON envelopes remain CLI output and local evidence, not native wire payloads.
@@ -948,7 +1026,8 @@ request headers and JSON cannot supply a different principal.
 Ordinary families: `/me`, `/agents`, `/heartbeat`, `/identity/register`,
 `/identity/status`, `/identity/AGENT/recover`, `/projects`,
 `/project-creation-grants`, `/tasks`, `/entries`, `/attention`, `/events`,
-`/ownership`, `/messages`, `/sessions`, `/agent-operations`, `/updates`. Registration/recovery is Founder-only;
+`/ownership`, `/messages`, `/sessions`, `/agent-operations`, `/updates`,
+`/notes`, `/note-context`. Registration/recovery is Founder-only;
 Founder recovery is root-only private Unix maintenance, never one of these
 agent routes. Entity changes use dedicated POST suffixes; claims/reports are
 controller operations, not generic CLI write escapes. Relays recheck current
@@ -970,6 +1049,12 @@ Read-only diagnostic routes are `GET /v1/agents/{id}/diagnostics`
 Latest reports/incidents use bounded service-owned settings; health itself needs
 no migration beyond the SQL4 scoped-update contract. SQL5 adds the Foundation
 maintenance mailbox while preserving that feed, existing messages and receipts.
+SQL6 adds scoped notes and bodyless note invalidations without rewriting SQL5
+records. `POST /v1/notes` takes `domain.NoteRequest` and returns `domain.Note`;
+`GET /v1/notes?scope=company|project|agent&target=ID` reads a document (agent
+target defaults to self). `GET /v1/note-context?project=PROJECT_ID` returns the
+atomic applicable `[]domain.Note` for the authenticated caller; it accepts no
+agent override. Notes history uses `GET /v1/history/NOTE_ID`.
 
 `GET /v1/updates?since=CURSOR&limit=N&wait=true` selects a recipient-scoped
 blocking update request. An empty cursor returns the initial current watermark;

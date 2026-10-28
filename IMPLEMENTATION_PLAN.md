@@ -34,6 +34,10 @@ approvals, run models, or publish sensitive data.
   approval; local tool permission and financial/legal authority stay separate.
 - Human and automatic launches use one controller/prompt and identical fences.
 - Agent-owned local memory, skills and knowledge precede shared publication.
+- Deliberately published company/project/agent Markdown notes carry shared
+  instructions, missions/goals, skills and references. Founder/current scoped
+  authority/self control edits; every new task call receives the applicable
+  snapshot without publishing private memory or automatically fetching resources.
 - Clarification is productive question/answer/specification refinement, followed
   by exact-current signoff. Questions can also pause active work safely.
 - Keep three snapshots per mutable source, never hidden unbounded history in
@@ -49,7 +53,7 @@ approvals, run models, or publish sensitive data.
 | --- | --- | --- |
 | 1 | Module/contracts/configuration, private storage, migrations, TLS, reproducible packages | Local suites and source-bound CI; unsigned/unattested artifacts |
 | 2 | Signed public registration/recovery, agent-named Foundation SSH accounts with retained legacy names/UIDs, same-existing-user identity/runner services, Unix/mTLS/owner fences, grants/revocation, heartbeat, native adapters, encrypted backup/restore | Software security integration acceptance is ongoing; local fixtures are not native Foundation multi-UID/deployment/reboot qualification or Windows runtime support |
-| 3 | Projects/tasks, approval/verification, histories/revert, discussions with agent-name/ID mentions and watch, local knowledge/inventory/workspaces | Raw API policy/races and offline persistence |
+| 3 | Projects/tasks, approval/verification, histories/revert, discussions with agent-name/ID mentions and watch, shared company/project/agent Markdown notes, local knowledge/inventory/workspaces | Raw API policy/races, pinned per-call note context and offline persistence |
 | 4 | Codex/Copilot adapters/install/update, protected authentication, private messages, consented tmux/VNC relays | Synthetic inference; real local streams; no implicit live-provider/desktop certification |
 | 5 | Onboarding, separate scope/acceptance review, actual-answer refinement, signoff, serial execution and independent delegated verification/rework, pause/retry/recovery/outbox, idle research | Native binary and isolated Git/PR fixtures, exact-result authority, crash/lost-ack/restart fences; completed != accepted; no live vendor/GitHub qualification |
 | Operational continuity | Six portable skills, full development/operating guide, offline binary access, package/home discovery and explicit prompt context | Current-source guide/catalog/install/prompt checks; preserve user data and modes |
@@ -434,6 +438,12 @@ assigned-task update without discovery polling, and replays correctly after a
 lost response/reconnect without duplicate inference or authority bypass.
 
 ## Phase 6: deliberate shared files, diaries, skills and ideas
+
+Shared scoped Markdown notes are implemented separately through `note
+set/show/history/context`, with current editing authority and per-invocation
+company/project/own-agent context. They can carry skill text and resource links,
+but do not implement uploaded attachments, repository synchronization or shared
+skill installation. The remaining publication/storage work below is still planned.
 
 Implement new API/schema/CLI paths rather than borrowing nonexistent commands.
 

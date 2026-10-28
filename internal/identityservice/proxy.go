@@ -23,12 +23,14 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/tasks", "/v1/tasks/*", "/v1/tasks/*/entries", "/v1/tasks/*/runs", "/v1/history/*", "/v1/attention", "/v1/events",
 		"/v1/messages", "/v1/messages/*", "/v1/messages/*/diagnostics", "/v1/messages/*/thread", "/v1/sessions", "/v1/sessions/*", "/v1/sessions/*/relay/requester", "/v1/sessions/*/relay/target",
 		"/v1/assistance", "/v1/assistance/*", "/v1/agent-operations", "/v1/agent-operations/*", "/v1/upgrades/context", "/v1/message-requests",
+		"/v1/notes", "/v1/note-context",
 	},
 	http.MethodPost: {
 		"/v1/identity/register", "/v1/identity/*/recover",
 		"/v1/heartbeat", "/v1/agents/*/screens", "/v1/agents/*/mode", "/v1/agents/*/revoke", "/v1/agents/*/authentication", "/v1/agents/*/diagnostics", "/v1/agents/*/repairs", "/v1/agents/*/status", "/v1/agent-operations/*/result", "/v1/projects", "/v1/projects/*/change", "/v1/project-creation-grants", "/v1/projects/*/delegates",
 		"/v1/tasks", "/v1/tasks/*/change", "/v1/tasks/*/entries", "/v1/tasks/*/claim", "/v1/tasks/*/report", "/v1/entries/*", "/v1/attention/*",
 		"/v1/messages", "/v1/messages/*/receipt", "/v1/messages/*/read", "/v1/messages/*/request", "/v1/sessions", "/v1/sessions/*", "/v1/assistance", "/v1/assistance/requests", "/v1/assistance/*/revoke", "/v1/upgrades/authorize", "/v1/upgrades/lease",
+		"/v1/notes",
 	},
 }
 
@@ -62,6 +64,18 @@ func ordinaryPath(method string, u *url.URL) bool {
 		}
 		if match {
 			switch pattern {
+			case "/v1/notes", "/v1/note-context":
+				query, err := url.ParseQuery(u.RawQuery)
+				if err != nil {
+					return false
+				}
+				for name, values := range query {
+					allowed := method == http.MethodGet && ((pattern == "/v1/notes" && (name == "scope" || name == "target")) ||
+						(pattern == "/v1/note-context" && name == "project"))
+					if !allowed || len(values) != 1 {
+						return false
+					}
+				}
 			case "/v1/agent-operations":
 				query, err := url.ParseQuery(u.RawQuery)
 				if err != nil {

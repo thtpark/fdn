@@ -182,10 +182,17 @@ errors, credentials, process arguments and workspace paths out of safe results.
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
 version is **2**; native message protocol is **2**, server SQLite migration is
-**5**, local SQLite remains **1**.
+**6**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
+the additive SQL6 notes migration preserves current records.
 Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
+- Scoped Markdown notes live in SQL6, separate from private local knowledge.
+  Keep company/project/self snapshots atomic, editing authority transactional
+  and project-assignment-bounded, and every new text/coding invocation wired to
+  the same refresh path. Edits must not cancel pinned calls, alter approval/
+  project epochs or reset recovery/retry fences. Preserve references as text;
+  never implicitly fetch files, websites, repositories or private knowledge.
 - Reject databases newer than the binary rather than resetting them. Restore
   requires manifest schema 2 and a supported SQL5-or-newer server database,
   and quarantines all restored identity/owner/key epochs before publication.

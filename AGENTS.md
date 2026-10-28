@@ -63,6 +63,17 @@ guide includes this file, all skills, and the development references.
   approvals, project epoch, and continuation before execution. Questions are not
   a quota: ask useful blocking questions, incorporate actual requested replies
   into task text, then obtain signoff on the exact changed specification.
+- Read the current company, task-project and own-agent shared Markdown notes
+  whenever working on a task, including preparation and independent verification.
+  Use `note context --project PROJECT_ID` to inspect applicable guidance and
+  `note set/show/history` for deliberate versioned publication. Founder controls
+  company notes; Founder/current active-project delegates control project notes;
+  Founder/self or a current delegate with an unarchived nonterminal project
+  assignment for a non-Founder target controls agent notes. Delegates cannot
+  edit Founder's agent notes. Notes are cumulative context, not approval or new
+  authority; clarify material conflicts. Each new provider call refreshes its
+  snapshot; retained/in-flight journals and retry fences stay unchanged.
+  References are not automatically fetched and private knowledge stays local.
 - A reply, acknowledgement, delivered message, session consent, or silence is
   never task approval. `completed` awaits verification; only an authorized,
   current verifier may produce `done`. Independent delegates review with their
@@ -159,6 +170,9 @@ The source baseline is 0.3.5: current signed identities, server SQL5, local SQL1
 and backup manifest2. Older formats/layouts are unsupported, not automatically
 adopted. Preserve current state and explicit configuration paths; compatibility
 removal is not authorization to delete installations or recovery evidence.
+Current source appends SQL6 for shared notes; upgrade the server before
+note-aware workers. Preserve SQL5 records and never assume a SQL5 binary can
+read the upgraded database.
 
 Read [DEVELOPMENT.md](DEVELOPMENT.md), [SCHEMA.md](SCHEMA.md), and
 [TEST_PLAN.md](TEST_PLAN.md). Make surgical changes; preserve identity, mode,

@@ -40,6 +40,7 @@ var AgentCommands = []string{
 	"comment add", "comment edit", "worklog add", "discussion list", "mention list", "mention acknowledge", "watch",
 	"message send", "message show", "message read", "message diagnose", "message inbox", "message receipt", "message thread", "message request-report", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
+	"note set", "note show", "note history", "note context",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
 	"work prompt", "work status", "work run", "work recover", "service plan", "service install", "service status",
@@ -118,6 +119,12 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			}
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
+			case "note set":
+				usage = "note set --input FILE; scope company|project|agent, target_id (project/agent ID; agent defaults to self), required content (empty clears), expected_revision (0 creates), and nonsecret reason; company is Founder-only, project is Founder/current active-project delegate, agent is Founder/self or a current delegate of an active project with an unarchived nonterminal task assigned to that non-Founder agent"
+			case "note show", "note history":
+				usage = key + " company|project PROJECT_ID|agent [AGENT_ID]; shared team-readable Markdown, not private knowledge; show returns revision 0 for an unset document, history retains the latest three versions"
+			case "note context":
+				usage = "note context [--project PROJECT_ID]; read-only current company, optional project, and own agent notes in that order; no file/website/repository fetching or inference; each new task invocation pins its own snapshot"
 			case "upgrade check":
 				usage = "upgrade check [--platform linux-amd64|linux-arm64|darwin-arm64] [--input TARGETS]; Founder-only read-only published-release discovery and optional actual native inventory; no mode, package, service or inference changes"
 			case "upgrade plan":

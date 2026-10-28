@@ -540,7 +540,7 @@ func (s *Store) Histories(ctx context.Context, actor, source string) ([]domain.H
 	if _, err := s.actor(ctx, s.db, actor); err != nil {
 		return nil, err
 	}
-	if !strings.HasPrefix(source, "task_") && !strings.HasPrefix(source, "project_") && !strings.HasPrefix(source, "comment_") && !strings.HasPrefix(source, "worklog_") {
+	if !strings.HasPrefix(source, "task_") && !strings.HasPrefix(source, "project_") && !strings.HasPrefix(source, "comment_") && !strings.HasPrefix(source, "worklog_") && !strings.HasPrefix(source, "note_") {
 		return nil, domain.Fail(domain.Denied, "private or unknown history source")
 	}
 	rows, err := s.db.QueryContext(ctx, "SELECT sequence, source_id, actor_id, action, reason, created_at, snapshot FROM histories WHERE source_id = ? ORDER BY sequence DESC", source)

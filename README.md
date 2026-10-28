@@ -5,7 +5,8 @@ authoritative SQLite-backed service, a native worker daemon, and one structured
 CLI for people and coding agents. Development and operation need no companion
 checkout. The supported baseline is 0.3.5: API/schema **2**, native protocol
 **2**, server SQL **5** and local SQL **1**. Older formats/layouts are not
-imported or overwritten. The software-first security model
+imported or overwritten. Current source advances server SQL to **6** with an
+additive shared-notes migration from that SQL5 floor. The software-first security model
 is being integrated; source-bound acceptance and native qualification are
 separate. No hardware adapter or attestation is claimed.
 
@@ -46,7 +47,7 @@ supplies bounded guidance explicitly when provider discovery is disabled.
 | --- | --- |
 | 1 | Go module, typed contracts, structured errors, owner-only configuration/state, schema migrations, TLS trust, reproducible release tooling. |
 | 2 | Founder-only signed public-key registration, dedicated per-agent SSH accounts/UIDs, isolated identity service, mutual TLS and owner-generation fences; project-creation grants, revocation, heartbeat, native definitions, encrypted database/trust backup and fresh-directory restore. Security acceptance remains source-bound; native qualification is separate. |
-| 3 | Projects, collaborative tasks, assignment, named/independent approvals, verification/rework, three-history retention/revert with reasons, creator-owned discussions/worklogs, mentions, paginated watches, offline private knowledge, capability inventory, explicit workspace authorization. |
+| 3 | Projects, collaborative tasks, assignment, named/independent approvals, verification/rework, three-history retention/revert with reasons, creator-owned discussions/worklogs, mentions, paginated watches, shared company/project/agent notes, offline private knowledge, capability inventory, explicit workspace authorization. |
 | 4 | Codex/Copilot adapters, private messages, urgent inboxes, staged provider installation/updates, protected login handoff, expiring target-consented tmux/existing-VNC sessions. |
 | 5 | Shared manual/automatic controller and prompt, first capability review, scope/acceptance refinement, actual-answer incorporation, exact-specification signoff requests, preflight, serial claims, supervised processes, pause/checkpoints, durable report outbox, restart reconciliation, unsafe-retry approval/backoff, idle research. |
 
@@ -526,6 +527,21 @@ ai work may resume only if all independent fences permit. Inspect the operation
 then diagnose again for actual progress; see the
 [exact workflow and safe inputs](COMMANDS.md#founder-diagnostic-refresh-and-exact-closed-session-recovery).
 
+### Shared notes and private knowledge
+
+`note set/show/history/context` manages one team-readable Markdown document at
+each company, project and agent scope. Include custom instructions, skills,
+missions/visions/goals, context and non-secret file, website or GitHub links.
+Founder controls company notes; Founder/current delegates control project
+notes; Founder/self or a current delegate with an active project assignment for
+the target controls a non-Founder agent's notes. Delegates cannot edit Founder's
+agent notes. Every new task-phase/provider invocation receives current company,
+task-project and working-agent notes, including an independent reviewer's own
+agent notes. All scopes are cumulative context, not approval or new authority.
+Edits apply to the next new call without cancelling current work or resetting
+fences. References are not automatically fetched and private knowledge is never
+automatically published. See [exact inputs and permissions](COMMANDS.md#shared-company-project-and-agent-notes).
+
 `knowledge put/list/show/history` manages versioned offline `memory`, `skill`,
 and `knowledge` records. `selected:true` deliberately includes an entry in
 private provider context; it does not publish it to Foundation. Archiving and
@@ -545,6 +561,7 @@ it does not scan networks or publish addresses/identifiers.
 | Founder control / retained access | `agent show/diagnose/repair/operation/mode/request-sign-in`, `assistance grant/list/show/revoke/open` |
 | Tasks | `task create/list/show/change/history/runs` |
 | Collaboration | `comment add/edit`, `worklog add`, `discussion list`, `mention list/acknowledge`, `watch [--once]` |
+| Shared guidance | `note set/show/history/context`; company/project/agent Markdown, versioned and included in new task prompts |
 | Private communication | `message send/show/read/diagnose/inbox/receipt`, `session request/list/show/change/open`; explicit recipient `read` records the first read acknowledgement, peeking does not |
 | Local state | `knowledge put/list/show/history`, `inventory refresh/show`, `workspace bind/list/enable/disable` |
 | Providers/work | `provider status/install/update/login/link/exec`, `work prompt/status/run/recover` |

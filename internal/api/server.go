@@ -222,6 +222,15 @@ func queryLimit(r *operationRequest) (int, error) {
 }
 
 func (s *Server) routes() {
+	read(s, "GET /v1/notes", func(r *operationRequest, a domain.Agent) (domain.Note, error) {
+		return s.Store.Note(r.Context(), a.ID, r.URL.Query().Get("scope"), r.URL.Query().Get("target"))
+	})
+	body(s, "POST /v1/notes", false, func(r *operationRequest, a domain.Agent, q domain.NoteRequest) (domain.Note, error) {
+		return s.Store.SetNote(r.Context(), a.ID, q)
+	})
+	read(s, "GET /v1/note-context", func(r *operationRequest, a domain.Agent) ([]domain.Note, error) {
+		return s.Store.NoteContext(r.Context(), a.ID, r.URL.Query().Get("project"))
+	})
 	read(s, "GET /v1/agents/{id}", func(r *operationRequest, a domain.Agent) (domain.Agent, error) {
 		return s.Store.Agent(r.Context(), a.ID, r.PathValue("id"))
 	})

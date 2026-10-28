@@ -22,6 +22,20 @@ func TestPublicIdentityStatusAndFounderRevocationRemainOrdinaryRoutes(t *testing
 		allowed      bool
 	}{
 		{http.MethodGet, "/v1/identity/status", true},
+		{http.MethodGet, "/v1/notes?scope=company", true},
+		{http.MethodGet, "/v1/notes?scope=agent&target=agent_fixture", true},
+		{http.MethodGet, "/v1/note-context?project=project_fixture", true},
+		{http.MethodPost, "/v1/notes", true},
+		{http.MethodPut, "/v1/notes", false},
+		{http.MethodDelete, "/v1/notes", false},
+		{http.MethodPost, "/v1/note-context", false},
+		{http.MethodGet, "/v1/notes/private", false},
+		{http.MethodPost, "/v1/notes?scope=company", false},
+		{http.MethodGet, "/v1/notes?scope=agent&scope=company", false},
+		{http.MethodGet, "/v1/notes?scope=agent&actor=agent_other", false},
+		{http.MethodGet, "/v1/note-context?agent=agent_other", false},
+		{http.MethodGet, "/v1/note-context?project=project_a&project=project_b", false},
+		{http.MethodGet, "/v1/note-context?project=%zz", false},
 		{http.MethodPost, "/v1/agents/agent_fixture/revoke", true},
 		{http.MethodPost, "/v1/agents/agent_fixture/authentication", true},
 		{http.MethodGet, "/v1/agents/agent_fixture/screens", true},
@@ -111,7 +125,16 @@ func TestWorkerProxyForwardsExactDiagnosticAndOperationRoutes(t *testing.T) {
 			}
 		}
 		forwarded <- recordedRequest{request.Clone(context.Background()), body}
-		data, _ := json.Marshal(domain.AgentOperation{Version: domain.AgentOperationVersion, ID: "message_fixture", State: "queued", CreatedAt: 1800000000, ExpiresAt: 1800000900, ServerObservedAt: 1800000002})
+		var value any = domain.AgentOperation{Version: domain.AgentOperationVersion, ID: "message_fixture", State: "queued", CreatedAt: 1800000000, ExpiresAt: 1800000900, ServerObservedAt: 1800000002}
+		switch request.URL.Path {
+		case "/v1/notes":
+			value = domain.Note{ID: "note_company", Scope: domain.CompanyNotes}
+		case "/v1/note-context":
+			value = []domain.Note{{ID: "note_company", Scope: domain.CompanyNotes},
+				{ID: "note_project_fixture", Scope: domain.ProjectNotes, TargetID: "project_fixture"},
+				{ID: "note_agent_fixture", Scope: domain.AgentNotes, TargetID: "agent_fixture"}}
+		}
+		data, _ := json.Marshal(value)
 		envelope, _ := json.Marshal(api.Envelope{OK: true, Data: data, Warnings: []string{}})
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}, "X-Fdn-Api-Version": {strconv.Itoa(domain.APIVersion)}, "X-Identity-Proof": {"fixture-private-proof"}, "Set-Cookie": {"fixture-private-cookie"}}, Body: io.NopCloser(bytes.NewReader(envelope)), Request: request}, nil
 	}
@@ -130,6 +153,9 @@ func TestWorkerProxyForwardsExactDiagnosticAndOperationRoutes(t *testing.T) {
 		body         any
 	}{
 		{http.MethodPost, "/v1/agents/agent_fixture/status", domain.AgentStatusRequest{Command: domain.Command{OperationID: "status-fixture"}, Text: &publicText}},
+		{http.MethodGet, "/v1/notes?scope=company", nil},
+		{http.MethodGet, "/v1/note-context?project=project_fixture", nil},
+		{http.MethodPost, "/v1/notes", domain.NoteRequest{Command: domain.Command{OperationID: "note-fixture"}, Scope: domain.CompanyNotes, Content: &publicText, Reason: "Set shared company notes"}},
 		{http.MethodGet, "/v1/agents/agent_fixture/diagnostics", nil},
 		{http.MethodGet, "/v1/messages/message_fixture/diagnostics", nil},
 		{http.MethodGet, "/v1/agent-operations?limit=10&cursor=opaque_cursor", nil},
