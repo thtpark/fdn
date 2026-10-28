@@ -14,6 +14,14 @@ statements. Those statements remain historical schema definitions, not an
 importer or permission to adopt an older installation. Later schema changes
 must append a new migration and preserve current-format state.
 
+The current source appends SQL6 for shared company/project/agent Markdown notes
+and their scoped update triggers. SQL5 databases upgrade transactionally without
+rewriting existing records, messages, receipts or identity/work fences; local
+SQL1, API/schema2, native protocol2 and backup manifest2 remain unchanged.
+Upgrade Foundation before note-aware workers. A SQL5 binary cannot open a SQL6
+database: binary rollback is not database rollback. Notes are deliberate shared
+publication, not migration or automatic upload of private local knowledge.
+
 Removing compatibility does not authorize deleting installations, credentials,
 backups, journals, identity/account reservations or operation evidence.
 

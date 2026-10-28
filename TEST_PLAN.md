@@ -282,7 +282,8 @@ their tests; planned/unimplemented cases must not be described as covered.
 | Identity registration/recovery | Current signed public-key possession, Founder-only new registration, canonical-key/request/account/UID uniqueness, exact activation challenge/replay, retired generations, fresh-key enrolled identity recovery and root-local-only Founder recovery |
 | Tasks/policy | Named/independent eligibility, project epochs, invalidation, status gates, concurrent stale revisions, exact execution/verification claims/reports; verifier's current spec/result/discussion/epoch, independent own-provider selection, shared server slot, atomic feedback/rework approval, revoked authority/Founder pause and no self-acceptance |
 | Discussions/messages | Creator-only edits, literal mention/body generation, requested answers, private recipients, no automatic protected replies |
-| Persistence/restore | Current SQL5 reopen, prebaseline/future schema rejection without mutation, current backup manifest2 only, prepublication ALL-identity/owner/key quarantine, missing-binding refusal, enrolled restored Founder root-private fresh-key recovery retaining ID/history, regular fresh-key reapproval, unchanged mode/uncertain work, atomic failures, immutable operations, three-history bounds, integrity |
+| Shared scoped notes | Founder-only company edits; current active-project delegates; self/Founder and assignment-bounded non-Founder agent edits; revocation/archive/reassignment/terminal-task denial; exact revisions/replay, explicit clear, 64 KiB boundary, three histories, bodyless scoped updates; all task phases and independent reviewer's own context; next-call refresh, retained snapshots, missing-context failure and private knowledge separation |
+| Persistence/restore | SQL5-to-SQL6 notes migration and current SQL6 reopen, prebaseline/future schema rejection without mutation, current backup manifest2 only, prepublication ALL-identity/owner/key quarantine, missing-binding refusal, enrolled restored Founder root-private fresh-key recovery retaining ID/history, regular fresh-key reapproval, unchanged mode/uncertain work, atomic failures, immutable operations, three-history bounds, integrity |
 | Worker/controller | One slot across manual/service/session/execution/verification, onboarding once, no idle inference, partial results/questions, retry/backoff/budget, offline report replay and no duplicate inference/review/merge; prepared review reply, claim-ack recovery, uncertain verifier failure, discussion/mode/workspace cancellation, disabled-binding preservation and manual resolution |
 | Providers/processes | Exact required flags, text tool isolation, prompt through stdin, private/bounded output, version/model pinning, cancellation of owned descendants, failed signed staging retains previous version; actual login PATH/bare command versions, profile preservation/collisions, current-version dispatch and real foreground-terminal input; advertised Codex/Copilot device-flow selection, legacy fallback, bounded help-only probes, protected tmux/local TTY display and public-link versus credential handling; missing-authentication to real Founder/delegate inbox before onboarding without inference, private/protected notice fields, exact replay across restart/lost ack, explicit pending failures, 15-minute expiry/legacy deadlines, no automatic renewal or receipt revival, Founder-only typed refresh including paused/offline targets, scope/authority checks, no notification spam or auth inferred from receipt acknowledgement |
 | Sessions | Request != consent != explicit open, current scope/expiry/revocation, no public listener, restart retirement, cleanup fences |
@@ -297,6 +298,27 @@ their tests; planned/unimplemented cases must not be described as covered.
 Use existing helpers and one runner invocation with related selectors rather
 than repeatedly running the entire suite. Add faults/races at the actual
 transaction/process/network boundary, not just a proxy string assertion.
+
+## Shared company, project and agent notes
+
+```sh
+go test -race -count=1 -tags=integration ./internal/domain ./internal/foundation ./internal/api ./internal/cli ./internal/identityservice ./internal/work ./tests/integration -run 'Test(Note|AgentNotes|ScopedNotes|PublicIdentityStatusAndFounderRevocation|WorkerProxyForwardsExact|UpdateRouting)'
+go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeScopedNotesPersistAndReachBothProviderTaskPrompts$'
+go run ./tools/protocol --check
+```
+
+These regressions check transactional authority and competing revisions, exact
+content bounds/output shapes, current assignment/delegate fences, explicit
+clear versus missing content, bounded history/receipts, SQL5 record preservation
+and SQL6 reopen, strict binary/Unix-proxy selectors and CLI proposals.
+Real loopback server/controller fixtures observe actual prompts at onboarding,
+scope, acceptance, preflight, execution and independent verification, including
+fresh next-call notes after an in-call edit and immutable private journal hashes.
+Compiled CLI/runner/provider fixtures exercise both Codex and Copilot adapters.
+Private selected skills remain local, unrelated projects/agents are omitted,
+and notes never grant approval, cancel pinned calls or reset retry fences.
+These are source fixtures, not live model compliance, deployment, remote
+resource fetching, native fleet qualification or attachment-storage evidence.
 
 ## Delegated pull-request scenario
 

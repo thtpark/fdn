@@ -587,7 +587,7 @@ func TestSecurityOfflineRecoveryOfEnrolledFounderAndFutureSchema(t *testing.T) {
 		t.Fatal("legacy Founder recovery lost provenance", agent, err)
 	}
 	path := filepath.Join(securityDirectory(t), "private", "future.sqlite")
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, "SELECT 1;"}, 5)
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, "SELECT 1;"}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,13 +600,13 @@ func TestSecurityOfflineRecoveryOfEnrolledFounderAndFutureSchema(t *testing.T) {
 		t.Fatal("future schema was opened")
 	}
 	assertCode(t, err, domain.Prerequisite)
-	probe, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, "SELECT 1;"}, 5)
+	probe, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, "SELECT 1;"}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer probe.Close()
 	var version int
-	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 6 {
+	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 7 {
 		t.Fatal("future schema refusal modified retained database", version, err)
 	}
 }

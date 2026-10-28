@@ -61,8 +61,8 @@ VALUES(17,'message','message_z_first','','',0,103)`); err != nil {
 	}
 	defer s.Close()
 	var version int
-	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 5 {
-		t.Fatal("ordered mailbox migration did not advance to SQL5", version, err)
+	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 6 {
+		t.Fatal("ordered migrations did not advance to SQL6", version, err)
 	}
 	for table, hash := range before {
 		if got := securityTableHash(t, s.db, table); got != hash {

@@ -50,6 +50,9 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	if err != nil {
 		return err
 	}
+	if err := e.refreshNotes(ctx, &launch); err != nil {
+		return err
+	}
 	j, err := e.newJournal(launch, health, model)
 	if err != nil {
 		return err

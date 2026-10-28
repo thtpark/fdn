@@ -70,6 +70,10 @@ commands.
    global mode pause/resumption; delegates and target-local commands cannot.
    Deploy the server migration before new workers and preserve unexplained
    pauses for explicit Founder reconciliation, never silent resumption.
+   Current server SQL6 adds shared company/project/agent notes from the SQL5
+   floor without rewriting retained records. Note-aware workers require the new
+   note-context query before inference; never substitute empty guidance when an
+   old/offline server cannot provide it. SQL5 binaries cannot read SQL6.
    A restored snapshot quarantines every identity/owner/key epoch; root-private
    fresh Founder recovery retains its ID/history, then Founder reapproves regulars
    with fresh signed keys. Current manifest2/SQL5 restore never reactivates old

@@ -590,6 +590,27 @@ message Go_ModeRequest {
   String reason = 4;
 }
 
+message Go_Note {
+  String id = 1;
+  String scope = 2;
+  String target_id = 3;
+  String content = 4;
+  Signed revision = 5;
+  String created_by = 6;
+  Signed created_at = 7;
+  String updated_by = 8;
+  Signed updated_at = 9;
+}
+
+message Go_NoteRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String scope = 3;
+  String target_id = 4;
+  String content = 5;
+  String reason = 6;
+}
+
 message Go_OwnerCertificate {
   String certificate = 1;
   Signed generation = 2;
@@ -1343,6 +1364,16 @@ message List_Go_ModeRequest {
   bool present = 2;
 }
 
+message List_Go_Note {
+  repeated Go_Note items = 1;
+  bool present = 2;
+}
+
+message List_Go_NoteRequest {
+  repeated Go_NoteRequest items = 1;
+  bool present = 2;
+}
+
 message List_Go_OwnerCertificate {
   repeated Go_OwnerCertificate items = 1;
   bool present = 2;
@@ -1850,6 +1881,16 @@ message List_Page_Go_MessageWorkerReply {
 
 message List_Page_Go_ModeRequest {
   repeated Page_Go_ModeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_Note {
+  repeated Page_Go_Note items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_NoteRequest {
+  repeated Page_Go_NoteRequest items = 1;
   bool present = 2;
 }
 
@@ -2701,6 +2742,26 @@ message Map_Go_ModeRequest {
 message Map_Go_ModeRequest_Entry {
   optional string key = 1;
   Go_ModeRequest value = 2;
+}
+
+message Map_Go_Note {
+  repeated Map_Go_Note_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_NoteRequest {
+  repeated Map_Go_NoteRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_NoteRequest_Entry {
+  optional string key = 1;
+  Go_NoteRequest value = 2;
+}
+
+message Map_Go_Note_Entry {
+  optional string key = 1;
+  Go_Note value = 2;
 }
 
 message Map_Go_OwnerCertificate {
@@ -3723,6 +3784,26 @@ message Map_Page_Go_ModeRequest_Entry {
   Page_Go_ModeRequest value = 2;
 }
 
+message Map_Page_Go_Note {
+  repeated Map_Page_Go_Note_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_NoteRequest {
+  repeated Map_Page_Go_NoteRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_NoteRequest_Entry {
+  optional string key = 1;
+  Page_Go_NoteRequest value = 2;
+}
+
+message Map_Page_Go_Note_Entry {
+  optional string key = 1;
+  Page_Go_Note value = 2;
+}
+
 message Map_Page_Go_OwnerCertificate {
   repeated Map_Page_Go_OwnerCertificate_Entry items = 1;
   bool present = 2;
@@ -4465,6 +4546,16 @@ message Page_Go_MessageWorkerReply {
 
 message Page_Go_ModeRequest {
   List_Go_ModeRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_Note {
+  List_Go_Note items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_NoteRequest {
+  List_Go_NoteRequest items = 1;
   String next_cursor = 2;
 }
 

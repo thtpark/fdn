@@ -198,6 +198,13 @@ func (f *pushFixture) RoundTrip(request *http.Request) (*http.Response, error) {
 			return f.response(domain.Agent{ID: "agent_founder", Active: true, Founder: true}, nil)
 		case "/v1/ownership":
 			return f.response([]domain.Task{}, nil)
+		case "/v1/note-context":
+			notes := []domain.Note{{ID: "note_company", Scope: domain.CompanyNotes}}
+			if project := request.URL.Query().Get("project"); project != "" {
+				notes = append(notes, domain.Note{ID: "note_" + project, Scope: domain.ProjectNotes, TargetID: project})
+			}
+			notes = append(notes, domain.Note{ID: "note_" + f.me.ID, Scope: domain.AgentNotes, TargetID: f.me.ID})
+			return f.response(notes, nil)
 		case "/v1/sessions":
 			return f.response([]domain.Session{}, nil)
 		case "/v1/projects":
@@ -338,6 +345,7 @@ func TestUpdateRoutingSeparatesControlAndSessionDiscovery(t *testing.T) {
 		{"attention", "entry_one", updateWork},
 		{"comment", "entry_one", updateWork},
 		{"worklog", "entry_one", updateWork},
+		{"note", "note_company", updateWork},
 		{"future-invalidation", "future_one", initialUpdateTargets},
 	} {
 		t.Run(item.topic+item.source, func(t *testing.T) {

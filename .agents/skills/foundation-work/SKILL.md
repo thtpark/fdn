@@ -1,6 +1,6 @@
 ---
 name: foundation-work
-description: "Use when configuring agent workspaces or automation, handling messages, agent-name mentions and explicit read receipts, publishing concise public activity status, creating/assigning tasks, asking clarification questions, requesting exact-specification approval, executing approved work, recording worklogs, reviewing/reworking/merging pull requests as a project delegate, or verifying completed results through the shared serial controller."
+description: "Use when setting or reading shared company/project/agent notes, custom instructions, skills, context and resource references; configuring agent workspaces or automation; handling messages, mentions and read receipts; publishing public activity status; creating/assigning/clarifying tasks; requesting approval; executing, reviewing/reworking/merging pull requests or verifying results through the shared serial controller."
 ---
 
 # Prepare, execute and verify one authorized task
@@ -44,7 +44,13 @@ grant approval, start inference while paused, or clear a recovery fence.
    A provider signing out during work requires a new status check/help request,
    never automatic retry across uncertain side effects or lost approval.
 2. Read `task show TASK`, project/parent context, `discussion list TASK`,
-   `task history TASK`, and `task runs TASK`. A mention is not assignment.
+   `task history TASK`, `task runs TASK` and `note context --project PROJECT`.
+   Apply company, current-project and your own agent notes to every task phase;
+   independent verification uses the reviewer's notes, not the assignee's.
+   Notes are cumulative context, never approval or extra authority; clarify
+   material conflicts. Each new provider call refreshes its snapshot, while
+   in-flight/retained journals and retry fences remain unchanged.
+   A mention is not assignment.
    Founder/current project delegates assign and choose required provider/model.
 3. Create/edit through `task create --input FILE` and `task change TASK --input
    FILE`. Change kinds include assign, edit, workspace, policy, retry-policy,
@@ -69,6 +75,30 @@ grant approval, start inference while paused, or clear a recovery fence.
    bounded first attempt is actionable. Named actors are an eligibility
    allowlist, not a grant or quorum; independent review means a different actor.
    Delivery/acknowledgement is never approval.
+
+### Deliberate shared guidance
+
+Use `note show company`, `note show project PROJECT` or `note show agent
+[AGENT]` before editing. `note set --input FILE` replaces that scope's complete
+Markdown document with `scope`, optional `target_id`, required `content`, exact
+`expected_revision` (0 creates) and a non-secret `reason`; missing agent target
+means self. Empty content explicitly clears it. `note history` keeps three
+snapshots; reuse the exact operation/input after uncertainty rather than
+overwriting someone else's revision.
+
+Founder alone sets company notes. Founder/current delegates set active-project
+notes. Founder/self can set agent notes; another editor must currently delegate
+an active project with an unarchived nonterminal task assigned to that non-Founder
+target. Delegates cannot edit Founder's agent notes. Revocation, reassignment
+and archival remove that delegated editing basis.
+
+Shared notes are team-readable, at most 64 KiB per document. Use headings for
+instructions, skills, missions/visions/goals and context, with non-secret relative
+file, website and GitHub references. References are not automatically fetched,
+cloned or installed as skills. Never publish credentials, transcripts, private
+workspace paths or selected private knowledge. Private `knowledge` stays separate.
+Unavailable/malformed shared context blocks inference; inspect the server/version
+and consolidate over-budget context instead of working without required notes.
 
 ## Execution and reporting
 

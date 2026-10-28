@@ -73,6 +73,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.agentCommand(ctx, r, tail)
 	case "project":
 		return a.projectCommand(ctx, r, tail)
+	case "note":
+		return a.noteCommand(ctx, r, tail)
 	case "task":
 		return a.taskCommand(ctx, r, tail)
 	case "comment", "worklog", "discussion":

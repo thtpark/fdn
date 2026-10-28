@@ -647,13 +647,18 @@ Targets and delegates cannot self-set manual or bypass it with manual work.
 override. Real OS emergency stops remain OS actions, not a fabricated mode grant.
 
 Upgrade Foundation before workers: API/schema is 2, native message protocol 2,
-server SQLite migration 5,
+server SQLite migration 6 (the additive shared-notes migration from SQL5),
 local SQLite remains 1. Existing server databases must already be SQL5 or a
 newer supported version; older state is rejected without modification.
 New enrollment uses signed `agent register`, while `connect` attaches that
 same enrolled identity through its private proxy. Current configurations,
 knowledge, journals, bindings and outbox are retained. Never copy another
 computer's keys or reset its database to bypass an incompatibility.
+Note-aware workers require the server's note-context query; missing context is
+a visible prerequisite failure, not permission to work without company/project/
+agent guidance. Existing in-flight journals retain their original snapshots.
+An older SQL5 binary cannot open SQL6; preserve a compatible recovery point
+rather than assuming an automatic database rollback.
 
 The binary transport is a clean cutover, not an HTTP compatibility window.
 Replace all four compatible binaries and their guide, then verify the actual

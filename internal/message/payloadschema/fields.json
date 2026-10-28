@@ -1763,6 +1763,70 @@
       "name": "reason"
     }
   },
+  "Note": {
+    "Content": {
+      "id": 4,
+      "name": "content"
+    },
+    "CreatedAt": {
+      "id": 7,
+      "name": "created_at"
+    },
+    "CreatedBy": {
+      "id": 6,
+      "name": "created_by"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Revision": {
+      "id": 5,
+      "name": "revision"
+    },
+    "Scope": {
+      "id": 2,
+      "name": "scope"
+    },
+    "TargetID": {
+      "id": 3,
+      "name": "target_id"
+    },
+    "UpdatedAt": {
+      "id": 9,
+      "name": "updated_at"
+    },
+    "UpdatedBy": {
+      "id": 8,
+      "name": "updated_by"
+    }
+  },
+  "NoteRequest": {
+    "Content": {
+      "id": 5,
+      "name": "content"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 6,
+      "name": "reason"
+    },
+    "Scope": {
+      "id": 3,
+      "name": "scope"
+    },
+    "TargetID": {
+      "id": 4,
+      "name": "target_id"
+    }
+  },
   "OwnerCertificate": {
     "Certificate": {
       "id": 1,

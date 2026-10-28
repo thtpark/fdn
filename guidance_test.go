@@ -115,6 +115,33 @@ func TestGuideDocumentsCurrentUserWorkerOwnership(t *testing.T) {
 	}
 }
 
+func TestGuideDocumentsScopedNotesAndStatePreservation(t *testing.T) {
+	for file, fragments := range map[string][]string{
+		"AGENTS.md":    {"note context --project PROJECT_ID", "retained/in-flight journals and retry fences stay unchanged"},
+		"COMMANDS.md":  {"note set", "65,536 UTF-8 bytes", "revoked delegation", "References are not automatically downloaded", "verification uses the reviewer's notes"},
+		"SCHEMA.md":    {"SQL6", "Notes changes do not mutate", "Launch.shared_notes", "private local knowledge"},
+		"MIGRATION.md": {"SQL5 databases upgrade transactionally", "A SQL5 binary cannot open a SQL6 database"},
+		"TEST_PLAN.md": {"TestNativeScopedNotesPersistAndReachBothProviderTaskPrompts", "not live model compliance"},
+		".agents/skills/foundation-work/SKILL.md":    {"shared company/project/agent notes", "note context --project PROJECT", "private `knowledge` stays separate"},
+		".agents/skills/foundation-install/SKILL.md": {"Current server SQL6", "SQL5 binaries cannot read SQL6"},
+	} {
+		data, err := guidance.Read(file)
+		if err != nil {
+			t.Fatal(file, err)
+		}
+		text := strings.Join(strings.Fields(string(data)), " ")
+		for _, fragment := range fragments {
+			if !strings.Contains(strings.ToLower(text), strings.ToLower(fragment)) {
+				t.Fatal("embedded guide lost the scoped-notes contract", file, fragment)
+			}
+		}
+	}
+	context, err := guidance.WorkContext()
+	if err != nil || !strings.Contains(context, "note context --project") || !strings.Contains(context, "in-flight/retained journals") {
+		t.Fatal("shared task prompts omitted scoped-notes guidance", err)
+	}
+}
+
 func TestInstallPreservesInstructionsUnrelatedSkillsAndIdempotency(t *testing.T) {
 	home := filepath.Join(t.TempDir(), "home")
 	if err := os.Mkdir(home, 0755); err != nil {

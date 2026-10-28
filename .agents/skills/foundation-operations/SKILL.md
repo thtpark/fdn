@@ -79,6 +79,14 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    revision, explicit selection/archive and useful consolidation. `inventory
    refresh` is native read-only observation, not a network scan or proof of OS/
    provider permission. Do not automatically publish any of it.
+   Shared notes are separate: inspect `note context --project PROJECT` or
+   `note show company|project PROJECT|agent [AGENT]`, then use `note set --input
+   FILE` with exact revision/content/reason and current scope authority.
+   Founder alone edits company guidance; project delegates cannot edit unrelated
+   agents or Founder. Notes are team-readable context, not permissions; no
+   automatic resource fetching or promotion of private knowledge occurs.
+   Missing note context blocks new inference; verify the SQL6-capable server
+   before workers, preserving in-flight snapshots and retry/recovery fences.
 8. For backup, generate/store the age private identity off-host, retain its
    public recipient, and use `fdn-service backup --output FILE --recipient
    RECIPIENT`. Restore only to a fresh directory with the private identity
