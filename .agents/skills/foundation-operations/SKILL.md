@@ -58,6 +58,14 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    Founder can use `mode set` for its own mode only. Inspect
    pending reports/session fences before OS stop/restart. Do not reboot active
    work just to make a diagnostic pass.
+   For an explicitly authorized runtime reset, Founder alone uses
+   `agent reset AGENT_ID --input FILE` with a non-secret reason, including itself.
+   Inspect `agent operation REQUEST_ID` and actual health. The target joins owned
+   daemon work/sessions and reinitializes its runtime, not native OS services or
+   identity. Keep mode, sign-in, notes/workspaces/history and journals/outbox;
+   unknown legacy cleanup, uncertainty, pending work/reports and maintenance
+   remain operator-required. Reuse the exact operation/input after uncertainty;
+   reset-interrupted never authorizes cancelling newer work again.
 5. Reconcile lost acknowledgements with the same operation and original input.
    Prepared reports replay without repeated inference. Unknown side effects
    stay fenced; no timeout takeover or fresh run ID resets retry authority.

@@ -21,6 +21,19 @@ func (s *Store) RequestDiagnosticRefresh(ctx context.Context, actor, target stri
 	return s.agentOperationResponse(ctx, actor, operation, err, false)
 }
 
+func (s *Store) RequestAgentReset(ctx context.Context, actor, target string, req domain.AgentResetRequest) (domain.AgentOperation, error) {
+	operation, err := mutate(ctx, s, actor, "agent-operation.runtime-reset:"+target, req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.AgentOperation, error) {
+		if !a.Founder {
+			return domain.AgentOperation{}, domain.Fail(domain.Denied, "only Founder may reset an agent runtime")
+		}
+		if err := domain.ValidateAgentResetRequest(req); err != nil {
+			return domain.AgentOperation{}, err
+		}
+		return s.createAgentOperation(ctx, tx, a, target, "runtime-reset", req.Reason, "", "")
+	})
+	return s.agentOperationResponse(ctx, actor, operation, err, false)
+}
+
 func (s *Store) RequestSessionRecovery(ctx context.Context, actor, target string, req domain.SessionRecoveryRequest) (domain.AgentOperation, error) {
 	operation, err := mutate(ctx, s, actor, "agent-operation.session-recovery:"+target, req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.AgentOperation, error) {
 		if !a.Founder {
@@ -61,7 +74,7 @@ func (s *Store) createAgentOperation(ctx context.Context, tx *sql.Tx, requester 
 		return domain.AgentOperation{}, err
 	}
 	message := domain.Message{ID: operation.ID, SenderID: requester.ID, RecipientID: target.ID,
-		Body:   "Founder requested a protected runtime inspection or exact closed-session fence check. Only the agent-operation protocol may process this control; it is not model context or work, sign-in, retry, mode, or spending permission.",
+		Body:   "Founder requested a protected runtime inspection, reset or exact closed-session fence check. Only the agent-operation protocol may process this control; it is not model context or work, sign-in, retry, mode, or spending permission.",
 		Origin: "service", Kind: "agent-operation", Urgent: true, State: "pending", CreatedAt: now, ExpiresAt: operation.ExpiresAt, Revision: operation.Revision, AgentOperation: &operation}
 	if _, err := insertMessage(ctx, tx, message); err != nil {
 		return domain.AgentOperation{}, err

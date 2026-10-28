@@ -7,6 +7,12 @@ import (
 )
 
 func (s *Server) agentOperationRoutes() {
+	body(s, "POST /v1/agents/{id}/reset", false, func(r *operationRequest, a domain.Agent, req domain.AgentResetRequest) (domain.AgentOperation, error) {
+		if r.URL.RawQuery != "" {
+			return domain.AgentOperation{}, domain.Fail(domain.Invalid, "agent reset does not accept query parameters")
+		}
+		return s.Store.RequestAgentReset(r.Context(), a.ID, r.PathValue("id"), req)
+	})
 	body(s, "POST /v1/agents/{id}/diagnostics", false, func(r *operationRequest, a domain.Agent, req domain.DiagnosticRefreshRequest) (domain.AgentOperation, error) {
 		if r.URL.RawQuery != "" {
 			return domain.AgentOperation{}, domain.Fail(domain.Invalid, "agent operation requests do not accept query parameters")

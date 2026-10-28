@@ -933,6 +933,30 @@ session/message access. Safe results omit stdout/raw errors, process arguments,
 credentials and workspace paths. See the complete
 [command contract](COMMANDS.md#founder-diagnostic-refresh-and-exact-closed-session-recovery).
 
+## Founder runtime reset
+
+For an explicitly requested runtime reset, use the installed Founder CLI's
+`agent reset AGENT_ID --input FILE` with a non-secret `reason`, stable operation
+ID and the same retained input after uncertainty. Only Founder may submit it;
+Founder can also target itself. Inspect `agent operation REQUEST_ID` and then
+`agent diagnose AGENT_ID`; queued acceptance is not execution.
+
+Reset cancels/joins work and sessions owned by the responsive target daemon,
+retries exact owned cleanup and reinitializes its in-process supervisor/work
+scheduling. It preserves identity, provider sign-in, mode, notes, workspaces,
+history, journals/outbox and retry authority. It is not a native service restart,
+factory reset, reenrollment or login. Unknown legacy cleanup, another process's
+occupied slot, uncertainty, prepared results, undelivered reports and maintenance
+remain `operator-required`; no evidence is deleted to force success. An offline
+daemon cannot run reset and the fixed 15-minute request may expire.
+
+The final success state is `reset`; a started reset without a final durable
+receipt returns `reset-interrupted` on replay rather than cancelling newer work.
+The [complete command contract](COMMANDS.md#founder-only-runtime-reset) explains
+inputs, preserved state, bounded cleanup, exact replay and evidence limits.
+Reset requires a version supporting this command, route and target control.
+Its reason-only payload preserves the current native handshake fingerprint.
+
 ## Providers and protected handoffs
 
 Install exact approved versions or explicitly update through the CLI. Managed

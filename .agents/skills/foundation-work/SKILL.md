@@ -184,6 +184,13 @@ and consolidate over-budget context instead of working without required notes.
   a delegate may itself be an AI, not a replacement human.
 - After an uncertain write preserve operation/proposal and reconcile, not
   overwrite. Lost report acknowledgements replay without another model call.
+- Only Founder may request `agent reset AGENT_ID --input FILE` with a non-secret
+  reason, including Founder self-reset. It cancels/joins daemon-owned work and
+  sessions and reinitializes that runtime while preserving mode, identity,
+  sign-in, notes/workspaces/history and journals/outbox. Unknown ownership,
+  uncertain results, prepared work/reports and maintenance remain operator-required.
+  Inspect `agent operation REQUEST_ID`; queued is not completed, and neither a
+  reset nor its exact replay grants a retry, spending or native-service restart.
 - An interrupted process remains fenced. Only after confirming its entire
   process tree stopped use `work recover --journal INVOCATION
   --acknowledge-stopped`; this does not authorize retry. Current exact unsafe

@@ -53,6 +53,20 @@ regressions, not a complete inventory of all Foundation tests. IDs identify
 contracts rather than test counts: a row may have several table-driven variants,
 and each end-to-end checkpoint runs inside the same native scenario.
 
+### RESET-001: Founder-only identity-preserving runtime reset
+
+**Automation:** `TestNativeFounderOnlyRuntimeResetIncludingSelf` in
+[runtime_reset_test.go](runtime_reset_test.go). Run with
+`go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeFounderOnlyRuntimeResetIncludingSelf$'`.
+Founder queues an exact reason-only reset for a paused worker and itself,
+inspects the actual protected `reset` outcome, replays the original request and
+verifies non-Founder denial, unchanged identity/configuration/manual mode and
+no provider invocation journals. Tests own all local binaries/processes/state.
+Unknown legacy cleanup, uncertain-work retention and actual owned-session
+cancellation are separately exercised by the unit/loopback integration cases in
+[TEST_PLAN.md](../../TEST_PLAN.md#founder-only-runtime-reset), not certified as
+live native-service or production recovery.
+
 ### WF-001: Founder to delegate-reviewed merge
 
 **Automation:** `TestNativeDelegatedPullRequestWorkflow` in

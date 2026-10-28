@@ -365,9 +365,12 @@ remain visible after login; authentication resolves only its own observation.
 ## Founder diagnostic refresh and exact session recovery
 
 `AgentOperation` version **1** is a durable non-inference control for
-`diagnostics` or `session-recovery`. Founder alone creates it through
+`diagnostics`, `session-recovery` or `runtime-reset`. Founder alone creates it through
 `POST /v1/agents/{id}/diagnostics` (`DiagnosticRefreshRequest`) or
-`POST /v1/agents/{id}/repairs` (`SessionRecoveryRequest`). Creation command
+`POST /v1/agents/{id}/repairs` (`SessionRecoveryRequest`), or
+`POST /v1/agents/{id}/reset` (`AgentResetRequest`). Reset uses an alias of the
+existing reason-only envelope, preserving the locked native payload fingerprint.
+Creation command
 metadata requires a stable `operation_id` and no optimistic revision. The
 server binds immutable requester/target key generations, reason and creation
 plus exactly 900 seconds of lifespan; a repair also binds exact `session_id` and
@@ -401,7 +404,7 @@ queued/checking controls; only that target may report safe typed results to
 operation expiry are rechecked. Exact submission/report retries retain their
 original request fingerprints and receipts.
 
-States are `queued`, `checking`, `refreshed`, `recovered`, `rejected`,
+States are `queued`, `checking`, `refreshed`, `recovered`, `reset`, `rejected`,
 `operator-required` and `expired`. A queued offline/dead daemon is not fresh
 success; the server cannot restart it through this API. Results carry only safe
 `code`, server-anchored `captured_at`, `mode_at_check`, `automation_may_resume`
@@ -413,6 +416,23 @@ arguments, credentials, transcripts or workspace paths. A provider value of
 an observation, not an inference or completed work. Health/phase and provider
 observations keep independent timestamps rather than overwriting an in-flight
 work phase.
+
+Runtime reset explicitly permits cancellation of the target daemon's owned work
+and interactive session, including Founder self-reset, without changing mode.
+It gates new in-process admission, joins owned controller/session contexts,
+retries exact owned cleanup and checks the shared `work.lock`. The 30-second
+cancellation/join wait is also bounded by remaining server-clock authority;
+native proof retirement retains its existing bounded finalization procedure.
+A free runtime can report `reset`/`runtime-reset`; a proven terminal fence is
+retired atomically with that receipt. The session supervisor and work scheduling
+are reinitialized without restarting native services or the identity owner.
+Uncertain journals, prepared work/results, pending outbox reports, maintenance,
+another process's occupied slot and unproved legacy ownership are retained as
+`operator-required`, not reset success. No identity/provider/knowledge/workspace/
+task data, approvals, retry budget or mode is erased or renewed. The private
+`agent-reset-start:` receipt prevents an interrupted reset from cancelling newer
+work on replay; such a missing final result becomes `reset-interrupted`.
+Local SQL1, server SQL6, API/schema2 and native protocol2 remain unchanged.
 
 The independent worker control loop handles controls while paused, fenced or
 busy, without provider inference or ordinary model/slot admission. Refresh is

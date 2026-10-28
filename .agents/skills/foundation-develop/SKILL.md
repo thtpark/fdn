@@ -79,6 +79,12 @@ The checkout's root documents are canonical; no old source tree is required.
    timing for capture/expiry, not target wall time.
    Preserve raw private evidence and test narrow real Unix-proxy method/depth/
    query/header boundaries without forwarding caller identity.
+   Founder-only runtime reset uses `agent reset AGENT --input FILE` and the same
+   protected results, including Founder self-targeting. Keep the existing
+   reason-only native envelope, bounded joined owned work/session cancellation,
+   unchanged mode/identity/authentication/data and uncertain journal/outbox fences.
+   Persist reset start/result evidence; replay must not cancel newer work.
+   This is not factory reset, native restart, force-clear or retry authority.
 7. Native coordination uses bounded protobuf over SSH/mTLS and Unix IPC, not
    HTTP/gRPC or a downgrade path. Preserve kernel-derived principals and
    narrow typed capabilities; UID alone is not a key-generation proof.

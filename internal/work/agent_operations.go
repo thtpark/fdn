@@ -185,7 +185,7 @@ func (e *Engine) currentAgentOperation(ctx context.Context, id string) (domain.A
 	}
 	clock.serverAt = operation.ServerObservedAt
 	if operation.Version != domain.AgentOperationVersion || operation.ID != id || operation.TargetID != e.Client.Credential.AgentID ||
-		!domain.ValidOperation(operation.ID) || operation.Revision < 1 || operation.ServerObservedAt <= 0 || !slices.Contains([]string{"diagnostics", "session-recovery"}, operation.Kind) {
+		!domain.ValidOperation(operation.ID) || operation.Revision < 1 || operation.ServerObservedAt <= 0 || !slices.Contains([]string{"diagnostics", "session-recovery", "runtime-reset"}, operation.Kind) {
 		return operation, domain.Agent{}, clock, domain.Fail(domain.Denied, "agent operation does not match this enrolled worker")
 	}
 	me, err := api.Call[domain.Agent](ctx, e.Client, http.MethodGet, "/v1/me", nil)
@@ -265,6 +265,9 @@ func (e *Engine) handleAgentOperation(ctx context.Context, id string) (bool, err
 		}
 		return false, e.recordAgentOperationResult(ctx, operation, me, "refreshed", "observations-collected", observation)
 	}
+	if operation.Kind == "runtime-reset" {
+		return e.resetAgentRuntime(ctx, c, operation, me)
+	}
 	return e.recoverAgentSession(ctx, c, operation, me)
 }
 
@@ -339,12 +342,12 @@ func (e *Engine) operationReceipt(ctx context.Context, operation domain.AgentOpe
 	if captured <= 0 {
 		return local.AgentOperationReceipt{}, domain.Fail(domain.Prerequisite, "agent operation capture lacks a current authenticated server clock")
 	}
-	if captured >= operation.ExpiresAt && state == "refreshed" {
+	if captured >= operation.ExpiresAt && (state == "refreshed" || state == "reset") {
 		state, code, observation = "expired", "operation-expired", nil
 	}
 	return local.AgentOperationReceipt{Version: domain.AgentOperationVersion, OperationID: operation.ID, RequestHash: fingerprint, DeliveryState: "pending",
 		Report: domain.AgentOperationReport{Command: domain.Command{OperationID: operation.ID + ".result", ExpectedRevision: operation.Revision}, State: state,
-			Result: &domain.AgentOperationResult{Code: code, CapturedAt: captured, ModeAtCheck: me.Mode, AutomationMayResume: state == "recovered" && me.Mode == "ai", Observation: observation}}}, nil
+			Result: &domain.AgentOperationResult{Code: code, CapturedAt: captured, ModeAtCheck: me.Mode, AutomationMayResume: (state == "recovered" || state == "reset") && me.Mode == "ai", Observation: observation}}}, nil
 }
 
 func (e *Engine) recordAgentOperationResult(ctx context.Context, operation domain.AgentOperation, me domain.Agent, state, code string, observation *domain.AgentInspection) error {

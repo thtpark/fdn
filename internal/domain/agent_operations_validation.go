@@ -6,6 +6,10 @@ func ValidateDiagnosticRefreshRequest(req DiagnosticRefreshRequest) error {
 	return validateAgentOperationRequest(req.Command, req.Reason)
 }
 
+func ValidateAgentResetRequest(req AgentResetRequest) error {
+	return validateAgentOperationRequest(req.Command, req.Reason)
+}
+
 func ValidateSessionRecoveryRequest(req SessionRecoveryRequest) error {
 	if err := validateAgentOperationRequest(req.Command, req.Reason); err != nil {
 		return err
@@ -24,7 +28,7 @@ func validateAgentOperationRequest(command Command, reason string) error {
 }
 
 func AgentOperationTerminal(state string) bool {
-	return slices.Contains([]string{"refreshed", "recovered", "rejected", "operator-required", "expired"}, state)
+	return slices.Contains([]string{"refreshed", "recovered", "reset", "rejected", "operator-required", "expired"}, state)
 }
 
 func TerminalSessionState(state string) bool {
@@ -36,6 +40,7 @@ func ValidAgentOperationCode(code string) bool {
 		"observations-collected", "configuration-unavailable", "slot-occupied", "session-live",
 		"session-unavailable", "fence-mismatch", "cleanup-unproven", "session-recovered",
 		"operation-expired", "authority-changed", "unsupported-operation", "inspection-unavailable", "recovery-unavailable",
+		"runtime-reset", "reset-interrupted", "invocation-uncertain", "work-pending", "report-pending", "maintenance-active", "runtime-unavailable",
 	}, code)
 }
 
@@ -111,8 +116,8 @@ func ValidateAgentOperationReport(req AgentOperationReport) error {
 			return err
 		}
 	}
-	if r.AutomationMayResume && (req.State != "recovered" || r.ModeAtCheck != "ai") {
-		return Fail(Invalid, "only an exact recovered session in ai mode may indicate automation eligibility")
+	if r.AutomationMayResume && (!slices.Contains([]string{"recovered", "reset"}, req.State) || r.ModeAtCheck != "ai") {
+		return Fail(Invalid, "only a recovered or reset runtime in ai mode may indicate automation eligibility")
 	}
 	if r.Code == "cleanup-unproven" && req.State != "operator-required" {
 		return Fail(Invalid, "unproven session cleanup requires an explicit operator-required outcome")
@@ -126,16 +131,20 @@ func ValidateAgentOperationReport(req AgentOperationReport) error {
 		if r.Code != "session-recovered" || r.Observation == nil || r.Observation.WorkSlot != "free" || r.Observation.SessionFence == nil || !r.Observation.SessionFence.CleanupProven || r.Observation.SessionFence.RecoveryState != "recoverable" || !TerminalSessionState(r.Observation.SessionFence.SessionState) {
 			return Fail(Invalid, "recovered requires exact terminal-session cleanup evidence and a free slot")
 		}
+	case "reset":
+		if r.Code != "runtime-reset" || r.Observation == nil || r.Observation.WorkSlot != "free" || r.Observation.SessionFence != nil {
+			return Fail(Invalid, "reset requires a free runtime with no remaining session fence")
+		}
 	case "expired":
 		if r.Code != "operation-expired" {
 			return Fail(Invalid, "expired requires operation-expired")
 		}
 	case "operator-required":
-		if !slices.Contains([]string{"cleanup-unproven", "fence-mismatch", "session-unavailable", "recovery-unavailable", "inspection-unavailable", "configuration-unavailable", "slot-occupied"}, r.Code) {
+		if !slices.Contains([]string{"cleanup-unproven", "fence-mismatch", "session-unavailable", "recovery-unavailable", "inspection-unavailable", "configuration-unavailable", "slot-occupied", "reset-interrupted", "invocation-uncertain", "work-pending", "report-pending", "maintenance-active", "runtime-unavailable"}, r.Code) {
 			return Fail(Invalid, "operator-required requires a safe unresolved-evidence code")
 		}
 	case "rejected":
-		if slices.Contains([]string{"observations-collected", "session-recovered", "operation-expired"}, r.Code) {
+		if slices.Contains([]string{"observations-collected", "session-recovered", "runtime-reset", "operation-expired"}, r.Code) {
 			return Fail(Invalid, "rejected cannot assert completion or expiry")
 		}
 	}
@@ -147,13 +156,22 @@ func ValidateAgentOperationOutcome(operation AgentOperation, req AgentOperationR
 	if err := ValidateAgentOperationReport(req); err != nil {
 		return err
 	}
-	if operation.Version != AgentOperationVersion || !slices.Contains([]string{"diagnostics", "session-recovery"}, operation.Kind) {
+	if operation.Version != AgentOperationVersion || !slices.Contains([]string{"diagnostics", "session-recovery", "runtime-reset"}, operation.Kind) {
 		return Fail(Invalid, "agent operation version or kind is unsupported")
 	}
 	if req.Result == nil {
 		return nil
 	}
 	r := req.Result
+	if operation.Kind == "runtime-reset" {
+		if req.State == "refreshed" || req.State == "recovered" || slices.Contains([]string{"observations-collected", "session-recovered", "fence-mismatch", "session-live"}, r.Code) {
+			return Fail(Invalid, "runtime reset cannot report a diagnostic refresh or exact session repair")
+		}
+		return nil
+	}
+	if req.State == "reset" || slices.Contains([]string{"runtime-reset", "reset-interrupted", "invocation-uncertain", "work-pending", "report-pending", "maintenance-active", "runtime-unavailable"}, r.Code) {
+		return Fail(Invalid, "only a runtime reset may report reset results")
+	}
 	if operation.Kind == "diagnostics" {
 		if req.State == "recovered" || slices.Contains([]string{"session-recovered", "session-live", "session-unavailable", "fence-mismatch", "cleanup-unproven", "recovery-unavailable"}, r.Code) {
 			return Fail(Invalid, "diagnostics cannot report session recovery")
@@ -189,9 +207,9 @@ func ValidateAgentOperation(operation AgentOperation) error {
 		return err
 	}
 	switch operation.Kind {
-	case "diagnostics":
+	case "diagnostics", "runtime-reset":
 		if operation.SessionID != "" || operation.ExpectedFence != "" {
-			return Fail(Invalid, "diagnostics cannot carry recovery authority")
+			return Fail(Invalid, "diagnostics and runtime reset cannot carry exact session-recovery authority")
 		}
 	case "session-recovery":
 		if !ValidOperation(operation.SessionID) || !ValidHash(operation.ExpectedFence) {

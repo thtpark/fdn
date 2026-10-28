@@ -109,7 +109,7 @@ func requireArgs(args []string, count int) error {
 
 func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, repair, operation, register, recover, identity, revoke, mode or request-sign-in")
+		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, reset, repair, operation, register, recover, identity, revoke, mode or request-sign-in")
 	}
 	if args[0] == "register" || args[0] == "recover" || args[0] == "identity" {
 		return a.identityCommand(ctx, r, args)
@@ -158,6 +158,23 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 			return nil, err
 		}
 		return a.writeAgentOperation(ctx, r, api.Path("agents", id, "repairs"), req)
+	}
+	if args[0] == "reset" {
+		id, tail, err := idArgs(args[1:])
+		if err != nil {
+			return nil, err
+		}
+		var req domain.AgentResetRequest
+		if err := a.input(tail, &req); err != nil {
+			return nil, err
+		}
+		if err := a.metadata(&req.Command); err != nil {
+			return nil, err
+		}
+		if err := domain.ValidateAgentResetRequest(req); err != nil {
+			return nil, err
+		}
+		return a.writeAgentOperation(ctx, r, api.Path("agents", id, "reset"), req)
 	}
 	if args[0] == "operation" {
 		id, tail, err := idArgs(args[1:])

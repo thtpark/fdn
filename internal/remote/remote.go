@@ -493,6 +493,12 @@ func (m *Manager) retryCleanup(ctx context.Context) (err error) {
 	return m.finish(ctx, fence.ID)
 }
 
+// Cleanup retries only this manager's exact owned or durably proven endpoint.
+// The runtime supervisor must stop and join Run before calling it.
+func (m *Manager) Cleanup(ctx context.Context) error {
+	return m.retryCleanup(ctx)
+}
+
 func (m *Manager) currentConfig() (config.Worker, error) {
 	c := m.Config
 	path := m.ConfigPath

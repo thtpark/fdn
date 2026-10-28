@@ -112,6 +112,10 @@ type Engine struct {
 	authMu        sync.Mutex
 	authControlMu sync.Mutex
 	permissionMu  sync.Mutex
+	runtimeMu     sync.Mutex
+	resetting     bool
+	runtimeWork   map[chan struct{}]context.CancelCauseFunc
+	sessions      *sessionRuntime
 }
 
 func New(c config.Worker, path string, client *api.Client, state *local.State, executor provider.Executor) *Engine {
@@ -191,6 +195,11 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 	if err != nil {
 		return status, err
 	}
+	ctx, finished, err := e.beginRuntimeWork(ctx)
+	if err != nil {
+		return status, err
+	}
+	defer finished()
 	status = Status{State: "idle", Mode: c.Mode, Blockers: []Blocker{}, UpdatedAt: e.Now().UTC().Unix()}
 	defer func() {
 		saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
