@@ -135,6 +135,8 @@ func TestHealthServerSessionTransitionDoesNotAdviseRecoveringLiveSession(t *test
 	h.Phase, h.Blocker, h.BlockedSinceAt = "blocked", "session-fence", h.ObservedAt
 	publishHealth(t, f.s, f.worker.ID, h)
 	sweepHealth(t, f.s)
+	f.now = f.now.Add(time.Duration(sessionCleanupAlertGrace) * time.Second)
+	sweepHealth(t, f.s)
 	grant, err := f.s.CreateAssistance(ctx, f.founder.ID, domain.AssistanceGrantRequest{Command: op(), RequesterID: f.founder.ID, TargetID: f.worker.ID, ProjectID: task.ProjectID, Mode: "tmux", Purpose: "terminal", Reason: "Fixture session transition"})
 	if err != nil {
 		t.Fatal(err)

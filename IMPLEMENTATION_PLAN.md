@@ -120,7 +120,7 @@ server-confirmed terminal session/fence SHA256, current generations, shared
 `work.lock` and pre-existing durable native `CleanupProven` evidence, with atomic
 local mutation/receipt and exact result replay after network uncertainty.
 
-Old/unproven fences initially return `operator-required`; native operator action
+Old/unproven fences without native ownership return `operator-required`; native operator action
 may still be needed for retained Agent1 state. No name/PID absence proof,
 arbitrary process stop, journal/inference retry, pause bypass, identity recovery,
 evidence erasure, session open, sign-in renewal, native restart or new spending/
@@ -129,6 +129,29 @@ independent fences permit; inspect operation then diagnostics for actual progres
 CLI/proxy/guidance fixture checks are separate from server/worker acceptance and
 from live Agent1, native deployment, release or vendor qualification. No deployment
 or version bump is part of this source-only work.
+
+## Autonomous target-owned interactive recovery
+
+Routine session cleanup now precedes operator escalation. The manager retries
+the exact endpoint it opened with bounded native calls and 1-30-second backoff;
+failed closes are retryable, and proved no-process tmux preparation failures
+retire their own fences. New tmux ownership records bind target/session/fence
+generation, private socket, UID, process group and kernel process start identity.
+Closing or server-confirmed terminal attempts can recover after a daemon restart
+without adopting another process or launching login again.
+
+Cleanup proof uses exact fingerprint comparison; retirement and its private
+local receipt are atomic. Existing local-safety updates wake eligible ai work
+without mode/approval/budget/retry changes or inference replay. The server
+suppresses human session-fence alerts for a 30-second server-timed recovery
+grace, so transient cleanup does not interrupt Founder. Authentication and
+other essential blockers keep their existing separate rules.
+
+Legacy missing ownership, an incomplete launch identity, unavailable authority,
+active sessions, busy/uncertain work and unprovable cleanup remain explicit
+stops. No source fixture proves live Agent1 recovery or deployment. Local SQL1,
+server SQL6, API/schema2, native protocol2 and the locked payload schema are
+unchanged by these local ownership records.
 
 ## Current acceptance gate: software-first identity security
 

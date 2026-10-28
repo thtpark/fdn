@@ -868,6 +868,20 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 | `agent-cli work run` | One bounded manual controller step; same prompt/authority/slot as service |
 | `agent-cli work recover` | Exactly one `--journal INVOCATION` or `--session SESSION`, plus `--acknowledge-stopped` after confirming owned processes stopped; an exact rejected text journal authorizes a fresh review, never an execution retry |
 
+Routine session cleanup is autonomous: the target retries the exact endpoint it
+opened with bounded native cleanup and exponential backoff (1-30 seconds).
+Known no-process tmux startup failures do not leave fences. New tmux ownership
+records bind the target, session, fence generation, private socket, UID and
+kernel process start identity; closing/terminal attempts can recover after a
+restart. Active sessions, replaced resources, reused PIDs and unknown legacy
+ownership are not force-cleared. Proof and exact-fence retirement are durable
+and atomic, and the worker automatically reconsiders eligible ai work afterward.
+This does not start login, replay inference, change mode or reset task/financial/
+retry/recovery authority. `work recover` is the explicit last-resort operator
+path, not a required step after an ordinary interactive session.
+Session-fence health alerts wait for a 30-second server-timed autonomous recovery
+grace; a prompt recovery does not interrupt Founder.
+
 Tool-disabled scope, acceptance and preflight replies require `clear`, `blocked`
 or `paused`; `reviewed` is not a preparation outcome. Each prompt pins the current
 phase and its allowed outcomes. A fully returned but phase-invalid text reply is

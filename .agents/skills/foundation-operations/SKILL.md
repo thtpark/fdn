@@ -1,6 +1,6 @@
 ---
 name: foundation-operations
-description: "Use when checking Foundation or identity-proxy health, requesting fresh diagnostics, recovering proven session fences or enrolled identity keys, diagnosing blocked workers/replies, pausing automation, reconciling runs/sessions, managing current-format knowledge/backups/TLS, or checking, applying and inspecting Founder-authorized software upgrade plans and native receipts."
+description: "Use when checking Foundation or identity-proxy health, inspecting automatic native session cleanup/recovery, requesting fresh diagnostics, recovering proven session fences or enrolled identity keys, diagnosing blocked workers/replies, pausing automation, reconciling runs/sessions, managing knowledge/backups/TLS, or inspecting Founder-authorized software upgrades and native receipts."
 ---
 
 # Operate and recover without hiding uncertainty
@@ -61,7 +61,16 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 5. Reconcile lost acknowledgements with the same operation and original input.
    Prepared reports replay without repeated inference. Unknown side effects
    stay fenced; no timeout takeover or fresh run ID resets retry authority.
-6. For Founder remote diagnostics/session recovery, follow the exact workflow
+6. Routine interactive cleanup is automatic first: the target retries its exact
+   owned endpoint with bounded calls and 1-30-second backoff, using durable
+   generation-bound native socket/process-start evidence after restart. Proven
+   no-process tmux preparation failures retire their fence without operator input.
+   The server gives session cleanup a 30-second server-timed grace before human
+   alert delivery; authentication and other essential blockers retain their own
+   rules. Do not interrupt this recovery by resetting state or reopening login.
+   Unknown legacy ownership, PID/socket replacement, live sessions and unproved
+   cleanup remain real safety blockers, not a reason to guess or force clear.
+   For Founder remote diagnostics/session recovery, follow the exact workflow
    below; never send a caller stopped-process assertion remotely. Local recovery
    remains separate: after confirming all owned processes stopped, use exact
    `work recover --journal INVOCATION --acknowledge-stopped` or the exact

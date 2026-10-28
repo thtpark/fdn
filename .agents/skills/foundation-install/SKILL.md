@@ -70,6 +70,10 @@ commands.
    global mode pause/resumption; delegates and target-local commands cannot.
    Deploy the server migration before new workers and preserve unexplained
    pauses for explicit Founder reconciliation, never silent resumption.
+   Preserve private StateDir/sessions native ownership and cleanup records.
+   The target automatically retries exact owned interactive cleanup after
+   ordinary failures/restarts; reinstalling or clearing state is not recovery.
+   Missing legacy ownership and uncertain invocations remain protected.
    Current server SQL6 adds shared company/project/agent notes from the SQL5
    floor without rewriting retained records. Note-aware workers require the new
    note-context query before inference; never substitute empty guidance when an

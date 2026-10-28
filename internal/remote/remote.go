@@ -78,6 +78,16 @@ type Opener interface {
 	Open(context.Context, domain.Session, config.Worker) (io.ReadWriteCloser, error)
 }
 
+type ownedOpener interface {
+	OpenOwned(context.Context, domain.Session, config.Worker, string) (io.ReadWriteCloser, error)
+	RecoverOwned(context.Context, domain.Session, config.Worker, string) error
+}
+
+type pendingCleanup struct {
+	fence    Fence
+	endpoint *onceEndpoint
+}
+
 type Manager struct {
 	Client          *api.Client
 	State           *local.State
@@ -88,6 +98,8 @@ type Manager struct {
 	wakeOnce        sync.Once
 	wake            chan struct{}
 	externalUpdates atomic.Bool
+	cleanupMu       sync.Mutex
+	cleanup         *pendingCleanup
 }
 
 type Fence struct {
@@ -183,7 +195,7 @@ func (m *Manager) Run(ctx context.Context) error {
 		if err := m.retryCleanup(ctx); err != nil {
 			retryPending = true
 			if domain.AsFault(err).Code != domain.Conflict {
-				m.Log.Warn("proved session cleanup retirement blocked", "code", domain.AsFault(err).Code)
+				m.Log.Warn("automatic session cleanup pending", "code", domain.AsFault(err).Code)
 			}
 		}
 		if needsSync {
@@ -264,7 +276,8 @@ func (m *Manager) start(ctx context.Context, session domain.Session) (err error)
 	if fence.Active {
 		return domain.Fail(domain.Prerequisite, "an earlier interactive session remains fenced")
 	}
-	if err := m.State.Put(ctx, "session-fence", Fence{Active: true, ID: session.ID, Generation: domain.NewID("fence")}); err != nil {
+	fence = Fence{Active: true, ID: session.ID, Generation: domain.NewID("fence")}
+	if err := m.State.Put(ctx, "session-fence", fence); err != nil {
 		return err
 	}
 	sessionCtx, cancel := context.WithDeadline(ctx, time.Unix(session.ExpiresAt, 0))
@@ -286,7 +299,12 @@ func (m *Manager) start(ctx context.Context, session domain.Session) (err error)
 	if opener == nil {
 		opener = Native{}
 	}
-	endpoint, err := opener.Open(sessionCtx, session, c)
+	var endpoint io.ReadWriteCloser
+	if owned, ok := opener.(ownedOpener); ok {
+		endpoint, err = owned.OpenOwned(sessionCtx, session, c, fence.Generation)
+	} else {
+		endpoint, err = opener.Open(sessionCtx, session, c)
+	}
 	if err != nil {
 		var proof interface{ CleanupProven() bool }
 		var uncertain *process.CleanupError
@@ -295,6 +313,9 @@ func (m *Manager) start(ctx context.Context, session domain.Session) (err error)
 			cleanupErr := endpoint.Close()
 			clean = clean && cleanupErr == nil
 			err = errors.Join(err, cleanupErr)
+			if _, owned := opener.(ownedOpener); owned && cleanupErr == nil && !errors.As(err, &uncertain) {
+				clean = true
+			}
 		}
 		if clean {
 			return errors.Join(err, m.finish(ctx, session.ID))
@@ -304,7 +325,11 @@ func (m *Manager) start(ctx context.Context, session domain.Session) (err error)
 	if endpoint == nil {
 		return domain.Fail(domain.Prerequisite, "native endpoint returned no cleanup proof; session remains fenced")
 	}
-	endpoint = &onceEndpoint{ReadWriteCloser: endpoint}
+	ownedEndpoint := &onceEndpoint{ReadWriteCloser: endpoint}
+	endpoint = ownedEndpoint
+	m.cleanupMu.Lock()
+	m.cleanup = &pendingCleanup{fence: fence, endpoint: ownedEndpoint}
+	m.cleanupMu.Unlock()
 	if session.Mode == "vnc" {
 		current, configErr := m.currentConfig()
 		if configErr != nil || screenConfigFingerprint(current) != screenConfigFingerprint(c) {
@@ -339,17 +364,18 @@ func (m *Manager) start(ctx context.Context, session domain.Session) (err error)
 func (m *Manager) finish(ctx context.Context, id string) error {
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
-	var fence Fence
-	if _, err := m.State.Get(cleanupCtx, "session-fence", &fence); err != nil {
+	initial, err := ReadSessionFence(cleanupCtx, m.State)
+	if err != nil {
 		return err
 	}
+	fence := initial.Fence
 	if !fence.Active || fence.ID != id {
 		return domain.Fail(domain.Prerequisite, "session fence changed; unrelated recovery evidence was retained")
 	}
-	fence.CleanupProven = true
-	if err := m.State.Put(cleanupCtx, "session-fence", fence); err != nil {
+	if err := m.State.ProveSessionCleanup(cleanupCtx, id, initial.Fingerprint); err != nil {
 		return err
 	}
+	fence.CleanupProven = true
 	current, err := api.Call[domain.Session](cleanupCtx, m.Client, "GET", api.Path("sessions", id), nil)
 	if err != nil && domain.AsFault(err).Code != domain.NotFound {
 		return err
@@ -368,18 +394,45 @@ func (m *Manager) finish(ctx context.Context, id string) error {
 	if final != fence {
 		return domain.Fail(domain.Prerequisite, "session fence changed during retirement; recovery evidence was retained")
 	}
-	return m.State.Put(cleanupCtx, "session-fence", Fence{})
+	snapshot, err := ReadSessionFence(cleanupCtx, m.State)
+	if err != nil {
+		return err
+	}
+	if snapshot.Fence != fence {
+		return domain.Fail(domain.Conflict, "session fence changed before atomic cleanup retirement")
+	}
+	key := "session-cleanup-result:" + domain.Hash(id+":"+snapshot.Fingerprint)
+	receipt := struct {
+		SessionID   string `json:"session_id"`
+		Generation  string `json:"generation,omitempty"`
+		Fingerprint string `json:"fingerprint"`
+	}{id, fence.Generation, snapshot.Fingerprint}
+	if err := m.State.CommitSessionCleanup(cleanupCtx, id, snapshot.Fingerprint, key, receipt); err != nil {
+		return err
+	}
+	m.cleanupMu.Lock()
+	if m.cleanup != nil && m.cleanup.fence.ID == id && m.cleanup.fence.Generation == fence.Generation {
+		m.cleanup = nil
+	}
+	m.cleanupMu.Unlock()
+	m.Wake()
+	return nil
 }
 
 func (m *Manager) retryCleanup(ctx context.Context) (err error) {
-	var fence Fence
-	if _, err := m.State.Get(ctx, "session-fence", &fence); err != nil {
+	snapshot, err := ReadSessionFence(ctx, m.State)
+	if err != nil {
 		return err
 	}
-	if !fence.Active || !fence.CleanupProven || !domain.ValidOperation(fence.ID) {
+	fence := snapshot.Fence
+	if !fence.Active {
 		return nil
 	}
-	slot, err := secure.Acquire(filepath.Join(m.Config.StateDir, "work.lock"))
+	c, err := m.currentConfig()
+	if err != nil {
+		return err
+	}
+	slot, err := secure.Acquire(filepath.Join(c.StateDir, "work.lock"))
 	if err != nil {
 		return err
 	}
@@ -390,6 +443,52 @@ func (m *Manager) retryCleanup(ctx context.Context) (err error) {
 	}
 	if current != fence {
 		return domain.Fail(domain.Prerequisite, "session cleanup fence changed")
+	}
+	if !fence.CleanupProven {
+		journals, err := m.State.Journals(ctx, true)
+		if err != nil {
+			return err
+		}
+		if len(journals) != 0 {
+			return domain.Fail(domain.Prerequisite, "an invocation still owns admission; its evidence was not changed by session recovery")
+		}
+		m.cleanupMu.Lock()
+		pending := m.cleanup
+		m.cleanupMu.Unlock()
+		if pending != nil && pending.fence == fence {
+			if err := pending.endpoint.Close(); err != nil {
+				return err
+			}
+		} else {
+			opener := m.Opener
+			if opener == nil {
+				opener = Native{}
+			}
+			recoverer, ok := opener.(ownedOpener)
+			if !ok {
+				return nil
+			}
+			session, err := api.Call[domain.Session](ctx, m.Client, "GET", api.Path("sessions", fence.ID), nil)
+			if err != nil {
+				return err
+			}
+			if session.TargetID != m.Client.Credential.AgentID {
+				return domain.Fail(domain.Denied, "automatic session cleanup cannot adopt another target's resources")
+			}
+			if err := recoverer.RecoverOwned(ctx, session, c, fence.Generation); err != nil {
+				return err
+			}
+		}
+		var current Fence
+		if _, err := m.State.Get(ctx, "session-fence", &current); err != nil {
+			return err
+		}
+		if current != fence {
+			return domain.Fail(domain.Conflict, "session fence changed during automatic native cleanup")
+		}
+		if err := m.State.ProveSessionCleanup(ctx, fence.ID, snapshot.Fingerprint); err != nil {
+			return err
+		}
 	}
 	return m.finish(ctx, fence.ID)
 }
@@ -585,11 +684,19 @@ func (m *Manager) publishLoop(ctx context.Context) {
 
 type onceEndpoint struct {
 	io.ReadWriteCloser
-	once sync.Once
-	err  error
+	mu     sync.Mutex
+	closed bool
 }
 
 func (e *onceEndpoint) Close() error {
-	e.once.Do(func() { e.err = e.ReadWriteCloser.Close() })
-	return e.err
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.closed {
+		return nil
+	}
+	if err := e.ReadWriteCloser.Close(); err != nil {
+		return err
+	}
+	e.closed = true
+	return nil
 }

@@ -261,6 +261,41 @@ Private journals and CLI proposal receipts may contain sensitive machine-local
 material. Do not publish or dump them as diagnostic evidence. A local binding or
 knowledge selection never grants shared project authority.
 
+### Autonomous interactive-session cleanup
+
+The target session manager first retries cleanup of the exact native endpoint
+it opened, without inference, another login, a new grant or a human recovery
+request. Each attempt is bounded; pending cleanup follows the existing
+one-second exponential backoff capped at 30 seconds. A failed `Close` is not
+cached forever. Known no-process tmux preparation failures retire their session
+fence automatically, while missing authentication remains a separate blocker.
+
+New tmux attempts retain private version-1 ownership records under the worker's
+`StateDir/sessions`: exact target/session/fence generation, unique private socket,
+kernel process start identity, UID, process group and cleanup stages. These
+records are local evidence, not domain DTOs or native-wire fields. A restart can
+retry a closing or server-confirmed terminal attempt and replay already-proven
+cleanup. Active attempts, changed generations/targets, replaced sockets and
+reused PIDs are never adopted or killed. No process-name search or passive
+absence assertion substitutes for ownership.
+
+The shared `work.lock` excludes concurrent inference or interactive admission.
+Native cleanup proof is committed against the exact fence fingerprint; fence
+retirement and a `session-cleanup-result:` local receipt commit atomically.
+Network or storage uncertainty retries the same cleanup/retirement, not
+inference or the login. The existing worker safety watcher then reconsiders
+already-authorized `ai` work. Mode, task approvals, budgets, retry limits,
+journals/outbox and unrelated fences are unchanged; Founder pause stays paused.
+The watchdog gives a newly observed session fence a 30-second server-timed
+recovery grace before alert delivery. Prompt autonomous cleanup sends no human
+alert; persistent unprovable cleanup still produces one deduplicated fallback.
+Local SQL1, server SQL6, API/schema2 and the locked native payload remain unchanged.
+
+Legacy/unknown endpoints without durable ownership, uncertain launches that
+never captured a process identity, unavailable authority and unprovable cleanup
+remain explicit operator-required cases. Existing exact Founder repair and
+local stopped-process recovery remain last resorts, not the normal closure path.
+
 ## Observed worker health and reply diagnostics
 
 `POST /v1/heartbeat` accepts `HeartbeatRequest` with optional version-1

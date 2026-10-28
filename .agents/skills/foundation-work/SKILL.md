@@ -188,7 +188,12 @@ and consolidate over-budget context instead of working without required notes.
   process tree stopped use `work recover --journal INVOCATION
   --acknowledge-stopped`; this does not authorize retry. Current exact unsafe
   retry approval, backoff and remaining failure budget still apply.
-- For exact closed-session fences, Founder may explicitly request
+- Routine session cleanup is autonomous before human interruption. The target
+  retries the exact owned endpoint with bounded backoff, replays durable native
+  ownership/proof after restart and atomically retires its matching fence.
+  This does not retry inference/login, alter mode/approvals/budgets, interrupt
+  active sessions or adopt unknown resources. Eligible ai work then resumes.
+  For remaining exact closed-session fences, Founder may explicitly request
   `agent diagnose AGENT_ID --refresh`, inspect `agent operation REQUEST_ID`, then
   use `agent repair AGENT_ID --input FILE` with the fresh exact session/fence
   SHA256. The target requires existing durable native cleanup proof; old/unproven

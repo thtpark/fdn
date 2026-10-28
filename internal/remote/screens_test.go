@@ -446,8 +446,10 @@ func TestUnknownStartupAndCleanupFailuresRemainFenced(t *testing.T) {
 			if _, err := f.manager.State.Get(context.Background(), "session-fence", &fence); err != nil || !fence.Active || fence.CleanupProven || fence.ID != session.ID {
 				t.Fatal("uncertain native process lost its fence", fence, err)
 			}
-			if err := f.manager.retryCleanup(context.Background()); err != nil {
+			if err := f.manager.retryCleanup(context.Background()); err != nil && item != "close-error" {
 				t.Fatal(err)
+			} else if err == nil && item == "close-error" {
+				t.Fatal("automatic retry silently hid an unproven cleanup failure")
 			}
 			var after Fence
 			f.manager.State.Get(context.Background(), "session-fence", &after)

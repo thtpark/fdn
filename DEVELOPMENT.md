@@ -124,6 +124,14 @@ of a future need.
 6. Verify the smallest suite, then all required suites. Record what was actually
    exercised and what remains unqualified.
 
+Interactive cleanup is target-owned and autonomous before operator escalation.
+Keep native ownership records generation-bound and private, validate kernel
+process start identity/UID/group before signals, and retry only the same owned
+resources with bounded cleanup and backoff. Commit cleanup proof and retirement
+against exact fence fingerprints with durable receipts. Never recover by
+guessing a PID, adopting a socket, rewriting legacy evidence or replaying
+inference/login. Preserve Founder pause and every independent work fence.
+
 The controller owns execution/verification admission and reports. A provider
 adapter supplies structured observations/results; it does not receive authority
 to accept its own work or start another AI worker. Independent delegated review

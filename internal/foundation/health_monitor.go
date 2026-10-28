@@ -26,6 +26,40 @@ type healthEpisode struct {
 	DeliveryState      string                `json:"delivery_state"`
 }
 
+const sessionCleanupAlertGrace int64 = 30
+
+type sessionCleanupWait struct {
+	Generation int64 `json:"generation"`
+	Since      int64 `json:"since"`
+}
+
+func (s *Store) deferSessionCleanupAlert(ctx context.Context, tx *sql.Tx, id string, assessment *healthAssessment, episode healthEpisode, now int64) error {
+	key := "health-session-cleanup:" + id
+	if !assessment.alert || assessment.diagnostics.Reason != "session-fence" {
+		if assessment.fresh && assessment.diagnostics.Reason != "session-fence" &&
+			assessment.diagnostics.State != "unknown" && assessment.diagnostics.State != "offline" {
+			_, err := tx.ExecContext(ctx, "DELETE FROM settings WHERE key=?", key)
+			return err
+		}
+		return nil
+	}
+	if episode.Incident.State == "active" && episode.Incident.Kind == "session-fence" && episode.Generation == assessment.generation {
+		return nil
+	}
+	wait, err := healthSetting[sessionCleanupWait](ctx, tx, key)
+	if err != nil {
+		return err
+	}
+	if wait.Generation != assessment.generation || wait.Since == 0 {
+		wait = sessionCleanupWait{Generation: assessment.generation, Since: now}
+		if err := saveHealthSetting(ctx, tx, key, wait); err != nil {
+			return err
+		}
+	}
+	assessment.alert = now-wait.Since >= sessionCleanupAlertGrace
+	return nil
+}
+
 // SweepHealth observes deterministic server state without invoking workers or AI.
 // Each bounded page and per-agent transaction can be cancelled independently.
 func (s *Store) SweepHealth(ctx context.Context) error {
@@ -117,6 +151,9 @@ func (s *Store) sweepAgentHealth(ctx context.Context, id string) error {
 	}
 	episode, err := healthSetting[healthEpisode](ctx, tx, healthIncidentKey+id)
 	if err != nil {
+		return err
+	}
+	if err := s.deferSessionCleanupAlert(ctx, tx, id, &assessment, episode, now); err != nil {
 		return err
 	}
 	fingerprint := domain.Hash(fmt.Sprintf("%d:%s:%s", assessment.generation, assessment.cause, assessment.actionKey))

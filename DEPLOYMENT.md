@@ -822,6 +822,35 @@ mode and existing task/spending approvals unchanged. A restarted poll/new work-r
 operation is not fresh retry authority, and uncertain/possibly applied work keeps
 its original stricter fence.
 
+### Automatic session recovery before operator escalation
+
+The target normally cleans up its own interactive endpoint and retires the
+matching fence without a human interruption. Transient cleanup failures are
+retried with bounded native calls and 1-30-second exponential backoff. The
+server waits 30 seconds from its first observation before sending a session-fence
+health alert, allowing transient recovery without interrupting Founder. The
+worker holds the same work slot while recovering, so no inference or second
+session overlaps uncertain cleanup. No-process tmux startup failures retain the
+real startup error but do not strand a session fence.
+
+New tmux attempts record target/session/fence generation, private socket and
+kernel process ownership before use. A restarted manager can replay cleanup for
+a closing or server-confirmed terminal attempt; recorded native exit evidence
+also handles stale sockets. Changed process start identity, UID/group,
+generation, target or socket type blocks adoption. A genuinely active session
+is not stopped merely because automation wants to run.
+
+After proving cleanup, the exact fingerprint is retired atomically with a
+private receipt and the worker reconsiders eligible ai work. There is no login/
+model retry, mode change, approval/budget reset, identity recovery or native
+service restart. Founder pause remains paused.
+
+Only unknown/legacy ownership, incomplete launch identity, unavailable current
+authority or persistently unprovable cleanup needs operator escalation. Preserve
+native ownership records, fences and journals during upgrades/recovery; never
+delete a lock or manufacture a cleanup assertion. The procedure below is the
+explicit fallback, not the normal operating requirement.
+
 ### Founder refresh and exact closed-session recovery
 
 Use the existing Founder configuration; no keys or credentials move to the target:
@@ -884,11 +913,11 @@ caller assertion of proof is accepted. Clearing the matching eligible fence and
 recording the final local receipt are atomic; network uncertainty replays that
 receipt, not another mutation. Keep the original operation ID/input unchanged.
 
-**Initial limitation:** old/unproven `CleanupProven:false` fences return
+**Legacy limitation:** old/unproven fences without native ownership records return
 `operator-required`. Process absence/name/PID scans are not substituted for native
 proof. The original Agent1 fence may still require explicit authorized native
-inspection and the existing exact local session stopped-process acknowledgement;
-this feature does not promise automatic recovery. It does not clear journals,
+inspection and the existing exact local session stopped-process acknowledgement.
+Automatic cleanup never invents missing legacy ownership. It does not clear journals,
 retry inference, stop arbitrary processes, erase evidence, recover identity or
 restart a native service. Active sessions, busy slots, changed fingerprints and
 stale generations fail closed. `agent recover` still means fresh-key identity

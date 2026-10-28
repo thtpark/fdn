@@ -142,6 +142,34 @@ func TestGuideDocumentsScopedNotesAndStatePreservation(t *testing.T) {
 	}
 }
 
+func TestGuideDocumentsAutonomousSessionRecoveryWithoutAuthorityBypass(t *testing.T) {
+	for file, fragments := range map[string][]string{
+		"AGENTS.md":              {"target-owned and automatic", "atomically retire"},
+		"SCHEMA.md":              {"kernel process start identity", "session-cleanup-result:", "30-second server-timed"},
+		"COMMANDS.md":            {"Routine session cleanup is autonomous", "explicit last-resort operator"},
+		"DEPLOYMENT.md":          {"Automatic session recovery before operator escalation", "unknown/legacy ownership"},
+		"DEVELOPMENT.md":         {"Interactive cleanup is target-owned", "replaying inference/login"},
+		"IMPLEMENTATION_PLAN.md": {"Autonomous target-owned interactive recovery", "locked payload schema"},
+		".agents/skills/foundation-operations/SKILL.md": {"Routine interactive cleanup is automatic first", "1-30-second backoff"},
+		".agents/skills/foundation-work/SKILL.md":       {"Routine session cleanup is autonomous", "Eligible ai work then resumes"},
+	} {
+		data, err := guidance.Read(file)
+		if err != nil {
+			t.Fatal(file, err)
+		}
+		text := strings.Join(strings.Fields(string(data)), " ")
+		for _, fragment := range fragments {
+			if !strings.Contains(text, fragment) {
+				t.Fatal("guide omitted autonomous session recovery contract", file, fragment)
+			}
+		}
+	}
+	context, err := guidance.WorkContext()
+	if err != nil || !strings.Contains(context, "Routine session cleanup is autonomous") || !strings.Contains(context, "unknown resources") {
+		t.Fatal("runtime work guidance omitted automatic recovery or ownership limits", err)
+	}
+}
+
 func TestInstallPreservesInstructionsUnrelatedSkillsAndIdempotency(t *testing.T) {
 	home := filepath.Join(t.TempDir(), "home")
 	if err := os.Mkdir(home, 0755); err != nil {
