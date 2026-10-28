@@ -105,7 +105,7 @@ func healthBlockerAction(blocker string) (string, bool) {
 	case "session-active":
 		return "Wait for the authorized session to finish; do not open another work slot.", false
 	case "session-fence":
-		return "An authorized session party must reconcile or close the retained session fence.", true
+		return "The target first retries its exact owned session cleanup automatically; inspect native ownership and cleanup evidence only if recovery remains unproved.", true
 	case "invocation-uncertain", "unreconciled-claim":
 		return "Inspect retained work evidence and use explicit authorized recovery; do not retry inference or clear ownership automatically.", true
 	case "authentication-required":

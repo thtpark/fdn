@@ -65,6 +65,42 @@ func TestSessionRecoveryAtomicallyClearsOnlyProvenExactFence(t *testing.T) {
 	}
 }
 
+func TestAutomaticSessionCleanupProofAndReceiptAreExactAndRestartSafe(t *testing.T) {
+	ctx := context.Background()
+	state := sessionRecoveryState(t)
+	fingerprint := saveRecoveryFence(t, state, false, "fence_automatic")
+	if err := state.ProveSessionCleanup(ctx, "session_exact", fingerprint); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := state.WorkSnapshot(ctx, []string{"session-fence"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	proved := domain.Hash(string(snapshot.Values["session-fence"]))
+	if proved == fingerprint {
+		t.Fatal("native proof did not advance the exact fence fingerprint")
+	}
+	key := "session-cleanup-result:cleanup_exact"
+	receipt := map[string]string{"session_id": "session_exact", "generation": "fence_automatic"}
+	if err := state.CommitSessionCleanup(ctx, "session_exact", proved, key, receipt); err != nil {
+		t.Fatal(err)
+	}
+	replacement := saveRecoveryFence(t, state, false, "fence_replacement")
+	if err := state.CommitSessionCleanup(ctx, "session_exact", proved, key, receipt); err != nil {
+		t.Fatal("retained autonomous receipt did not replay", err)
+	}
+	if err := state.ProveSessionCleanup(ctx, "session_exact", fingerprint); domain.AsFault(err).Code != domain.Conflict {
+		t.Fatal("old cleanup proof changed a replacement fence", err)
+	}
+	after, err := state.WorkSnapshot(ctx, []string{"session-fence"})
+	if err != nil || domain.Hash(string(after.Values["session-fence"])) != replacement {
+		t.Fatal("automatic replay changed a replacement fence", err)
+	}
+	if err := state.CommitSessionRecovery(ctx, "session_exact", replacement, key, receipt); domain.AsFault(err).Code != domain.Invalid {
+		t.Fatal("automatic cleanup masqueraded as a Founder operation receipt", err)
+	}
+}
+
 func TestSessionRecoveryRejectsUnprovenAndChangedFenceWithoutReceipt(t *testing.T) {
 	for _, item := range []struct {
 		name          string

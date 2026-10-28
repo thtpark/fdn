@@ -155,6 +155,20 @@ func TestHealthSignedInPauseSessionAndUncertainFences(t *testing.T) {
 				}
 				return
 			}
+			if blocker == "session-fence" {
+				if d.Incident != nil {
+					t.Fatal("automatic session recovery did not get its alert grace", d)
+				}
+				f.now = f.now.Add(time.Duration(sessionCleanupAlertGrace) * time.Second)
+				h.ObservedAt = f.now.Unix()
+				h.Sequence++
+				publishHealth(t, f.s, f.worker.ID, h)
+				sweepHealth(t, f.s)
+				d = diagnoseHealth(t, f.s, f.founder.ID, f.worker.ID)
+			}
+			if d.Incident == nil {
+				t.Fatal("persistent safety blocker did not produce its fallback incident", d)
+			}
 			incidentID := d.Incident.ID
 			notice, err := f.s.SendMessage(context.Background(), f.worker.ID, domain.MessageRequest{Command: op(), RecipientID: f.founder.ID, Body: "Safe fixture sign-in notice", Origin: "service", Kind: "authentication"})
 			if err != nil {
@@ -207,6 +221,12 @@ func TestHealthLiveAuthoritativeSessionExplainsLocalFence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sweepHealth(t, f.s)
+	d = diagnoseHealth(t, f.s, f.founder.ID, f.worker.ID)
+	if d.Reason != "session-fence" || d.Incident != nil {
+		t.Fatal("closed session did not allow autonomous cleanup before human escalation", d)
+	}
+	f.now = f.now.Add(time.Duration(sessionCleanupAlertGrace) * time.Second)
 	sweepHealth(t, f.s)
 	d = diagnoseHealth(t, f.s, f.founder.ID, f.worker.ID)
 	if d.Reason != "session-fence" || d.Incident == nil || d.Incident.State != "active" {

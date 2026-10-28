@@ -511,15 +511,21 @@ agent-cli assistance open GRANT --provider codex  # Later reconnect, no reapprov
 ```
 
 Terminal attachment uses Ctrl-] to close the local connection.
-An unproven session cleanup keeps a local fence. Only after confirming all of
-that session's processes stopped may its owner use
-`work recover --session SESSION --acknowledge-stopped`.
+The target automatically retries its own failed session cleanup with bounded
+attempts/backoff, then retires the exact fence once native cleanup is proven.
+New tmux attempts retain generation-bound kernel process ownership and private
+socket evidence for restart recovery. Pre-launch no-process failures do not
+strand automation. Cleanup does not rerun login/inference or change mode,
+approvals, spending or retry limits. Already-approved ai work resumes only when
+all independent fences permit. Unknown legacy resources still require an
+authorized operator; after proving all owned processes stopped, exact
+`work recover --session SESSION --acknowledge-stopped` remains a last resort.
 
 Founder can request a bounded fresh inspection with `agent diagnose AGENT_ID
 --refresh`, inspect `agent operation REQUEST_ID`, then submit `agent repair
 AGENT_ID --input FILE` with the reported exact closed `session_id` and fence
 SHA256. Initial remote repair requires existing durable native cleanup proof;
-old/unproven Agent1 fences remain `operator-required`, not automatically recovered.
+legacy fences lacking native ownership/proof remain `operator-required`.
 Queued/expired operations are not fresh success. The 15-minute operation lifespan
 is separate from sign-in and live sessions. Repair is not a journal retry, native
 restart, identity recovery or pause/approval/spending bypass. Existing approved

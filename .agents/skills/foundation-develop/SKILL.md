@@ -67,7 +67,13 @@ The checkout's root documents are canonical; no old source tree is required.
    inference retry or native restart is implied. Recovery needs current exact
    fence/generations, terminal session and existing durable native cleanup proof
    under work.lock, with atomic mutation/receipt; old unproven fences require an
-   operator. Keep dynamic server_observed_at outside immutable fingerprints and
+   operator. Routine session closure is target-owned and automatic first:
+   durable native target/session/generation and kernel process-start ownership,
+   bounded retryable cleanup, exact atomic proof/retirement receipts and automatic
+   eligible-work wakeup. Do not interrupt a live session, adopt a PID/socket,
+   erase missing legacy evidence or replay login/inference. Session cleanup has
+   a 30-second server-timed alert grace before human escalation.
+   Keep dynamic server_observed_at outside immutable fingerprints and
    retained conservative server-time captured_at separate from skewable target
    UTC observations; use fresh server response plus monotonic request-start/RTT
    timing for capture/expiry, not target wall time.

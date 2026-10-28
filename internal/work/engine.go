@@ -292,7 +292,7 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	}
 	if sessionFence.Active {
-		return status, errors.Join(domain.Fail(domain.Prerequisite, "an interrupted interactive session requires explicit stopped-process recovery"), e.blockHealth(ctx, "session-fence"))
+		return status, errors.Join(domain.Fail(domain.Prerequisite, "interactive session cleanup is pending; automatic target-owned recovery must finish before new work"), e.blockHealth(ctx, "session-fence"))
 	}
 	if err := e.phaseHealth(ctx, "checking", nil, "", 120, false); err != nil {
 		return status, err

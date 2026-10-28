@@ -498,6 +498,27 @@ implementation and actual results must be reported separately from those limits.
 
 ## Worker health unit and integration acceptance
 
+### Autonomous session cleanup and fence retirement
+
+```sh
+go test -race -count=1 -tags=integration,e2e ./internal/remote ./internal/local ./internal/foundation ./internal/work ./tests/integration ./tests/e2e -run 'Test(Automatic|SessionCleanup|Native(Close|Prelaunch|Recovery|Assistance)|OwnedProcess)'
+```
+
+Fixtures verify no-process tmux failure retirement, retryable failed Close,
+durable restart proof, exact kernel process-start/UID/group ownership, stale
+sockets, PID reuse/foreign-socket rejection, active sessions, occupied slots,
+unrelated invocation journals and replaced fence generations. Proof CAS and
+atomic cleanup/receipt replay must never clear a later fence.
+The daemon integration holds a real granted session while a message is pending,
+injects transient cleanup failure, closes the session and observes automatic
+reply resumption exactly once without a human recovery action. Compiled requester
+CLI tests reconnect under the same retained grant after automatic cleanup.
+Server tests enforce zero human notifications before the exact 30-second
+server-clock grace, no notification after prompt recovery and one deduplicated
+fallback for persistent failure; target wall-clock skew cannot skip the grace.
+These are deterministic local software fixtures, not live provider, production
+recovery, native fleet or hardware-assurance qualification.
+
 On 2026-10-22 the coordinator reported the implemented deterministic cases in
 `tests/integration/health_work_test.go` passing. Exact runnable selectors:
 
