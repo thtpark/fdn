@@ -187,6 +187,14 @@ errors, credentials, process arguments and workspace paths out of safe results.
 
 ## Schema and compatibility changes
 
+Founder-only runtime reset reuses protected agent operations and the existing
+reason-only wire envelope. Keep current key generations/expiry, joined owned
+work and session cancellation, one-slot admission, exact replay and retained
+uncertainty. A reset must not erase journals/outbox, retry authority, identities,
+provider sign-in or mode. An interrupted reset must not cancel newer work on
+restart. Test Founder self-reset and denial through raw API/Unix proxy as well
+as the CLI; it is not an OS-service restart or a force-clear capability.
+
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
 version is **2**; native message protocol is **2**, server SQLite migration is

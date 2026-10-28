@@ -207,6 +207,7 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision, Founder request attribution and public status |
 | `agent-cli agent status` | `--input FILE`: required `text` (single line, max160 characters), intentional non-secret self-publication; explicit empty text restores automatic activity; no target/priority/time/mode override |
 | `agent-cli agent diagnose` | `AGENT_ID [--refresh]`; default is saved read-only `AgentDiagnostics` for Founder/self; `--refresh` submits a durable Founder-only diagnostic `AgentOperation` |
+| `agent-cli agent reset` | `AGENT_ID --input FILE`: required non-secret `reason`; Founder-only identity-preserving runtime reset, including Founder itself; inspect actual result with `agent operation` |
 | `agent-cli agent repair` | `AGENT_ID --input FILE`; Founder-only `SessionRecoveryRequest` for one exact closed session and fresh observed fence SHA256; returns `AgentOperation`, never accepts caller cleanup proof |
 | `agent-cli agent operation` | Exactly `REQUEST_ID` from `data.id`; bodyless GET of the common diagnostic-refresh/session-recovery state and safe result, visible only to its requester Founder or target |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
@@ -384,6 +385,59 @@ Manual pause, no requested response, ordinary idle and work inside its declared
 deadline are not stuck failures. A Foundation outage still needs native/outside
 monitoring. See [SCHEMA.md](SCHEMA.md#observed-worker-health-and-reply-diagnostics)
 and [DEPLOYMENT.md](DEPLOYMENT.md#read-only-worker-and-reply-diagnostics).
+
+## Founder-only runtime reset
+
+Only the authenticated Founder may use `agent reset AGENT_ID --input FILE`,
+including against Founder's own runtime. Project delegates and non-Founder
+targets cannot request even a self-reset. Store the reason in an owner-restricted
+input, for example:
+
+```json
+{
+  "reason": "Reset owned worker activity while preserving identity and uncertain results"
+}
+```
+
+```sh
+agent-cli --config /PRIVATE/founder-agent.json \
+  --operation-id runtime-reset-001 agent reset AGENT_ID --input /PRIVATE/reset.json
+agent-cli --config /PRIVATE/founder-agent.json agent operation RESET_REQUEST_ID
+agent-cli --config /PRIVATE/founder-agent.json agent diagnose AGENT_ID
+```
+
+The command submits `AgentResetRequest` to `POST /v1/agents/{id}/reset`.
+It uses the existing reason-only native envelope and protected `AgentOperation`
+protocol: current Founder/target key generations, fixed 15-minute server expiry
+and exact operation/input replay. `queued` or `checking` is not a completed reset.
+No force, caller cleanup assertion, identity erasure, mode override or arbitrary
+shell command is accepted.
+
+The responsive target stops admitting its own work, cancels and joins its owned
+controller step and interactive supervisor, and retries exact owned session
+cleanup. The cancellation/join wait is bounded to 30 seconds and the remaining
+operation lifespan; native proof retirement retains its existing bounded
+finalization procedure. It takes the existing shared `work.lock` before declaring a
+free runtime and reinitializes the in-process session supervisor and work
+scheduling. It does not restart native OS services or the identity owner.
+
+Identity/keys, provider sign-in, notes/knowledge, workspaces, task/run history,
+approvals, retry budgets and mode are preserved. `ai` stays `ai`; manual,
+including Founder, stays manual. Uncertain invocations, prepared work/results,
+pending reports, maintenance, another process's occupied slot and unproved
+legacy session ownership remain explicit `operator-required` outcomes, not
+silently discarded work or permission to retry it. A proven terminal-session
+fence can be retired atomically with the reset receipt. An active owned session
+is closed through its actual manager; unknown processes are never guessed/killed.
+
+The final success state is `reset`, with code `runtime-reset`. A lost response
+replays the retained result. A crash after reset begins but before its final
+receipt yields `reset-interrupted`, without cancelling newer work again.
+Offline/unsupported daemons may remain queued until expiry; the server cannot
+restart them remotely. Inspect the final operation and fresh health: even a
+successful runtime reset does not sign in, start inference, grant task/spending
+authority or guarantee progress. `agent recover` remains fresh-key identity
+recovery; `agent repair` remains exact closed-session repair.
 
 ## Founder diagnostic refresh and exact closed-session recovery
 

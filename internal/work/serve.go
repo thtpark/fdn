@@ -45,12 +45,16 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 	go func() { defer close(localDone); e.observeLocal(ctx, wake, sessions) }()
 	var operationDone chan struct{}
 	var sessionDone chan error
+	var sessionControl *sessionRuntime
 	if sessions != nil {
 		if manager, ok := sessions.(interface{ UseExternalUpdates() }); ok {
 			manager.UseExternalUpdates()
 		}
-		sessionDone = make(chan error, 1)
-		go func() { sessionDone <- sessions.Run(ctx) }()
+		sessionControl = newSessionRuntime(ctx, sessions)
+		sessionDone = sessionControl.failure
+		e.runtimeMu.Lock()
+		e.sessions = sessionControl
+		e.runtimeMu.Unlock()
 	}
 	defer func() {
 		cancel()
@@ -60,11 +64,11 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 		if operationDone != nil {
 			<-operationDone
 		}
-		if sessionDone != nil {
-			sessionErr := <-sessionDone
-			if sessionErr != nil && !errors.Is(sessionErr, context.Canceled) {
-				err = errors.Join(err, sessionErr)
-			}
+		if sessionControl != nil {
+			err = errors.Join(err, sessionControl.stop())
+			e.runtimeMu.Lock()
+			e.sessions = nil
+			e.runtimeMu.Unlock()
 		}
 	}()
 	// Establish the watermark before any initial business snapshot. Changes

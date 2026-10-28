@@ -32,6 +32,10 @@ type DiagnosticRefreshRequest struct {
 	Reason string `json:"reason"`
 }
 
+// Both controls use the existing reason-only wire envelope so adding reset does
+// not invalidate the locked native transport handshake during an upgrade.
+type AgentResetRequest = DiagnosticRefreshRequest
+
 type SessionRecoveryRequest struct {
 	Command
 	SessionID     string `json:"session_id"`

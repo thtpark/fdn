@@ -24,6 +24,30 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Founder-only runtime reset
+
+```sh
+go test -race -count=1 ./internal/domain ./internal/message ./internal/foundation ./internal/api ./internal/cli ./internal/identityservice ./internal/work -run 'AgentReset|RuntimeReset|FounderRuntimeReset|InterruptedRuntimeReset'
+go test -race -count=1 -tags=integration ./tests/integration -run 'TestFounderRuntimeReset'
+go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeFounderOnlyRuntimeResetIncludingSelf$'
+go run ./tools/protocol --check
+```
+
+Reset tests cover server-enforced Founder-only authority (including self-target),
+denied delegates/self-authorized workers/spoofed roles, strict reason-only input,
+raw API and real Unix-proxy method/depth/query bounds, exact durable CLI/request/
+result replay, unchanged native wire envelope, fixed expiry/current authority,
+preserved identity/mode/authentication/configuration/history, no provider calls
+for reset, single joined session supervisor and no automatic uncertain retry.
+Real loopback controls cancel an active deterministic invocation, retain its
+uncertain journal through daemon restart, close an actual owned interactive relay
+and retire only proven session fences. Pending results/outbox, maintenance,
+unowned occupied slots and unknown legacy cleanup remain operator-required.
+Compiled-binary cases exercise Founder and worker resets with separate temporary
+state and verify role denial, identity/configuration preservation and no inference.
+These fixtures do not reset live agents, restart host services, prove cleanup of
+unknown legacy resources or qualify production/provider recovery.
+
 ## Binary SSH message cutover acceptance
 
 Native protocol 2 uses protobuf framing, kernel-bound Unix peers, pinned SSH,

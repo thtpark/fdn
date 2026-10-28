@@ -132,6 +132,17 @@ or version bump is part of this source-only work.
 
 ## Autonomous target-owned interactive recovery
 
+Founder-only `agent reset AGENT_ID --input FILE` now adds an explicit
+identity-preserving runtime control, including Founder self-reset. It cancels
+and joins the daemon's owned controller/session work, retries owned cleanup and
+reinitializes its in-process supervisor/scheduling. It keeps mode, identity,
+authentication, notes, workspaces, history, journals/outbox and retry authority.
+Independent uncertainty and unknown legacy ownership remain operator-required.
+The existing protected operation protocol supplies fixed expiry/generations and
+exact result replay; a started interrupted reset never cancels newer work again.
+This is not native service restart, factory reset, deployment or provider login.
+The reason-only native payload and all SQL/protocol versions stay unchanged.
+
 Routine session cleanup now precedes operator escalation. The manager retries
 the exact endpoint it opened with bounded native calls and 1-30-second backoff;
 failed closes are retryable, and proved no-process tmux preparation failures

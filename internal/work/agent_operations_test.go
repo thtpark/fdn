@@ -113,7 +113,7 @@ func (f *operationFixture) RoundTrip(request *http.Request) (*http.Response, err
 		switch path {
 		case "/v1/me":
 			return f.response(f.me, nil)
-		case "/v1/agents/agent_founder":
+		case api.Path("agents", f.founder.ID):
 			return f.response(f.founder, nil)
 		case "/v1/sessions/session_exact":
 			return f.response(f.session, nil)
