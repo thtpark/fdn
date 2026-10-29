@@ -250,6 +250,14 @@
       "id": 14,
       "name": "ban_reason"
     },
+    "DeviceID": {
+      "id": 17,
+      "name": "device_id"
+    },
+    "DeviceName": {
+      "id": 18,
+      "name": "device_name"
+    },
     "Generation": {
       "id": 10,
       "name": "generation"
@@ -818,6 +826,10 @@
       "id": 2,
       "name": "agent_id"
     },
+    "DeviceID": {
+      "id": 6,
+      "name": "device_id"
+    },
     "Generation": {
       "id": 3,
       "name": "generation"
@@ -1229,6 +1241,10 @@
     "AgentID": {
       "id": 2,
       "name": "agent_id"
+    },
+    "DeviceID": {
+      "id": 6,
+      "name": "device_id"
     },
     "ExpiresAt": {
       "id": 5,
@@ -2175,6 +2191,20 @@
     "SpecGeneration": {
       "id": 2,
       "name": "spec_generation"
+    }
+  },
+  "RevokeDeviceRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 3,
+      "name": "reason"
     }
   },
   "Run": {

@@ -460,9 +460,18 @@ func (r *updateRouter) route(change updateChange) error {
 			return err
 		}
 	case "agent_identities":
-		u.Topic, u.Urgent = "agent", true
-		if err := r.agentParties(change.id, parties); err != nil {
+		values, err := changeValues[domain.AgentIdentity](change)
+		if err != nil {
 			return err
+		}
+		u.Topic, u.Urgent = "agent", true
+		for _, identity := range values {
+			if identity.DeviceID != "" {
+				u.SourceID = identity.AgentID
+				parties.add(identity.AgentID)
+			} else if err := r.agentParties(identity.AgentID, parties); err != nil {
+				return err
+			}
 		}
 	case "notes":
 		values, err := changeValues[domain.Note](change)

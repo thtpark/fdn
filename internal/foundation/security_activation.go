@@ -34,11 +34,11 @@ func (s *Store) ChallengeIdentity(ctx context.Context, uid int64) (domain.Identi
 	if identity.State != "provisioned" && identity.State != "active" {
 		return domain.IdentityChallenge{}, domain.Fail(domain.Denied, "identity account has not been provisioned")
 	}
-	challenge := domain.IdentityChallenge{Nonce: domain.NewToken(), AgentID: identity.AgentID,
+	challenge := domain.IdentityChallenge{Nonce: domain.NewToken(), AgentID: identity.AgentID, DeviceID: identity.DeviceID,
 		InstanceID: identity.InstanceID, Generation: identity.Generation, ExpiresAt: s.timestamp() + identityChallengeLifetime}
 	_, err = tx.ExecContext(ctx, `INSERT INTO identity_challenges(agent_id,nonce_hash,generation,expires_at) VALUES(?,?,?,?)
 ON CONFLICT(agent_id) DO UPDATE SET nonce_hash=excluded.nonce_hash,generation=excluded.generation,expires_at=excluded.expires_at`,
-		identity.AgentID, domain.Hash(challenge.Nonce), challenge.Generation, challenge.ExpiresAt)
+		identity.BindingID(), domain.Hash(challenge.Nonce), challenge.Generation, challenge.ExpiresAt)
 	if err != nil {
 		return domain.IdentityChallenge{}, err
 	}
@@ -67,7 +67,7 @@ func (s *Store) ActivateIdentity(ctx context.Context, uid int64, req domain.Acti
 		}
 		var nonceHash string
 		var generation, expiresAt int64
-		err = tx.QueryRowContext(ctx, "SELECT nonce_hash,generation,expires_at FROM identity_challenges WHERE agent_id=?", identity.AgentID).Scan(&nonceHash, &generation, &expiresAt)
+		err = tx.QueryRowContext(ctx, "SELECT nonce_hash,generation,expires_at FROM identity_challenges WHERE agent_id=?", identity.BindingID()).Scan(&nonceHash, &generation, &expiresAt)
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.AgentIdentity{}, domain.Fail(domain.Denied, "identity challenge is missing or consumed")
 		}
@@ -77,7 +77,7 @@ func (s *Store) ActivateIdentity(ctx context.Context, uid int64, req domain.Acti
 		if nonceHash != domain.Hash(req.Nonce) || generation != identity.Generation || expiresAt <= s.timestamp() {
 			return domain.AgentIdentity{}, domain.Fail(domain.Denied, "identity challenge is stale or expired")
 		}
-		challenge := domain.IdentityChallenge{Nonce: req.Nonce, AgentID: identity.AgentID, InstanceID: identity.InstanceID,
+		challenge := domain.IdentityChallenge{Nonce: req.Nonce, AgentID: identity.AgentID, DeviceID: identity.DeviceID, InstanceID: identity.InstanceID,
 			Generation: generation, ExpiresAt: expiresAt}
 		public, err := device.PublicKey(identity.AuthKey)
 		if err != nil {
@@ -86,7 +86,7 @@ func (s *Store) ActivateIdentity(ctx context.Context, uid int64, req domain.Acti
 		if err := device.VerifyChallenge(public, challenge, req.Proof); err != nil {
 			return domain.AgentIdentity{}, domain.Fail(domain.Denied, "identity challenge proof is invalid")
 		}
-		if _, err := tx.ExecContext(ctx, "DELETE FROM identity_challenges WHERE agent_id=?", identity.AgentID); err != nil {
+		if _, err := tx.ExecContext(ctx, "DELETE FROM identity_challenges WHERE agent_id=?", identity.BindingID()); err != nil {
 			return domain.AgentIdentity{}, err
 		}
 		identity.State = "active"
@@ -110,7 +110,7 @@ func (s *Store) ValidateCertificate(ctx context.Context, uid int64, ci domain.Ce
 	var identityData, agentData []byte
 	var instance string
 	err := s.db.QueryRowContext(ctx, `SELECT i.data,a.data,settings.value FROM agent_identities i
-JOIN agents a ON a.id=i.id JOIN settings ON settings.key='instance_id' WHERE i.uid=?`, uid).Scan(&identityData, &agentData, &instance)
+JOIN agents a ON a.id=i.agent_id JOIN settings ON settings.key='instance_id' WHERE i.uid=?`, uid).Scan(&identityData, &agentData, &instance)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.Agent{}, domain.Fail(domain.Denied, "certificate account is not enrolled")
 	}
@@ -128,7 +128,7 @@ JOIN agents a ON a.id=i.id JOIN settings ON settings.key='instance_id' WHERE i.u
 	if err := identityAllowed(identity, agent, true); err != nil {
 		return domain.Agent{}, err
 	}
-	if instance != identity.InstanceID || ci.InstanceID != instance || ci.AgentID != identity.AgentID || ci.Generation != identity.Generation || ci.Generation <= 0 {
+	if instance != identity.InstanceID || ci.InstanceID != instance || ci.AgentID != identity.AgentID || ci.DeviceID != identity.DeviceID || ci.Generation != identity.Generation || ci.Generation <= 0 {
 		return domain.Agent{}, domain.Fail(domain.Denied, "certificate identity or key generation is stale")
 	}
 	var key string
@@ -139,10 +139,10 @@ JOIN agents a ON a.id=i.id JOIN settings ON settings.key='instance_id' WHERE i.u
 		}
 		key = identity.AuthKey
 	case "owner":
-		if identity.OwnerKey == "" || ci.OwnerGeneration <= 0 || ci.OwnerGeneration != identity.OwnerGeneration {
-			return domain.Agent{}, domain.Fail(domain.Denied, "owner certificate is stale")
+		key, err = identityOwnerKey(ctx, s.db, identity, agent, ci.OwnerGeneration)
+		if err != nil {
+			return domain.Agent{}, err
 		}
-		key = identity.OwnerKey
 	default:
 		return domain.Agent{}, domain.Fail(domain.Denied, "certificate purpose is invalid")
 	}
@@ -166,11 +166,11 @@ func (s *Store) SetIdentityOwner(ctx context.Context, agentID, ownerKey string, 
 		return domain.AgentIdentity{}, err
 	}
 	defer finish()
-	agent, err := s.actor(ctx, tx, agentID)
+	identity, err := get[domain.AgentIdentity](ctx, tx, "agent_identities", agentID)
 	if err != nil {
 		return domain.AgentIdentity{}, err
 	}
-	identity, err := get[domain.AgentIdentity](ctx, tx, "agent_identities", agentID)
+	agent, err := s.actor(ctx, tx, identity.AgentID)
 	if err != nil {
 		return identity, err
 	}
@@ -187,7 +187,17 @@ func (s *Store) SetIdentityOwner(ctx context.Context, agentID, ownerKey string, 
 	if equalIdentityKeys(deviceKey, public) {
 		return domain.AgentIdentity{}, domain.Fail(domain.Invalid, "owner key must be distinct from the device authentication key")
 	}
-	if identity.OwnerKey != "" {
+	if agent.Founder {
+		var generation int64
+		err := tx.QueryRowContext(ctx, "SELECT generation FROM identity_owners WHERE identity_id=? AND owner_key=?", agentID, ownerKey).Scan(&generation)
+		if err == nil {
+			identity.OwnerKey, identity.OwnerGeneration = ownerKey, generation
+			return identity, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return identity, err
+		}
+	} else if identity.OwnerKey != "" {
 		previous, err := device.PublicKey(identity.OwnerKey)
 		if err != nil {
 			return domain.AgentIdentity{}, err
@@ -201,10 +211,15 @@ func (s *Store) SetIdentityOwner(ctx context.Context, agentID, ownerKey string, 
 	if err := saveIdentity(ctx, tx, identity); err != nil {
 		return identity, err
 	}
-	if err := s.audit(ctx, tx, agentID, "identity.owner", "accepted"); err != nil {
+	if agent.Founder {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO identity_owners(identity_id,generation,owner_key) VALUES(?,?,?)", agentID, identity.OwnerGeneration, ownerKey); err != nil {
+			return identity, err
+		}
+	}
+	if err := s.audit(ctx, tx, identity.AgentID, "identity.owner", "accepted"); err != nil {
 		return identity, err
 	}
-	if err := s.event(ctx, tx, "agent", agentID, "", ""); err != nil {
+	if err := s.event(ctx, tx, "agent", identity.AgentID, "", ""); err != nil {
 		return identity, err
 	}
 	return identity, s.commit(ctx, tx)

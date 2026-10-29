@@ -5,8 +5,8 @@ Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
 Native message protocol version is **2**; server SQLite migration version is
-**6**; local-worker SQLite remains **1**. Existing SQL5 databases migrate
-additively to SQL6; earlier server-state formats remain unsupported.
+**7**; local-worker SQLite remains **1**. Existing SQL5/SQL6 databases migrate
+transactionally through SQL7; earlier server-state formats remain unsupported.
 Deploy the server first. Version 2 requires account-bound public-key admission
 and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
 create new runtime identities. Native multi-UID qualification is separate from
@@ -31,8 +31,10 @@ use 0700/0600; the user's existing HOME permissions are not changed.
 `PRAGMA user_version` is local to each database. Server SQL5 is the minimum
 existing database version; older and future unsupported versions fail closed.
 Fresh empty databases use the immutable ordered initialization statements.
-SQL6 appends the shared-notes table and its scoped-update triggers without
-rewriting identities, projects, tasks, private messages or operation receipts.
+SQL6 appends shared notes and scoped-update triggers. SQL7 preserves identity
+JSON and existing records while rebuilding account/challenge foreign keys for
+multiple Founder device bindings, adding device-scoped request/key/receipt
+metadata and independent Founder owner records. Shipped SQL1-SQL6 are unchanged.
 
 New user defaults are grouped under `$HOME/.foundation`: private `config`,
 runner `state`, key `identity`, socket `run`, owned `workspaces`, managed `bin`
@@ -55,12 +57,13 @@ creates a whole-desktop profile or screen authorization.
 | --- | --- |
 | `agents` | Immutable identity, display name, Founder/active/banned state, sponsor, timestamps, mode/revision and Founder mode-request attribution; the historical credential-hash column is unused by authentication |
 | `invitations` | Historical SQL storage retained by immutable schema definitions; no input type, runtime operation or receipt adapter exists |
-| `agent_identities` | Instance/agent/request binding, unique dedicated SSH user/UID, approved public keys/fingerprints, key and owner generations, active/banned state and software assurance |
-| `identity_accounts` | Durable one-agent/one-UID/one-SSH-user reservation; no reuse by another identity |
-| `identity_keys` | Canonical public-key fingerprints, owning agent/generation/kind and retired-key reservations |
-| `identity_requests` | Signed public request fingerprint and exact agent/key-generation replay binding |
-| `identity_challenges` | Hashed one-time, expiring activation nonce bound to agent/key generation |
-| `identity_receipts` | Exact operation receipt plus identity generation; old receipts cannot activate recovered keys |
+| `agent_identities` | Original agent binding plus Founder-only additional `device_id` bindings, each with independent request, SSH user/UID, approved keys, generations and state; generated `agent_id` retains the owning actor foreign key |
+| `identity_accounts` | Durable one-enrollment/one-UID/one-SSH-user reservation; historical `agent_id` column identifies the original agent binding or additional device binding, never another actor |
+| `identity_keys` | Globally unique canonical public-key fingerprints, owning agent/device/generation/kind and retired-key reservations |
+| `identity_requests` | Signed public request fingerprint and exact agent/device/key-generation replay binding |
+| `identity_challenges` | Hashed one-time expiring activation nonce per enrollment binding/key generation |
+| `identity_receipts` | Exact operation receipt plus device/key generation; old receipts cannot activate recovered or revoked keys |
+| `identity_owners` | Independent Founder owner keys/generations per computer; live transport admission is additionally required; non-Founders retain the single-owner fence |
 | `projects` | Name/description, owner, service-maintained delegate list, revision, authority/context epoch, archive state |
 | `project_creators` | Specific Founder-issued one-use project-creation authorization |
 | `notes` | One revisioned team-readable Markdown document per company/project/agent scope, explicit author/time provenance; latest three snapshots in `histories` |
@@ -289,7 +292,8 @@ journals/outbox and unrelated fences are unchanged; Founder pause stays paused.
 The watchdog gives a newly observed session fence a 30-second server-timed
 recovery grace before alert delivery. Prompt autonomous cleanup sends no human
 alert; persistent unprovable cleanup still produces one deduplicated fallback.
-Local SQL1, server SQL6, API/schema2 and the locked native payload remain unchanged.
+These cleanup operations require no additional migration or wire change
+(local SQL1, current server SQL7, API/schema2).
 
 Legacy/unknown endpoints without durable ownership, uncertain launches that
 never captured a process identity, unavailable authority and unprovable cleanup
@@ -306,7 +310,7 @@ ordinary autonomous cleanup does not adopt them.
 on the existing 30-second heartbeat; old command-only bodies remain accepted.
 Latest report and incident are bounded per-agent service-owned `settings`, not
 new tables or client-writable authority. Health needs no additional SQLite
-migration; current API/schema stays **2**, server SQL **5**, local SQL **1**.
+migration; current API/schema stays **2**, server SQL **7**, local SQL **1**.
 
 Reports carry their version/sequence/observation time, effective mode,
 provider/version/model, configured `preferred_provider`, authentication readiness
@@ -435,7 +439,8 @@ another process's occupied slot and genuinely unprovable ownership are retained 
 task data, approvals, retry budget or mode is erased or renewed. The private
 `agent-reset-start:` receipt prevents an interrupted reset from cancelling newer
 work on replay; such a missing final result becomes `reset-interrupted`.
-Local SQL1, server SQL6, API/schema2 and native protocol2 remain unchanged.
+These reset operations require no additional migration or wire change
+(local SQL1, current server SQL7, API/schema2, native protocol2).
 
 For terminal legacy tmux sessions, explicit reset does native cleanup rather
 than rejecting a missing historical ownership journal. The old-format per-session
@@ -673,8 +678,10 @@ claim a Windows runtime port.
   retry after native account binding but before activation reconciles the same
   provisioned account/key/generation; it must not create another identity or
   reject a retained successful binding. Active identities are not reprovisioned.
-- Every agent, including Founder, receives a unique Foundation-host SSH user and
-  UID. Durable account/key reservations prevent another identity reusing them.
+- Every enrolled computer receives a unique Foundation-host SSH user and UID.
+  Non-Founder agents have one computer; Founder may enroll additional devices
+  with distinct keys/accounts under its existing AgentID. Durable account/key
+  reservations prevent another enrollment reusing them.
   For new identities the username is the lowercase agent name with runs outside
   ASCII `a-z`, `0-9`, `_` and `-` replaced by `-`, then outer `-` removed.
   The result must match `[a-z_][a-z0-9_-]{0,31}` and cannot be `root`; names
@@ -731,6 +738,47 @@ claim a Windows runtime port.
   Only the local socket and public AgentID are retained by the runner; no legacy
   bearer token authenticates API v2.
 
+### Founder devices and concurrent connections
+
+Only authenticated Founder can use `device register --input SIGNED_PUBLIC
+[--output PROFILE]`, `device list` and `device revoke BINDING_ID --input FILE`.
+Additional computers prepare their own independent keys and signed public
+requests; registration never copies keys or creates another Founder actor.
+Their `AgentIdentity.device_id` and `device_name` identify the enrollment and
+label. The original computer retains an omitted device ID and uses its AgentID
+as the binding ID; existing profiles, keys and account names stay valid.
+New device usernames derive from the signed device name using the same account
+normalization and collision policy.
+
+Activation challenges, possession proofs, signed certificate identities, local
+profiles and exact receipts bind the device as well as actor/key generation.
+Owner certificates additionally select an independent live owner generation
+within that device. Multiple different Founder owner keys remain valid together;
+renewing, closing or reconnecting one cannot replace another. Same-key reconnect
+replaces only that logical owner transport. Non-Founder additional-device
+registration is denied transactionally, including for project delegates.
+
+Revocation requires a reason and another authenticated Founder computer; it
+cannot remove the last active computer. It increments only the selected binding
+generations, retains key/account tombstones, deletes its pending challenges and
+owner records, and cancels that device's live owners/streams. Other device keys,
+the Founder actor/mode, task journals and occupied work slot are unchanged.
+Application access is denied even if native account cleanup remains pending.
+Replaying registration cannot reactivate a revoked device; prepare fresh keys
+and explicitly enroll a new device instead.
+
+The original binding counter remains the actor-scoped control/discovery epoch.
+Revoking the original computer can stale existing cursors/queued controls, but
+does not invalidate other devices' credentials. Whole-Founder root-local
+fresh-key recovery retires all additional devices; backup restore quarantines
+every binding, not just the original. No old certificate or registration receipt
+can restore authority.
+
+Devices are access credentials, not additional agents, work slots or automation
+modes. Claims still serialize by AgentID. Health, task/session controls and
+maintenance remain agent-scoped, not a new per-device worker-management API.
+No iOS/Android/browser client or native multi-UID qualification is implied.
+
 ### SSH stdio, OS identity and binary owner control
 
 Pinned SSH invokes the root-controlled forced gateway with exactly `fdn-api` or
@@ -750,7 +798,7 @@ Activation proves the approved authentication key through the join channel and
 obtains a device certificate. The device certificate authorizes only identity
 control, including typed owner challenge/proof messages on that channel. Owner admission
 proves an ephemeral owner key and issues an owner certificate for ordinary API
-use. Certificates bind `instance_id`, `agent_id`, key `generation`, purpose and
+use. Certificates bind `instance_id`, `agent_id`, optional `device_id`, key `generation`, purpose and
 (for owners) `owner_generation`; these must agree with the peer UID, registered
 keys, current state and live owner. Transactions recheck the same generation
 fence so revocation/recovery cannot authorize a late stale write. Bounded
@@ -799,9 +847,11 @@ Protected controls, status and health remain responsive during provider work.
 
 Only two **different live owner keys** that prove possession, plus a **fresh
 successful authenticated binary ping of the incumbent**, establish the duplicate condition.
-The policy is to ban the **entire identity**, not choose a winner: both original
-and contender lose API admission and active streams, including when the original
-is Founder. Key/owner generations retire, outstanding challenges cannot revive
+For a non-Founder the policy bans the **entire identity**, not a winner: both
+original and contender lose API admission and active streams. Founder permits
+concurrent authenticated devices/owners and is excluded from duplicate-owner
+auto-ban, not from certificate, account or generation checks.
+Key/owner generations retire, outstanding challenges cannot revive
 access, and active work remains stopped/fenced rather than silently reassigned.
 
 A stale/crashed connection, same-key reconnect, ordinary CLI traffic, key
@@ -858,7 +908,8 @@ preserved through current-format identity attachment.
 | --- | --- |
 | Read shared projects/tasks/discussion/history | Any active enrolled agent |
 | Register signed public identity keys / migrate designated original non-Founder | Founder only; project delegation is insufficient |
-| Revoke an agent | Founder; Founder itself cannot be manually revoked, but confirmed duplicate-owner auto-ban includes Founder |
+| Revoke an agent | Founder; Founder itself cannot be manually revoked; duplicate-owner auto-ban applies only to non-Founders |
+| Enroll/list/revoke Founder devices | Active Founder only; revocation from another computer, never the last active device; no second actor or work slot |
 | Recover a non-Founder identity | Active Founder, fresh signed keypairs and explicit reason/epoch transition |
 | Recover Founder | Root-only private Unix maintenance channel; never an agent gateway or ordinary API |
 | Pause/resume global agent mode | Founder only, including its own mode; delegates/targets cannot override |

@@ -102,7 +102,7 @@ func (s *Store) Claim(ctx context.Context, actor, id string, req domain.ClaimReq
 			return domain.Run{}, err
 		}
 		if active != 0 {
-			return domain.Run{}, domain.Fail(domain.Conflict, "this computer already owns an active task")
+			return domain.Run{}, domain.Fail(domain.Conflict, "this agent already owns an active task")
 		}
 		run := domain.Run{ID: domain.NewID("run"), Kind: kind, TaskID: t.ID, AgentID: a.ID, SpecGeneration: t.SpecGeneration,
 			Attempt: t.Attempts + 1, Provider: req.Provider, Model: req.Model, State: "running", Evidence: []string{}, StartedAt: s.timestamp()}

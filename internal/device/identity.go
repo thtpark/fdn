@@ -234,6 +234,13 @@ func challengePayload(challenge domain.IdentityChallenge) ([]byte, error) {
 	if challenge.ExpiresAt <= 0 {
 		return nil, domain.Fail(domain.Invalid, "identity challenge requires an expiry")
 	}
+	if challenge.DeviceID != "" {
+		if !domain.ValidOperation(challenge.DeviceID) {
+			return nil, domain.Fail(domain.Invalid, "identity challenge has an invalid device binding")
+		}
+		return frame("foundation.device.activation.device.v2", challenge.InstanceID, challenge.AgentID, challenge.DeviceID,
+			strconv.FormatInt(challenge.Generation, 10), challenge.Nonce, strconv.FormatInt(challenge.ExpiresAt, 10)), nil
+	}
 	return frame("foundation.device.activation.v2", challenge.InstanceID, challenge.AgentID,
 		strconv.FormatInt(challenge.Generation, 10), challenge.Nonce, strconv.FormatInt(challenge.ExpiresAt, 10)), nil
 }
@@ -249,6 +256,13 @@ func ownerPayload(req domain.OwnerRequest, identity domain.AgentIdentity) ([]byt
 	der, err := x509.MarshalPKIXPublicKey(public)
 	if err != nil {
 		return nil, nil, err
+	}
+	if identity.DeviceID != "" {
+		if !domain.ValidOperation(identity.DeviceID) {
+			return nil, nil, domain.Fail(domain.Invalid, "owner proof has an invalid device binding")
+		}
+		return frame("foundation.device.owner.device.v2", identity.InstanceID, identity.AgentID, identity.DeviceID,
+			strconv.FormatInt(identity.Generation, 10), string(der), req.Nonce), public, nil
 	}
 	return frame("foundation.device.owner.v2", identity.InstanceID, identity.AgentID,
 		strconv.FormatInt(identity.Generation, 10), string(der), req.Nonce), public, nil

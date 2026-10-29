@@ -167,6 +167,8 @@ var Types = []reflect.Type{
 	reflect.TypeFor[domain.Page[domain.RetryPolicy]](),
 	reflect.TypeFor[domain.ReviewReference](),
 	reflect.TypeFor[domain.Page[domain.ReviewReference]](),
+	reflect.TypeFor[domain.RevokeDeviceRequest](),
+	reflect.TypeFor[domain.Page[domain.RevokeDeviceRequest]](),
 	reflect.TypeFor[domain.Run](),
 	reflect.TypeFor[domain.Page[domain.Run]](),
 	reflect.TypeFor[domain.Screen](),

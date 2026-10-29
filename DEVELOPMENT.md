@@ -80,9 +80,10 @@ Other locations are neither scanned nor adopted. See
 [explicit configuration and current paths](MIGRATION.md#explicit-configuration-and-current-paths).
 Symlinked or other-user-
 writable test directories fail before adoption. Keep `.local` out of Git and
-never copy a running production identity into it. Moving Founder still needs
-explicit old-owner shutdown and root-local fresh-key rebinding; wrappers do
-not enroll, rename agents, reset journals/fences, publish or deploy.
+never copy a running production identity into it. Additional Founder computers
+use their own fresh signed `device register` enrollment; replacing Founder's
+original keys still needs root-local fresh-key recovery. Wrappers do not enroll,
+rename agents, reset journals/fences, publish or deploy.
 Use these foreground wrappers for development, not installed native service
 registration. Native managers continue to bind the actual OS user's HOME.
 
@@ -206,8 +207,8 @@ resources untouched. An `operator-required` result is not a successful reset.
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
 version is **2**; native message protocol is **2**, server SQLite migration is
-**6**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
-the additive SQL6 notes migration preserves current records.
+**7**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
+SQL6 adds notes and SQL7 adds Founder device bindings while preserving records.
 Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
@@ -252,10 +253,14 @@ Read [SCHEMA.md](SCHEMA.md) before changing either database.
   rejection before OS commands, exact retries, disable-before-provision, fresh
   higher-generation UID/name retention and current registry/returned/post-bind
   tuple checks; do not add a generation override CLI or reset root inventory.
-- Duplicate-owner tests must prove different live owner keys and a fresh
-  incumbent authenticated binary ping before the whole-identity ban, including Founder.
+- Duplicate-owner tests must prove different live non-Founder owner keys and a
+  fresh incumbent authenticated binary ping before the whole-identity ban.
   Same-key reconnect, dead owner, CLI traffic and unproved attempts must not
-  ban. Recovery rotates keys/generations explicitly and cannot revive old
+  ban. Founder permits independent device keys and multiple live owner sessions,
+  with device-bound proofs/certificates, scoped revocation and one shared work
+  slot. Test renewal/closure isolation, original-computer revocation, per-device
+  account generations, SQL6 preservation and all-device recovery/quarantine.
+  Recovery rotates keys/generations explicitly and cannot revive old
   certificates or work authority. Software/RAM cloning and sequential use
   remain possible; optional future native hardware signing is not implemented.
 

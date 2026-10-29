@@ -29,8 +29,11 @@ The checkout's root documents are canonical; no old source tree is required.
 4. Preserve exact replay, generation/epoch fences, completed-vs-done, creator/
    recipient ownership and the one-slot rule. Identity tests must distinguish
    separate-HOME business fixtures from actual Unix peer-UID/mTLS checks. Prove
-   different live owner keys plus fresh incumbent binary ping before whole-identity
-   ban (including Founder); crash/reconnect/CLI/unproved attempts do not ban.
+   different live non-Founder owner keys plus fresh incumbent binary ping before
+   whole-identity ban; crash/reconnect/CLI/unproved attempts do not ban.
+   Founder permits independently enrolled device keys and concurrent live owners,
+   not a second actor or work slot. Test device-bound proofs/certificates,
+   renewal/closure isolation, per-device revocation and all-device recovery.
    Workers use the existing installing user's UID/HOME for identity and tools;
    no new worker account/group is required. Keys stay private and out of model/
    shared output, not isolated from same-user tools. Keep Foundation root
@@ -45,7 +48,7 @@ The checkout's root documents are canonical; no old source tree is required.
    adapters must prove non-prompting coding approval and tool-disabled text calls.
 5. Add ordered compatibility-tested migrations, never rewrite shipped schemas
    or reset state. Application/schema contract is 2, native message protocol 2,
-   server SQL migration 6, local SQL 1. SQL5 preserves private message bytes,
+   server SQL migration 7, local SQL 1. SQL5 preserves private message bytes,
    insertion order, receipts and scoped updates while admitting the exact
    Foundation maintenance mailbox, never an enrolled synthetic agent.
    SQL5 is the existing server-state floor; older and future unsupported
@@ -58,6 +61,11 @@ The checkout's root documents are canonical; no old source tree is required.
    edits transactional; every new text/coding invocation gets an atomic applicable
    note snapshot. Preserve pinned journals, epochs, approvals and retry fences;
    never auto-fetch references or publish selected private knowledge.
+   SQL7 preserves current identity JSON/receipts and all business records while
+   adding Founder device bindings/owners and enrollment-bound account/challenge
+   foreign keys. Keep global key/UID/name reservations, private device discovery,
+   non-Founder single-owner enforcement and one work slot per agent. Root account
+   RPCs use the exact agent/device binding ID with its positive key generation.
 6. Update command/reference/skill behavior together. Skills need matching names,
    meaningful trigger descriptions and complete current procedures. Documentation
    must distinguish implemented capability, planned work and evidence limits.

@@ -71,6 +71,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return nil, domain.Fail(domain.Prerequisite, "bearer invitations are retired; Founder must register the target's public identity")
 	case "agent":
 		return a.agentCommand(ctx, r, tail)
+	case "device":
+		return a.deviceCommand(ctx, r, tail)
 	case "project":
 		return a.projectCommand(ctx, r, tail)
 	case "note":

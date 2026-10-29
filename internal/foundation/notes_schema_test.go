@@ -48,20 +48,27 @@ func TestNotesMigrationPreservesSQL5AndRetainsDocumentsAcrossReopen(t *testing.T
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
-	s, err := Open(ctx, path)
+	notesDB, err := database.Open(ctx, path, append(previous, notesSchema), 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var version int
-	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 6 {
-		s.Close()
+	if err := notesDB.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 6 {
+		notesDB.Close()
 		t.Fatal("SQL5 did not advance through the additive notes migration", version, err)
 	}
 	for table, hash := range hashes {
-		if got := securityTableHash(t, s.db, table); got != hash {
-			s.Close()
+		if got := securityTableHash(t, notesDB, table); got != hash {
+			notesDB.Close()
 			t.Fatal("notes migration rewrote existing state", table)
 		}
+	}
+	if err := notesDB.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
 	}
 	notes, err := s.NoteContext(ctx, founder.ID, project.ID)
 	if err != nil || len(notes) != 3 {

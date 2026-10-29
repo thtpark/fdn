@@ -189,7 +189,7 @@ func (s *Service) maintainOwner(ctx context.Context, profile config.ConnectionPr
 }
 
 func validChallenge(challenge domain.IdentityChallenge, identity domain.AgentIdentity, now time.Time) bool {
-	return challenge.AgentID == identity.AgentID && challenge.InstanceID == identity.InstanceID &&
+	return challenge.AgentID == identity.AgentID && challenge.DeviceID == identity.DeviceID && challenge.InstanceID == identity.InstanceID &&
 		challenge.Generation == identity.Generation && challenge.Nonce != "" && challenge.ExpiresAt > now.Unix()
 }
 

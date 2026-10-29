@@ -99,7 +99,7 @@ func (s *Server) serveJoinMessages(ctx context.Context, conn net.Conn, uid uint3
 				if len(request.Payload) != 0 || owner.entry != nil {
 					return nil, domain.Fail(domain.Conflict, "owner challenge is only available before admission")
 				}
-				identity, err := s.Store.Identity(call, actor.ID)
+				identity, err := s.Store.Identity(call, fence.BindingID())
 				if err != nil {
 					return nil, err
 				}
@@ -115,7 +115,7 @@ func (s *Server) serveJoinMessages(ctx context.Context, conn net.Conn, uid uint3
 				time.Now().Unix() >= owner.challenge.ExpiresAt || actor.ID != owner.actor.ID {
 				return nil, domain.Fail(domain.Denied, "owner challenge is missing, mismatched or expired")
 			}
-			current, err := s.Store.Identity(call, actor.ID)
+			current, err := s.Store.Identity(call, fence.BindingID())
 			if err != nil {
 				return nil, err
 			}
@@ -137,9 +137,14 @@ func (s *Server) serveJoinMessages(ctx context.Context, conn net.Conn, uid uint3
 				}
 				owner.entry, owner.identity, owner.public = entry, identity, public
 				current = identity
-			} else if owner.entry.ctx.Err() != nil || input.OwnerKey != owner.entry.key ||
-				current.OwnerGeneration != owner.entry.generation || current.OwnerKey != owner.entry.key {
-				return nil, domain.Fail(domain.Denied, "owner session was retired or changed")
+			} else {
+				current, err = s.Store.IdentityOwner(call, owner.entry.binding, owner.entry.generation)
+				if err != nil {
+					return nil, err
+				}
+				if owner.entry.ctx.Err() != nil || input.OwnerKey != owner.entry.key || current.OwnerKey != owner.entry.key {
+					return nil, domain.Fail(domain.Denied, "owner session was retired or changed")
+				}
 			}
 			certificate, err := s.identity.issue(current, public, "owner")
 			if err != nil {
@@ -163,7 +168,7 @@ func (s *Server) serveJoinMessages(ctx context.Context, conn net.Conn, uid uint3
 	owner.mu.Lock()
 	defer owner.mu.Unlock()
 	if owner.entry != nil {
-		s.releaseOwner(owner.actor.ID, owner.entry)
+		s.releaseOwner(owner.entry)
 	}
 	return session.Err()
 }

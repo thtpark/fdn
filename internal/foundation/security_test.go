@@ -90,7 +90,7 @@ func newSecurityFixture(t *testing.T) *securityFixture {
 func securityActivate(t *testing.T, store *Store, identity domain.AgentIdentity, keys securityKeys, uid int64) (domain.AgentIdentity, domain.ActivateIdentityRequest) {
 	t.Helper()
 	ctx := context.Background()
-	identity, err := store.BindIdentityAccount(ctx, identity.AgentID, identity.SSHUser, uid, identity.SSHFingerprint)
+	identity, err := store.BindIdentityAccount(ctx, identity.BindingID(), identity.SSHUser, uid, identity.SSHFingerprint)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func (f *securityFixture) register(t *testing.T, name string, uid int64) (domain
 }
 
 func securityCertificate(identity domain.AgentIdentity, purpose string) domain.CertificateIdentity {
-	ci := domain.CertificateIdentity{InstanceID: identity.InstanceID, AgentID: identity.AgentID, Generation: identity.Generation, Purpose: purpose}
+	ci := domain.CertificateIdentity{InstanceID: identity.InstanceID, AgentID: identity.AgentID, DeviceID: identity.DeviceID, Generation: identity.Generation, Purpose: purpose}
 	if purpose == "owner" {
 		ci.OwnerGeneration = identity.OwnerGeneration
 	}
@@ -587,7 +587,7 @@ func TestSecurityOfflineRecoveryOfEnrolledFounderAndFutureSchema(t *testing.T) {
 		t.Fatal("legacy Founder recovery lost provenance", agent, err)
 	}
 	path := filepath.Join(securityDirectory(t), "private", "future.sqlite")
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, "SELECT 1;"}, 5)
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, devicesSchema, "SELECT 1;"}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,13 +600,13 @@ func TestSecurityOfflineRecoveryOfEnrolledFounderAndFutureSchema(t *testing.T) {
 		t.Fatal("future schema was opened")
 	}
 	assertCode(t, err, domain.Prerequisite)
-	probe, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, "SELECT 1;"}, 5)
+	probe, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, devicesSchema, "SELECT 1;"}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer probe.Close()
 	var version int
-	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 7 {
+	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 8 {
 		t.Fatal("future schema refusal modified retained database", version, err)
 	}
 }

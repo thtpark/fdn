@@ -32,7 +32,7 @@ func (s *Store) checkActorIdentityFence(ctx context.Context, q queryer, id strin
 	if id != ci.AgentID {
 		return domain.Fail(domain.Denied, "certificate actor does not match the requested actor")
 	}
-	identity, err := get[domain.AgentIdentity](ctx, q, "agent_identities", ci.AgentID)
+	identity, err := get[domain.AgentIdentity](ctx, q, "agent_identities", ci.BindingID())
 	if err != nil {
 		if domain.AsFault(err).Code == domain.NotFound {
 			return domain.Fail(domain.Denied, "certificate actor has no enrolled identity")
@@ -46,12 +46,15 @@ func (s *Store) checkActorIdentityFence(ctx context.Context, q queryer, id strin
 	if err := identityAllowed(identity, agent, true); err != nil {
 		return err
 	}
-	if ci.InstanceID != identity.InstanceID || ci.Generation <= 0 || ci.Generation != identity.Generation {
+	if ci.AgentID != identity.AgentID || ci.DeviceID != identity.DeviceID || ci.InstanceID != identity.InstanceID || ci.Generation <= 0 || ci.Generation != identity.Generation {
 		return domain.Fail(domain.Denied, "certificate actor key generation is stale")
 	}
-	if (ci.Purpose == "owner" && (identity.OwnerKey == "" || ci.OwnerGeneration <= 0 || ci.OwnerGeneration != identity.OwnerGeneration)) ||
-		(ci.Purpose == "device" && ci.OwnerGeneration != 0) || (ci.Purpose != "device" && ci.Purpose != "owner") {
+	if (ci.Purpose == "device" && ci.OwnerGeneration != 0) || (ci.Purpose != "device" && ci.Purpose != "owner") {
 		return domain.Fail(domain.Denied, "certificate actor owner generation or purpose is stale")
+	}
+	if ci.Purpose == "owner" {
+		_, err = identityOwnerKey(ctx, q, identity, agent, ci.OwnerGeneration)
+		return err
 	}
 	return nil
 }
@@ -130,6 +133,9 @@ func (s *Store) banIdentity(ctx context.Context, id string, keyGeneration, owner
 		return identityErr
 	}
 	if duplicate {
+		if agent.Founder {
+			return domain.Fail(domain.Denied, "Founder permits multiple independently authenticated owners")
+		}
 		if identityErr != nil || keyGeneration <= 0 || ownerGeneration <= 0 || identity.Generation != keyGeneration || identity.OwnerGeneration != ownerGeneration {
 			return domain.Fail(domain.Conflict, "duplicate evidence belongs to a retired key or owner generation")
 		}
@@ -153,6 +159,9 @@ func (s *Store) banIdentity(ctx context.Context, id string, keyGeneration, owner
 		identity.Generation++
 		identity.OwnerGeneration++
 		if err := saveIdentity(ctx, tx, identity); err != nil {
+			return err
+		}
+		if err := retireFounderDevices(ctx, tx, id, "banned"); err != nil {
 			return err
 		}
 	}
@@ -269,6 +278,9 @@ func (s *Store) recoverIdentity(ctx context.Context, tx *sql.Tx, actor, id strin
 	}
 	identity, err = s.replaceIdentityKeys(ctx, tx, identity, req.Identity, actor)
 	if err != nil {
+		return domain.AgentIdentity{}, err
+	}
+	if err := retireFounderDevices(ctx, tx, id, "revoked"); err != nil {
 		return domain.AgentIdentity{}, err
 	}
 	agent.Active, agent.Banned, agent.BanReason = false, false, ""

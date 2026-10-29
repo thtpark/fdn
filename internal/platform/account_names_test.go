@@ -110,6 +110,7 @@ func TestManagedAgentNameAccountsRejectUnmanagedAndUnsafeNames(t *testing.T) {
 		if _, err := manager.Plan(ctx, AccountRequest{AgentID: accountTestAgent, Username: name, PublicKey: key, Generation: 1}); err == nil || system.lookups != lookups {
 			t.Fatal("unsafe name reached OS lookup", name, err)
 		}
+
 		if _, err := manager.Disable(ctx, AccountDisableRequest{AgentID: accountTestAgent, Username: name, Generation: 1}, true); err == nil || system.lookups != lookups {
 			t.Fatal("unsafe disable name reached OS lookup", name, err)
 		}
@@ -117,5 +118,43 @@ func TestManagedAgentNameAccountsRejectUnmanagedAndUnsafeNames(t *testing.T) {
 	system.users["agent1"] = AccountUser{Username: "agent1", UID: 9001, Marker: "unmanaged"}
 	if _, err := manager.Plan(ctx, AccountRequest{AgentID: accountTestAgent, Username: "agent1", PublicKey: key, Generation: 1}); !errors.Is(err, ErrAccountConflict) || len(system.mutations) != 0 {
 		t.Fatal("existing OS account was adopted", err)
+	}
+}
+
+func TestManagedFounderDeviceAccountsRetainIndependentUIDsAndTombstones(t *testing.T) {
+	ctx := context.Background()
+	manager, system := accountFixture(t)
+	var accounts []ManagedAccount
+	for _, request := range []AccountRequest{
+		{AgentID: accountTestAgent, Username: "founder", PublicKey: accountTestKey(t), Generation: 1},
+		{AgentID: "device_cccccccccccccccccccccccccccccccc", Username: "founder-phone", PublicKey: accountTestKey(t), Generation: 1},
+	} {
+		plan, err := manager.Plan(ctx, request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		account, err := manager.Apply(ctx, plan, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		accounts = append(accounts, account)
+	}
+	if accounts[0].UID == accounts[1].UID || accounts[0].Username == accounts[1].Username {
+		t.Fatal("Founder device reused another computer's SSH account")
+	}
+	phone := accounts[1]
+	if _, err := manager.Disable(ctx, AccountDisableRequest{AgentID: phone.AgentID, Username: phone.Username, Generation: 2}, true); err != nil {
+		t.Fatal(err)
+	}
+	mutations, lookups := len(system.mutations), system.lookups
+	if _, err := manager.Plan(ctx, AccountRequest{AgentID: phone.AgentID, Username: phone.Username, PublicKey: phone.PublicKey, Generation: 1}); !errors.Is(err, ErrAccountConflict) {
+		t.Fatal("stale Founder device provisioning resurrected a revoked account", err)
+	}
+	if len(system.mutations) != mutations || system.lookups != lookups {
+		t.Fatal("revoked Founder device replay reached native effects")
+	}
+	inventory, err := manager.Inventory()
+	if err != nil || inventory.Accounts[0].UID != accounts[0].UID || inventory.Accounts[0].State != AccountActive || inventory.Accounts[1].State != AccountDisabled {
+		t.Fatal("device revocation changed the other Founder computer", inventory, err)
 	}
 }

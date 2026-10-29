@@ -212,16 +212,37 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent operation` | Exactly `REQUEST_ID` from `data.id`; bodyless GET of the common diagnostic-refresh/session-recovery state and safe result, visible only to its requester Founder or target |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
 | `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
-| `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban still includes Founder |
+| `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban applies only to non-Founders |
 | `agent-cli agent register` | `--input SIGNED_PUBLIC [--output PUBLIC_PROFILE]`; Founder-only new signed public-key registration |
 | `agent-cli agent recover` | `AGENT --input NEW_SIGNED_PUBLIC --reason REASON [--output PUBLIC_PROFILE]`; Founder-only non-Founder recovery with fresh keypairs/generation, not task-run recovery |
-| `agent-cli agent identity` | Current caller's public identity/account/key-generation/owner state; no private material |
+| `agent-cli agent identity` | Current connection's public identity/device/account/key-generation/owner state; no private material |
+| `agent-cli device list` | Founder only; original computer and all additional device bindings, including revoked devices; no leaf flags |
+| `agent-cli device register` | `--input SIGNED_PUBLIC [--output PUBLIC_PROFILE]`; Founder-only additional computer with fresh independent keys, not another agent |
+| `agent-cli device revoke` | `DEVICE_ID --input FILE`: required non-secret `reason`; revoke from another active Founder computer, never the last active device |
 | `agent-cli project list` | Shared registry |
 | `agent-cli project show` | `PROJECT` |
 | `agent-cli project create` | `--input FILE`: `name`, `description`; consumes specific creation grant for non-Founder |
 | `agent-cli project change` | `PROJECT --input FILE`: reason + optional name/description/archived; current authority, advances epoch |
 | `agent-cli project delegate` | `PROJECT --input FILE`: `agent_id`, `revoke`; grant Founder-only, revoke project authority |
 | `agent-cli project authorize` | `--input FILE`: `agent_id`, `revoke`; Founder-issued specific creation authorization |
+
+Founder devices share one `agent_id`, role, automation mode and active work slot.
+Each additional device has its own `device_id`, signed request, keys and
+Foundation SSH account/UID; the original computer uses its `agent_id` as its
+binding ID. Prepare the public request on that computer with `agent-identity
+prepare`, approve it with `device register`, then attach its approved profile
+using `agent-identity connect --profile` and the local identity proxy. Never copy
+another computer's keys. The profile includes the device binding and existing
+CA/SSH pins, not owner keys or certificates.
+
+`device revoke` takes `{"reason":"Withdraw this device's access"}` plus normal
+command metadata. Exact replay does not repeat revocation or resurrect a
+registration. It invalidates only the selected credentials and connections,
+including pending activation; native account cleanup can remain pending.
+Self-revocation through that device and revoking the last active computer are
+prerequisite errors. Root-local whole-Founder recovery and restore still retire
+all old device credentials. These commands do not implement a phone/browser
+client or per-device worker health/maintenance.
 
 ## Founder software upgrades
 
@@ -1093,7 +1114,7 @@ current exact retry authority; recovery is not permission to rerun.
 ## API map for development
 
 Application/schema contract version is **2**, native message protocol **2**,
-server SQLite migration **6** (existing-state floor **5**), local SQLite **1**. Native processes exchange
+server SQLite migration **7** (existing-state floor **5**), local SQLite **1**. Native processes exchange
 bounded protobuf frames over pinned SSH stdio/inner mTLS and peer-checked local
 Unix sockets. There is no internal HTTP/gRPC listener or HTTP downgrade.
 JSON envelopes remain CLI output and local evidence, not native wire payloads.
@@ -1108,11 +1129,12 @@ The join channel exposes `/v1/identity/challenge` and `/v1/identity/activate` fo
 fresh approved-key proof, then device-certificate-authenticated binary
 `identity.owner.challenge`/`identity.owner.prove` exchanges. That control channel proves an ephemeral owner key
 and issues an owner certificate. Ordinary API requires current owner mTLS plus
-agreement with the kernel peer UID and instance/agent/key/owner generations;
+agreement with the kernel peer UID and instance/agent/device/key/owner generations;
 request headers and JSON cannot supply a different principal.
 
 Ordinary families: `/me`, `/agents`, `/heartbeat`, `/identity/register`,
-`/identity/status`, `/identity/AGENT/recover`, `/projects`,
+`/identity/status`, `/identity/devices`, `/identity/devices/BINDING_ID/revoke`,
+`/identity/AGENT/recover`, `/projects`,
 `/project-creation-grants`, `/tasks`, `/entries`, `/attention`, `/events`,
 `/ownership`, `/messages`, `/sessions`, `/agent-operations`, `/updates`,
 `/notes`, `/note-context`. Registration/recovery is Founder-only;
@@ -1121,9 +1143,10 @@ agent routes. Entity changes use dedicated POST suffixes; claims/reports are
 controller operations, not generic CLI write escapes. Relays recheck current
 identity/owner, party/side, scope, consent/open and expiry.
 
-Only different live owner keys with valid possession proofs and a fresh
-incumbent binary control ping cause the **entire identity** ban, original and
-contender including Founder. Ordinary CLI traffic attaches the local proxy;
+Only different live non-Founder owner keys with valid possession proofs and a
+fresh incumbent binary control ping cause the **entire identity** ban, original
+and contender. Founder permits multiple independently authenticated live
+owners on its separately enrolled computers. Ordinary CLI traffic attaches the local proxy;
 crash/reconnect, key collision and unproved attempts do not ban. Ban closes API
 and streams. Recovery needs fresh keypairs and explicit generation/epoch
 transition; it never approves resuming uncertain work. Software/RAM clones and
@@ -1138,7 +1161,13 @@ Latest reports/incidents use bounded service-owned settings; health itself needs
 no migration beyond the SQL4 scoped-update contract. SQL5 adds the Foundation
 maintenance mailbox while preserving that feed, existing messages and receipts.
 SQL6 adds scoped notes and bodyless note invalidations without rewriting SQL5
-records. `POST /v1/notes` takes `domain.NoteRequest` and returns `domain.Note`;
+records. SQL7 adds device bindings and independent Founder owner generations.
+`GET /v1/identity/devices` returns Founder-only `[]domain.AgentIdentity`;
+`POST /v1/identity/devices` accepts `domain.RegisterIdentityRequest`, and
+`POST /v1/identity/devices/{id}/revoke` accepts `domain.RevokeDeviceRequest`.
+Both mutations return the exact `domain.AgentIdentity` binding; no query or
+caller-supplied actor/device overrides are accepted.
+`POST /v1/notes` takes `domain.NoteRequest` and returns `domain.Note`;
 `GET /v1/notes?scope=company|project|agent&target=ID` reads a document (agent
 target defaults to self). `GET /v1/note-context?project=PROJECT_ID` returns the
 atomic applicable `[]domain.Note` for the authenticated caller; it accepts no

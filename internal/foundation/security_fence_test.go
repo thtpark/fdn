@@ -10,7 +10,7 @@ import (
 func securityOwnerContext(t *testing.T, store *Store, identity domain.AgentIdentity) context.Context {
 	t.Helper()
 	owner := securityPublic(t, "ephemeral fixture owner")
-	identity, err := store.SetIdentityOwner(context.Background(), identity.AgentID, owner.public.AuthKey, identity.Generation)
+	identity, err := store.SetIdentityOwner(context.Background(), identity.BindingID(), owner.public.AuthKey, identity.Generation)
 	if err != nil {
 		t.Fatal(err)
 	}

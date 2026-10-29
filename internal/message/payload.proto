@@ -103,6 +103,8 @@ message Go_AgentIdentity {
   String ban_reason = 14;
   Signed owner_generation = 15;
   String owner_key = 16;
+  String device_id = 17;
+  String device_name = 18;
 }
 
 message Go_AgentInspection {
@@ -289,6 +291,7 @@ message Go_CertificateIdentity {
   Signed generation = 3;
   Signed owner_generation = 4;
   String purpose = 5;
+  String device_id = 6;
 }
 
 message Go_ClaimRequest {
@@ -429,6 +432,7 @@ message Go_IdentityChallenge {
   String instance_id = 3;
   Signed generation = 4;
   Signed expires_at = 5;
+  String device_id = 6;
 }
 
 message Go_ListQuery {
@@ -740,6 +744,12 @@ message Go_ReviewReference {
   Signed spec_generation = 2;
   Signed result_generation = 3;
   String decision = 4;
+}
+
+message Go_RevokeDeviceRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String reason = 3;
 }
 
 message Go_Run {
@@ -1459,6 +1469,11 @@ message List_Go_ReviewReference {
   bool present = 2;
 }
 
+message List_Go_RevokeDeviceRequest {
+  repeated Go_RevokeDeviceRequest items = 1;
+  bool present = 2;
+}
+
 message List_Go_Run {
   repeated Go_Run items = 1;
   bool present = 2;
@@ -1976,6 +1991,11 @@ message List_Page_Go_RetryPolicy {
 
 message List_Page_Go_ReviewReference {
   repeated Page_Go_ReviewReference items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RevokeDeviceRequest {
+  repeated Page_Go_RevokeDeviceRequest items = 1;
   bool present = 2;
 }
 
@@ -2932,6 +2952,16 @@ message Map_Go_ReviewReference {
 message Map_Go_ReviewReference_Entry {
   optional string key = 1;
   Go_ReviewReference value = 2;
+}
+
+message Map_Go_RevokeDeviceRequest {
+  repeated Map_Go_RevokeDeviceRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RevokeDeviceRequest_Entry {
+  optional string key = 1;
+  Go_RevokeDeviceRequest value = 2;
 }
 
 message Map_Go_Run {
@@ -3974,6 +4004,16 @@ message Map_Page_Go_ReviewReference_Entry {
   Page_Go_ReviewReference value = 2;
 }
 
+message Map_Page_Go_RevokeDeviceRequest {
+  repeated Map_Page_Go_RevokeDeviceRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RevokeDeviceRequest_Entry {
+  optional string key = 1;
+  Page_Go_RevokeDeviceRequest value = 2;
+}
+
 message Map_Page_Go_Run {
   repeated Map_Page_Go_Run_Entry items = 1;
   bool present = 2;
@@ -4641,6 +4681,11 @@ message Page_Go_RetryPolicy {
 
 message Page_Go_ReviewReference {
   List_Go_ReviewReference items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RevokeDeviceRequest {
+  List_Go_RevokeDeviceRequest items = 1;
   String next_cursor = 2;
 }
 

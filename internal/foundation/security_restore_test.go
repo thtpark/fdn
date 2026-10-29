@@ -14,7 +14,12 @@ import (
 
 func securityTableHash(t *testing.T, q queryer, table string) string {
 	t.Helper()
-	rows, err := q.QueryContext(context.Background(), "SELECT * FROM "+table+" ORDER BY rowid")
+	return securityQueryHash(t, q, "SELECT * FROM "+table+" ORDER BY rowid")
+}
+
+func securityQueryHash(t *testing.T, q queryer, query string) string {
+	t.Helper()
+	rows, err := q.QueryContext(context.Background(), query)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,6 +343,9 @@ BEGIN SELECT RAISE(ABORT,'fixture quarantine failure'); END`); err != nil {
 func TestSecurityQuarantineRejectsMissingCurrentIdentityAtomically(t *testing.T) {
 	ctx := context.Background()
 	f := newSecurityFixture(t)
+	if _, err := f.s.db.Exec("DELETE FROM identity_accounts WHERE agent_id=?", f.founder.AgentID); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := f.s.db.Exec("DELETE FROM agent_identities WHERE id=?", f.founder.AgentID); err != nil {
 		t.Fatal(err)
 	}

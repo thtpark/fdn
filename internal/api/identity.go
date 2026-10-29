@@ -28,6 +28,9 @@ type IdentityOptions struct {
 }
 
 type controllerOwner struct {
+	actor         string
+	binding       string
+	founder       bool
 	key           string
 	keyGeneration int64
 	instance      string
@@ -35,6 +38,11 @@ type controllerOwner struct {
 	conn          ownerConnection
 	ctx           context.Context
 	cancel        context.CancelFunc
+}
+
+type ownerReference struct {
+	binding    string
+	generation int64
 }
 
 type ownerConnection interface {
@@ -48,13 +56,13 @@ type identityServer struct {
 	options IdentityOptions
 	ca, key []byte
 	mu      sync.RWMutex
-	owners  map[string]*controllerOwner
+	owners  map[ownerReference]*controllerOwner
 	locks   map[string]*sync.Mutex
 	closed  bool
 }
 
 func newIdentityServer(s *Server) *identityServer {
-	return &identityServer{server: s, owners: map[string]*controllerOwner{}, locks: map[string]*sync.Mutex{}}
+	return &identityServer{server: s, owners: map[ownerReference]*controllerOwner{}, locks: map[string]*sync.Mutex{}}
 }
 
 func (s *Server) ConfigureIdentity(options IdentityOptions) error {
@@ -82,8 +90,8 @@ func (s *identityServer) lock(id string) *sync.Mutex {
 func (s *identityServer) owner(id string, identity domain.CertificateIdentity) context.Context {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	owner := s.owners[id]
-	if owner == nil || owner.generation != identity.OwnerGeneration || owner.keyGeneration != identity.Generation || owner.instance != identity.InstanceID {
+	owner := s.owners[ownerReference{identity.BindingID(), identity.OwnerGeneration}]
+	if owner == nil || owner.actor != id || owner.keyGeneration != identity.Generation || owner.instance != identity.InstanceID {
 		return nil
 	}
 	return owner.ctx
@@ -91,27 +99,65 @@ func (s *identityServer) owner(id string, identity domain.CertificateIdentity) c
 
 func (s *identityServer) retire(id string) {
 	s.mu.Lock()
-	owner := s.owners[id]
-	delete(s.owners, id)
+	var owners []*controllerOwner
+	for ref, owner := range s.owners {
+		if ref.binding == id {
+			owners = append(owners, owner)
+			delete(s.owners, ref)
+		}
+	}
 	s.mu.Unlock()
-	if owner != nil {
+	for _, owner := range owners {
 		owner.cancel()
 		owner.conn.CloseNow()
+		s.release(owner)
 	}
 }
 
 func (s *identityServer) denyOlder(id string, generation int64, reason string) {
 	s.mu.Lock()
-	owner := s.owners[id]
-	if owner != nil && owner.keyGeneration < generation {
-		delete(s.owners, id)
-	} else {
-		owner = nil
+	var owners []*controllerOwner
+	for ref, owner := range s.owners {
+		if ref.binding == id && owner.keyGeneration < generation {
+			owners = append(owners, owner)
+			delete(s.owners, ref)
+		}
 	}
 	s.mu.Unlock()
-	if owner != nil {
-		owner.conn.Close(websocket.StatusPolicyViolation, reason)
+	for _, owner := range owners {
 		owner.cancel()
+		owner.conn.Close(websocket.StatusPolicyViolation, reason)
+		s.release(owner)
+	}
+}
+
+func (s *identityServer) denyRetiredDevices(ctx context.Context, actor, reason string) error {
+	s.mu.RLock()
+	bindings := map[string]bool{}
+	for _, owner := range s.owners {
+		if owner.actor == actor && owner.binding != actor {
+			bindings[owner.binding] = true
+		}
+	}
+	s.mu.RUnlock()
+	for id := range bindings {
+		current, err := s.server.Store.Identity(ctx, id)
+		if err != nil {
+			return err
+		}
+		s.denyOlder(id, current.Generation, reason)
+	}
+	return nil
+}
+
+func (s *identityServer) release(owner *controllerOwner) {
+	if !owner.founder {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := s.server.Store.ReleaseIdentityOwner(ctx, owner.binding, owner.generation, owner.key); err != nil {
+		s.server.Log.Warn("identity owner retirement pending", "agent_id", owner.actor, "code", domain.AsFault(err).Code)
 	}
 }
 
@@ -137,11 +183,12 @@ func (s *identityServer) close() {
 	s.mu.Lock()
 	s.closed = true
 	owners := s.owners
-	s.owners = map[string]*controllerOwner{}
+	s.owners = map[ownerReference]*controllerOwner{}
 	s.mu.Unlock()
 	for _, o := range owners {
 		o.cancel()
 		o.conn.CloseNow()
+		s.release(o)
 	}
 }
 
@@ -189,7 +236,7 @@ func (s *Server) authenticateConnection(r *http.Request, purpose string) (domain
 }
 
 func (s *Server) provisionIdentity(ctx context.Context, proposed domain.AgentIdentity) (domain.AgentIdentity, error) {
-	current, err := s.Store.Identity(ctx, proposed.AgentID)
+	current, err := s.Store.Identity(ctx, proposed.BindingID())
 	if err != nil {
 		return current, err
 	}
@@ -203,7 +250,15 @@ func (s *Server) provisionIdentity(ctx context.Context, proposed domain.AgentIde
 	default:
 		return current, domain.Fail(domain.Denied, "identity requires explicit key recovery before provisioning")
 	}
-	s.identity.denyOlder(current.AgentID, current.Generation, "identity keys replaced; use the approved recovery profile")
+	s.identity.denyOlder(current.BindingID(), current.Generation, "identity keys replaced; use the approved recovery profile")
+	if current.DeviceID == "" {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+		err := s.identity.denyRetiredDevices(cleanup, current.AgentID, "Founder identity recovered; enroll this device again with fresh keys")
+		cancel()
+		if err != nil {
+			return current, err
+		}
+	}
 	if s.identity.options.Provision == nil {
 		return current, nil
 	}
@@ -219,7 +274,34 @@ func (s *Server) identityRoutes() {
 		return s.provisionIdentity(r.Context(), identity)
 	})
 	read(s, "GET /v1/identity/status", func(r *operationRequest, a domain.Agent) (domain.AgentIdentity, error) {
-		return s.Store.Identity(r.Context(), a.ID)
+		return s.Store.ConnectionIdentity(r.Context(), a.ID)
+	})
+	read(s, "GET /v1/identity/devices", func(r *operationRequest, a domain.Agent) ([]domain.AgentIdentity, error) {
+		if r.URL.RawQuery != "" || r.ContentLength != 0 || len(r.TransferEncoding) != 0 {
+			return nil, domain.Fail(domain.Invalid, "Founder device listing does not accept a body or query overrides")
+		}
+		return s.Store.FounderDevices(r.Context(), a.ID)
+	})
+	body(s, "POST /v1/identity/devices", false, func(r *operationRequest, a domain.Agent, q domain.RegisterIdentityRequest) (domain.AgentIdentity, error) {
+		if r.URL.RawQuery != "" {
+			return domain.AgentIdentity{}, domain.Fail(domain.Invalid, "Founder device registration does not accept query overrides")
+		}
+		identity, err := s.Store.RegisterFounderDevice(r.Context(), a.ID, q)
+		if err != nil {
+			return identity, err
+		}
+		return s.provisionIdentity(r.Context(), identity)
+	})
+	body(s, "POST /v1/identity/devices/{id}/revoke", false, func(r *operationRequest, a domain.Agent, q domain.RevokeDeviceRequest) (domain.AgentIdentity, error) {
+		if r.URL.RawQuery != "" {
+			return domain.AgentIdentity{}, domain.Fail(domain.Invalid, "Founder device revocation does not accept query overrides")
+		}
+		identity, err := s.Store.RevokeFounderDevice(r.Context(), a.ID, r.PathValue("id"), q)
+		if err == nil {
+			s.identity.denyOlder(identity.BindingID(), identity.Generation, "Founder device revoked")
+			s.disableIdentity(r.Context(), identity.BindingID())
+		}
+		return identity, err
 	})
 	body(s, "POST /v1/identity/{id}/recover", false, func(r *operationRequest, a domain.Agent, q domain.RecoverIdentityRequest) (domain.AgentIdentity, error) {
 		if a.Founder && r.PathValue("id") == a.ID {
@@ -300,7 +382,7 @@ func (s *identityServer) issue(identity domain.AgentIdentity, public crypto.Publ
 	if len(s.ca) == 0 || len(s.key) == 0 {
 		return nil, domain.Fail(domain.Prerequisite, "identity certificate issuer is not configured")
 	}
-	info := domain.CertificateIdentity{InstanceID: identity.InstanceID, AgentID: identity.AgentID, Generation: identity.Generation, Purpose: purpose}
+	info := domain.CertificateIdentity{InstanceID: identity.InstanceID, AgentID: identity.AgentID, DeviceID: identity.DeviceID, Generation: identity.Generation, Purpose: purpose}
 	ttl := 24 * time.Hour
 	if purpose == "owner" {
 		info.OwnerGeneration = identity.OwnerGeneration
@@ -328,33 +410,44 @@ func canonicalOwner(public crypto.PublicKey) (string, error) {
 }
 
 func ownerChallenge(identity domain.AgentIdentity, ttl time.Duration) domain.IdentityChallenge {
-	return domain.IdentityChallenge{Nonce: domain.NewToken(), AgentID: identity.AgentID, InstanceID: identity.InstanceID, Generation: identity.Generation, ExpiresAt: time.Now().Add(ttl).Unix()}
+	return domain.IdentityChallenge{Nonce: domain.NewToken(), AgentID: identity.AgentID, DeviceID: identity.DeviceID, InstanceID: identity.InstanceID, Generation: identity.Generation, ExpiresAt: time.Now().Add(ttl).Unix()}
 }
 
 func (s *Server) admitOwner(ctx, lifetime context.Context, actor domain.Agent, identity domain.AgentIdentity, request domain.OwnerRequest, conn ownerConnection) (*controllerOwner, domain.AgentIdentity, error) {
-	lock := s.identity.lock(actor.ID)
+	lock := s.identity.lock(identity.BindingID())
 	lock.Lock()
 	defer lock.Unlock()
-	fresh, err := s.Store.Identity(ctx, actor.ID)
+	fresh, err := s.Store.Identity(ctx, identity.BindingID())
 	if err != nil {
 		return nil, identity, err
 	}
-	if fresh.State != "active" || fresh.InstanceID != identity.InstanceID || fresh.Generation != identity.Generation {
+	if fresh.AgentID != actor.ID || fresh.State != "active" || fresh.InstanceID != identity.InstanceID || fresh.Generation != identity.Generation {
 		return nil, identity, domain.Fail(domain.Denied, "identity changed before owner admission")
 	}
 	identity = fresh
+	actor, err = s.Store.Me(ctx, identity.AgentID)
+	if err != nil {
+		return nil, identity, err
+	}
 	s.identity.mu.RLock()
-	old := s.identity.owners[actor.ID]
+	var old *controllerOwner
+	for ref, owner := range s.identity.owners {
+		if ref.binding == identity.BindingID() && (!actor.Founder || owner.key == request.OwnerKey) {
+			old = owner
+			break
+		}
+	}
 	closed := s.identity.closed
 	s.identity.mu.RUnlock()
 	if closed {
 		return nil, identity, domain.Fail(domain.Unavailable, "Foundation is stopping")
 	}
-	if old != nil && (old.keyGeneration != identity.Generation || old.instance != identity.InstanceID || old.generation != identity.OwnerGeneration || old.key != identity.OwnerKey) {
-		s.identity.retire(actor.ID)
+	if old != nil && (old.keyGeneration != identity.Generation || old.instance != identity.InstanceID ||
+		!actor.Founder && (old.generation != identity.OwnerGeneration || old.key != identity.OwnerKey)) {
+		s.identity.retire(identity.BindingID())
 		old = nil
 	}
-	if old != nil && old.key != request.OwnerKey {
+	if !actor.Founder && old != nil && old.key != request.OwnerKey {
 		ping, stop := context.WithTimeout(ctx, 2*time.Second)
 		live := old.conn.Ping(ping) == nil
 		stop()
@@ -363,7 +456,7 @@ func (s *Server) admitOwner(ctx, lifetime context.Context, actor domain.Agent, i
 				return nil, identity, err
 			}
 			s.identity.mu.Lock()
-			delete(s.identity.owners, actor.ID)
+			delete(s.identity.owners, ownerReference{old.binding, old.generation})
 			s.identity.mu.Unlock()
 			_ = old.conn.Close(websocket.StatusPolicyViolation, "duplicate identity banned; explicit recovery required")
 			old.cancel()
@@ -373,15 +466,25 @@ func (s *Server) admitOwner(ctx, lifetime context.Context, actor domain.Agent, i
 			return nil, identity, domain.Fail(domain.Denied, "duplicate identity banned; explicit recovery required")
 		}
 	}
-	identity, err = s.Store.SetIdentityOwner(ctx, actor.ID, request.OwnerKey, identity.Generation)
+	identity, err = s.Store.SetIdentityOwner(ctx, identity.BindingID(), request.OwnerKey, identity.Generation)
 	if err != nil {
 		return nil, identity, err
 	}
 	ownerCtx, cancel := context.WithCancel(lifetime)
-	entry := &controllerOwner{key: request.OwnerKey, keyGeneration: identity.Generation, instance: identity.InstanceID,
+	entry := &controllerOwner{actor: actor.ID, binding: identity.BindingID(), founder: actor.Founder,
+		key: request.OwnerKey, keyGeneration: identity.Generation, instance: identity.InstanceID,
 		generation: identity.OwnerGeneration, conn: conn, ctx: ownerCtx, cancel: cancel}
 	s.identity.mu.Lock()
-	s.identity.owners[actor.ID] = entry
+	if s.identity.closed {
+		s.identity.mu.Unlock()
+		cancel()
+		s.identity.release(entry)
+		return nil, identity, domain.Fail(domain.Unavailable, "Foundation is stopping")
+	}
+	if old != nil {
+		delete(s.identity.owners, ownerReference{old.binding, old.generation})
+	}
+	s.identity.owners[ownerReference{entry.binding, entry.generation}] = entry
 	s.identity.mu.Unlock()
 	if old != nil {
 		old.cancel()
@@ -390,13 +493,21 @@ func (s *Server) admitOwner(ctx, lifetime context.Context, actor domain.Agent, i
 	return entry, identity, nil
 }
 
-func (s *Server) releaseOwner(actor string, entry *controllerOwner) {
+func (s *Server) releaseOwner(entry *controllerOwner) {
 	entry.cancel()
+	lock := s.identity.lock(entry.binding)
+	lock.Lock()
+	defer lock.Unlock()
 	s.identity.mu.Lock()
-	if s.identity.owners[actor] == entry {
-		delete(s.identity.owners, actor)
+	ref := ownerReference{entry.binding, entry.generation}
+	current := s.identity.owners[ref] == entry
+	if current {
+		delete(s.identity.owners, ref)
 	}
 	s.identity.mu.Unlock()
+	if current {
+		s.identity.release(entry)
+	}
 }
 
 func (s *Server) serveOwner(w http.ResponseWriter, r *http.Request) {
@@ -416,7 +527,11 @@ func (s *Server) serveOwner(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.CloseNow()
 	conn.SetReadLimit(16384)
-	identity, err := s.Store.Identity(r.Context(), actor.ID)
+	uid, ok := ingress.UID(r.Context())
+	if !ok {
+		return
+	}
+	identity, err := s.Store.IdentityByUID(r.Context(), int64(uid))
 	if err != nil {
 		return
 	}
@@ -447,9 +562,9 @@ func (s *Server) serveOwner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ownerCtx := entry.ctx
-	defer s.releaseOwner(actor.ID, entry)
+	defer s.releaseOwner(entry)
 	for {
-		current, lookupErr := s.Store.Identity(ownerCtx, actor.ID)
+		current, lookupErr := s.Store.IdentityOwner(ownerCtx, entry.binding, entry.generation)
 		if lookupErr != nil {
 			return
 		}

@@ -25,7 +25,7 @@ var (
 	ErrAccountApplyRequired = errors.New("managed accounts require explicit apply")
 	ErrAccountConflict      = errors.New("managed account inventory or OS identity conflicts with the plan")
 	ErrAccountRetired       = errors.New("retired accounts require explicit same-identity recovery with a fresh key")
-	agentAccountID          = regexp.MustCompile(`^agent_[0-9a-f]{32}$`)
+	agentAccountID          = regexp.MustCompile(`^(agent|device)_[0-9a-f]{32}$`)
 	accountPath             = regexp.MustCompile(`^/[a-zA-Z0-9/_.-]+$`)
 )
 
@@ -176,7 +176,7 @@ func newAccountManager(options AccountOptions, system AccountSystem, filesystemR
 
 func accountUsername(agentID, name string) (string, error) {
 	if !agentAccountID.MatchString(agentID) {
-		return "", errors.New("managed accounts require an immutable Foundation agent ID")
+		return "", errors.New("managed accounts require an immutable Foundation agent or Founder device ID")
 	}
 	if !domain.ValidAccountUsername(name) {
 		return "", errors.New("managed accounts require a non-root OS-safe username")

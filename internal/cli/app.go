@@ -36,6 +36,7 @@ type app struct {
 var AgentCommands = []string{
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
 	"agent list", "agent status", "agent diagnose", "agent reset", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
+	"device list", "device register", "device revoke",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "mention list", "mention acknowledge", "watch",
 	"message send", "message show", "message read", "message diagnose", "message inbox", "message receipt", "message thread", "message request-report", "session request", "session list", "session show", "session change", "session open",
@@ -119,6 +120,12 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			}
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
+			case "device list":
+				usage = "device list; Founder-only enrolled computers under the same Founder agent_id, including revoked devices; the original computer uses agent_id as its binding ID"
+			case "device register":
+				usage = "device register --input SIGNED_PUBLIC_REQUEST [--output PROFILE]; Founder-only approval of this computer's fresh independent SSH/authentication keys; no key copying, second Founder actor or additional work slot"
+			case "device revoke":
+				usage = "device revoke DEVICE_ID --input FILE; Founder-only reason-bearing revocation from another active Founder computer; invalidates only this device and its connections, preserves all other device keys and the shared work slot; the last active computer cannot be revoked"
 			case "note set":
 				usage = "note set --input FILE; scope company|project|agent, target_id (project/agent ID; agent defaults to self), required content (empty clears), expected_revision (0 creates), and nonsecret reason; company is Founder-only, project is Founder/current active-project delegate, agent is Founder/self or a current delegate of an active project with an unarchived nonterminal task assigned to that non-Founder agent"
 			case "note show", "note history":

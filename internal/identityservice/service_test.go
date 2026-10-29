@@ -162,7 +162,7 @@ func (r *fakeRemote) Challenge(_ context.Context, c config.Worker) (domain.Ident
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.challenge = domain.IdentityChallenge{Nonce: nonce(r.sequence.Add(1)), AgentID: r.profile.Identity.AgentID, InstanceID: r.profile.Identity.InstanceID,
+	r.challenge = domain.IdentityChallenge{Nonce: nonce(r.sequence.Add(1)), AgentID: r.profile.Identity.AgentID, DeviceID: r.profile.Identity.DeviceID, InstanceID: r.profile.Identity.InstanceID,
 		Generation: r.profile.Identity.Generation, ExpiresAt: r.currentTime().Add(time.Minute).Unix()}
 	if r.wrongID {
 		r.challenge.AgentID = "agent_another"
@@ -187,7 +187,7 @@ func (r *fakeRemote) Activate(_ context.Context, c config.Worker, request domain
 	if err := device.VerifyChallenge(public, r.challenge, request.Proof); err != nil {
 		return domain.IdentityCertificate{}, err
 	}
-	identity := domain.CertificateIdentity{AgentID: r.profile.Identity.AgentID, InstanceID: r.profile.Identity.InstanceID, Generation: 1, Purpose: "device"}
+	identity := domain.CertificateIdentity{AgentID: r.profile.Identity.AgentID, DeviceID: r.profile.Identity.DeviceID, InstanceID: r.profile.Identity.InstanceID, Generation: 1, Purpose: "device"}
 	if r.wrongCert {
 		identity.AgentID = "agent_another"
 	}
@@ -205,7 +205,7 @@ func (r *fakeRemote) Activate(_ context.Context, c config.Worker, request domain
 	}
 	active := r.profile.Identity
 	active.State = "active"
-	return domain.IdentityCertificate{Agent: domain.Agent{ID: active.AgentID, Name: "Agent1", Active: true, Mode: "ai"}, Identity: active, Certificate: string(certificate)}, nil
+	return domain.IdentityCertificate{Agent: domain.Agent{ID: active.AgentID, Name: "Agent1", Founder: active.DeviceID != "", Active: true, Mode: "ai"}, Identity: active, Certificate: string(certificate)}, nil
 }
 
 func (r *fakeRemote) Owner(ctx context.Context, c config.Worker, cert tls.Certificate) (OwnerStream, error) {
@@ -262,7 +262,7 @@ type fakeOwner struct {
 
 func (o *fakeOwner) nextChallenge(ttl time.Duration) domain.IdentityChallenge {
 	i := o.remote.profile.Identity
-	return domain.IdentityChallenge{Nonce: nonce(o.remote.sequence.Add(1)), AgentID: i.AgentID, InstanceID: i.InstanceID, Generation: i.Generation, ExpiresAt: o.remote.currentTime().Add(ttl).Unix()}
+	return domain.IdentityChallenge{Nonce: nonce(o.remote.sequence.Add(1)), AgentID: i.AgentID, DeviceID: i.DeviceID, InstanceID: i.InstanceID, Generation: i.Generation, ExpiresAt: o.remote.currentTime().Add(ttl).Unix()}
 }
 func (o *fakeOwner) Challenge(context.Context) (domain.IdentityChallenge, error) {
 	return o.challenge, nil
@@ -276,7 +276,7 @@ func (o *fakeOwner) Send(ctx context.Context, request domain.OwnerRequest) error
 		return err
 	}
 	certificate, err := pki.IssueClient(o.remote.ca.CA, o.remote.ca.CAKey, public, domain.CertificateIdentity{
-		AgentID: o.remote.profile.Identity.AgentID, InstanceID: o.remote.profile.Identity.InstanceID, Generation: 1, Purpose: "owner", OwnerGeneration: 1}, o.remote.currentTime(), 15*time.Minute)
+		AgentID: o.remote.profile.Identity.AgentID, DeviceID: o.remote.profile.Identity.DeviceID, InstanceID: o.remote.profile.Identity.InstanceID, Generation: 1, Purpose: "owner", OwnerGeneration: 1}, o.remote.currentTime(), 15*time.Minute)
 	if err != nil {
 		return err
 	}

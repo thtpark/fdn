@@ -15,12 +15,13 @@ type assistanceHelpReceipt struct {
 }
 
 type storedResult struct {
-	Kind     string          `json:"kind"`
-	ID       string          `json:"id,omitempty"`
-	TaskID   string          `json:"task_id,omitempty"`
-	Accepted bool            `json:"accepted,omitempty"`
-	Stale    bool            `json:"stale,omitempty"`
-	Value    json.RawMessage `json:"value,omitempty"`
+	Kind       string          `json:"kind"`
+	ID         string          `json:"id,omitempty"`
+	TaskID     string          `json:"task_id,omitempty"`
+	Accepted   bool            `json:"accepted,omitempty"`
+	Stale      bool            `json:"stale,omitempty"`
+	Generation int64           `json:"generation,omitempty"`
+	Value      json.RawMessage `json:"value,omitempty"`
 }
 
 func resultReceipt(value any) ([]byte, error) {
@@ -28,6 +29,8 @@ func resultReceipt(value any) ([]byte, error) {
 	switch v := value.(type) {
 	case domain.Agent:
 		ref = storedResult{Kind: "agents", ID: v.ID}
+	case domain.AgentIdentity:
+		ref = storedResult{Kind: "identity-binding", ID: v.BindingID(), Generation: v.Generation}
 	case agentStatusResult:
 		data, err := json.Marshal(v)
 		if err != nil {
@@ -89,6 +92,13 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, actor string, data []b
 	switch ref.Kind {
 	case "agents":
 		value, err = get[domain.Agent](ctx, tx, ref.Kind, ref.ID)
+	case "identity-binding":
+		var identity domain.AgentIdentity
+		identity, err = get[domain.AgentIdentity](ctx, tx, "agent_identities", ref.ID)
+		if err == nil && (identity.AgentID != actor || identity.Generation != ref.Generation) {
+			err = domain.Fail(domain.Conflict, "device operation belongs to a retired key generation")
+		}
+		value = identity
 	case "agent-status":
 		value, err = replayAgentStatus(ctx, tx, actor, ref)
 	case "projects":

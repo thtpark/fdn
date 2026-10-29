@@ -103,16 +103,26 @@ func ParseIdentity(cert *x509.Certificate) (domain.CertificateIdentity, error) {
 		return identity, domain.Fail(domain.Denied, "unknown Foundation certificate identity URI")
 	}
 	parts := strings.Split(uri.Path, "/")
-	if (len(parts) != 8 && len(parts) != 9) || parts[0] != "" || parts[1] != "v1" || parts[2] != "instances" || parts[4] != "agents" {
+	if len(parts) < 8 || parts[0] != "" || parts[1] != "v1" || parts[2] != "instances" || parts[4] != "agents" {
 		return identity, domain.Fail(domain.Denied, "malformed Foundation certificate identity URI")
 	}
-	generation, err := strconv.ParseInt(parts[7], 10, 64)
+	offset := 6
+	if parts[6] == "devices" {
+		if len(parts) < 10 {
+			return identity, domain.Fail(domain.Denied, "malformed Foundation device certificate identity URI")
+		}
+		identity.DeviceID, offset = parts[7], 8
+	}
+	if len(parts) != offset+2 && len(parts) != offset+3 {
+		return identity, domain.Fail(domain.Denied, "malformed Foundation certificate identity URI")
+	}
+	generation, err := strconv.ParseInt(parts[offset+1], 10, 64)
 	if err != nil {
 		return identity, domain.Fail(domain.Denied, "malformed certificate key generation")
 	}
-	identity = domain.CertificateIdentity{InstanceID: parts[3], AgentID: parts[5], Purpose: parts[6], Generation: generation}
-	if len(parts) == 9 {
-		identity.OwnerGeneration, err = strconv.ParseInt(parts[8], 10, 64)
+	identity.InstanceID, identity.AgentID, identity.Purpose, identity.Generation = parts[3], parts[5], parts[offset], generation
+	if len(parts) == offset+3 {
+		identity.OwnerGeneration, err = strconv.ParseInt(parts[offset+2], 10, 64)
 		if err != nil {
 			return domain.CertificateIdentity{}, domain.Fail(domain.Denied, "malformed certificate owner generation")
 		}
@@ -195,11 +205,16 @@ func singleIdentitySAN(cert *x509.Certificate, uri *url.URL) bool {
 
 func identityURI(identity domain.CertificateIdentity) (*url.URL, error) {
 	if !domain.ValidOperation(identity.InstanceID) || !domain.ValidOperation(identity.AgentID) || identity.Generation < 1 ||
+		identity.DeviceID != "" && !domain.ValidOperation(identity.DeviceID) ||
 		(identity.Purpose != "device" && identity.Purpose != "owner") ||
 		(identity.Purpose == "device" && identity.OwnerGeneration != 0) || (identity.Purpose == "owner" && identity.OwnerGeneration < 1) {
 		return nil, domain.Fail(domain.Invalid, "certificate identity requires a valid instance, agent, key generation, and distinct device or owner purpose")
 	}
-	path := "/v1/instances/" + identity.InstanceID + "/agents/" + identity.AgentID + "/" + identity.Purpose + "/" + strconv.FormatInt(identity.Generation, 10)
+	path := "/v1/instances/" + identity.InstanceID + "/agents/" + identity.AgentID
+	if identity.DeviceID != "" {
+		path += "/devices/" + identity.DeviceID
+	}
+	path += "/" + identity.Purpose + "/" + strconv.FormatInt(identity.Generation, 10)
 	if identity.Purpose == "owner" {
 		path += "/" + strconv.FormatInt(identity.OwnerGeneration, 10)
 	}
