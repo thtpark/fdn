@@ -187,8 +187,11 @@ and consolidate over-budget context instead of working without required notes.
 - Only Founder may request `agent reset AGENT_ID --input FILE` with a non-secret
   reason, including Founder self-reset. It cancels/joins daemon-owned work and
   sessions and reinitializes that runtime while preserving mode, identity,
-  sign-in, notes/workspaces/history and journals/outbox. Unknown ownership,
-  uncertain results, prepared work/reports and maintenance remain operator-required.
+  sign-in, notes/workspaces/history and journals/outbox. Recognized terminal legacy
+  tmux endpoints receive verified native cleanup, preserving socket/proof evidence
+  before exact fence retirement; a missing old journal alone must not strand reset.
+  Truly unprovable/replaced resources, uncertain results, prepared work/reports
+  and maintenance remain operator-required.
   Inspect `agent operation REQUEST_ID`; queued is not completed, and neither a
   reset nor its exact replay grants a retry, spending or native-service restart.
 - An interrupted process remains fenced. Only after confirming its entire

@@ -67,6 +67,19 @@ cancellation are separately exercised by the unit/loopback integration cases in
 [TEST_PLAN.md](../../TEST_PLAN.md#founder-only-runtime-reset), not certified as
 live native-service or production recovery.
 
+### RESET-002: Explicit reset cleans the recognized legacy session
+
+**Automation:** `TestNativeFounderResetClearsLegacySession` in
+[runtime_reset_test.go](runtime_reset_test.go). Run with
+`go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeFounderResetClearsLegacySession$'`.
+The fixture creates a terminal server session, real orphaned old-format Unix
+socket and unproven legacy fence, then calls the compiled Founder reset CLI
+against the running native worker. Expect final `reset`, actual inactive fence,
+original socket inode retained privately, unchanged manual mode, no inference
+and exact replay leaving a newer fence untouched. Kernel process/endpoint and
+unsafe-resource refusal checks run separately in native unit tests; this is not
+host-service or live-provider qualification.
+
 ### WF-001: Founder to delegate-reviewed merge
 
 **Automation:** `TestNativeDelegatedPullRequestWorkflow` in

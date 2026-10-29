@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sync/atomic"
@@ -100,7 +101,7 @@ func TestRuntimeResetNeverBypassesIndependentFences(t *testing.T) {
 		name, code string
 		prepare    func(*testing.T, *operationFixture)
 	}{
-		{"legacy-session", "cleanup-unproven", func(t *testing.T, f *operationFixture) {
+		{"unsupported-legacy-session", "cleanup-unproven", func(t *testing.T, f *operationFixture) {
 			if err := f.engine.State.Put(context.Background(), "session-fence", remote.Fence{Active: true, ID: f.session.ID, Generation: "legacy"}); err != nil {
 				t.Fatal(err)
 			}
@@ -167,6 +168,35 @@ func TestRuntimeResetRetiresOnlyProvenTerminalSession(t *testing.T) {
 	var receipt local.AgentOperationReceipt
 	if found, err := f.engine.State.Get(context.Background(), local.AgentOperationResultKey(f.operation.ID), &receipt); err != nil || !found || receipt.Report.State != "reset" {
 		t.Fatal("fence retirement lost its durable reset result", found, receipt, err)
+	}
+}
+
+func TestRuntimeResetProvesTerminalLegacyCleanupBeforeRetirement(t *testing.T) {
+	root, err := os.MkdirTemp("/tmp", "fdn-reset-work-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(root) })
+	f := resetFixture(t)
+	state, err := local.Open(context.Background(), filepath.Join(root, "s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.engine.State.Close(); err != nil {
+		t.Fatal(err)
+	}
+	f.engine.State, f.engine.Config.StateDir = state, state.Root
+	f.session.Mode = "tmux"
+	if err := f.engine.State.Put(context.Background(), "session-fence", remote.Fence{Active: true, ID: f.session.ID, Generation: "legacy"}); err != nil {
+		t.Fatal(err)
+	}
+	reset, err := f.engine.handleAgentOperation(context.Background(), f.operation.ID)
+	if err != nil || !reset || f.operation.State != "reset" || f.fence().Active {
+		t.Fatal("explicit reset stranded a kernel-confirmed missing legacy endpoint", reset, f.operation, err)
+	}
+	var receipt local.AgentOperationReceipt
+	if found, err := f.engine.State.Get(context.Background(), local.AgentOperationResultKey(f.operation.ID), &receipt); err != nil || !found || receipt.Report.State != "reset" {
+		t.Fatal("legacy cleanup did not commit its exact final reset receipt", found, receipt, err)
 	}
 }
 
@@ -241,6 +271,7 @@ func TestRuntimeResetFounderSelfTargetAndChangedAuthority(t *testing.T) {
 type resetSessionRunner struct {
 	runs, active, maximum, cleanups atomic.Int64
 	started                         chan struct{}
+	prepare                         func(context.Context, domain.Session, remote.SessionFenceSnapshot) error
 }
 
 func (r *resetSessionRunner) Run(ctx context.Context) error {
@@ -263,6 +294,37 @@ func (r *resetSessionRunner) Cleanup(context.Context) error {
 	}
 	r.cleanups.Add(1)
 	return nil
+}
+
+func (r *resetSessionRunner) PrepareReset(ctx context.Context, session domain.Session, snapshot remote.SessionFenceSnapshot) error {
+	if r.prepare == nil {
+		return domain.Fail(domain.Prerequisite, "fixture endpoint has no native reset proof")
+	}
+	return r.prepare(ctx, session, snapshot)
+}
+
+func TestRuntimeResetCleanupCannotRetireReplacementFence(t *testing.T) {
+	f := resetFixture(t)
+	f.session.Mode = "tmux"
+	original := remote.Fence{Active: true, ID: f.session.ID, Generation: "legacy"}
+	replacement := remote.Fence{Active: true, ID: f.session.ID, Generation: "replacement"}
+	if err := f.engine.State.Put(context.Background(), "session-fence", original); err != nil {
+		t.Fatal(err)
+	}
+	runner := &resetSessionRunner{started: make(chan struct{}, 4), prepare: func(ctx context.Context, _ domain.Session, expected remote.SessionFenceSnapshot) error {
+		if expected.Fence != original {
+			t.Fatal("reset did not bind the exact pre-cleanup fence", expected)
+		}
+		return f.engine.State.Put(ctx, "session-fence", replacement)
+	}}
+	ctx, cancel := context.WithCancel(context.Background())
+	f.engine.sessions = newSessionRuntime(ctx, runner)
+	t.Cleanup(func() { cancel(); f.engine.sessions.stop() })
+	<-runner.started
+	reset, err := f.engine.handleAgentOperation(context.Background(), f.operation.ID)
+	if err == nil || reset || f.fence() != replacement || f.operation.State == "reset" {
+		t.Fatal("native cleanup proof was applied to a newer fence", reset, f.operation, err)
+	}
 }
 
 func TestRuntimeResetJoinsAndReinitializesSingleSessionSupervisor(t *testing.T) {

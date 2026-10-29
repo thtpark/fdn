@@ -4,24 +4,42 @@ package integration_test
 
 import (
 	"context"
+	"net"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/local"
 	"github.com/thtpark/fdn/internal/remote"
 	"github.com/thtpark/fdn/internal/work"
 )
 
 func TestFounderRuntimeResetPreservesIdentityModeAndLegacyEvidence(t *testing.T) {
-	for _, scope := range []string{"idle-worker", "proven-session", "legacy-session", "founder-self"} {
+	for _, scope := range []string{"idle-worker", "proven-session", "legacy-session", "unsafe-legacy-session", "founder-self"} {
 		t.Run(scope, func(t *testing.T) {
 			h := newHarness(t)
 			ctx := context.Background()
 			x := &operationReadOnlyExecutor{}
 			engine := newEngine(t, h, &executor{})
 			engine.Executor = x
+			legacy := scope == "legacy-session" || scope == "unsafe-legacy-session"
+			if legacy {
+				root, err := os.MkdirTemp("/tmp", "fdn-reset-integration-")
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { os.RemoveAll(root) })
+				state, err := local.Open(ctx, filepath.Join(root, "s"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { state.Close() })
+				engine.State, engine.Config.StateDir = state, state.Root
+			}
 			target := h.workerAgent.ID
 			client := h.worker
 			if scope == "founder-self" {
@@ -40,11 +58,33 @@ func TestFounderRuntimeResetPreservesIdentityModeAndLegacyEvidence(t *testing.T)
 				t.Fatal(err)
 			}
 			var original remote.Fence
-			if scope == "proven-session" || scope == "legacy-session" {
+			if scope == "proven-session" || legacy {
 				session := closedOperationSession(t, h)
 				original = remote.Fence{Active: true, ID: session.ID, Generation: "retained", CleanupProven: scope == "proven-session"}
 				if err := engine.State.Put(ctx, "session-fence", original); err != nil {
 					t.Fatal(err)
+				}
+				if legacy {
+					directory := filepath.Join(engine.Config.StateDir, "sessions")
+					if err := os.Mkdir(directory, 0700); err != nil {
+						t.Fatal(err)
+					}
+					path := filepath.Join(directory, session.ID+".sock")
+					if scope == "unsafe-legacy-session" {
+						if err := os.Symlink(filepath.Join(directory, "unrelated.sock"), path); err != nil {
+							t.Fatal(err)
+						}
+					} else {
+						listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+						if err != nil {
+							t.Fatal(err)
+						}
+						listener.SetUnlinkOnClose(false)
+						if err := os.Chmod(path, 0600); err != nil {
+							t.Fatal(err)
+						}
+						listener.Close()
+					}
 				}
 			}
 			req := domain.AgentResetRequest{Command: command(), Reason: "Founder requests an identity-preserving runtime reset"}
@@ -52,21 +92,44 @@ func TestFounderRuntimeResetPreservesIdentityModeAndLegacyEvidence(t *testing.T)
 			if err != nil || queued.State != "queued" || queued.Result != nil {
 				t.Fatal("reset was not a durable nonexecuted submission", queued, err)
 			}
-			startOperationWorker(t, engine)
+			if legacy {
+				runCtx, cancel := context.WithCancel(ctx)
+				done := make(chan error, 1)
+				manager := &remote.Manager{Client: engine.Client, State: engine.State, Config: engine.Config, Opener: remote.Native{}, Log: engine.Log}
+				go func() { done <- engine.Serve(runCtx, manager) }()
+				t.Cleanup(func() {
+					cancel()
+					if err := <-done; err != nil {
+						t.Error(err)
+					}
+				})
+			} else {
+				startOperationWorker(t, engine)
+			}
 			result := waitAgentOperation(t, h.founder, queued.ID, engine)
 			want := "reset"
-			if scope == "legacy-session" {
+			if scope == "unsafe-legacy-session" {
 				want = "operator-required"
 			}
 			if result.State != want || result.Result == nil || result.Result.ModeAtCheck != "manual" || result.Result.AutomationMayResume {
 				t.Fatal("reset outcome misrepresented its evidence or mode", result)
 			}
-			if scope == "legacy-session" && result.Result.Code != "cleanup-unproven" {
+			if scope == "unsafe-legacy-session" && result.Result.Code != "cleanup-unproven" {
 				t.Fatal("legacy cleanup was silently treated as known ownership", result)
 			}
 			var fence remote.Fence
-			if _, err := engine.State.Get(ctx, "session-fence", &fence); err != nil || (scope == "legacy-session" && fence != original) || (scope != "legacy-session" && fence.Active) {
+			if _, err := engine.State.Get(ctx, "session-fence", &fence); err != nil || (scope == "unsafe-legacy-session" && fence != original) || (scope != "unsafe-legacy-session" && fence.Active) {
 				t.Fatal("reset did not preserve or retire the exact expected fence", fence, err)
+			}
+			if scope == "legacy-session" {
+				directory := filepath.Join(engine.Config.StateDir, "sessions")
+				if _, err := os.Lstat(filepath.Join(directory, original.ID+".sock")); !os.IsNotExist(err) {
+					t.Fatal("reset left the orphan native endpoint in place", err)
+				}
+				retired, err := os.ReadDir(filepath.Join(directory, "retired"))
+				if err != nil || len(retired) != 1 {
+					t.Fatal("legacy endpoint was not preserved as private evidence", retired, err)
+				}
 			}
 			after, err := api.Call[domain.AgentIdentity](ctx, client, "GET", "/v1/identity/status", nil)
 			if err != nil || !reflect.DeepEqual(before, after) {

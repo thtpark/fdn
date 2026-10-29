@@ -141,14 +141,6 @@ func (e *Engine) resetAgentRuntime(ctx context.Context, c config.Worker, operati
 		case <-done:
 		}
 	}
-	if sessions != nil {
-		if cleanup, ok := sessions.runner.(interface{ Cleanup(context.Context) error }); ok {
-			if err := cleanup.Cleanup(resetCtx); err != nil {
-				e.recordProblem(ctx, "runtime-reset-problem", err)
-				return false, e.recordAgentOperationResult(ctx, current, me, "operator-required", "cleanup-unproven", nil)
-			}
-		}
-	}
 	slot, err := secure.Acquire(filepath.Join(c.StateDir, "work.lock"))
 	if err != nil {
 		if domain.AsFault(err).Code == domain.Conflict {
@@ -190,12 +182,47 @@ func (e *Engine) resetAgentRuntime(ctx context.Context, c config.Worker, operati
 		return false, e.recordAgentOperationResult(ctx, current, me, "operator-required", "cleanup-unproven", nil)
 	}
 	if fence.Fence.Active {
-		if !fence.Fence.CleanupProven {
-			return false, e.recordAgentOperationResult(ctx, current, me, "operator-required", "cleanup-unproven", nil)
-		}
 		session, err := api.Call[domain.Session](resetCtx, e.Client, http.MethodGet, api.Path("sessions", fence.Fence.ID), nil)
 		if err != nil || session.TargetID != me.ID || !domain.TerminalSessionState(session.State) {
 			return false, e.recordAgentOperationResult(ctx, current, me, "operator-required", "session-unavailable", nil)
+		}
+		if !fence.Fence.CleanupProven {
+			authorized, _, _, err := e.currentAgentOperation(resetCtx, operation.ID)
+			if err != nil {
+				return false, err
+			}
+			hash, err := agentOperationHash(authorized)
+			if err != nil || hash != fingerprint || authorized.State != "checking" {
+				return false, errors.Join(err, domain.Fail(domain.Denied, "runtime reset authority changed before native cleanup"))
+			}
+			cleanup := func() error { return (remote.Native{}).ResetSession(resetCtx, session, c, fence) }
+			if sessions != nil {
+				resetter, ok := sessions.runner.(interface {
+					PrepareReset(context.Context, domain.Session, remote.SessionFenceSnapshot) error
+				})
+				if !ok {
+					return false, e.recordAgentOperationResult(ctx, current, me, "operator-required", "cleanup-unproven", nil)
+				}
+				cleanup = func() error { return resetter.PrepareReset(resetCtx, session, fence) }
+			}
+			if err := cleanup(); err != nil {
+				e.recordProblem(ctx, "runtime-reset-problem", err)
+				return false, e.recordAgentOperationResult(ctx, current, me, "operator-required", "cleanup-unproven", nil)
+			}
+			if err := e.State.ProveSessionCleanup(resetCtx, session.ID, fence.Fingerprint); err != nil {
+				return false, err
+			}
+			fence, err = remote.ReadSessionFence(resetCtx, e.State)
+			if err != nil {
+				return false, err
+			}
+		}
+	} else if sessions != nil {
+		if cleanup, ok := sessions.runner.(interface{ Cleanup(context.Context) error }); ok {
+			if err := cleanup.Cleanup(resetCtx); err != nil {
+				e.recordProblem(ctx, "runtime-reset-problem", err)
+				return false, e.recordAgentOperationResult(ctx, current, me, "operator-required", "cleanup-unproven", nil)
+			}
 		}
 	}
 	current, me, clock, err = e.currentAgentOperation(resetCtx, operation.ID)

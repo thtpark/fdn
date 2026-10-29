@@ -945,9 +945,16 @@ Reset cancels/joins work and sessions owned by the responsive target daemon,
 retries exact owned cleanup and reinitializes its in-process supervisor/work
 scheduling. It preserves identity, provider sign-in, mode, notes, workspaces,
 history, journals/outbox and retry authority. It is not a native service restart,
-factory reset, reenrollment or login. Unknown legacy cleanup, another process's
-occupied slot, uncertainty, prepared results, undelivered reports and maintenance
-remain `operator-required`; no evidence is deleted to force success. An offline
+factory reset, reenrollment or login. Recognized terminal legacy tmux endpoints
+receive native cleanup during reset: the target verifies the private exact
+socket/inode and kernel endpoint ownership, stops only verified native resources,
+preserves the retired socket and records new exact cleanup proof before clearing
+the fence. It does not merely require an ownership journal that old versions
+never wrote. Linux requires `/proc` and macOS bounded `/usr/sbin/lsof` plus native
+Unix peer checks; missing inspection capability fails explicitly.
+Foreign/replaced or genuinely unprovable resources, another process's occupied
+slot, uncertainty, prepared results, undelivered reports and maintenance remain
+`operator-required`; no evidence is deleted to force success. An offline
 daemon cannot run reset and the fixed 15-minute request may expire.
 
 The final success state is `reset`; a started reset without a final durable

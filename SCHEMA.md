@@ -295,6 +295,9 @@ Legacy/unknown endpoints without durable ownership, uncertain launches that
 never captured a process identity, unavailable authority and unprovable cleanup
 remain explicit operator-required cases. Existing exact Founder repair and
 local stopped-process recovery remain last resorts, not the normal closure path.
+An explicit Founder runtime reset additionally inspects and cleans recognized
+terminal legacy tmux endpoints using fresh kernel evidence as described below;
+ordinary autonomous cleanup does not adopt them.
 
 ## Observed worker health and reply diagnostics
 
@@ -427,12 +430,27 @@ A free runtime can report `reset`/`runtime-reset`; a proven terminal fence is
 retired atomically with that receipt. The session supervisor and work scheduling
 are reinitialized without restarting native services or the identity owner.
 Uncertain journals, prepared work/results, pending outbox reports, maintenance,
-another process's occupied slot and unproved legacy ownership are retained as
+another process's occupied slot and genuinely unprovable ownership are retained as
 `operator-required`, not reset success. No identity/provider/knowledge/workspace/
 task data, approvals, retry budget or mode is erased or renewed. The private
 `agent-reset-start:` receipt prevents an interrupted reset from cancelling newer
 work on replay; such a missing final result becomes `reset-interrupted`.
 Local SQL1, server SQL6, API/schema2 and native protocol2 remain unchanged.
+
+For terminal legacy tmux sessions, explicit reset does native cleanup rather
+than rejecting a missing historical ownership journal. The old-format per-session
+socket must be owner-only, real and inode-stable. Refused/absent connections also
+require independent kernel Unix endpoint absence. Live cleanup binds the actual
+Unix peer PID/UID, kernel process start/group, dedicated Foundation tmux session
+and pane-parent relationship; attached clients must exit after server shutdown,
+not be signalled from self-reported PIDs. A private `*.legacy-reset.json` record
+binds target/session/generation/raw-fence fingerprint, socket identity and native
+process identities. Native stopped proof and the retired socket inode remain
+private under `StateDir/sessions`; no legacy bytes are fabricated as pre-existing
+ownership. Exact local proof precedes the atomic reset receipt/fence retirement.
+Replaced resources, another native generation or a missing current-format record
+cannot fall back to legacy adoption. This is separate from unchanged autonomous
+recovery and exact `agent repair` requirements.
 
 The independent worker control loop handles controls while paused, fenced or
 busy, without provider inference or ordinary model/slot admission. Refresh is

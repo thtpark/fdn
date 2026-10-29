@@ -50,7 +50,7 @@ commands.
 6. For upgrades, inspect `work status` and native state; stop/join active work
    before replacement. Retain exact mode, identity, credentials, provider homes,
    knowledge, bindings, journals, outbox and session fences. No manual database
-   edits or hidden `--force`/reset command exists. Founder can explicitly use
+   edits or hidden force-clear command exists. Founder can explicitly use
    `upgrade check`, `upgrade plan --input TARGETS --output PLAN`, `upgrade apply
    --input PLAN` and `upgrade status --input PLAN` after an operator bootstraps
    upgrade-capable binaries and each protected native policy/CA/operator key.
@@ -74,6 +74,9 @@ commands.
    The target automatically retries exact owned interactive cleanup after
    ordinary failures/restarts; reinstalling or clearing state is not recovery.
    Missing legacy ownership and uncertain invocations remain protected.
+   Separately authorized `agent reset` verifies native cleanup of recognized
+   terminal legacy tmux endpoints and preserves their proof/socket evidence;
+   it is not installation, identity/data erasure or an upgrade-fence bypass.
    Current server SQL6 adds shared company/project/agent notes from the SQL5
    floor without rewriting retained records. Note-aware workers require the new
    note-context query before inference; never substitute empty guidance when an

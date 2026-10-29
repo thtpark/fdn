@@ -84,6 +84,29 @@ func TestGuideCatalogSkillsLinksAndCurrentCommands(t *testing.T) {
 	}
 }
 
+func TestGuideDocumentsExplicitLegacyResetCleanup(t *testing.T) {
+	for file, fragments := range map[string][]string{
+		"COMMANDS.md":    {"terminal legacy tmux", "kernel-confirmed pane parentage", "sessions/retired", "operator-required"},
+		"SCHEMA.md":      {"*.legacy-reset.json", "pane-parent relationship", "atomic reset receipt/fence retirement"},
+		"DEVELOPMENT.md": {"legacy tmux endpoints require actual bounded native cleanup", "original inode preserved"},
+		"TEST_PLAN.md":   {"TestNativeFounderResetClearsLegacySession", "Ordinary automatic cleanup still refuses legacy"},
+		".agents/skills/foundation-operations/SKILL.md": {"old journal alone must not strand reset", "retired evidence"},
+		".agents/skills/foundation-work/SKILL.md":       {"missing old journal alone must not strand reset"},
+		".agents/skills/foundation-develop/SKILL.md":    {"Explicit reset must clean recognized terminal legacy tmux endpoints"},
+	} {
+		data, err := guidance.Read(file)
+		if err != nil {
+			t.Fatal(file, err)
+		}
+		text := strings.Join(strings.Fields(string(data)), " ")
+		for _, fragment := range fragments {
+			if !strings.Contains(text, fragment) {
+				t.Fatal("guide lost explicit legacy-reset cleanup contract", file, fragment)
+			}
+		}
+	}
+}
+
 func TestGuideDocumentsCurrentUserWorkerOwnership(t *testing.T) {
 	for file, fragments := range map[string][]string{
 		"AGENTS.md":     {"existing installing user", "Do not create another OS user"},
