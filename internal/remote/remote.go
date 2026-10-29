@@ -499,6 +499,42 @@ func (m *Manager) Cleanup(ctx context.Context) error {
 	return m.retryCleanup(ctx)
 }
 
+// PrepareReset requires an explicitly authorized reset, a joined Run and the
+// caller's work.lock. It proves cleanup but leaves atomic retirement to reset.
+func (m *Manager) PrepareReset(ctx context.Context, session domain.Session, expected SessionFenceSnapshot) error {
+	c, err := m.currentConfig()
+	if err != nil {
+		return err
+	}
+	current, err := ReadSessionFence(ctx, m.State)
+	if err != nil {
+		return err
+	}
+	if current != expected || session.ID != expected.Fence.ID || session.TargetID != m.Client.Credential.AgentID ||
+		!domain.TerminalSessionState(session.State) {
+		return domain.Fail(domain.Conflict, "reset cleanup does not match the exact current terminal session and fence")
+	}
+	m.cleanupMu.Lock()
+	pending := m.cleanup
+	m.cleanupMu.Unlock()
+	if pending != nil && pending.fence == expected.Fence {
+		return pending.endpoint.Close()
+	}
+	opener := m.Opener
+	if opener == nil {
+		opener = Native{}
+	}
+	if resetter, ok := opener.(interface {
+		ResetSession(context.Context, domain.Session, config.Worker, SessionFenceSnapshot) error
+	}); ok {
+		return resetter.ResetSession(ctx, session, c, expected)
+	}
+	if owned, ok := opener.(ownedOpener); ok {
+		return owned.RecoverOwned(ctx, session, c, expected.Fence.Generation)
+	}
+	return domain.Fail(domain.Prerequisite, "this endpoint has no verifiable reset cleanup capability")
+}
+
 func (m *Manager) currentConfig() (config.Worker, error) {
 	c := m.Config
 	path := m.ConfigPath

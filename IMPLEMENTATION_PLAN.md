@@ -137,7 +137,13 @@ identity-preserving runtime control, including Founder self-reset. It cancels
 and joins the daemon's owned controller/session work, retries owned cleanup and
 reinitializes its in-process supervisor/scheduling. It keeps mode, identity,
 authentication, notes, workspaces, history, journals/outbox and retry authority.
-Independent uncertainty and unknown legacy ownership remain operator-required.
+Recognized terminal legacy tmux endpoints now receive bounded target-native
+cleanup under reset's joined slot: exact private socket/inode, kernel peer/start/
+group and pane-parent checks, native stopped proof and preserved retired inode
+precede atomic matching-fence retirement. Missing historical ownership journals
+alone do not strand reset. Independent uncertainty, replaced endpoints,
+unavailable kernel inspection and genuinely unprovable resources still remain
+operator-required; automatic cleanup and exact repair do not gain this scope.
 The existing protected operation protocol supplies fixed expiry/generations and
 exact result replay; a started interrupted reset never cancels newer work again.
 This is not native service restart, factory reset, deployment or provider login.

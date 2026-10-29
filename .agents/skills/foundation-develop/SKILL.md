@@ -84,6 +84,11 @@ The checkout's root documents are canonical; no old source tree is required.
    reason-only native envelope, bounded joined owned work/session cancellation,
    unchanged mode/identity/authentication/data and uncertain journal/outbox fences.
    Persist reset start/result evidence; replay must not cancel newer work.
+   Explicit reset must clean recognized terminal legacy tmux endpoints using
+   private inode checks, kernel peer/start/group and pane-parent evidence,
+   verified stopped resources and preserved native proof before atomic fence
+   retirement. Do not blanket-refuse merely missing old journals or expand
+   ordinary autonomous cleanup/exact repair into unknown-resource adoption.
    This is not factory reset, native restart, force-clear or retry authority.
 7. Native coordination uses bounded protobuf over SSH/mTLS and Unix IPC, not
    HTTP/gRPC or a downgrade path. Preserve kernel-derived principals and

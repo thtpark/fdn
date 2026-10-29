@@ -424,11 +424,31 @@ scheduling. It does not restart native OS services or the identity owner.
 Identity/keys, provider sign-in, notes/knowledge, workspaces, task/run history,
 approvals, retry budgets and mode are preserved. `ai` stays `ai`; manual,
 including Founder, stays manual. Uncertain invocations, prepared work/results,
-pending reports, maintenance, another process's occupied slot and unproved
-legacy session ownership remain explicit `operator-required` outcomes, not
-silently discarded work or permission to retry it. A proven terminal-session
+pending reports, maintenance and another process's occupied slot remain explicit
+`operator-required` outcomes, not silently discarded work or permission to retry
+it. A proven terminal-session
 fence can be retired atomically with the reset receipt. An active owned session
 is closed through its actual manager; unknown processes are never guessed/killed.
+
+Reset also performs native cleanup for a terminal legacy tmux session instead of
+stopping just because its generation predates native ownership journals. Under
+the joined runtime's shared slot, it checks the exact old-format
+`StateDir/sessions/SESSION_ID.sock`, owner/private permissions and kernel inode.
+A missing/refusing endpoint must also have no kernel Unix endpoint owner.
+A live endpoint requires a matching kernel-authenticated peer/start identity,
+the dedicated `foundation` tmux session and kernel-confirmed pane parentage
+before signals; attach clients must exit when their exact server closes and are
+never killed from tmux-reported PIDs alone.
+
+The target retains generation/fingerprint-bound native reset proof and moves
+the orphaned socket to private `StateDir/sessions/retired` without destroying its
+inode. Only then may reset prove and atomically retire the matching fence with
+its final result. Linux uses native peer credentials and `/proc` endpoint checks;
+macOS uses native peer credentials and bounded `/usr/sbin/lsof` Unix inspection.
+Changed/symlinked/foreign sockets, missing current-format ownership, mismatched
+generations, unavailable kernel inspection and genuinely unprovable resources
+still report `operator-required`. Ordinary automatic cleanup and `agent repair`
+do not gain this explicit-reset legacy cleanup authority.
 
 The final success state is `reset`, with code `runtime-reset`. A lost response
 replays the retained result. A crash after reset begins but before its final

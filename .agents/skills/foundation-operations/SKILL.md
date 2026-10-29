@@ -1,6 +1,6 @@
 ---
 name: foundation-operations
-description: "Use when checking Foundation or identity-proxy health, inspecting automatic native session cleanup/recovery, requesting fresh diagnostics, recovering proven session fences or enrolled identity keys, diagnosing blocked workers/replies, pausing automation, reconciling runs/sessions, managing knowledge/backups/TLS, or inspecting Founder-authorized software upgrades and native receipts."
+description: "Use when checking Foundation or identity-proxy health, inspecting automatic session recovery, resetting runtime or legacy tmux sessions as Founder, requesting fresh diagnostics, recovering proven fences or enrolled identity keys, diagnosing blocked workers/replies, pausing automation, reconciling runs/sessions, managing knowledge/backups/TLS, or inspecting Founder-authorized upgrades and native receipts."
 ---
 
 # Operate and recover without hiding uncertainty
@@ -63,8 +63,12 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    Inspect `agent operation REQUEST_ID` and actual health. The target joins owned
    daemon work/sessions and reinitializes its runtime, not native OS services or
    identity. Keep mode, sign-in, notes/workspaces/history and journals/outbox;
-   unknown legacy cleanup, uncertainty, pending work/reports and maintenance
-   remain operator-required. Reuse the exact operation/input after uncertainty;
+   recognized terminal legacy tmux sessions receive verified native cleanup,
+   with private socket/inode, kernel peer/start/group and pane-parent checks,
+   stopped proof and retired evidence before matching-fence retirement. A missing
+   old journal alone must not strand reset. Foreign/replaced resources, genuinely
+   unprovable cleanup, uncertainty, pending work/reports and maintenance remain
+   operator-required. Reuse the exact operation/input after uncertainty;
    reset-interrupted never authorizes cancelling newer work again.
 5. Reconcile lost acknowledgements with the same operation and original input.
    Prepared reports replay without repeated inference. Unknown side effects

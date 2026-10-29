@@ -194,6 +194,14 @@ uncertainty. A reset must not erase journals/outbox, retry authority, identities
 provider sign-in or mode. An interrupted reset must not cancel newer work on
 restart. Test Founder self-reset and denial through raw API/Unix proxy as well
 as the CLI; it is not an OS-service restart or a force-clear capability.
+Recognized terminal legacy tmux endpoints require actual bounded native cleanup,
+not a blanket missing-journal refusal. Preserve exact socket/inode evidence,
+kernel peer/start/group and pane-parent checks, independent kernel endpoint
+absence, private generation-bound proof and atomic matching-fence retirement.
+Ordinary automatic recovery and exact repair retain their existing restrictions.
+Test a real orphan Unix socket through the compiled reset command and assert
+the fence is inactive, the original inode preserved and replay leaves newer
+resources untouched. An `operator-required` result is not a successful reset.
 
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract

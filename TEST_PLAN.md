@@ -30,6 +30,8 @@ Cancel only owned processes, using exact process identities/process groups.
 go test -race -count=1 ./internal/domain ./internal/message ./internal/foundation ./internal/api ./internal/cli ./internal/identityservice ./internal/work -run 'AgentReset|RuntimeReset|FounderRuntimeReset|InterruptedRuntimeReset'
 go test -race -count=1 -tags=integration ./tests/integration -run 'TestFounderRuntimeReset'
 go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeFounderOnlyRuntimeResetIncludingSelf$'
+go test -race -count=1 ./internal/remote -run '^TestExplicitReset'
+go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeFounderResetClearsLegacySession$'
 go run ./tools/protocol --check
 ```
 
@@ -41,10 +43,19 @@ preserved identity/mode/authentication/configuration/history, no provider calls
 for reset, single joined session supervisor and no automatic uncertain retry.
 Real loopback controls cancel an active deterministic invocation, retain its
 uncertain journal through daemon restart, close an actual owned interactive relay
-and retire only proven session fences. Pending results/outbox, maintenance,
-unowned occupied slots and unknown legacy cleanup remain operator-required.
+and retire only proven session fences. Real orphaned old-format Unix sockets
+are inspected/retired by explicit reset, with private native proof and preserved
+inode evidence. Native tests exercise kernel-authenticated server and pane
+cleanup, missing-generation legacy fences, missing endpoints, unlinked live
+sockets, replaced/foreign files, another native generation, wrong kernel
+parentage and cancellation. Ordinary automatic cleanup still refuses legacy
+adoption. Pending results/outbox, maintenance, unowned occupied slots and
+genuinely unprovable/replaced resources remain operator-required.
 Compiled-binary cases exercise Founder and worker resets with separate temporary
 state and verify role denial, identity/configuration preservation and no inference.
+`TestNativeFounderResetClearsLegacySession` specifically verifies that the actual
+compiled command retires the real legacy fence/socket and that replay cannot
+clear a newer fence.
 These fixtures do not reset live agents, restart host services, prove cleanup of
 unknown legacy resources or qualify production/provider recovery.
 

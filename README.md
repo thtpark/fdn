@@ -536,8 +536,11 @@ then diagnose again for actual progress; see the
 Founder may explicitly use `agent reset AGENT_ID --input FILE` (required
 non-secret `reason`) to cancel/join owned daemon work and sessions and
 reinitialize that runtime, including Founder itself. Identity, provider sign-in,
-mode and durable data stay preserved; uncertain work, pending reports and
-unproved legacy cleanup stay operator-required, not silently retried or erased.
+mode and durable data stay preserved. Reset performs verified native cleanup of
+recognized terminal legacy tmux endpoints, retains their socket/proof evidence
+and retires the exact fence; a missing old ownership journal alone is not a
+reason to leave the session stuck. Uncertain work, pending reports and truly
+unprovable/replaced resources stay operator-required, not silently retried or erased.
 Inspect `agent operation REQUEST_ID` for `reset` rather than treating queued
 acceptance as completion. This is not a native service restart or factory reset;
 see [Founder-only runtime reset](COMMANDS.md#founder-only-runtime-reset).
