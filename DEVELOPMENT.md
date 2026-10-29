@@ -207,8 +207,9 @@ resources untouched. An `operator-required` result is not a successful reset.
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
 version is **2**; native message protocol is **2**, server SQLite migration is
-**7**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
-SQL6 adds notes and SQL7 adds Founder device bindings while preserving records.
+**8**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
+SQL6 adds notes, SQL7 adds Founder device bindings and SQL8 adds observer/history
+indexes while preserving all business records and shipped SQL1-SQL7.
 Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.

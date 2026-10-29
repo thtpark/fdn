@@ -349,6 +349,9 @@ func (s *Server) routes() {
 	body(s, "POST /v1/tasks/{id}/entries", false, func(r *operationRequest, a domain.Agent, q domain.EntryRequest) (domain.Entry, error) {
 		return s.Store.CreateEntry(r.Context(), a.ID, r.PathValue("id"), q)
 	})
+	read(s, "GET /v1/entries/{id}", func(r *operationRequest, a domain.Agent) (domain.Entry, error) {
+		return s.Store.Entry(r.Context(), a.ID, r.PathValue("id"))
+	})
 	body(s, "POST /v1/entries/{id}", false, func(r *operationRequest, a domain.Agent, q domain.EntryRequest) (domain.Entry, error) {
 		return s.Store.EditEntry(r.Context(), a.ID, r.PathValue("id"), q)
 	})
@@ -368,6 +371,22 @@ func (s *Server) routes() {
 			return domain.Page[domain.Event]{}, err
 		}
 		q := r.URL.Query()
+		if q.Get("filter") != "" {
+			if q.Get("project") != "" || q.Get("task") != "" {
+				return domain.Page[domain.Event]{}, domain.Fail(domain.Invalid, "scoped filters cannot be combined with legacy watch selectors")
+			}
+			filter, err := domain.ParseUpdateFilter(q.Get("filter"))
+			if err != nil {
+				return domain.Page[domain.Event]{}, err
+			}
+			if q.Get("wait") == "true" {
+				return s.Store.WaitScopedEvents(r.Context(), a.ID, q.Get("since"), limit, filter)
+			}
+			if q.Get("wait") != "" && q.Get("wait") != "false" {
+				return domain.Page[domain.Event]{}, domain.Fail(domain.Invalid, "invalid scoped event wait argument")
+			}
+			return s.Store.ScopedEvents(r.Context(), a.ID, q.Get("since"), limit, filter)
+		}
 		if q.Get("wait") == "true" {
 			return s.Store.WaitEvents(r.Context(), a.ID, q.Get("project"), q.Get("task"), q.Get("since"), limit)
 		}
@@ -408,11 +427,26 @@ func (s *Server) routes() {
 		}
 		return s.Store.Inbox(r.Context(), a.ID, r.URL.Query().Get("cursor"), limit, r.URL.Query().Get("urgent") == "true")
 	})
+	read(s, "GET /v1/message-history", func(r *operationRequest, a domain.Agent) (domain.Page[domain.Message], error) {
+		limit, err := queryLimit(r)
+		if err != nil {
+			return domain.Page[domain.Message]{}, err
+		}
+		q := r.URL.Query()
+		return s.Store.MessageHistory(r.Context(), a.ID, q.Get("folder"), q.Get("state"), q.Get("peer"), q.Get("cursor"), limit)
+	})
 	read(s, "GET /v1/messages/{id}", func(r *operationRequest, a domain.Agent) (domain.Message, error) {
 		return s.Store.Message(r.Context(), a.ID, r.PathValue("id"))
 	})
 	read(s, "GET /v1/messages/{id}/thread", func(r *operationRequest, a domain.Agent) ([]domain.Message, error) {
 		return s.Store.MessageThread(r.Context(), a.ID, r.PathValue("id"))
+	})
+	read(s, "GET /v1/messages/{id}/thread-page", func(r *operationRequest, a domain.Agent) (domain.Page[domain.Message], error) {
+		limit, err := queryLimit(r)
+		if err != nil {
+			return domain.Page[domain.Message]{}, err
+		}
+		return s.Store.MessageThreadPage(r.Context(), a.ID, r.PathValue("id"), r.URL.Query().Get("cursor"), limit)
 	})
 	body(s, "POST /v1/messages/{id}/request", false, func(r *operationRequest, a domain.Agent, q domain.MessageActionReport) (domain.Message, error) {
 		return s.Store.ReportMessageAction(r.Context(), a.ID, r.PathValue("id"), q)

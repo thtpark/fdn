@@ -24,6 +24,10 @@ The daemon receives durable scoped updates over the protected binary SSH session
 not repeated inbox/task discovery polls. Delivery does not mark a message read,
 grant approval, start inference while paused, or clear a recovery fence.
 
+History uses `message list --folder received|sent|all` and `message thread-page`.
+Both page privately without marking read. `observe` is a read-only local
+subscription stream, not a controller; never reuse daemon checkpoints.
+
 ## Context and readiness
 
 1. Establish the current identity, project, actual mode, provider/model,

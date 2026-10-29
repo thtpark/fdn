@@ -193,6 +193,8 @@ var Types = []reflect.Type{
 	reflect.TypeFor[domain.Page[domain.TaskRequest]](),
 	reflect.TypeFor[domain.Update](),
 	reflect.TypeFor[domain.Page[domain.Update]](),
+	reflect.TypeFor[domain.UpdateFilter](),
+	reflect.TypeFor[domain.Page[domain.UpdateFilter]](),
 	reflect.TypeFor[domain.UpgradeAuthorizationRequest](),
 	reflect.TypeFor[domain.Page[domain.UpgradeAuthorizationRequest]](),
 	reflect.TypeFor[domain.UpgradeChallenge](),

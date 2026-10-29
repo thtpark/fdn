@@ -38,8 +38,8 @@ var AgentCommands = []string{
 	"agent list", "agent status", "agent diagnose", "agent reset", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"device list", "device register", "device revoke",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
-	"comment add", "comment edit", "worklog add", "discussion list", "mention list", "mention acknowledge", "watch",
-	"message send", "message show", "message read", "message diagnose", "message inbox", "message receipt", "message thread", "message request-report", "session request", "session list", "session show", "session change", "session open",
+	"comment add", "comment edit", "worklog add", "discussion list", "discussion show", "mention list", "mention acknowledge", "watch", "observe",
+	"message send", "message show", "message read", "message diagnose", "message inbox", "message list", "message receipt", "message thread", "message thread-page", "message request-report", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
 	"note set", "note show", "note history", "note context",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
@@ -120,6 +120,12 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			}
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
+			case "observe":
+				usage = "observe; long-lived read-only protocol-1 JSON lines over stdin/stdout; get/subscribe/cancel, at most32 queries; uses existing identity and scoped feeds; no mutation, inference, controller or new owner; see COMMANDS.md"
+			case "message list":
+				usage = "message list [--folder received|sent|all --state all|pending|handled|deferred|stale|expired --peer AGENT --cursor CURSOR --limit1..200]; party-private dated history, no implicit reading"
+			case "message thread-page":
+				usage = "message thread-page MESSAGE [--cursor CURSOR --limit1..200]; paginated party-private conversation, legacy message thread remains unchanged"
 			case "device list":
 				usage = "device list; Founder-only enrolled computers under the same Founder agent_id, including revoked devices; the original computer uses agent_id as its binding ID"
 			case "device register":
@@ -171,7 +177,7 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 	if a.configFile == "" && tail[0] != "guide" {
 		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "default configuration unavailable; specify --config"), homeErr))
 	}
-	longRunning := tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" || tail[0] == "request-worker" ||
+	longRunning := tail[0] == "observe" || tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" || tail[0] == "request-worker" ||
 		(tail[0] == "upgrade" && len(tail) > 1 && tail[1] == "apply") ||
 		(tail[0] == "accounts" && len(tail) > 1 && tail[1] == "serve") || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
 	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open")) {

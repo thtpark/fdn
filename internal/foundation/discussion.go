@@ -160,6 +160,13 @@ func (s *Store) EditEntry(ctx context.Context, actor, id string, req domain.Entr
 	})
 }
 
+func (s *Store) Entry(ctx context.Context, actor, id string) (domain.Entry, error) {
+	if _, err := s.actor(ctx, s.db, actor); err != nil {
+		return domain.Entry{}, err
+	}
+	return get[domain.Entry](ctx, s.db, "entries", id)
+}
+
 func (s *Store) Entries(ctx context.Context, actor, taskID, after string, limit int) (domain.Page[domain.Entry], error) {
 	page := domain.Page[domain.Entry]{Items: []domain.Entry{}}
 	if _, err := s.actor(ctx, s.db, actor); err != nil {

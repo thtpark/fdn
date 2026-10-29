@@ -2835,6 +2835,28 @@
       "name": "urgent"
     }
   },
+  "UpdateFilter": {
+    "Projects": {
+      "id": 4,
+      "name": "projects"
+    },
+    "Self": {
+      "id": 5,
+      "name": "self"
+    },
+    "Sources": {
+      "id": 2,
+      "name": "sources"
+    },
+    "Tasks": {
+      "id": 3,
+      "name": "tasks"
+    },
+    "Topics": {
+      "id": 1,
+      "name": "topics"
+    }
+  },
   "UpgradeAuthorizationRequest": {
     "ExpectedRevision": {
       "id": 2,

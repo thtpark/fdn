@@ -48,7 +48,7 @@ The checkout's root documents are canonical; no old source tree is required.
    adapters must prove non-prompting coding approval and tool-disabled text calls.
 5. Add ordered compatibility-tested migrations, never rewrite shipped schemas
    or reset state. Application/schema contract is 2, native message protocol 2,
-   server SQL migration 7, local SQL 1. SQL5 preserves private message bytes,
+   server SQL migration 8, local SQL 1. SQL5 preserves private message bytes,
    insertion order, receipts and scoped updates while admitting the exact
    Foundation maintenance mailbox, never an enrolled synthetic agent.
    SQL5 is the existing server-state floor; older and future unsupported
@@ -66,6 +66,12 @@ The checkout's root documents are canonical; no old source tree is required.
    foreign keys. Keep global key/UID/name reservations, private device discovery,
    non-Founder single-owner enforcement and one work slot per agent. Root account
    RPCs use the exact agent/device binding ID with its positive key generation.
+   SQL8 appends message-history and scoped-observer indexes only. Preserve SQL1-
+   SQL7, payload bytes/order, receipts and identities. `observe` is a read-only
+   versioned stdio session, not a controller or new identity owner. Keep its
+   private/public feeds distinct, selectors/cursors bounded and generation-bound,
+   snapshots watermarked before catch-up, and writes on exact proposal/replay.
+   Never observe by repeatedly spawning CLI reads or changing daemon checkpoints.
 6. Update command/reference/skill behavior together. Skills need matching names,
    meaningful trigger descriptions and complete current procedures. Documentation
    must distinguish implemented capability, planned work and evidence limits.

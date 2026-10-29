@@ -49,6 +49,51 @@ Errors have `ok:false` and `error:{code,message,retryable}`. Exit codes:
 130 cancelled. Inspect the reported state; accepted/queued is not remote
 completion. There is no force/skip-approval flag.
 
+## Read-only desktop observation
+
+`agent-cli observe` is the read-only local observation leaf.
+
+`agent-cli --config CONFIG --json --non-interactive observe` runs one
+long-lived, read-only JSON-lines session over stdin/stdout. It attaches to the
+existing identity proxy; it creates no identity owner, controller, TCP listener
+or work slot. EOF/cancellation closes its subscriptions. The ordinary timeout
+remains per query (30 seconds), not a whole-session lifetime.
+
+Output frames contain `protocol:1`, a per-process `stream`, `type`, optional
+correlation `id`, `query`, `data` and typed `error`. Types are `ready`, `result`,
+`snapshot` and `connection`. A ready frame includes public instance/agent/device/
+key-generation references and actual source/version. No signing material is
+exported. Frames are bounded to 16 MiB; input is bounded to 1 MiB per line.
+
+Input operations:
+
+- `{"id":"read_1","op":"get","query":{"kind":"task","id":"TASK_ID"}}`
+  requests one fresh snapshot.
+- `{"id":"scope_1","op":"subscribe","queries":[{"kind":"task","id":"TASK_ID"},{"kind":"discussion","id":"TASK_ID"}]}`
+  replaces the active query set (at most 32).
+- `{"id":"read_1","op":"cancel"}` cancels a pending read response, not a write.
+
+Query kinds are version/help/status/identity/work, agents/agent,
+projects/project, tasks/task/taskHistory/runs/discussion, inbox/message/
+messageHistory/thread/threadPage/messageDiagnostics/mentions, note/noteHistory/
+noteContext, knowledge/knowledgeItem/knowledgeHistory, workspaces/inventory/
+inventoryRefresh/preferences/provider, sessions/session/grants/grant/screens/
+devices/diagnostics/operation/upgrade/configuration/guides/guide/doctor/events.
+Arguments use `id`, `scope`, `project`, `assignee`, `status`, `cursor`,
+`archived`, `urgent`, `folder`, `state`, `peer`, `limit` as applicable.
+Explicit provider probes, doctor and inventory refresh cannot be automatic
+subscriptions. There is no arbitrary command/path/actor override or write verb.
+
+Private and public feeds are separate, authorized and entity-filtered. A
+subscription captures current watermarks before snapshots and then blocks for
+post-commit changes. Relevant changes are coalesced, not treated as message
+reading or task authority. Local state/health and public agent observations
+without a durable change producer are sampled only inside this process while
+subscribed (5 seconds for local/diagnostic state, 30 seconds for agent status).
+Message/task/discussion subscriptions are not periodically polled.
+Expiry projections schedule a refresh at their actual known expiry.
+Writes continue through the existing exact CLI proposal/replay path.
+
 ## Offline guide
 
 Available in `agent-cli`, `fdn-service` and `agent-service` without
@@ -651,6 +696,7 @@ Example current signoff (substitute the actual generation):
 | `agent-cli comment edit` | `COMMENT --input FILE`: body + explicit current revision; creator only |
 | `agent-cli worklog add` | `TASK --input FILE`: intentional body; local/private logs are not auto-published |
 | `agent-cli discussion list` | `TASK [--cursor CURSOR --limit N]`; comments and worklogs |
+| `agent-cli discussion show` | `ENTRY`; read one comment/worklog and its original parent metadata without acknowledging mentions or changing a task |
 | `agent-cli mention list` | `[--cursor CURSOR --limit N]`; current recipient's pending mentions |
 | `agent-cli mention acknowledge` | `COMMENT --input FILE`: exact generation, state handled/deferred |
 | `agent-cli watch` | `[--project ID --task ID --since CURSOR --limit N --once]`; bounded pages or NDJSON stream/checkpoint |
@@ -750,6 +796,8 @@ codes and secret-bearing sign-in state must not enter an AI context.
 | `agent-cli message read` | Exactly `MESSAGE`; recipient explicitly acknowledges finished reading; first server UTC `read_at` is immutable; no timestamp/leaf flags or disposition change |
 | `agent-cli message diagnose` | Exactly `MESSAGE_ID`; read-only `MessageDiagnostics` from `GET /v1/messages/{id}/diagnostics`, private to sender/recipient; `state` is observed lifecycle (not-requested, queued/shared-slot waiting, generating, blocked, awaiting-delivery, handled), `stage` is lower-level phase; not proof of authoritative receipt or AI completion |
 | `agent-cli message inbox` | `[--cursor CURSOR --limit N --urgent]`; recipient's pending messages |
+| `agent-cli message list` | `[--folder received|sent|all --state all|pending|handled|deferred|stale|expired --peer AGENT_ID --cursor CURSOR --limit N]`; party-private historical messages, newest server creation time/ID first; no implicit read |
+| `agent-cli message thread-page` | `MESSAGE [--cursor CURSOR --limit N]`; paginated private conversation, including conversations longer than the legacy 200-item thread view |
 | `agent-cli message receipt` | `MESSAGE --input FILE`: state handled/deferred/stale, or pending only from deferred; does not acknowledge reading |
 | `agent-cli message thread` | `MESSAGE`; bounded sender/recipient-private conversation including target decisions/results |
 | `agent-cli message request-report` | `MESSAGE --input FILE`: exact revision, state and nonempty reason; recipient-only accepted/deferred/declined/executing/completed/failed lifecycle |
@@ -1180,6 +1228,18 @@ subsequent requests replay or wait without timer-driven SQL discovery. `GET
 watch. Private identifiers never appear in shared events. Discovery, heartbeat,
 transport ping and actual work progress are separate; receipt of an update is
 not a message read acknowledgement or work authority.
+
+Observer calls additionally pass `filter=JSON`: a bounded union of `topics`,
+`sources`, `tasks`, `projects` and `self`. Filters have at most sixteen selectors
+and 512 encoded bytes. Cursors are query-bound; changing the filter requires a
+new watermark and snapshot. `GET /v1/events` with an explicit `filter` uses the
+same current-watermark initialization, while legacy unfiltered watch retains
+its historical replay behavior. Private filters remain recipient-scoped.
+`GET /v1/message-history` accepts `folder`, `state`, `peer`, `cursor`, `limit`;
+`GET /v1/messages/{id}/thread-page` accepts `cursor`, `limit`. These return the
+normal `Page[Message]`, exclude protected runtime-control messages, and never
+mark a message read. Historical cursors bind actor/key generation/query and an
+insertion ceiling so newly arriving messages do not shift older pages.
 
 Founder control writes are `POST /v1/agents/{id}/diagnostics` and
 `POST /v1/agents/{id}/repairs`. The target's dedicated control consumer uses

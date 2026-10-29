@@ -71,6 +71,8 @@ func (s *Store) commit(ctx context.Context, tx *sql.Tx) error {
 	}
 	affected := make(updateParties)
 	publicScopes := make(map[eventScope]struct{})
+	var privateUpdates []routedUpdate
+	var publicUpdates []domain.Update
 	if len(changes) != 0 {
 		router := updateRouter{ctx: ctx, tx: tx, projects: make(map[string]domain.Project), tasks: make(map[string]domain.Task), updateKeys: make(map[updateRouteKey]int)}
 		for _, change := range changes {
@@ -80,6 +82,11 @@ func (s *Store) commit(ctx context.Context, tx *sql.Tx) error {
 					return err
 				}
 				publicScopes[scope] = struct{}{}
+				var event domain.Event
+				if err := json.Unmarshal(change.after, &event); err != nil {
+					return err
+				}
+				publicUpdates = append(publicUpdates, domain.Update{Topic: event.Topic, SourceID: event.SourceID, TaskID: event.TaskID, ProjectID: event.ProjectID})
 				continue
 			}
 			if !bytes.Equal(change.before, change.after) {
@@ -94,6 +101,7 @@ func (s *Store) commit(ctx context.Context, tx *sql.Tx) error {
 				if _, ok := generations[actor]; ok {
 					continue
 				}
+				privateUpdates = router.updates
 				var generation int64
 				err := tx.QueryRowContext(ctx, `SELECT COALESCE(json_extract(i.data,'$.generation'),0)
 FROM agents a LEFT JOIN agent_identities i ON i.id=a.id WHERE a.id=?`, actor).Scan(&generation)
@@ -135,6 +143,7 @@ FROM agents a LEFT JOIN agent_identities i ON i.id=a.id WHERE a.id=?`, actor).Sc
 	}
 	s.notifyUpdates(affected)
 	s.notifyEvents(publicScopes)
+	s.notifyObservations(privateUpdates, publicUpdates)
 	return nil
 }
 

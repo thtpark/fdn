@@ -6,6 +6,21 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Desktop observation source work (0.3.12)
+
+The local desktop wrapper adds private historical message/thread pagination and
+one read-only `agent-cli observe` stdio session. It reuses bounded, authorized
+private/shared feeds with entity selectors and current-watermark snapshots.
+SQL8 appends query indexes without changing shipped SQL1-SQL7 or business data.
+Ordinary business changes invalidate only matching subscribed reads; remaining
+local/health sampling is inside the observer and active-interest-only.
+Read-only `discussion show ENTRY` and observer `entry` reads resolve original
+comment ancestors outside loaded pages; worklogs remain distinct records.
+There is no UI polling loop, new controller/owner, direct UI database access,
+HTTP listener, inference or automatic mutation retry implied. Existing human
+writes retain their operation IDs, revisions and uncertain-outcome evidence.
+Live enrollment, source-bound release and iOS embedding remain separate gates.
+
 - One computer per non-Founder identity and one active work slot per agent.
   Founder may enroll independent keyed computers and retain multiple live
   connections under the same actor; this never creates additional work slots. The

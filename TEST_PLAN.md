@@ -24,6 +24,23 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Desktop history and read-only observation
+
+`go test -race -count=1 ./internal/observe ./internal/foundation ./internal/api ./internal/cli`
+covers private received/sent/thread pages, insertion-ceiling/keyset stability,
+no implicit reading, signed actor/query/generation cursors, scoped post-commit
+waits, unmatched-entity isolation and read-only stdio sessions.
+Keep existing inbox/thread behavior, status no-op/event-budget semantics,
+native principal/method/query validation and daemon checkpoints unchanged.
+`discussion show ENTRY` / `GET /v1/entries/{id}` and the observer `entry` kind
+must preserve exact entry/parent/generation metadata and current actor checks,
+without acknowledging mentions, changing task state or writing a receipt.
+They let local wrappers resolve original comment threads across page boundaries
+without downloading every discussion page.
+SQL8 must migrate current SQL5-SQL7 without changing payload bytes, insertion
+order, receipts, identities or history. Then run the protocol check and all
+independent suites. Fixture results are not live UI/fleet/deployment acceptance.
+
 ## Founder devices and concurrent connections
 
 ```sh

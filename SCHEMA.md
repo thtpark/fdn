@@ -5,8 +5,8 @@ Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
 Native message protocol version is **2**; server SQLite migration version is
-**7**; local-worker SQLite remains **1**. Existing SQL5/SQL6 databases migrate
-transactionally through SQL7; earlier server-state formats remain unsupported.
+**8**; local-worker SQLite remains **1**. Existing SQL5/SQL6/SQL7 databases migrate
+transactionally through SQL8; earlier server-state formats remain unsupported.
 Deploy the server first. Version 2 requires account-bound public-key admission
 and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
 create new runtime identities. Native multi-UID qualification is separate from
@@ -35,6 +35,9 @@ SQL6 appends shared notes and scoped-update triggers. SQL7 preserves identity
 JSON and existing records while rebuilding account/challenge foreign keys for
 multiple Founder device bindings, adding device-scoped request/key/receipt
 metadata and independent Founder owner records. Shipped SQL1-SQL6 are unchanged.
+SQL8 adds only history/observer indexes; shipped SQL1-SQL7 and private message
+bytes, insertion order, receipts, identity/work records and history retention
+remain unchanged. Older binaries cannot open the SQL8 database.
 
 New user defaults are grouped under `$HOME/.foundation`: private `config`,
 runner `state`, key `identity`, socket `run`, owned `workspaces`, managed `bin`
@@ -819,6 +822,21 @@ key generation of an already authenticated SSH transport; inner mTLS remains
 mandatory until an OS-only replacement is independently proved.
 
 ### Durable scoped discovery
+
+Desktop observation adds bounded union selectors to the existing public/private
+feeds. Waiting is post-commit and entity-matched; unrelated changes do not wake
+filtered observers. Filtered cursors cannot be reused under another selector.
+An explicit filtered public request initializes at a current watermark rather
+than replaying the old public event log; legacy unfiltered watch is unchanged.
+There is no new owner, authority, controller, TCP listener or message-read side
+effect. Read-only stdio observer sessions keep their own in-memory read state,
+never a daemon controller checkpoint. A restarted observer resnapshots.
+Local/health projections without a durable producer may be sampled only for
+active interests; ordinary message/task/discussion reads remain event-driven.
+Read-only entry lookup (`discussion show ENTRY`, native `GET /v1/entries/{id}`,
+observer kind `entry`) retains the same active-actor shared-discussion access as
+listing. It returns original parent/body/generation metadata without task,
+attention, receipt or mode changes, including ancestors outside a loaded page.
 
 SQL4 records recipient-scoped updates transactionally with meaningful accepted
 mutations. Only affected subscribers are signalled after commit. Private
