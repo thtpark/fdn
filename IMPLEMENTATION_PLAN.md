@@ -6,6 +6,22 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Foreground mobile source work (0.3.13)
+
+The `mobile` facade/C bridge embeds bounded CLI reads/manual dispatch and the
+identity service's owner/renewal/proxy into an app-linked foreground host.
+Pinned in-process SSH replaces only the mobile subprocess boundary; mTLS,
+purpose/owner generations, protobuf and proxy method/path restrictions remain.
+An app-private capability attachment avoids sandbox Unix-socket path limits,
+without claiming kernel peer credentials for an in-process channel. Desktop
+native entrypoints retain their kernel-checked sockets and OpenSSH subprocess.
+
+There is no second controller, work slot, provider inference, native receiver,
+desktop-health overwrite, background daemon, Mac relay or copied key. Swift
+uses the same core manual policy, threads and exact proposal/replay store.
+The native development app and compile/fixture/simulator evidence do not imply
+physical-device enrollment, signing, production or App Store qualification.
+
 ### Desktop observation source work (0.3.12)
 
 The local desktop wrapper adds private historical message/thread pagination and
@@ -19,7 +35,8 @@ comment ancestors outside loaded pages; worklogs remain distinct records.
 There is no UI polling loop, new controller/owner, direct UI database access,
 HTTP listener, inference or automatic mutation retry implied. Existing human
 writes retain their operation IDs, revisions and uncertain-outcome evidence.
-Live enrollment, source-bound release and iOS embedding remain separate gates.
+Live enrollment, source-bound release and physical mobile qualification remain
+separate gates.
 
 - One computer per non-Founder identity and one active work slot per agent.
   Founder may enroll independent keyed computers and retain multiple live

@@ -780,7 +780,33 @@ can restore authority.
 Devices are access credentials, not additional agents, work slots or automation
 modes. Claims still serialize by AgentID. Health, task/session controls and
 maintenance remain agent-scoped, not a new per-device worker-management API.
-No iOS/Android/browser client or native multi-UID qualification is implied.
+Device enrollment alone implies no mobile/browser-client or native multi-UID
+qualification.
+
+### Foreground mobile host
+
+The development `mobile` facade reuses CLI dispatch, private exact proposals,
+identity activation/owner renewal, mTLS and native protobuf in one app package.
+Its in-process SSH boundary accepts only pinned `fdn-api`/`fdn-join` sessions,
+with public-key authentication and no shell, terminal, agent or forwarding.
+Its private attachment admits only connections minted by that app-owned
+capability and still passes the identity proxy's existing method/path/principal
+checks. It is not a forged Unix peer or a configurable native-IPC downgrade.
+
+The phone prepares independent software keys and accepts only its approved
+Founder-device profile. Mode and work slots stay agent-wide; the limited host
+does not claim work, start a controller/provider, consume native controls or
+publish desktop worker health. State stays owner-only in the app container,
+with platform data protection/backup exclusion and exact unresolved proposals.
+On iOS only, an inode-pinned owner-only app-root capability checks identity
+paths down to that sandbox boundary; Apple-managed ancestors may legitimately
+be group-writable. Child symlinks, outside paths, wrong owners, writable private
+ancestors and a replaced root are denied. Desktop/native commands cannot select
+this storage boundary and retain their full ancestor checks.
+No process-global HOME mutation, remote Mac CLI or public HTTP relay is added.
+Foreground/background transitions close owned connections without mode changes
+or automatic mutation/inference replay. Physical lifecycle/enrollment and
+distribution qualification remain separate from compilation and fixtures.
 
 ### SSH stdio, OS identity and binary owner control
 

@@ -24,6 +24,26 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Foreground mobile embedding
+
+`go test -race -count=1 ./mobile ./internal/transport ./internal/identityservice ./internal/cli -run 'Embedded|Mobile'`
+checks pinned in-process SSH fixed commands, wrong-host denial, the private
+in-process identity attachment and unchanged proxy boundaries, offline
+independent-key exact preparation, canonical owner-only state, early
+cancellation and unsupported provider/service/file-input rejection.
+Container tests must distinguish Apple-managed parent permissions from private
+subtree checks, reject path/root replacement and prove native desktop ancestry
+remains unchanged. The real iOS setup test prepares only fresh simulator keys;
+it never enrolls a device or opens an external connection.
+Run the protocol check and all Foundation suites after changes to these seams.
+
+The sibling iOS package runs actual Swift/C/Go version/guide/key-preparation
+tests and shared foreground proposal tests, then native simulator UI tests.
+Build both device and simulator slices; a compiler target is not device
+qualification. Real approved phone identity/owner reconnect, lock/unlock,
+network changes, suspension/kill/lost-ack reconciliation and signed installation
+remain explicit physical-device acceptance, not inferred from fixture tests.
+
 ## Desktop history and read-only observation
 
 `go test -race -count=1 ./internal/observe ./internal/foundation ./internal/api ./internal/cli`

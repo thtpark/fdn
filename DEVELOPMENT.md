@@ -38,6 +38,27 @@ failure. Use the smallest related suite during development, then all independent
 suites before a release. Do not build a release package locally or on a deployed
 computer. Do not run test services against an existing Foundation/state directory.
 
+### Embedded iOS development
+
+The public `mobile` facade and `mobile/capi` bridge build the actual CLI and a
+limited foreground identity/service host into the sibling iOS app. The mobile
+host has no controller, provider execution, task claims, native receivers or
+worker-health publisher. Desktop binaries remain CGO-free; the app-linked
+C archive needs CGO, Xcode and its SDKs. There is no `os.Exit`, process-global
+HOME change, shell/CLI subprocess or HTTP relay in the mobile dispatch path.
+
+From `../fdn-ui-ios`, `bash scripts/build-app.sh` builds source-bound arm64
+iOS device/simulator and macOS-test XCFramework slices, generates the native
+project with XcodeGen, and builds an unsigned simulator app. These are development
+artifacts, not Foundation release packages or device/distribution qualification.
+The Swift app shares the macOS `FoundationCore` DTOs, editors, thread projections,
+manual policy, paging and durable exact proposals.
+
+Use temporary keys/state, native loopback fixtures, and a dedicated simulator.
+Physical phone enrollment, Developer signing, protected-data/network/kill
+acceptance and publication require separate authorization/evidence. Never copy
+desktop keys or run the desktop `agent-service serve` controller on the phone.
+
 ## Running source with an isolated testing identity
 
 No separate manual build/install is needed:

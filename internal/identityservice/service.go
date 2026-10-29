@@ -71,7 +71,7 @@ func (s *Service) ServeWithBoundary(ctx context.Context, boundary Boundary) erro
 			return err
 		}
 	}
-	lock, err := stateLock(s.config.StateDir)
+	lock, err := s.options.lockState(s.config.StateDir)
 	if err != nil {
 		return err
 	}

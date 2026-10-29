@@ -65,8 +65,18 @@ func (nativeCryptography) GenerateOwner() (crypto.Signer, error) {
 
 type NativeRemote struct{}
 
+type EmbeddedRemote struct{}
+
+type tunnelFactory func(config.Worker, tls.Certificate, string) (*api.Client, error)
+
 func (NativeRemote) Challenge(ctx context.Context, c config.Worker) (domain.IdentityChallenge, error) {
-	client, err := api.NewTunnelClient(c, tls.Certificate{}, "fdn-join")
+	return remoteChallenge(ctx, c, api.NewTunnelClient)
+}
+func (EmbeddedRemote) Challenge(ctx context.Context, c config.Worker) (domain.IdentityChallenge, error) {
+	return remoteChallenge(ctx, c, api.NewEmbeddedTunnelClient)
+}
+func remoteChallenge(ctx context.Context, c config.Worker, tunnel tunnelFactory) (domain.IdentityChallenge, error) {
+	client, err := tunnel(c, tls.Certificate{}, "fdn-join")
 	if err != nil {
 		return domain.IdentityChallenge{}, err
 	}
@@ -75,7 +85,13 @@ func (NativeRemote) Challenge(ctx context.Context, c config.Worker) (domain.Iden
 }
 
 func (NativeRemote) Activate(ctx context.Context, c config.Worker, request domain.ActivateIdentityRequest) (domain.IdentityCertificate, error) {
-	client, err := api.NewTunnelClient(c, tls.Certificate{}, "fdn-join")
+	return remoteActivate(ctx, c, request, api.NewTunnelClient)
+}
+func (EmbeddedRemote) Activate(ctx context.Context, c config.Worker, request domain.ActivateIdentityRequest) (domain.IdentityCertificate, error) {
+	return remoteActivate(ctx, c, request, api.NewEmbeddedTunnelClient)
+}
+func remoteActivate(ctx context.Context, c config.Worker, request domain.ActivateIdentityRequest, tunnel tunnelFactory) (domain.IdentityCertificate, error) {
+	client, err := tunnel(c, tls.Certificate{}, "fdn-join")
 	if err != nil {
 		return domain.IdentityCertificate{}, err
 	}
@@ -84,7 +100,13 @@ func (NativeRemote) Activate(ctx context.Context, c config.Worker, request domai
 }
 
 func (NativeRemote) Owner(ctx context.Context, c config.Worker, cert tls.Certificate) (OwnerStream, error) {
-	client, err := api.NewTunnelClient(c, cert, "fdn-join")
+	return remoteOwner(ctx, c, cert, api.NewTunnelClient)
+}
+func (EmbeddedRemote) Owner(ctx context.Context, c config.Worker, cert tls.Certificate) (OwnerStream, error) {
+	return remoteOwner(ctx, c, cert, api.NewEmbeddedTunnelClient)
+}
+func remoteOwner(ctx context.Context, c config.Worker, cert tls.Certificate, tunnel tunnelFactory) (OwnerStream, error) {
+	client, err := tunnel(c, cert, "fdn-join")
 	if err != nil {
 		return nil, err
 	}
@@ -107,6 +129,9 @@ func (NativeRemote) Owner(ctx context.Context, c config.Worker, cert tls.Certifi
 
 func (NativeRemote) Client(c config.Worker, cert tls.Certificate) (*api.Client, error) {
 	return api.NewTunnelClient(c, cert, "fdn-api")
+}
+func (EmbeddedRemote) Client(c config.Worker, cert tls.Certificate) (*api.Client, error) {
+	return api.NewEmbeddedTunnelClient(c, cert, "fdn-api")
 }
 
 type nativeOwner struct {

@@ -36,6 +36,7 @@ const sshKeyFile = "ssh-private.pem"
 // Options injects account-contained crypto and transport boundaries for tests.
 // There are deliberately no JSON settings or native flags selecting test UIDs.
 type Options struct {
+	Container         *ContainerStorage
 	Remote            Remote
 	Cryptography      Cryptography
 	Now               func() time.Time
@@ -160,12 +161,12 @@ func Prepare(stateDir, name, output string, options Options) (domain.PublicIdent
 	if !filepath.IsAbs(output) || inside(stateDir, output) || strings.ContainsAny(output, "\x00\r\n") {
 		return result, domain.Fail(domain.Invalid, "public output must be an absolute path outside private identity state")
 	}
-	lock, err := stateLock(stateDir)
+	options = options.defaults()
+	lock, err := options.lockState(stateDir)
 	if err != nil {
 		return result, err
 	}
 	defer lock.Close()
-	options = options.defaults()
 	var d privateDevice
 	err = config.Read(filepath.Join(stateDir, deviceFile), &d)
 	if errors.Is(err, os.ErrNotExist) {
@@ -188,7 +189,7 @@ func Prepare(stateDir, name, output string, options Options) (domain.PublicIdent
 	if err := ensurePrivate(filepath.Join(stateDir, sshKeyFile), d.SSHPrivate); err != nil {
 		return result, err
 	}
-	if err := checkAncestors(output); err != nil {
+	if err := options.checkOutput(output); err != nil {
 		return result, err
 	}
 	var previous domain.PublicIdentity
@@ -408,12 +409,12 @@ func Connect(ctx context.Context, c config.IdentityService, p config.ConnectionP
 	if err := validateSettings(c); err != nil {
 		return status, err
 	}
-	lock, err := stateLock(c.StateDir)
+	options = options.defaults()
+	lock, err := options.lockState(c.StateDir)
 	if err != nil {
 		return status, err
 	}
 	defer lock.Close()
-	options = options.defaults()
 	d, signer, err := loadDevice(c.StateDir, options.Cryptography)
 	if err != nil {
 		return status, err
