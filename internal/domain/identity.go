@@ -4,6 +4,7 @@ package domain
 type CertificateIdentity struct {
 	InstanceID      string `json:"instance_id"`
 	AgentID         string `json:"agent_id"`
+	DeviceID        string `json:"device_id,omitempty"`
 	Generation      int64  `json:"generation"`
 	OwnerGeneration int64  `json:"owner_generation,omitempty"`
 	Purpose         string `json:"purpose"`
@@ -26,6 +27,8 @@ type RegisterIdentityRequest struct {
 
 type AgentIdentity struct {
 	AgentID         string `json:"agent_id"`
+	DeviceID        string `json:"device_id,omitempty"`
+	DeviceName      string `json:"device_name,omitempty"`
 	InstanceID      string `json:"instance_id"`
 	RequestID       string `json:"request_id"`
 	SSHUser         string `json:"ssh_user"`
@@ -46,6 +49,7 @@ type AgentIdentity struct {
 type IdentityChallenge struct {
 	Nonce      string `json:"nonce"`
 	AgentID    string `json:"agent_id"`
+	DeviceID   string `json:"device_id,omitempty"`
 	InstanceID string `json:"instance_id"`
 	Generation int64  `json:"generation"`
 	ExpiresAt  int64  `json:"expires_at"`
@@ -79,4 +83,23 @@ type RecoverIdentityRequest struct {
 	Command
 	Reason   string         `json:"reason"`
 	Identity PublicIdentity `json:"identity"`
+}
+
+type RevokeDeviceRequest struct {
+	Command
+	Reason string `json:"reason"`
+}
+
+func (i AgentIdentity) BindingID() string {
+	if i.DeviceID != "" {
+		return i.DeviceID
+	}
+	return i.AgentID
+}
+
+func (i CertificateIdentity) BindingID() string {
+	if i.DeviceID != "" {
+		return i.DeviceID
+	}
+	return i.AgentID
 }

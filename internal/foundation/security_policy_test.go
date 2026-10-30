@@ -137,7 +137,7 @@ func TestSecurityFounderBanRequiresExplicitOfflineRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := f.s.BanDuplicateIdentity(ctx, founder.AgentID, founder.Generation, founder.OwnerGeneration, "confirmed duplicate Founder controllers"); err != nil {
+	if err := f.s.BanIdentity(ctx, founder.AgentID, "explicit whole-Founder security hold"); err != nil {
 		t.Fatal(err)
 	}
 	_, err = f.s.RegisterIdentity(ctx, founder.AgentID, domain.RegisterIdentityRequest{Command: op(), Identity: securityPublic(t, "forbidden").public})
@@ -245,6 +245,17 @@ func TestSecurityTrustedRequestFenceRejectsStaleAndWrongActors(t *testing.T) {
 	newOwner := securityPublic(t, "Founder restarted owner")
 	founder, err = f.s.SetIdentityOwner(ctx, founder.AgentID, newOwner.public.AuthKey, founder.Generation)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.s.Me(fenced, founder.AgentID); err != nil {
+		t.Fatal("another Founder connection invalidated an existing owner", err)
+	}
+	old := fenced.Value(identityFenceKey{}).(domain.CertificateIdentity)
+	retiring, err := f.s.IdentityOwner(ctx, old.BindingID(), old.OwnerGeneration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.s.ReleaseIdentityOwner(ctx, old.BindingID(), old.OwnerGeneration, retiring.OwnerKey); err != nil {
 		t.Fatal(err)
 	}
 	_, err = f.s.CreateProject(fenced, founder.AgentID, domain.ProjectRequest{Command: op(), Name: "stale owner"})

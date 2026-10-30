@@ -157,10 +157,17 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
     fail before OS changes; a retained disable tombstone must not be bypassed.
     Preserve root inventory and inspect public identity/request/key-generation
     references instead of editing it, replaying old keys or guessing an epoch.
-12. A proved second different live owner key plus a fresh successful incumbent
-    binary control ping bans the whole identity, including the original and Founder,
+12. A proved second different live non-Founder owner key plus a fresh successful
+    incumbent binary control ping bans the whole identity, including the original,
     and closes API/streams. A stale/crashed/same-key reconnect, ordinary CLI
     traffic, public-key collision or unproved attempt is not ban evidence.
+    Founder permits independent enrolled devices and concurrent owners.
+    `device list` inspects those bindings; another active Founder computer can
+    use `device revoke BINDING_ID --input FILE` with a nonsecret reason to retire
+    just one computer, preserving other device keys and the shared work slot.
+    Self-revocation and revoking the last active computer are denied. Whole-Founder
+    recovery and restore still retire all old devices. This is not a new
+    per-device reset/health/upgrade capability or a mobile/browser client.
     Native commands/updates use protobuf protocol 2 over SSH/mTLS/Unix IPC;
     HTTPS origin settings describe trust, not an HTTP service to probe or a
     fallback. Keep current generation proofs until native OS-only qualification.

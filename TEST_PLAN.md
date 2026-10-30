@@ -24,6 +24,72 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Foreground mobile embedding
+
+`go test -race -count=1 ./mobile ./internal/transport ./internal/identityservice ./internal/cli -run 'Embedded|Mobile'`
+checks pinned in-process SSH fixed commands, wrong-host denial, the private
+in-process identity attachment and unchanged proxy boundaries, offline
+independent-key exact preparation, canonical owner-only state, early
+cancellation and unsupported provider/service/file-input rejection.
+Container tests must distinguish Apple-managed parent permissions from private
+subtree checks, reject path/root replacement and prove native desktop ancestry
+remains unchanged. The real iOS setup test prepares only fresh simulator keys;
+it never enrolls a device or opens an external connection.
+Run the protocol check and all Foundation suites after changes to these seams.
+
+The sibling iOS package runs actual Swift/C/Go version/guide/key-preparation
+tests and shared foreground proposal tests, then native simulator UI tests.
+Build both device and simulator slices; a compiler target is not device
+qualification. Real approved phone identity/owner reconnect, lock/unlock,
+network changes, suspension/kill/lost-ack reconciliation and signed installation
+remain explicit physical-device acceptance, not inferred from fixture tests.
+
+## Desktop history and read-only observation
+
+`go test -race -count=1 ./internal/observe ./internal/foundation ./internal/api ./internal/cli`
+covers private received/sent/thread pages, insertion-ceiling/keyset stability,
+no implicit reading, signed actor/query/generation cursors, scoped post-commit
+waits, unmatched-entity isolation and read-only stdio sessions.
+Keep existing inbox/thread behavior, status no-op/event-budget semantics,
+native principal/method/query validation and daemon checkpoints unchanged.
+`discussion show ENTRY` / `GET /v1/entries/{id}` and the observer `entry` kind
+must preserve exact entry/parent/generation metadata and current actor checks,
+without acknowledging mentions, changing task state or writing a receipt.
+They let local wrappers resolve original comment threads across page boundaries
+without downloading every discussion page.
+SQL8 must migrate current SQL5-SQL7 without changing payload bytes, insertion
+order, receipts, identities or history. Then run the protocol check and all
+independent suites. Fixture results are not live UI/fleet/deployment acceptance.
+
+## Founder devices and concurrent connections
+
+```sh
+go test -race -count=1 . ./internal/foundation ./internal/api ./internal/device ./internal/pki ./internal/identityservice ./internal/cli ./internal/platform -run 'FounderDevice|FounderOwners|FounderOriginal|ManagedFounderDevice|NativeFounderDevice'
+go test -race -count=1 -tags=integration ./tests/integration -run '^TestUnix'
+go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeFounderDeviceEnrollmentListAndRevocation$'
+go run ./tools/protocol --check
+```
+
+Regressions prove separate signed requests/keys/UIDs and device-bound activation,
+certificates, exact operation replay, one Founder actor/mode, and a single
+agent-wide task slot under competing claims. Raw API rejects workers, delegates,
+spoofed roles and protected registration fields. Independent owners on multiple
+Founder devices renew without invalidating one another. Per-device revocation
+retires its challenges/certificates/live streams, preserves other device keys,
+and cannot be bypassed by registration/provisioning replay. Self-revocation and
+revoking the last active computer are denied; another device can revoke the
+original computer. Whole-Founder recovery/restore retires all old device keys.
+
+SQL7 migration tests preserve original SQL6 identity bytes, account reservations,
+messages, requests, receipts and scoped-feed state, validate foreign keys/reopen,
+and reject SQL6 rollback. Recording native-account fixtures test device IDs,
+independent UIDs, lost acknowledgements and retained generation tombstones.
+Actual Unix/mTLS fixtures prove concurrent Founder owner connections and the
+unchanged non-Founder fresh-ping whole-identity ban. Real TLS/protobuf device
+tests use distinct **logical** UIDs, not provisioned OS accounts. Compiled CLI
+tests use the explicit business proxy. These are not iOS/Android/browser-client,
+native multi-UID/sshd or per-device worker-management qualification.
+
 ## Founder-only runtime reset
 
 ```sh
@@ -318,14 +384,14 @@ their tests; planned/unimplemented cases must not be described as covered.
 | Tasks/policy | Named/independent eligibility, project epochs, invalidation, status gates, concurrent stale revisions, exact execution/verification claims/reports; verifier's current spec/result/discussion/epoch, independent own-provider selection, shared server slot, atomic feedback/rework approval, revoked authority/Founder pause and no self-acceptance |
 | Discussions/messages | Creator-only edits, literal mention/body generation, requested answers, private recipients, no automatic protected replies |
 | Shared scoped notes | Founder-only company edits; current active-project delegates; self/Founder and assignment-bounded non-Founder agent edits; revocation/archive/reassignment/terminal-task denial; exact revisions/replay, explicit clear, 64 KiB boundary, three histories, bodyless scoped updates; all task phases and independent reviewer's own context; next-call refresh, retained snapshots, missing-context failure and private knowledge separation |
-| Persistence/restore | SQL5-to-SQL6 notes migration and current SQL6 reopen, prebaseline/future schema rejection without mutation, current backup manifest2 only, prepublication ALL-identity/owner/key quarantine, missing-binding refusal, enrolled restored Founder root-private fresh-key recovery retaining ID/history, regular fresh-key reapproval, unchanged mode/uncertain work, atomic failures, immutable operations, three-history bounds, integrity |
+| Persistence/restore | SQL5-to-SQL6 notes and SQL6-to-SQL7 device migrations/current SQL7 reopen, prebaseline/future schema rejection without mutation, current backup manifest2 only, prepublication ALL-identity/device/owner/key quarantine, missing-binding refusal, enrolled restored Founder root-private fresh-key recovery retaining ID/history, regular fresh-key reapproval, unchanged mode/uncertain work, atomic failures, immutable operations, three-history bounds, integrity |
 | Worker/controller | One slot across manual/service/session/execution/verification, onboarding once, no idle inference, partial results/questions, retry/backoff/budget, offline report replay and no duplicate inference/review/merge; prepared review reply, claim-ack recovery, uncertain verifier failure, discussion/mode/workspace cancellation, disabled-binding preservation and manual resolution |
 | Providers/processes | Exact required flags, text tool isolation, prompt through stdin, private/bounded output, version/model pinning, cancellation of owned descendants, failed signed staging retains previous version; actual login PATH/bare command versions, profile preservation/collisions, current-version dispatch and real foreground-terminal input; advertised Codex/Copilot device-flow selection, legacy fallback, bounded help-only probes, protected tmux/local TTY display and public-link versus credential handling; missing-authentication to real Founder/delegate inbox before onboarding without inference, private/protected notice fields, exact replay across restart/lost ack, explicit pending failures, 15-minute expiry/legacy deadlines, no automatic renewal or receipt revival, Founder-only typed refresh including paused/offline targets, scope/authority checks, no notification spam or auth inferred from receipt acknowledgement |
 | Sessions | Request != consent != explicit open, current scope/expiry/revocation, no public listener, restart retirement, cleanup fences |
 | Autonomous control | Only Founder pauses/resumes; target/delegate/offline overrides denied; event-driven cancellation and server claim gate; version-1 server migration preserves identity; legacy unexplained manual pause fails closed |
 | Persistent assistance | Only Founder issues/revokes; exact requester/target/purpose/mode/provider/project; no-project authentication bootstrap; target prepares unattended without local consent; disconnect/restart/expiry retains grant; role/identity/revocation closes streams; delegate is not assumed human |
 | Native identity/ingress | Recording account adapters/in-process SSH, unique UID/account/key reservations, positive per-account generation on typed root provision/disable; stale/same-generation-key-change rejection before OS calls, exact replay, never-provisioned disable tombstones, higher-generation fresh-key UID/name preservation and pre/returned/post-bind/current registry tuple checks; no arbitrary commands/PTY/forwarding, wrong-peer/pin/certificate rejection, private root maintenance outside agent gateway; no host users/sshd/services changed |
-| Owner/current-user boundary | Device versus ephemeral owner certificate purposes, instance/agent/key/owner-generation agreement, kernel peer UID checks and owner-only IPC, same-user key ownership but no private/control export over ordinary IPC, one local owner across CLI traffic; confirmed distinct live owner proofs plus fresh incumbent binary ping ban original and contender including Founder, while stale crash/reconnect/unproved attempts do not; ban cancels API/streams, recovery keeps work fenced |
+| Owner/current-user boundary | Device versus ephemeral owner certificate purposes, instance/agent/device/key/owner-generation agreement, kernel peer UID checks and owner-only IPC, same-user key ownership but no private/control export over ordinary IPC; independent Founder devices/connections and scoped revocation share one work slot; confirmed distinct live non-Founder owner proofs plus fresh incumbent binary ping ban original and contender, while stale crash/reconnect/unproved attempts do not; ban cancels API/streams, recovery keeps work fenced |
 | Native services | Recording adapters by default, one existing installing user/HOME with independent agent name, both user systemd services/macOS LaunchAgents, unchanged HOME/groups/shell, no root/sudo/runuser/new account requirements, private 0700/0600 IPC, strict current single-user fields and retained state, raw scalar systemd paths, user-bus environment only for registration |
 | Guidance/docs | Valid skill names/frontmatter/descriptions; local links/command coverage; no legacy checkout dependency; hashes/version completeness; preserve home instructions/unrelated skills; prompt inclusion; isolated homes; native and Debian guide content |
 | Release/install | Merged-release-only event/commit guards, pinned Actions, two matching builds including agent-identity, native/worker binary lists and executable bytes/modes, all four archive binaries allowed/required/activated, missing identity payload denied before prefix changes, Debian parent directories and real unprivileged extraction with executable hashes, trusted manifest, immutable/idempotent installation and state preservation |
@@ -596,7 +662,7 @@ suite or a release.
 
 ## Software-first identity security acceptance
 
-API/schema contract 2, server SQL 3 and preserved local SQL 1 are separate
+API/schema contract 2, current server SQL7 and preserved local SQL1 are separate
 version checks. On 2026-10-21 the coordinator confirmed `SEC-001`–`SEC-010` and
 `ATT-001`/`ATT-002` source fixtures in full integration (25.673s) and e2e
 (94.630s); enhanced both-controller PolicyViolation ban notification and
@@ -604,6 +670,9 @@ invalid/replayed-proof no-ban `TestUnix` passed (8.432s). See
 [SCENARIOS.md](tests/e2e/SCENARIOS.md#security-boundary-cases-source-suites-verified-final-acceptance-pending).
 These are working-tree fixture results, not a final all-suite pass for later
 restore/lifecycle/account-generation replay hardening or native deployment.
+The historical duplicate-Founder result is superseded by the Founder device
+and concurrent-connection regressions above; current duplicate-owner auto-ban
+applies only to non-Founders.
 Recording lifecycle source tests were also reported passing before the latest
 account-generation addition. The native source owner subsequently reported the
 full race ingress/platform/CLI rerun passing (2.594s/2.958s/3.836s) and vet after
@@ -646,7 +715,8 @@ Source-level regression areas, without claiming a current passing result:
   in the same existing user's HOME; normal retry never rotates keys.
 - `tests/integration/identity*_test.go`: raw Unix/TLS boundary, certificate/UID
   mismatch, signed activation, Founder-only registration, fresh owner proof,
-  stale/crash versus confirmed simultaneous owners, ban including Founder and
+  stale/crash versus confirmed simultaneous non-Founder owners, concurrent
+  Founder connections and
   explicit fresh-key recovery. Run with `-tags=integration -run '^TestUnix'`.
 
 Native multi-UID filesystem/account/sshd/systemd/launchd/root-recovery/reboot

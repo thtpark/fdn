@@ -47,13 +47,18 @@ guide includes this file, all skills, and the development references.
   permissions and task scope. Routine local access needs no project approval.
   Root changes, another computer's consent, cloud costs, external commitments,
   and provider spending retain their separate authorization boundaries.
-- Keep one enrolled identity and one active work slot per computer. The existing
+- Keep one enrolled identity per computer and one active work slot per agent.
+  Non-Founders have one computer/live owner; Founder may enroll separately keyed
+  devices with `device register` and keep multiple connections under one actor.
+  Use `device list` and revoke a lost computer from another active Founder device
+  with `device revoke`; never copy keys or add an execution slot. The existing
   installing user runs `agent-identity`, the runner and providers, and owns all
   worker state including private identity keys. Do not create another OS user
   or rename the local account to match the agent. Separate processes organize
   lifecycle, not key isolation from that user's tools; private files and the
   peer-checked local Unix proxy stay owner-only.
-  Every identity, including Founder, has its own Foundation-host SSH account/UID.
+  Every enrolled computer, including each Founder device, has its own
+  Foundation-host SSH account/UID.
   New Foundation SSH accounts use the OS-safe lowercase agent name; local worker
   usernames are independent. Existing Foundation names/UIDs stay retained.
   Manual work, automatic work, onboarding, replies, and remote sessions share
@@ -109,8 +114,9 @@ guide includes this file, all skills, and the development references.
 - Identity registration is Founder-only, not a project-delegate permission or
   provider sign-in. Use pinned SSH stdio and inner mutual TLS, never a TCP/bearer
   bootstrap shortcut or a shared Foundation SSH account. A proved different
-  live owner key plus a fresh incumbent binary control ping bans the entire identity,
-  including the original and Founder; ordinary CLI traffic, stale reconnects,
+  live non-Founder owner key plus a fresh incumbent binary control ping bans the
+  entire identity, including the original; Founder permits multiple authenticated
+  devices/owners. Ordinary CLI traffic, stale reconnects,
   collisions and unproved attempts do not. Recovery needs fresh keypairs and
   explicit authority; Founder recovery is root-local only. Software/RAM keys
   may still be fully cloned or used sequentially: never claim perfect physical
@@ -184,9 +190,9 @@ The source baseline is 0.3.5: current signed identities, server SQL5, local SQL1
 and backup manifest2. Older formats/layouts are unsupported, not automatically
 adopted. Preserve current state and explicit configuration paths; compatibility
 removal is not authorization to delete installations or recovery evidence.
-Current source appends SQL6 for shared notes; upgrade the server before
-note-aware workers. Preserve SQL5 records and never assume a SQL5 binary can
-read the upgraded database.
+Current source appends SQL6 for shared notes and SQL7 for Founder devices;
+upgrade the server/account helper before device-aware clients. Preserve SQL5/SQL6
+records and never assume older binaries can read the upgraded database.
 
 Read [DEVELOPMENT.md](DEVELOPMENT.md), [SCHEMA.md](SCHEMA.md), and
 [TEST_PLAN.md](TEST_PLAN.md). Make surgical changes; preserve identity, mode,

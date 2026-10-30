@@ -19,6 +19,7 @@ type updateCursor struct {
 	Actor      string `json:"a"`
 	Generation int64  `json:"g"`
 	Sequence   int64  `json:"s"`
+	Scope      string `json:"q,omitempty"`
 }
 
 type updateWaiter struct {
@@ -35,6 +36,7 @@ type updateHub struct {
 	mu           sync.Mutex
 	waiters      map[string]*updateWaiter
 	eventWaiters map[eventScope]*updateWaiter
+	observers    map[observationKey]*observationWaiter
 	closed       bool
 	once         sync.Once
 	err          error
@@ -54,13 +56,21 @@ func (s *Store) loadUpdateFeed(ctx context.Context) error {
 }
 
 func (s *Store) makeUpdateCursor(actor string, generation, sequence int64) string {
-	data, _ := json.Marshal(updateCursor{Version: 1, Feed: s.updateFeedID, Actor: actor, Generation: generation, Sequence: sequence})
+	return s.scopedUpdateCursor(actor, generation, sequence, "")
+}
+
+func (s *Store) scopedUpdateCursor(actor string, generation, sequence int64, scope string) string {
+	data, _ := json.Marshal(updateCursor{Version: 1, Feed: s.updateFeedID, Actor: actor, Generation: generation, Sequence: sequence, Scope: scope})
 	signature := hmac.New(sha256.New, s.updateCursorKey)
 	signature.Write(data)
 	return base64.RawURLEncoding.EncodeToString(data) + "." + base64.RawURLEncoding.EncodeToString(signature.Sum(nil))
 }
 
 func (s *Store) readUpdateCursor(value, actor string, generation int64) (int64, error) {
+	return s.readScopedUpdateCursor(value, actor, generation, "")
+}
+
+func (s *Store) readScopedUpdateCursor(value, actor string, generation int64, scope string) (int64, error) {
 	if len(value) > 4096 {
 		return 0, domain.Fail(domain.Invalid, "update cursor is too long")
 	}
@@ -76,7 +86,7 @@ func (s *Store) readUpdateCursor(value, actor string, generation int64) (int64, 
 	if cursor.Actor != actor {
 		return 0, domain.Fail(domain.Denied, "update cursor belongs to a different actor")
 	}
-	if cursor.Version != 1 || cursor.Feed != s.updateFeedID || cursor.Generation != generation {
+	if cursor.Version != 1 || cursor.Feed != s.updateFeedID || cursor.Generation != generation || cursor.Scope != scope {
 		return 0, domain.Fail(domain.Conflict, "stale update cursor; initialize a current identity watermark and resnapshot")
 	}
 	return cursor.Sequence, nil
@@ -90,11 +100,19 @@ func (s *Store) readUpdateCursor(value, actor string, generation int64) (int64, 
 // Hints carry no authority, message body, implicit read receipt or new expiry.
 // Consumers recheck authoritative records and retain their own deadline handling.
 func (s *Store) Updates(ctx context.Context, actor, since string, limit int) (domain.Page[domain.Update], error) {
+	return s.ScopedUpdates(ctx, actor, since, limit, domain.UpdateFilter{})
+}
+
+func (s *Store) ScopedUpdates(ctx context.Context, actor, since string, limit int, filter domain.UpdateFilter) (domain.Page[domain.Update], error) {
 	page := domain.Page[domain.Update]{Items: []domain.Update{}}
+	filter, err := filter.Normalize()
+	if err != nil {
+		return page, err
+	}
 	if err := s.updateOpen(); err != nil {
 		return page, err
 	}
-	limit, err := limitSize(limit)
+	limit, err = limitSize(limit)
 	if err != nil {
 		return page, err
 	}
@@ -121,7 +139,7 @@ COALESCE((SELECT seq FROM sqlite_sequence WHERE name='update_feed'),0) FROM upda
 	}
 	last := watermark
 	if since != "" {
-		last, err = s.readUpdateCursor(since, actor, generation)
+		last, err = s.readScopedUpdateCursor(since, actor, generation, filter.Fingerprint())
 		if err != nil {
 			return page, err
 		}
@@ -131,10 +149,13 @@ COALESCE((SELECT seq FROM sqlite_sequence WHERE name='update_feed'),0) FROM upda
 		if last < floor {
 			return page, domain.Fail(domain.Conflict, "stale update cursor; retained replay begins after this watermark; resnapshot")
 		}
-		rows, err := snapshot.QueryContext(ctx, `SELECT f.sequence,f.topic,f.source_id,f.task_id,f.project_id,f.urgent
+		clause, arguments := observationClause(filter, actor, "f.")
+		query := `SELECT f.sequence,f.topic,f.source_id,f.task_id,f.project_id,f.urgent
 FROM update_recipients r JOIN update_feed f ON f.sequence=r.sequence
-WHERE r.actor_id=? AND r.key_generation=? AND r.sequence>? AND r.sequence<=?
-ORDER BY r.sequence LIMIT ?`, actor, generation, last, watermark, limit+1)
+WHERE r.actor_id=? AND r.key_generation=? AND r.sequence>? AND r.sequence<=?` + clause + ` ORDER BY r.sequence LIMIT ?`
+		arguments = append([]any{actor, generation, last, watermark}, arguments...)
+		arguments = append(arguments, limit+1)
+		rows, err := snapshot.QueryContext(ctx, query, arguments...)
 		if err != nil {
 			return page, err
 		}
@@ -161,7 +182,7 @@ ORDER BY r.sequence LIMIT ?`, actor, generation, last, watermark, limit+1)
 	} else {
 		last = watermark
 	}
-	page.NextCursor = s.makeUpdateCursor(actor, generation, last)
+	page.NextCursor = s.scopedUpdateCursor(actor, generation, last, filter.Fingerprint())
 	return page, nil
 }
 
@@ -343,6 +364,9 @@ func (s *Store) closeUpdates() error {
 		}
 		for _, waiter := range s.updates.eventWaiters {
 			close(waiter.wake)
+		}
+		for _, waiter := range s.updates.observers {
+			close(waiter.waiter.wake)
 		}
 		s.updates.mu.Unlock()
 		s.updates.err = s.db.Close()

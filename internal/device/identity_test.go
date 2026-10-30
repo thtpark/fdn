@@ -209,6 +209,7 @@ func TestChallengeAndOwnerProofBinding(t *testing.T) {
 	for _, mutate := range []func(*domain.IdentityChallenge){
 		func(c *domain.IdentityChallenge) { c.InstanceID = "instance_other" },
 		func(c *domain.IdentityChallenge) { c.AgentID = "agent_other" },
+		func(c *domain.IdentityChallenge) { c.DeviceID = "device_other" },
 		func(c *domain.IdentityChallenge) { c.Generation++ },
 		func(c *domain.IdentityChallenge) { c.Nonce = domain.NewToken() },
 		func(c *domain.IdentityChallenge) { c.ExpiresAt++ },
@@ -236,6 +237,7 @@ func TestChallengeAndOwnerProofBinding(t *testing.T) {
 	for _, mutate := range []func(*domain.AgentIdentity){
 		func(i *domain.AgentIdentity) { i.InstanceID = "instance_other" },
 		func(i *domain.AgentIdentity) { i.AgentID = "agent_other" },
+		func(i *domain.AgentIdentity) { i.DeviceID = "device_other" },
 		func(i *domain.AgentIdentity) { i.Generation++ },
 	} {
 		changed := identity

@@ -6,7 +6,41 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
-- One native worker computer/enrolled identity and one active work slot. The
+### Foreground mobile source work (0.3.13)
+
+The `mobile` facade/C bridge embeds bounded CLI reads/manual dispatch and the
+identity service's owner/renewal/proxy into an app-linked foreground host.
+Pinned in-process SSH replaces only the mobile subprocess boundary; mTLS,
+purpose/owner generations, protobuf and proxy method/path restrictions remain.
+An app-private capability attachment avoids sandbox Unix-socket path limits,
+without claiming kernel peer credentials for an in-process channel. Desktop
+native entrypoints retain their kernel-checked sockets and OpenSSH subprocess.
+
+There is no second controller, work slot, provider inference, native receiver,
+desktop-health overwrite, background daemon, Mac relay or copied key. Swift
+uses the same core manual policy, threads and exact proposal/replay store.
+The native development app and compile/fixture/simulator evidence do not imply
+physical-device enrollment, signing, production or App Store qualification.
+
+### Desktop observation source work (0.3.12)
+
+The local desktop wrapper adds private historical message/thread pagination and
+one read-only `agent-cli observe` stdio session. It reuses bounded, authorized
+private/shared feeds with entity selectors and current-watermark snapshots.
+SQL8 appends query indexes without changing shipped SQL1-SQL7 or business data.
+Ordinary business changes invalidate only matching subscribed reads; remaining
+local/health sampling is inside the observer and active-interest-only.
+Read-only `discussion show ENTRY` and observer `entry` reads resolve original
+comment ancestors outside loaded pages; worklogs remain distinct records.
+There is no UI polling loop, new controller/owner, direct UI database access,
+HTTP listener, inference or automatic mutation retry implied. Existing human
+writes retain their operation IDs, revisions and uncertain-outcome evidence.
+Live enrollment, source-bound release and physical mobile qualification remain
+separate gates.
+
+- One computer per non-Founder identity and one active work slot per agent.
+  Founder may enroll independent keyed computers and retain multiple live
+  connections under the same actor; this never creates additional work slots. The
   existing installing OS user owns identity keys, provider state and runner work;
   identity and runner processes share its UID/HOME without new users/groups.
 - Every non-Founder is autonomous/unattended; only Founder coordinates human
@@ -17,13 +51,14 @@ approvals, run models, or publish sensitive data.
   server database directly. Service-controlled policy applies to every client.
 - Pinned SSH forced stdio (`fdn-api`/`fdn-join`) into local Unix ingress plus
   inner mTLS; no API TCP listener, bearer bootstrap or token-only runtime.
-- A dedicated Foundation SSH account/UID per identity, including Founder;
+- A dedicated Foundation SSH account/UID per enrolled computer, including each Founder device;
   kernel peer UID must agree with certificate instance/agent/key/owner epochs.
 - Founder-only signed public registration; private software keys stay in the
   installing user's private identity state, never provider prompts/shared records.
   Process separation is lifecycle organization, not same-user key isolation.
-- Confirmed different simultaneous owner keys plus a fresh incumbent binary control
-  ping ban the entire identity, including the original and Founder. Stale/dead
+- Confirmed different simultaneous non-Founder owner keys plus a fresh incumbent binary control
+  ping ban the entire identity, including the original. Founder is exempt from
+  duplicate-owner auto-ban, not account/certificate/generation checks. Stale/dead
   reconnects, ordinary CLI traffic, collisions and unproved attempts do not ban.
 - Recovery is explicit with fresh keys/generations; Founder recovery is only
   root-local private Unix maintenance, not an agent gateway capability.
@@ -167,12 +202,12 @@ other essential blockers keep their existing separate rules.
 Legacy missing ownership, an incomplete launch identity, unavailable authority,
 active sessions, busy/uncertain work and unprovable cleanup remain explicit
 stops. No source fixture proves live Agent1 recovery or deployment. Local SQL1,
-server SQL6, API/schema2, native protocol2 and the locked payload schema are
+server SQL7, API/schema2, native protocol2 and the locked payload schema are
 unchanged by these local ownership records.
 
 ## Current acceptance gate: software-first identity security
 
-API/schema contract **2**, server SQL migration **5** and preserved local SQL
+API/schema contract **2**, server SQL migration **7** and preserved local SQL
 **1** are the current implementation target. This is mandatory security work,
 not an optional hardware milestone or permission to bypass existing project/
 work policies. Source integration and exact test outcomes must be confirmed
@@ -197,9 +232,14 @@ before marking this gate complete.
   Fresh-key recovery uses an empty sub-StateDir in the same user's HOME while
   retaining old evidence and all runner state; no automatic rotation.
   Device/ephemeral owner mTLS still agrees with Foundation ingress peer and epochs.
-- Fresh proved simultaneous different owners ban the whole identity including
-  Founder and close API/streams; crash/reconnect/CLI/public collisions/unproved
+- Fresh proved simultaneous different non-Founder owners ban the whole identity
+  and close API/streams; crash/reconnect/CLI/public collisions/unproved
   attempts do not ban. Explicit fresh-key recovery retains work/evidence fences.
+- Founder-only `device register/list/revoke` preserves one actor while assigning
+  independent keys/SSH accounts and concurrent owner generations. Device
+  revocation leaves other computers connected; whole-Founder recovery/restore
+  retires all old device credentials. SQL7 preserves current SQL5/SQL6 state.
+  This adds no phone/browser client or per-device worker-management API.
 - Rootless/recording/in-process SSH and real Unix/TLS regressions are separate
   from business fixtures with injected authentication/separate HOME. Coordinator-
   confirmed strict Unix/attachment source results do not finish all-suite
@@ -336,8 +376,10 @@ does not prove existing transports have stopped; account/UID reuse is forbidden.
 Keep the current ephemeral-owner possession proof and same-owner reconnect
 semantics. Replace WebSocket liveness only with an equivalently fresh,
 authenticated binary challenge/response. Different proved live owner keys plus
-fresh incumbent liveness must still ban the whole identity, including Founder;
+fresh incumbent liveness must still ban the whole non-Founder identity;
 ordinary CLI connections, stale owners and unproved attempts must not.
+Founder device enrollments and concurrent owners retain all other generation,
+account and proof checks and share the same agent work slot.
 
 **Security gate:** retain current inner mTLS/generation proofs until the proposed
 OS-backed replacement proves those guarantees. Binary messaging and HTTP removal

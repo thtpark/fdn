@@ -41,7 +41,13 @@ func agentOperationIdentity(ctx context.Context, q queryer, a domain.Agent) (int
 	if err != nil {
 		return 0, false, err
 	}
-	return identity.Generation, identity.AgentID == a.ID && identity.Generation > 0 && identity.State == "active" && a.Active && !a.Banned, nil
+	active := identity.State == "active"
+	if a.Founder && !active {
+		if err := q.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM agent_identities WHERE agent_id=? AND json_extract(data,'$.state')='active')", a.ID).Scan(&active); err != nil {
+			return 0, false, err
+		}
+	}
+	return identity.Generation, identity.AgentID == a.ID && identity.Generation > 0 && active && a.Active && !a.Banned, nil
 }
 
 func agentOperationParties(ctx context.Context, q queryer, operation domain.AgentOperation) (domain.Agent, bool, error) {

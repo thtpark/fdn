@@ -25,6 +25,12 @@ func NewTunnelClient(c config.Worker, certificate tls.Certificate, mode string) 
 	return newMessageTunnelClient(c, certificate, mode, process.Native{})
 }
 
+// NewEmbeddedTunnelClient retains native SSH pins, purpose-bound mTLS and
+// protobuf while replacing only the subprocess boundary.
+func NewEmbeddedTunnelClient(c config.Worker, certificate tls.Certificate, mode string) (*Client, error) {
+	return messageTunnelClient(c, certificate, mode, transport.OpenEmbeddedStream)
+}
+
 const MessageALPN = "fdn-message/2"
 
 func tunnelTrust(c config.Worker, certificate tls.Certificate, mode string) (config.SSH, *tls.Config, string, error) {
@@ -68,6 +74,12 @@ func tunnelTrust(c config.Worker, certificate tls.Certificate, mode string) (con
 }
 
 func newMessageTunnelClient(c config.Worker, certificate tls.Certificate, mode string, runner process.Runner) (*Client, error) {
+	return messageTunnelClient(c, certificate, mode, func(ctx context.Context, c config.SSH, mode string) (net.Conn, error) {
+		return transport.OpenStream(ctx, c, mode, runner)
+	})
+}
+
+func messageTunnelClient(c config.Worker, certificate tls.Certificate, mode string, open func(context.Context, config.SSH, string) (net.Conn, error)) (*Client, error) {
 	sshConfig, tlsConfig, _, err := tunnelTrust(c, certificate, mode)
 	if err != nil {
 		return nil, err
@@ -76,7 +88,7 @@ func newMessageTunnelClient(c config.Worker, certificate tls.Certificate, mode s
 	client := NewMessageClient(strings.TrimRight(c.URL, "/"), func(ctx context.Context) (net.Conn, error) {
 		streamCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 		stop := context.AfterFunc(ctx, cancel)
-		conn, err := transport.OpenStream(streamCtx, sshConfig, mode, runner)
+		conn, err := open(streamCtx, sshConfig, mode)
 		if err != nil {
 			stop()
 			cancel()

@@ -512,7 +512,7 @@ func TestUnixOwnerEquivalentPublicKeyEncodingDoesNotBan(t *testing.T) {
 	}
 }
 
-func TestUnixConfirmedDuplicateBansOriginalAndFounder(t *testing.T) {
+func TestUnixConfirmedDuplicateBansOriginalWorker(t *testing.T) {
 	requireBanClose := func(t *testing.T, controller string, err error) {
 		t.Helper()
 		var closeError websocket.CloseError
@@ -520,76 +520,111 @@ func TestUnixConfirmedDuplicateBansOriginalAndFounder(t *testing.T) {
 			t.Fatalf("%s controller did not receive the explicit ban policy close: %v", controller, err)
 		}
 	}
-	for _, founder := range []bool{false, true} {
-		name := "worker"
-		if founder {
-			name = "Founder"
+	t.Run("worker", func(t *testing.T) {
+		h := newIdentityHarness(t, false)
+		deviceCertificate := h.activate(t)
+		deviceClient := h.client(t, h.joinSocket, deviceCertificate)
+		original := h.openOwner(t, deviceClient, newOwnerKey(t), true)
+		identityMe(t, original.client, h.identity.AgentID)
+		before := h.identity
+		conn, challenge := h.ownerChallenge(t, deviceClient)
+		contenderKey := newOwnerKey(t)
+		req, err := device.SignOwner(contenderKey, h.identity, challenge.Nonce)
+		if err != nil {
+			t.Fatal(err)
 		}
-		t.Run(name, func(t *testing.T) {
-			h := newIdentityHarness(t, founder)
-			deviceCertificate := h.activate(t)
-			deviceClient := h.client(t, h.joinSocket, deviceCertificate)
-			original := h.openOwner(t, deviceClient, newOwnerKey(t), true)
-			identityMe(t, original.client, h.identity.AgentID)
-			before := h.identity
-			conn, challenge := h.ownerChallenge(t, deviceClient)
-			contenderKey := newOwnerKey(t)
-			req, err := device.SignOwner(contenderKey, h.identity, challenge.Nonce)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if _, err := device.VerifyOwner(req, h.identity); err != nil {
-				t.Fatal("contender was not a valid independent owner proof", err)
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := wsjson.Write(ctx, conn, req); err != nil {
-				t.Fatal(err)
-			}
-			var refused domain.OwnerCertificate
-			requireBanClose(t, "contender", wsjson.Read(ctx, conn, &refused))
-			identityEventually(t, "durable duplicate ban", func() bool {
-				current, err := h.store.Identity(context.Background(), before.AgentID)
-				return err == nil && current.State == "banned"
-			})
-			banned, err := h.store.Identity(ctx, before.AgentID)
-			if err != nil || banned.Generation <= before.Generation || banned.OwnerGeneration <= before.OwnerGeneration || banned.OwnerKey != "" || banned.BanReason == "" {
-				t.Fatal("ban did not revoke original device and owner generations", banned, err)
-			}
-			select {
-			case err := <-original.errors:
-				requireBanClose(t, "original", err)
-			case <-ctx.Done():
-				t.Fatal("the original live owner survived the duplicate ban")
-			}
-			_, err = api.Call[domain.Agent](ctx, original.client, "GET", "/v1/me", nil)
-			identityCode(t, err, domain.Denied)
-			_, err = api.Call[domain.IdentityChallenge](ctx, h.join, "GET", "/v1/identity/challenge", nil)
-			identityCode(t, err, domain.Denied)
-			_, response, err := websocket.Dial(ctx, "wss://localhost/v1/identity/owner", &websocket.DialOptions{HTTPClient: deviceClient.HTTP})
-			if err == nil || response == nil || response.StatusCode != http.StatusForbidden {
-				t.Fatal("banned original device certificate was reusable", err)
-			}
-			if founder {
-				_, err := h.store.RecoverFounderOffline(ctx, domain.RecoverIdentityRequest{Command: command(), Reason: "old keys cannot recover Founder", Identity: h.keys.public})
-				identityCode(t, err, domain.Conflict)
-				fresh := newIdentityKeys(t, "recovered Founder")
-				recovered, err := h.store.RecoverFounderOffline(ctx, domain.RecoverIdentityRequest{Command: command(), Reason: "trusted offline fresh-key recovery fixture, not a root authorization test", Identity: fresh.public})
-				if err != nil || recovered.AgentID != before.AgentID || recovered.State != "pending" || recovered.UID != -1 {
-					t.Fatal(recovered, err)
-				}
-				h.keys = fresh
-				h.identity, err = h.store.BindIdentityAccount(ctx, recovered.AgentID, recovered.SSHUser, before.UID, recovered.SSHFingerprint)
-				if err != nil {
-					t.Fatal(err)
-				}
-				replacementDevice := h.client(t, h.joinSocket, h.activate(t))
-				replacement := h.openOwner(t, replacementDevice, newOwnerKey(t), true)
-				identityMe(t, replacement.client, before.AgentID)
-				_, err = api.Call[domain.Agent](ctx, original.client, "GET", "/v1/me", nil)
-				identityCode(t, err, domain.Denied)
-			}
+		if _, err := device.VerifyOwner(req, h.identity); err != nil {
+			t.Fatal("contender was not a valid independent owner proof", err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := wsjson.Write(ctx, conn, req); err != nil {
+			t.Fatal(err)
+		}
+		var refused domain.OwnerCertificate
+		requireBanClose(t, "contender", wsjson.Read(ctx, conn, &refused))
+		identityEventually(t, "durable duplicate ban", func() bool {
+			current, err := h.store.Identity(context.Background(), before.AgentID)
+			return err == nil && current.State == "banned"
 		})
+		banned, err := h.store.Identity(ctx, before.AgentID)
+		if err != nil || banned.Generation <= before.Generation || banned.OwnerGeneration <= before.OwnerGeneration || banned.OwnerKey != "" || banned.BanReason == "" {
+			t.Fatal("ban did not revoke original device and owner generations", banned, err)
+		}
+		select {
+		case err := <-original.errors:
+			requireBanClose(t, "original", err)
+		case <-ctx.Done():
+			t.Fatal("the original live owner survived the duplicate ban")
+		}
+		_, err = api.Call[domain.Agent](ctx, original.client, "GET", "/v1/me", nil)
+		identityCode(t, err, domain.Denied)
+		_, err = api.Call[domain.IdentityChallenge](ctx, h.join, "GET", "/v1/identity/challenge", nil)
+		identityCode(t, err, domain.Denied)
+		_, response, err := websocket.Dial(ctx, "wss://localhost/v1/identity/owner", &websocket.DialOptions{HTTPClient: deviceClient.HTTP})
+		if err == nil || response == nil || response.StatusCode != http.StatusForbidden {
+			t.Fatal("banned original device certificate was reusable", err)
+		}
+	})
+}
+
+func TestUnixFounderMultipleConnectionsAndFreshKeyRecovery(t *testing.T) {
+	h := newIdentityHarness(t, true)
+	deviceClient := h.client(t, h.joinSocket, h.activate(t))
+	first := h.openOwner(t, deviceClient, newOwnerKey(t), true)
+	second := h.openOwner(t, deviceClient, newOwnerKey(t), true)
+	third := h.openOwner(t, deviceClient, newOwnerKey(t), true)
+	for _, owner := range []*ownerLease{first, second, third} {
+		identityMe(t, owner.client, h.identity.AgentID)
+	}
+	second.close()
+	identityEventually(t, "only the closed Founder owner retires", func() bool {
+		_, err := api.Call[domain.Agent](context.Background(), second.client, "GET", "/v1/me", nil)
+		return err != nil && domain.AsFault(err).Code == domain.Denied
+	})
+	identityMe(t, first.client, h.identity.AgentID)
+	identityMe(t, third.client, h.identity.AgentID)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	request, err := device.SignOwner(first.key, h.identity, first.certificate.Challenge.Nonce)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := wsjson.Write(ctx, first.conn, request); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case renewed := <-first.updates:
+		if renewed.Generation != first.certificate.Generation {
+			t.Fatal("Founder renewal selected another connection")
+		}
+	case err := <-first.errors:
+		t.Fatal("another connection broke Founder renewal", err)
+	case <-ctx.Done():
+		t.Fatal("Founder renewal did not complete")
+	}
+	current, err := h.store.Identity(ctx, h.identity.AgentID)
+	if err != nil || current.State != "active" || current.Generation != h.identity.Generation {
+		t.Fatal("simultaneous Founder connections banned or rotated the identity", current, err)
+	}
+	_, err = h.store.RecoverFounderOffline(ctx, domain.RecoverIdentityRequest{Command: command(), Reason: "Old keys are not recovery", Identity: h.keys.public})
+	identityCode(t, err, domain.Conflict)
+	fresh := newIdentityKeys(t, "Recovered Founder")
+	recovered, err := h.store.RecoverFounderOffline(ctx, domain.RecoverIdentityRequest{Command: command(), Reason: "Trusted offline fixture, not root authorization evidence", Identity: fresh.public})
+	if err != nil || recovered.AgentID != h.identity.AgentID || recovered.State != "pending" {
+		t.Fatal(recovered, err)
+	}
+	before := h.identity
+	h.keys = fresh
+	h.identity, err = h.store.BindIdentityAccount(ctx, recovered.AgentID, recovered.SSHUser, before.UID, recovered.SSHFingerprint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacement := h.openOwner(t, h.client(t, h.joinSocket, h.activate(t)), newOwnerKey(t), true)
+	identityMe(t, replacement.client, before.AgentID)
+	for _, owner := range []*ownerLease{first, third} {
+		_, err := api.Call[domain.Agent](ctx, owner.client, "GET", "/v1/me", nil)
+		identityCode(t, err, domain.Denied)
 	}
 }
 

@@ -18,8 +18,8 @@ sample command or a key file is available.
   `agent-identity`, `agent-service`, CLI and providers in its own HOME. No new
   OS account/group, hidden user or separate identity HOME is required. That
   user owns identity keys as well as provider and runner state.
-- Foundation ingress: a unique managed SSH account/UID per enrolled identity,
-  including Founder, separate from the unprivileged `fdn` server account.
+- Foundation ingress: a unique managed SSH account/UID per enrolled computer,
+  including each separately keyed Founder device, separate from the unprivileged `fdn` server account.
   A narrow, separately configured root Unix provisioner manages only this
   account/key/forced-command namespace; the server never runs as root.
 - Runtime: no Go/Rust build toolchain, database daemon, Docker or tests on the
@@ -647,7 +647,7 @@ Targets and delegates cannot self-set manual or bypass it with manual work.
 override. Real OS emergency stops remain OS actions, not a fabricated mode grant.
 
 Upgrade Foundation before workers: API/schema is 2, native message protocol 2,
-server SQLite migration 6 (the additive shared-notes migration from SQL5),
+server SQLite migration 7 (SQL6 notes and SQL7 Founder device bindings from SQL5),
 local SQLite remains 1. Existing server databases must already be SQL5 or a
 newer supported version; older state is rejected without modification.
 New enrollment uses signed `agent register`, while `connect` attaches that
@@ -657,7 +657,7 @@ computer's keys or reset its database to bypass an incompatibility.
 Note-aware workers require the server's note-context query; missing context is
 a visible prerequisite failure, not permission to work without company/project/
 agent guidance. Existing in-flight journals retain their original snapshots.
-An older SQL5 binary cannot open SQL6; preserve a compatible recovery point
+An older SQL5/SQL6 binary cannot open SQL7; preserve a compatible recovery point
 rather than assuming an automatic database rollback.
 
 The binary transport is a clean cutover, not an HTTP compatibility window.
@@ -1206,6 +1206,44 @@ use `fdn-service --config FILE tls-renew`; complete a retained partial renewal
 before serving. This preserves CA pins/identities. Expired/compromised CA trust
 needs an explicit coordinated rotation, never automatic trust regeneration.
 
+## Enroll and revoke additional Founder computers
+
+Upgrade Foundation and its root account helper before enrolling additional
+devices. Use matching device-aware clients; existing original-device keys,
+profiles, account names/UIDs and runner state do not need replacement.
+
+1. On the additional computer, as its existing installing user, prepare a
+   distinct private identity state/configuration and fresh signed public request
+   with `agent-identity prepare --name "Founder Phone" --output PUBLIC_REQUEST`.
+   Choose a distinct device name whose normalized SSH username is available.
+   Never export or copy private keys from another Founder computer.
+2. From an already authenticated Founder computer, approve exactly that signed
+   request with `agent-cli device register --input PUBLIC_REQUEST --output
+   PUBLIC_PROFILE`. This retains the existing Founder AgentID/role and creates a
+   distinct device ID, key binding and dedicated Foundation SSH account/UID.
+   Preserve the exact operation on uncertainty; an ordinary `agent register`
+   would create another agent, not a Founder device.
+3. Transfer only the integrity-approved public profile/request. On the new
+   computer, use its own `agent-identity --config PRIVATE_CONFIG connect --profile
+   PUBLIC_PROFILE`, then `serve` and local `agent-cli connect`. Multiple devices
+   and multiple owner connections can stay live together without Founder auto-ban.
+   Every connection still requires its own current device/owner certificate and
+   matching Unix UID. All Founder devices share one agent work slot and mode.
+4. Inspect `agent-cli device list`. To revoke a lost or unwanted computer, from
+   another active Founder device use `agent-cli device revoke BINDING_ID --input
+   FILE` with `{"reason":"Withdraw this computer's access"}`. Use `device_id` for
+   an additional computer, or `agent_id` for the original binding. Current-device
+   self-revocation and revoking the last active computer are denied.
+5. Verify the selected binding is revoked and other devices still authenticate.
+   Application access/streams stop immediately; managed SSH account cleanup may
+   remain pending native reconciliation. Old request/operation replay cannot
+   reactivate it. Re-enrollment needs fresh keys and another explicit approval.
+
+Whole-Founder root-local recovery and backup restore still retire every old
+device credential. Device enrollment adds no mobile/browser client, provider
+sign-in, extra task slot or per-device health/reset/upgrade target API; native
+platform and multi-UID qualification limits are unchanged.
+
 ## Diagnose identity state and recover
 
 Start with `doctor`, `agent identity`, `service status`, `work status`, current
@@ -1216,9 +1254,10 @@ and host/CA pins without reading private keys. A singleton conflict is a live
 owner to inspect, not a stale file to delete. A restart may reconcile prepared
 reports without inference; it never clears a ban or uncertain work fence.
 
-Only two different live owner keys proving possession plus a fresh successful
-incumbent WebSocket ping trigger whole-identity auto-ban. **Both original and
-contender lose API and streams, including Founder.** Stale/crashed owners,
+Only two different live non-Founder owner keys proving possession plus a fresh
+successful incumbent binary control ping trigger whole-identity auto-ban.
+**Both original and contender lose API and streams.** Founder permits multiple
+authenticated device/owner connections. Stale/crashed owners,
 same-key reconnects, ordinary CLI traffic, public collisions and unproved
 attempts do not establish that condition. Preserve redacted audit/evidence;
 never select a winner, delete keys or automatically unban on reconnect.

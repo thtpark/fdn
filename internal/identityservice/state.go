@@ -36,6 +36,7 @@ const sshKeyFile = "ssh-private.pem"
 // Options injects account-contained crypto and transport boundaries for tests.
 // There are deliberately no JSON settings or native flags selecting test UIDs.
 type Options struct {
+	Container         *ContainerStorage
 	Remote            Remote
 	Cryptography      Cryptography
 	Now               func() time.Time
@@ -79,6 +80,7 @@ type privateDevice struct {
 type pendingActivation struct {
 	InstanceID string                         `json:"instance_id"`
 	AgentID    string                         `json:"agent_id"`
+	DeviceID   string                         `json:"device_id,omitempty"`
 	Generation int64                          `json:"generation"`
 	Request    domain.ActivateIdentityRequest `json:"request"`
 }
@@ -159,12 +161,12 @@ func Prepare(stateDir, name, output string, options Options) (domain.PublicIdent
 	if !filepath.IsAbs(output) || inside(stateDir, output) || strings.ContainsAny(output, "\x00\r\n") {
 		return result, domain.Fail(domain.Invalid, "public output must be an absolute path outside private identity state")
 	}
-	lock, err := stateLock(stateDir)
+	options = options.defaults()
+	lock, err := options.lockState(stateDir)
 	if err != nil {
 		return result, err
 	}
 	defer lock.Close()
-	options = options.defaults()
 	var d privateDevice
 	err = config.Read(filepath.Join(stateDir, deviceFile), &d)
 	if errors.Is(err, os.ErrNotExist) {
@@ -187,7 +189,7 @@ func Prepare(stateDir, name, output string, options Options) (domain.PublicIdent
 	if err := ensurePrivate(filepath.Join(stateDir, sshKeyFile), d.SSHPrivate); err != nil {
 		return result, err
 	}
-	if err := checkAncestors(output); err != nil {
+	if err := options.checkOutput(output); err != nil {
 		return result, err
 	}
 	var previous domain.PublicIdentity
@@ -223,7 +225,7 @@ var accountName = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,63}$`)
 
 func validateProfile(p config.ConnectionProfile, d privateDevice) error {
 	i := p.Identity
-	if i.AgentID == "" || i.InstanceID == "" || i.RequestID != d.Public.RequestID || i.Generation < 1 || i.UID <= 0 ||
+	if i.AgentID == "" || i.InstanceID == "" || i.DeviceID != "" && !domain.ValidOperation(i.DeviceID) || i.RequestID != d.Public.RequestID || i.Generation < 1 || i.UID <= 0 ||
 		(i.State != "provisioned" && i.State != "active") || i.BanReason != "" || i.SSHUser == "root" || !accountName.MatchString(i.SSHUser) ||
 		strings.TrimSpace(i.SSHKey) != strings.TrimSpace(d.Public.SSHKey) || i.AuthKey != d.Public.AuthKey {
 		return domain.Fail(domain.Denied, "connection profile is not the provisioned public identity prepared by this account")
@@ -311,7 +313,7 @@ func validateCertificate(certificate string, keyPEM []byte, p config.ConnectionP
 		return tls.Certificate{}, domain.Fail(domain.Denied, "issued identity certificate is not valid under pinned trust")
 	}
 	identity, err := pki.ParseIdentity(leaf)
-	if err != nil || identity.AgentID != p.Identity.AgentID || identity.InstanceID != p.Identity.InstanceID ||
+	if err != nil || identity.AgentID != p.Identity.AgentID || identity.DeviceID != p.Identity.DeviceID || identity.InstanceID != p.Identity.InstanceID ||
 		identity.Generation != p.Identity.Generation || identity.Purpose != purpose || identity.OwnerGeneration != generation {
 		return tls.Certificate{}, domain.Fail(domain.Denied, "issued certificate does not match the pinned identity and owner generation")
 	}
@@ -322,7 +324,8 @@ func validateCertificate(certificate string, keyPEM []byte, p config.ConnectionP
 func activate(ctx context.Context, c config.IdentityService, p config.ConnectionProfile, d privateDevice, signer crypto.Signer, worker config.Worker, options Options) (domain.IdentityCertificate, tls.Certificate, error) {
 	var saved domain.IdentityCertificate
 	if err := config.Read(filepath.Join(c.StateDir, certificateFile), &saved); err == nil {
-		if sameIdentity(saved.Identity, p.Identity) && saved.Agent.ID == p.Identity.AgentID && saved.Agent.Active && !saved.Agent.Banned {
+		if sameIdentity(saved.Identity, p.Identity) && saved.Agent.ID == p.Identity.AgentID && saved.Agent.Active && !saved.Agent.Banned &&
+			(p.Identity.DeviceID == "" || saved.Agent.Founder) {
 			pair, err := validateCertificate(saved.Certificate, d.AuthPrivate, p, "device", 0, options.Now())
 			if err == nil && pair.Leaf.NotAfter.After(options.Now().Add(options.DeviceRenewBefore)) {
 				if err := clearActivation(c.StateDir); err != nil {
@@ -341,7 +344,7 @@ func activate(ctx context.Context, c config.IdentityService, p config.Connection
 		if err != nil {
 			return saved, tls.Certificate{}, err
 		}
-		if challenge.AgentID != p.Identity.AgentID || challenge.InstanceID != p.Identity.InstanceID ||
+		if challenge.AgentID != p.Identity.AgentID || challenge.DeviceID != p.Identity.DeviceID || challenge.InstanceID != p.Identity.InstanceID ||
 			challenge.Generation != p.Identity.Generation || challenge.ExpiresAt <= options.Now().Unix() || challenge.Nonce == "" {
 			return saved, tls.Certificate{}, domain.Fail(domain.Denied, "activation challenge does not match pinned identity or has expired")
 		}
@@ -349,7 +352,7 @@ func activate(ctx context.Context, c config.IdentityService, p config.Connection
 		if err != nil {
 			return saved, tls.Certificate{}, err
 		}
-		pending = pendingActivation{InstanceID: p.Identity.InstanceID, AgentID: p.Identity.AgentID, Generation: p.Identity.Generation,
+		pending = pendingActivation{InstanceID: p.Identity.InstanceID, AgentID: p.Identity.AgentID, DeviceID: p.Identity.DeviceID, Generation: p.Identity.Generation,
 			Request: domain.ActivateIdentityRequest{Command: domain.Command{OperationID: domain.NewID("activate")}, Nonce: challenge.Nonce, Proof: proof}}
 		if err := config.Write(pendingPath, pending); err != nil {
 			return saved, tls.Certificate{}, err
@@ -357,14 +360,15 @@ func activate(ctx context.Context, c config.IdentityService, p config.Connection
 	} else if err != nil {
 		return saved, tls.Certificate{}, err
 	}
-	if pending.InstanceID != p.Identity.InstanceID || pending.AgentID != p.Identity.AgentID || pending.Generation != p.Identity.Generation {
+	if pending.InstanceID != p.Identity.InstanceID || pending.AgentID != p.Identity.AgentID || pending.DeviceID != p.Identity.DeviceID || pending.Generation != p.Identity.Generation {
 		return saved, tls.Certificate{}, domain.Fail(domain.Conflict, "pending activation belongs to another pinned identity")
 	}
 	issued, err := options.Remote.Activate(ctx, worker, pending.Request)
 	if err != nil {
 		return saved, tls.Certificate{}, err
 	}
-	if !sameIdentity(issued.Identity, p.Identity) || issued.Agent.ID != p.Identity.AgentID || issued.Agent.Banned || !issued.Agent.Active {
+	if !sameIdentity(issued.Identity, p.Identity) || issued.Agent.ID != p.Identity.AgentID || issued.Agent.Banned || !issued.Agent.Active ||
+		p.Identity.DeviceID != "" && !issued.Agent.Founder {
 		return saved, tls.Certificate{}, domain.Fail(domain.Denied, "activation response changed the pinned identity")
 	}
 	pair, err := validateCertificate(issued.Certificate, d.AuthPrivate, p, "device", 0, options.Now())
@@ -394,7 +398,7 @@ func clearActivation(dir string) error {
 }
 
 func sameIdentity(a, b domain.AgentIdentity) bool {
-	return a.AgentID == b.AgentID && a.InstanceID == b.InstanceID && a.RequestID == b.RequestID && a.Generation == b.Generation &&
+	return a.AgentID == b.AgentID && a.DeviceID == b.DeviceID && a.InstanceID == b.InstanceID && a.RequestID == b.RequestID && a.Generation == b.Generation &&
 		a.SSHUser == b.SSHUser && a.UID == b.UID && a.AuthKey == b.AuthKey && strings.TrimSpace(a.SSHKey) == strings.TrimSpace(b.SSHKey)
 }
 
@@ -405,12 +409,12 @@ func Connect(ctx context.Context, c config.IdentityService, p config.ConnectionP
 	if err := validateSettings(c); err != nil {
 		return status, err
 	}
-	lock, err := stateLock(c.StateDir)
+	options = options.defaults()
+	lock, err := options.lockState(c.StateDir)
 	if err != nil {
 		return status, err
 	}
 	defer lock.Close()
-	options = options.defaults()
 	d, signer, err := loadDevice(c.StateDir, options.Cryptography)
 	if err != nil {
 		return status, err

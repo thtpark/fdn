@@ -36,9 +36,10 @@ type app struct {
 var AgentCommands = []string{
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
 	"agent list", "agent status", "agent diagnose", "agent reset", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
+	"device list", "device register", "device revoke",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
-	"comment add", "comment edit", "worklog add", "discussion list", "mention list", "mention acknowledge", "watch",
-	"message send", "message show", "message read", "message diagnose", "message inbox", "message receipt", "message thread", "message request-report", "session request", "session list", "session show", "session change", "session open",
+	"comment add", "comment edit", "worklog add", "discussion list", "discussion show", "mention list", "mention acknowledge", "watch", "observe",
+	"message send", "message show", "message read", "message diagnose", "message inbox", "message list", "message receipt", "message thread", "message thread-page", "message request-report", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
 	"note set", "note show", "note history", "note context",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
@@ -119,6 +120,18 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			}
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
+			case "observe":
+				usage = "observe; long-lived read-only protocol-1 JSON lines over stdin/stdout; get/subscribe/cancel, at most32 queries; uses existing identity and scoped feeds; no mutation, inference, controller or new owner; see COMMANDS.md"
+			case "message list":
+				usage = "message list [--folder received|sent|all --state all|pending|handled|deferred|stale|expired --peer AGENT --cursor CURSOR --limit1..200]; party-private dated history, no implicit reading"
+			case "message thread-page":
+				usage = "message thread-page MESSAGE [--cursor CURSOR --limit1..200]; paginated party-private conversation, legacy message thread remains unchanged"
+			case "device list":
+				usage = "device list; Founder-only enrolled computers under the same Founder agent_id, including revoked devices; the original computer uses agent_id as its binding ID"
+			case "device register":
+				usage = "device register --input SIGNED_PUBLIC_REQUEST [--output PROFILE]; Founder-only approval of this computer's fresh independent SSH/authentication keys; no key copying, second Founder actor or additional work slot"
+			case "device revoke":
+				usage = "device revoke DEVICE_ID --input FILE; Founder-only reason-bearing revocation from another active Founder computer; invalidates only this device and its connections, preserves all other device keys and the shared work slot; the last active computer cannot be revoked"
 			case "note set":
 				usage = "note set --input FILE; scope company|project|agent, target_id (project/agent ID; agent defaults to self), required content (empty clears), expected_revision (0 creates), and nonsecret reason; company is Founder-only, project is Founder/current active-project delegate, agent is Founder/self or a current delegate of an active project with an unarchived nonterminal task assigned to that non-Founder agent"
 			case "note show", "note history":
@@ -164,7 +177,7 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 	if a.configFile == "" && tail[0] != "guide" {
 		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "default configuration unavailable; specify --config"), homeErr))
 	}
-	longRunning := tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" || tail[0] == "request-worker" ||
+	longRunning := tail[0] == "observe" || tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" || tail[0] == "request-worker" ||
 		(tail[0] == "upgrade" && len(tail) > 1 && tail[1] == "apply") ||
 		(tail[0] == "accounts" && len(tail) > 1 && tail[1] == "serve") || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
 	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open")) {

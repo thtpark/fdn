@@ -11,6 +11,7 @@ import (
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/observe"
 	"github.com/thtpark/fdn/internal/work"
 )
 
@@ -40,6 +41,12 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 	}
 	defer func() { err = errors.Join(err, r.close()) }()
 	switch group {
+	case "observe":
+		if len(tail) != 0 {
+			return nil, domain.Fail(domain.Invalid, "observe accepts only versioned stdin frames")
+		}
+		a.nativeOutput = true
+		return nil, observe.Run(ctx, a.in, a.out, observationSource{app: a, res: r})
 	case "screen":
 		return a.screenCommand(ctx, r, tail)
 	case "config", "mode", "knowledge", "inventory", "workspace", "provider", "preferences", "service", "work":
@@ -71,6 +78,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return nil, domain.Fail(domain.Prerequisite, "bearer invitations are retired; Founder must register the target's public identity")
 	case "agent":
 		return a.agentCommand(ctx, r, tail)
+	case "device":
+		return a.deviceCommand(ctx, r, tail)
 	case "project":
 		return a.projectCommand(ctx, r, tail)
 	case "note":
@@ -388,6 +397,16 @@ func (a *app) discussionCommand(ctx context.Context, r *resources, group string,
 	if len(args) == 0 {
 		return nil, domain.Fail(domain.Invalid, "discussion leaf command required")
 	}
+	if group == "discussion" && args[0] == "show" {
+		id, tail, err := idArgs(args[1:])
+		if err != nil {
+			return nil, err
+		}
+		if len(tail) != 0 {
+			return nil, domain.Fail(domain.Invalid, "discussion show takes one entry ID")
+		}
+		return api.Call[domain.Entry](ctx, r.client, "GET", api.Path("entries", id), nil)
+	}
 	if group == "discussion" && args[0] == "list" {
 		id, tail, err := idArgs(args[1:])
 		if err != nil {
@@ -460,6 +479,37 @@ func (a *app) messageCommand(ctx context.Context, r *resources, args []string) (
 		return nil, domain.Fail(domain.Invalid, "message command required")
 	}
 	switch args[0] {
+	case "list", "thread-page":
+		tail := args[1:]
+		id := ""
+		if args[0] == "thread-page" {
+			var err error
+			id, tail, err = idArgs(tail)
+			if err != nil {
+				return nil, err
+			}
+		}
+		fs := flag.NewFlagSet("message "+args[0], flag.ContinueOnError)
+		cursor := fs.String("cursor", "", "opaque continuation")
+		limit := fs.Int("limit", 50, "page size (1-200)")
+		folder, state, peer := "received", "all", ""
+		if args[0] == "list" {
+			fs.StringVar(&folder, "folder", "received", "received, sent or all")
+			fs.StringVar(&state, "state", "all", "effective disposition or all")
+			fs.StringVar(&peer, "peer", "", "other message party")
+		}
+		if err := parse(fs, tail); err != nil {
+			return nil, err
+		}
+		query := url.Values{"cursor": {*cursor}, "limit": {strconv.Itoa(*limit)}}
+		path := api.Path("messages", id, "thread-page")
+		if args[0] == "list" {
+			path = "/v1/message-history"
+			query.Set("folder", folder)
+			query.Set("state", state)
+			query.Set("peer", peer)
+		}
+		return api.Call[domain.Page[domain.Message]](ctx, r.client, "GET", path+"?"+query.Encode(), nil)
 	case "thread":
 		if err := requireArgs(args, 2); err != nil {
 			return nil, err

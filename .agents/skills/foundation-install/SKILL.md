@@ -36,7 +36,7 @@ commands.
    only while stopped, preserving keys/journals and native options. External
    tool configuration and platform service/discovery paths stay separate.
    Foundation still needs
-   one dedicated SSH account/UID per identity, including Founder, separate from
+   one dedicated SSH account/UID per enrolled computer, including each Founder device, separate from
    the unprivileged server. A new Agent1 uses `agent1` for Foundation SSH even
    when its local user is `alice`. Existing Foundation account names/UIDs stay
    retained; never rename the local account or move live state for this
@@ -77,10 +77,14 @@ commands.
    Separately authorized `agent reset` verifies native cleanup of recognized
    terminal legacy tmux endpoints and preserves their proof/socket evidence;
    it is not installation, identity/data erasure or an upgrade-fence bypass.
-   Current server SQL6 adds shared company/project/agent notes from the SQL5
-   floor without rewriting retained records. Note-aware workers require the new
+   Current server SQL8 retains SQL7's independently keyed Founder devices and concurrent
+   owner records after SQL6 shared company/project/agent notes from the SQL5
+   floor, preserving retained state. Note-aware workers require the new
    note-context query before inference; never substitute empty guidance when an
-   old/offline server cannot provide it. SQL5 binaries cannot read SQL6.
+   old/offline server cannot provide it. SQL5 binaries cannot read SQL6, and
+   SQL6 binaries cannot read SQL7; SQL7 binaries cannot read SQL8's additive
+   observer/history indexes. Upgrade the account helper/server before new
+   device enrollments; do not copy existing Founder keys to another computer.
    A restored snapshot quarantines every identity/owner/key epoch; root-private
    fresh Founder recovery retains its ID/history, then Founder reapproves regulars
    with fresh signed keys. Current manifest2/SQL5 restore never reactivates old

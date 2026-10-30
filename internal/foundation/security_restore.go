@@ -46,6 +46,9 @@ func (s *Store) QuarantineRestoredIdentities(ctx context.Context) error {
 		if err := saveIdentity(ctx, tx, identity); err != nil {
 			return err
 		}
+		if err := retireFounderDevices(ctx, tx, agent.ID, identityRestorePending); err != nil {
+			return err
+		}
 		if err := s.event(ctx, tx, "agent", agent.ID, "", ""); err != nil {
 			return err
 		}

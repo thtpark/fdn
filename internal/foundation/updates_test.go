@@ -629,9 +629,11 @@ func TestUpdatesCurrentSchemaReopenPreservesState(t *testing.T) {
 		t.Fatal(err)
 	}
 	before := map[string]string{}
-	for _, table := range []string{"agents", "messages", "settings", "operations", "histories", "events", "agent_identities"} {
+	for _, table := range []string{"agents", "messages", "settings", "operations", "histories", "events"} {
 		before[table] = securityTableHash(t, db, table)
 	}
+	identityQuery := "SELECT id,data,ssh_user,uid FROM agent_identities ORDER BY rowid"
+	identityBefore := securityQueryHash(t, db, identityQuery)
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -641,12 +643,15 @@ func TestUpdatesCurrentSchemaReopenPreservesState(t *testing.T) {
 	}
 	defer s.Close()
 	var version int
-	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 6 {
-		t.Fatal("ordered migrations through SQL6 failed", version, err)
+	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 8 {
+		t.Fatal("ordered migrations through SQL8 failed", version, err)
 	}
 	for table, hash := range before {
 		if got := securityTableHash(t, s.db, table); got != hash {
 			t.Fatal("SQL4 migration rewrote retained state", table)
+		}
+		if got := securityQueryHash(t, s.db, identityQuery); got != identityBefore {
+			t.Fatal("ordered migrations rewrote retained identity bindings")
 		}
 	}
 	if updateCount(t, s) != 0 {

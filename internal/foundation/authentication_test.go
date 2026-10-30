@@ -506,6 +506,17 @@ func TestAuthenticationRefreshPreservesActorIdentityFences(t *testing.T) {
 	_, err = f.s.RequestAuthentication(founderCtx, target.AgentID, target.AgentID, domain.AuthenticationRefreshRequest{Command: op(), Provider: "codex", Reason: "spoofed actor"})
 	assertCode(t, err, domain.Denied)
 	securityOwnerContext(t, f.s, f.founder)
+	ci := founderCtx.Value(identityFenceKey{}).(domain.CertificateIdentity)
+	owner, err := f.s.IdentityOwner(context.Background(), ci.BindingID(), ci.OwnerGeneration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.s.Me(founderCtx, f.founder.AgentID); err != nil {
+		t.Fatal("additional Founder connection retired an existing owner", err)
+	}
+	if err := f.s.ReleaseIdentityOwner(context.Background(), ci.BindingID(), ci.OwnerGeneration, owner.OwnerKey); err != nil {
+		t.Fatal(err)
+	}
 	_, err = f.s.RequestAuthentication(founderCtx, f.founder.AgentID, target.AgentID, req)
 	assertCode(t, err, domain.Denied)
 	_, err = f.s.RequestAuthentication(founderCtx, f.founder.AgentID, target.AgentID, domain.AuthenticationRefreshRequest{Command: op(), Provider: "codex", Reason: "stale owner"})

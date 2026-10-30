@@ -5,8 +5,9 @@ authoritative SQLite-backed service, a native worker daemon, and one structured
 CLI for people and coding agents. Development and operation need no companion
 checkout. The supported baseline is 0.3.5: API/schema **2**, native protocol
 **2**, server SQL **5** and local SQL **1**. Older formats/layouts are not
-imported or overwritten. Current source advances server SQL to **6** with an
-additive shared-notes migration from that SQL5 floor. The software-first security model
+imported or overwritten. Current source advances server SQL to **7**, preserving
+the SQL6 shared-notes migration and adding Founder device enrollments and
+concurrent owner records from that SQL5 floor. The software-first security model
 is being integrated; source-bound acceptance and native qualification are
 separate. No hardware adapter or attestation is claimed.
 
@@ -75,8 +76,10 @@ connection. Live connection expiry/restart does not erase that authorization.
 * SQLite uses WAL, full synchronization, foreign keys, indexed assignment/state
   queries, keyset pagination, and bounded connection pools. It is intentionally
   a single-authority, single-writer design, not a distributed SQL system.
-* Each enrolled identity, **including Founder**, has a unique Foundation-host
-  SSH account and UID. An existing, pinned OpenSSH server forces the fixed
+* Each enrolled computer has a unique Foundation-host SSH account and UID.
+  Non-Founder agents have exactly one computer; Founder may enroll multiple
+  computers with independent keys under the same Founder AgentID.
+  An existing, pinned OpenSSH server forces the fixed
   `fdn-api`/`fdn-join` stdio gateway; it permits no arbitrary command, PTY or
   forwarding. API/join ingress is local Unix, not a TCP bootstrap listener.
 * Inner TLS remains mandatory. Kernel Unix peer UID must agree with the signed
@@ -87,10 +90,12 @@ connection. Live connection expiry/restart does not erase that authorization.
   state, not prompts/shared output or ordinary IPC replies. That user owns the
   keys and the whole worker. `agent-cli`/`agent-service` use its peer-checked local
   Unix proxy and retain only a public AgentID, not a bearer credential.
-* One enrolled identity and one active work slot belong on each computer. A
-  proved second **different live owner key**, with a fresh successful incumbent
-  binary control ping, bans the entire identity: both owners lose access/streams, even
-  when the original is Founder. Dead/reconnecting owners, ordinary CLI calls,
+* Each computer has one enrolled identity, and each agent has one active work
+  slot, including Founder across all its devices. Founder permits multiple
+  live connections; each remains independently device/owner-authenticated.
+  For a **non-Founder**, a proved second **different live owner key**, with a
+  fresh successful incumbent binary control ping, bans the entire identity:
+  both owners lose access/streams. Dead/reconnecting owners, ordinary CLI calls,
   public-key collisions and unproved attempts are not duplicate proof.
   Software keys, including RAM, can still be cloned or used sequentially;
   this is not perfect physical-clone prevention or hardware attestation.
@@ -283,8 +288,9 @@ explicit fresh-key recovery, then attach with `connect` while retaining local
 SQLite 1, knowledge, journals, bindings and outbox. Founder recovery is root-local.
 Do not copy another identity, share SSH accounts or use tokens as fallback.
 
-A confirmed simultaneous different owner bans the **whole identity**, including
-the original and Founder, and closes API/streams. Recovery requires fresh
+A confirmed simultaneous different owner bans the **whole non-Founder identity**,
+including the original, and closes API/streams. Founder allows concurrent owners.
+Recovery requires fresh
 keypairs and explicit authority (`agent recover AGENT`, or root-local
 `fdn-service recover-founder` for Founder). A crash/reconnect, ordinary CLI call,
 public-key collision or unproved attempt is not sufficient ban evidence.
@@ -294,6 +300,42 @@ fresh-key recovery uses a new empty private StateDir inside the same identity
 HOME, preserving old private evidence and all runner state/configuration paths;
 there is no `--rotate` or automatic retry-time rotation. Follow the
 [recovery runbook](DEPLOYMENT.md#diagnose-identity-state-and-recover).
+
+### Additional Founder computers and connections
+
+Prepare fresh keys on each additional Founder computer, never copy keys from
+another device. Approve its signed public request from an already authenticated
+Founder computer:
+
+```sh
+agent-cli device register --input /PUBLIC/founder-phone-request.json \
+  --output /PUBLIC/founder-phone-profile.json
+agent-cli device list
+```
+
+Attach the new computer with the same `agent-identity connect --profile` and
+local `agent-cli connect` procedure above. Its `device_id`, keys and dedicated
+Foundation SSH account/UID are distinct; its `agent_id` and Founder authority
+are shared. Multiple connections can stay live on each device without banning
+Founder or disconnecting other devices. This does not create another Founder
+actor, work slot or automation mode.
+
+To revoke a lost device, use another active Founder computer:
+
+```sh
+agent-cli device revoke DEVICE_ID --input /PRIVATE/revoke-device.json
+```
+
+The input is `{"reason":"Lost device; withdraw its access"}`. This retires only
+that computer's credentials and connections; other device keys stay unchanged.
+The original computer uses its `agent_id` as the binding ID. Self-revocation
+through the current device and revoking the last active computer are denied.
+Whole-Founder root-local recovery and backup restore still retire all old
+device credentials. Native account cleanup can remain pending reconciliation
+after application access is already denied.
+
+This is the identity/connection capability, not a new phone/browser client.
+Packaged native client platforms and their qualification limits are unchanged.
 
 ## Tasks and approvals
 

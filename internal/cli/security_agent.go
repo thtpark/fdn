@@ -40,6 +40,9 @@ func (a *app) connect(ctx context.Context, args []string) (any, error) {
 	if me.ID == "" || me.ID != status.Identity.AgentID || me.ID != status.Agent.ID {
 		return nil, domain.Fail(domain.Denied, "local identity service returned inconsistent identity")
 	}
+	if status.Identity.DeviceID != "" && !me.Founder {
+		return nil, domain.Fail(domain.Denied, "additional computers are only permitted for Founder")
+	}
 	var old config.Credential
 	if err := config.Read(c.CredentialFile, &old); err == nil {
 		if old.AgentID != me.ID {
@@ -122,25 +125,32 @@ func (a *app) identityCommand(ctx context.Context, r *resources, args []string) 
 	if err := json.Unmarshal(raw, &identity); err != nil {
 		return nil, err
 	}
-	if *output != "" {
+	if err := exportIdentityProfile(ctx, r, identity, *output); err != nil {
+		return nil, err
+	}
+	return identity, nil
+}
+
+func exportIdentityProfile(ctx context.Context, r *resources, identity domain.AgentIdentity, output string) error {
+	if output != "" {
 		profile, err := api.Call[config.ConnectionProfile](ctx, r.client, "GET", "/local/profile", nil)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		profile.Identity = identity
 		profile.Identity.OwnerKey = ""
 		profile.Identity.OwnerGeneration = 0
 		var previous config.ConnectionProfile
-		if err := config.Read(*output, &previous); err == nil {
-			if previous.Identity.AgentID != identity.AgentID || previous.Identity.Generation != identity.Generation || previous.Identity.SSHFingerprint != identity.SSHFingerprint {
-				return nil, domain.Fail(domain.Conflict, "connection profile already belongs to another identity or key generation")
+		if err := config.Read(output, &previous); err == nil {
+			if previous.Identity.AgentID != identity.AgentID || previous.Identity.DeviceID != identity.DeviceID || previous.Identity.Generation != identity.Generation || previous.Identity.SSHFingerprint != identity.SSHFingerprint {
+				return domain.Fail(domain.Conflict, "connection profile already belongs to another identity, device or key generation")
 			}
 		} else if !os.IsNotExist(err) {
-			return nil, err
+			return err
 		}
-		if err := config.Write(*output, profile); err != nil {
-			return nil, err
+		if err := config.Write(output, profile); err != nil {
+			return err
 		}
 	}
-	return identity, nil
+	return nil
 }

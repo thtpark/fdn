@@ -22,6 +22,15 @@ func TestPublicIdentityStatusAndFounderRevocationRemainOrdinaryRoutes(t *testing
 		allowed      bool
 	}{
 		{http.MethodGet, "/v1/identity/status", true},
+		{http.MethodGet, "/v1/identity/devices", true},
+		{http.MethodPost, "/v1/identity/devices", true},
+		{http.MethodPost, "/v1/identity/devices/device_fixture/revoke", true},
+		{http.MethodGet, "/v1/identity/devices?actor=agent_other", false},
+		{http.MethodPost, "/v1/identity/devices?founder=true", false},
+		{http.MethodPost, "/v1/identity/devices/device_fixture/revoke?force=true", false},
+		{http.MethodGet, "/v1/identity/devices/device_fixture/revoke", false},
+		{http.MethodPut, "/v1/identity/devices", false},
+		{http.MethodPost, "/v1/identity/devices/device_fixture/revoke/extra", false},
 		{http.MethodGet, "/v1/notes?scope=company", true},
 		{http.MethodGet, "/v1/notes?scope=agent&target=agent_fixture", true},
 		{http.MethodGet, "/v1/note-context?project=project_fixture", true},

@@ -1,6 +1,6 @@
 ---
 name: foundation-enroll
-description: "Use when preparing Founder or Agent1 signed public identity requests under the existing installing user, registering a computer, attaching its identity proxy, recovering an enrolled identity with fresh keys, or granting project authority with pinned SSH and mutual TLS."
+description: "Use when preparing signed public identity requests, enrolling or revoking additional Founder devices with independent keys and concurrent connections, registering a worker computer, attaching its identity proxy, recovering fresh keys, or granting project authority with pinned SSH and mutual TLS."
 ---
 
 # Register and recover the correct identity
@@ -20,9 +20,9 @@ protected-account commands; it has no `guide` or `config init` leaf.
    They do not inherit Founder authority or migrate a running owner. Use a
    signed new request and explicit old-owner stop/rebinding, never cloned keys.
 2. Verify native prerequisites, private ownership and approved CA/SSH host pins.
-   Each identity, including Founder, needs its own Foundation-host SSH account
-   and UID. New registration derives an OS-safe lowercase username from its
-   agent name (`Agent1` -> `agent1`); invalid results/collisions fail, never
+   Each computer, including each Founder device, needs its own Foundation-host
+   SSH account and UID. New registration derives an OS-safe lowercase username
+   from its agent/device name (`Agent1` -> `agent1`); invalid results/collisions fail, never
    truncate, adopt or rename. The local worker uses its existing OS user; its
    username need not match and no new worker account is created. Existing Foundation names/UIDs
    remain unchanged during upgrade and recovery. The root-controlled gateway allows only `fdn-api`/`fdn-join` stdio,
@@ -43,10 +43,15 @@ protected-account commands; it has no `guide` or `config init` leaf.
    profile-output command. An operator assembles the approved public profile
    with independently pinned SSH host/port/known_hosts. Preserve exact pending
    initialization if provisioning fails; do not reset or create another Founder.
-5. Subsequent computer: only active Founder uses `agent-cli agent register
+5. Subsequent worker computer: only active Founder uses `agent-cli agent register
    --input PUBLIC_REQUEST [--output PUBLIC_PROFILE]`. Project delegates cannot
    register agents. Transfer public request/profile with authenticated integrity;
    it contains no private keys but is still a trust decision.
+   For an additional Founder computer, prepare fresh keys there with a distinct
+   device name, then use `agent-cli device register --input PUBLIC_REQUEST
+   [--output PUBLIC_PROFILE]` from an existing authenticated Founder device.
+   This preserves one Founder AgentID/role and work slot while creating an
+   independent device/key/SSH account binding; never copy another device's keys.
 6. As the target's existing worker user, use `agent-identity --config PRIVATE_CONFIG
    connect --profile PUBLIC_PROFILE`, then its `serve`. Connect stores only a
    validated public profile; serve activates the key binding and maintains
@@ -64,10 +69,16 @@ protected-account commands; it has no `guide` or `config init` leaf.
    `connect` while retaining local SQLite1, knowledge, bindings and journals/
    outbox. Missing identity bindings and obsolete credential formats fail
    closed; never borrow another computer's keys, login or pending operation.
-9. A proved second different live owner key plus a fresh incumbent binary control
-   ping bans the entire identity, including the original and Founder, and closes
+9. A proved second different live non-Founder owner key plus a fresh incumbent
+   binary control ping bans the entire identity, including the original, and closes
    API/streams. Stale crashes/reconnects, ordinary CLI calls, public collisions
    and unproved attempts do not ban. Never clear a ban, keys or lock by hand.
+   Founder permits multiple devices/connections, each with current device/owner
+   proofs. Inspect `device list`; from another active Founder computer use
+   `device revoke BINDING_ID --input FILE` with a nonsecret `reason` to revoke
+   only that computer. The original binding uses AgentID; extras use device_id.
+   Self-revocation and the last active computer are protected. Other device keys
+   remain unchanged; native account cleanup may still be pending.
    Activation, owner proof and ordinary commands use version-2 protobuf sessions
    over pinned SSH/mTLS. Keep certificate/generation proofs: OS-only stale-SSH
    admission has not been natively qualified, and an account UID is not a key epoch.
@@ -83,7 +94,8 @@ protected-account commands; it has no `guide` or `config init` leaf.
     authorized root-local `fdn-service recover-founder --input NEW_PUBLIC
     --reason REASON` on private maintenance, never an agent gateway/API exemption.
     It recovers exactly one enrolled restored/banned Founder, retaining
-    AgentID/history; no extra target flag, second Founder or mode reset. After
+    AgentID/history and retiring every old additional Founder device; no extra
+    target flag, second Founder or mode reset. After
     restore ALL identity/owner/key epochs are quarantined before publication:
     old tokens/certificates cannot return, and regulars need active Founder's
     explicit fresh-key reapproval, not copied credentials or silent resumption.
@@ -104,3 +116,5 @@ Before enrollment or after Founder ban, use only an approved out-of-band human
 handoff; absent one, report pending delivery. Provider sign-in, workspace tools,
 mode and task readiness remain independent authorization steps. Native multi-UID
 and hardware qualification are separate and have not been performed by fixtures.
+Device enrollment does not add an iOS/Android/browser client or per-device
+worker-management commands; use only actually supported compatible clients.

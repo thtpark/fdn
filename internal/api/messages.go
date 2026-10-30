@@ -84,11 +84,15 @@ func operationQueries(pattern string) map[string]bool {
 	case "GET /v1/tasks":
 		names = []string{"project", "assignee", "status", "include_archived", "limit", "cursor"}
 	case "GET /v1/events":
-		names = []string{"project", "task", "limit", "since", "wait"}
+		names = []string{"project", "task", "limit", "since", "wait", "filter"}
 	case "GET /v1/updates":
-		names = []string{"limit", "since", "wait"}
+		names = []string{"limit", "since", "wait", "filter"}
 	case "GET /v1/messages":
 		names = []string{"cursor", "limit", "urgent"}
+	case "GET /v1/message-history":
+		names = []string{"cursor", "limit", "folder", "state", "peer"}
+	case "GET /v1/messages/{id}/thread-page":
+		names = []string{"cursor", "limit"}
 	case "GET /v1/attention", "GET /v1/tasks/{id}/entries", "GET /v1/agent-operations":
 		names = []string{"cursor", "limit"}
 	}
@@ -460,14 +464,21 @@ func (s *Server) updateMessageRoutes() {
 			return domain.Page[domain.Update]{}, err
 		}
 		query := r.URL.Query()
+		filter, err := domain.ParseUpdateFilter(query.Get("filter"))
+		if err != nil {
+			return domain.Page[domain.Update]{}, err
+		}
 		wait := query.Get("wait")
 		if wait != "" && wait != "true" && wait != "false" {
 			return domain.Page[domain.Update]{}, domain.Fail(domain.Invalid, "invalid update wait argument")
 		}
 		if wait == "true" {
+			if query.Get("filter") != "" {
+				return s.Store.WaitScopedUpdates(r.Context(), actor.ID, query.Get("since"), limit, filter)
+			}
 			return s.Store.WaitUpdates(r.Context(), actor.ID, query.Get("since"), limit)
 		}
-		return s.Store.Updates(r.Context(), actor.ID, query.Get("since"), limit)
+		return s.Store.ScopedUpdates(r.Context(), actor.ID, query.Get("since"), limit, filter)
 	})
 }
 

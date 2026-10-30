@@ -72,6 +72,17 @@ func (s *Store) Identity(ctx context.Context, agentID string) (domain.AgentIdent
 	return get[domain.AgentIdentity](ctx, s.db, "agent_identities", agentID)
 }
 
+func (s *Store) ConnectionIdentity(ctx context.Context, actor string) (domain.AgentIdentity, error) {
+	if _, err := s.actor(ctx, s.db, actor); err != nil {
+		return domain.AgentIdentity{}, err
+	}
+	id := actor
+	if ci, ok := ctx.Value(identityFenceKey{}).(domain.CertificateIdentity); ok {
+		id = ci.BindingID()
+	}
+	return s.Identity(ctx, id)
+}
+
 // ManagedIdentities is for trusted local account reconciliation, not network listing.
 func (s *Store) ManagedIdentities(ctx context.Context) ([]domain.AgentIdentity, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT data FROM agent_identities ORDER BY id")
@@ -110,8 +121,10 @@ func identityConstraint(err error) error {
 }
 
 func saveIdentity(ctx context.Context, tx *sql.Tx, identity domain.AgentIdentity) error {
-	if _, err := tx.ExecContext(ctx, "DELETE FROM settings WHERE key=? AND json_extract(value,'$.generation')!=?", agentStatusKey+identity.AgentID, identity.Generation); err != nil {
-		return err
+	if identity.DeviceID == "" {
+		if _, err := tx.ExecContext(ctx, "DELETE FROM settings WHERE key=? AND json_extract(value,'$.generation')!=?", agentStatusKey+identity.AgentID, identity.Generation); err != nil {
+			return err
+		}
 	}
 	data, err := encode(identity)
 	if err != nil {
@@ -119,7 +132,7 @@ func saveIdentity(ctx context.Context, tx *sql.Tx, identity domain.AgentIdentity
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO agent_identities(id,data,ssh_user,uid) VALUES(?,?,?,?)
 ON CONFLICT(id) DO UPDATE SET data=excluded.data,ssh_user=excluded.ssh_user,uid=excluded.uid`,
-		identity.AgentID, data, identity.SSHUser, identity.UID)
+		identity.BindingID(), data, identity.SSHUser, identity.UID)
 	return identityConstraint(err)
 }
 
@@ -134,6 +147,9 @@ func saveIdentityAgent(ctx context.Context, tx *sql.Tx, agent domain.Agent) erro
 }
 
 func identityAllowed(identity domain.AgentIdentity, agent domain.Agent, active bool) error {
+	if identity.AgentID != agent.ID || identity.DeviceID != "" && !agent.Founder {
+		return domain.Fail(domain.Denied, "additional computers are only permitted for Founder")
+	}
 	if agent.Banned || identity.State == "banned" {
 		return domain.Fail(domain.Denied, "identity is banned; explicit recovery with fresh keys is required")
 	}
@@ -159,8 +175,8 @@ func (s *Store) identityMutation(ctx context.Context, actor, action string, comm
 		if err != nil {
 			return domain.Agent{}, err
 		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO identity_receipts(actor_id,operation_id,agent_id,generation) VALUES(?,?,?,?)",
-			actor, command.OperationID, identity.AgentID, identity.Generation); err != nil {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO identity_receipts(actor_id,operation_id,agent_id,generation,device_id) VALUES(?,?,?,?,?)",
+			actor, command.OperationID, identity.AgentID, identity.Generation, identity.DeviceID); err != nil {
 			return domain.Agent{}, err
 		}
 		return get[domain.Agent](ctx, tx, "agents", identity.AgentID)
@@ -171,7 +187,7 @@ func (s *Store) identityMutation(ctx context.Context, actor, action string, comm
 	var data, agentData []byte
 	var generation int64
 	err = s.db.QueryRowContext(ctx, `SELECT i.data,a.data,r.generation FROM identity_receipts r
-JOIN agent_identities i ON i.id=r.agent_id JOIN agents a ON a.id=i.id
+JOIN agent_identities i ON i.id=COALESCE(NULLIF(r.device_id,''),r.agent_id) JOIN agents a ON a.id=i.agent_id
 WHERE r.actor_id=? AND r.operation_id=? AND r.agent_id=?`, actor, command.OperationID, agent.ID).Scan(&data, &agentData, &generation)
 	if err != nil {
 		return domain.AgentIdentity{}, err
@@ -205,9 +221,9 @@ func identityProposalHash(proposal identityProposal) (string, error) {
 }
 
 func replayIdentityRequest(ctx context.Context, tx *sql.Tx, proposal identityProposal) (domain.AgentIdentity, bool, error) {
-	var id, fingerprint string
+	var id, deviceID, fingerprint string
 	var generation int64
-	err := tx.QueryRowContext(ctx, "SELECT agent_id,fingerprint,generation FROM identity_requests WHERE request_id=?", proposal.Identity.RequestID).Scan(&id, &fingerprint, &generation)
+	err := tx.QueryRowContext(ctx, "SELECT agent_id,device_id,fingerprint,generation FROM identity_requests WHERE request_id=?", proposal.Identity.RequestID).Scan(&id, &deviceID, &fingerprint, &generation)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.AgentIdentity{}, false, nil
 	}
@@ -221,7 +237,11 @@ func replayIdentityRequest(ctx context.Context, tx *sql.Tx, proposal identityPro
 	if fingerprint != hash {
 		return domain.AgentIdentity{}, true, domain.Fail(domain.Conflict, "identity request ID was already used for a different proposal")
 	}
-	identity, err := get[domain.AgentIdentity](ctx, tx, "agent_identities", id)
+	binding := id
+	if deviceID != "" {
+		binding = deviceID
+	}
+	identity, err := get[domain.AgentIdentity](ctx, tx, "agent_identities", binding)
 	if err != nil {
 		return identity, true, err
 	}
@@ -243,8 +263,8 @@ func recordIdentityRequest(ctx context.Context, tx *sql.Tx, proposal identityPro
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, "INSERT INTO identity_requests(request_id,fingerprint,agent_id,generation) VALUES(?,?,?,?)",
-		proposal.Identity.RequestID, fingerprint, identity.AgentID, identity.Generation)
+	_, err = tx.ExecContext(ctx, "INSERT INTO identity_requests(request_id,fingerprint,agent_id,generation,device_id) VALUES(?,?,?,?,?)",
+		proposal.Identity.RequestID, fingerprint, identity.AgentID, identity.Generation, identity.DeviceID)
 	return identityConstraint(err)
 }
 
@@ -269,8 +289,8 @@ func validateIdentityKeys(public domain.PublicIdentity) (sshFingerprint, authFin
 
 func reserveIdentityKeys(ctx context.Context, tx *sql.Tx, identity domain.AgentIdentity, canonicalSSH string) error {
 	for _, key := range []struct{ fingerprint, kind string }{{canonicalSSH, "ssh"}, {identity.AuthFingerprint, "auth"}} {
-		if _, err := tx.ExecContext(ctx, "INSERT INTO identity_keys(fingerprint,agent_id,generation,kind) VALUES(?,?,?,?)",
-			key.fingerprint, identity.AgentID, identity.Generation, key.kind); err != nil {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO identity_keys(fingerprint,agent_id,generation,kind,device_id) VALUES(?,?,?,?,?)",
+			key.fingerprint, identity.AgentID, identity.Generation, key.kind, identity.DeviceID); err != nil {
 			return identityConstraint(err)
 		}
 	}
@@ -377,7 +397,7 @@ func (s *Store) BindIdentityAccount(ctx context.Context, agentID, user string, u
 	if err != nil {
 		return identity, err
 	}
-	agent, err := get[domain.Agent](ctx, tx, "agents", agentID)
+	agent, err := get[domain.Agent](ctx, tx, "agents", identity.AgentID)
 	if err != nil {
 		return identity, err
 	}
@@ -414,7 +434,7 @@ func (s *Store) BindIdentityAccount(ctx context.Context, agentID, user string, u
 	if err := s.audit(ctx, tx, "local-provisioner", "identity.bind-account", "accepted"); err != nil {
 		return identity, err
 	}
-	if err := s.event(ctx, tx, "agent", agentID, "", ""); err != nil {
+	if err := s.event(ctx, tx, "agent", identity.AgentID, "", ""); err != nil {
 		return identity, err
 	}
 	return identity, s.commit(ctx, tx)

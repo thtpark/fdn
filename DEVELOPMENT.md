@@ -38,6 +38,27 @@ failure. Use the smallest related suite during development, then all independent
 suites before a release. Do not build a release package locally or on a deployed
 computer. Do not run test services against an existing Foundation/state directory.
 
+### Embedded iOS development
+
+The public `mobile` facade and `mobile/capi` bridge build the actual CLI and a
+limited foreground identity/service host into the sibling iOS app. The mobile
+host has no controller, provider execution, task claims, native receivers or
+worker-health publisher. Desktop binaries remain CGO-free; the app-linked
+C archive needs CGO, Xcode and its SDKs. There is no `os.Exit`, process-global
+HOME change, shell/CLI subprocess or HTTP relay in the mobile dispatch path.
+
+From `../fdn-ui-ios`, `bash scripts/build-app.sh` builds source-bound arm64
+iOS device/simulator and macOS-test XCFramework slices, generates the native
+project with XcodeGen, and builds an unsigned simulator app. These are development
+artifacts, not Foundation release packages or device/distribution qualification.
+The Swift app shares the macOS `FoundationCore` DTOs, editors, thread projections,
+manual policy, paging and durable exact proposals.
+
+Use temporary keys/state, native loopback fixtures, and a dedicated simulator.
+Physical phone enrollment, Developer signing, protected-data/network/kill
+acceptance and publication require separate authorization/evidence. Never copy
+desktop keys or run the desktop `agent-service serve` controller on the phone.
+
 ## Running source with an isolated testing identity
 
 No separate manual build/install is needed:
@@ -80,9 +101,10 @@ Other locations are neither scanned nor adopted. See
 [explicit configuration and current paths](MIGRATION.md#explicit-configuration-and-current-paths).
 Symlinked or other-user-
 writable test directories fail before adoption. Keep `.local` out of Git and
-never copy a running production identity into it. Moving Founder still needs
-explicit old-owner shutdown and root-local fresh-key rebinding; wrappers do
-not enroll, rename agents, reset journals/fences, publish or deploy.
+never copy a running production identity into it. Additional Founder computers
+use their own fresh signed `device register` enrollment; replacing Founder's
+original keys still needs root-local fresh-key recovery. Wrappers do not enroll,
+rename agents, reset journals/fences, publish or deploy.
 Use these foreground wrappers for development, not installed native service
 registration. Native managers continue to bind the actual OS user's HOME.
 
@@ -206,8 +228,9 @@ resources untouched. An `operator-required` result is not a successful reset.
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
 version is **2**; native message protocol is **2**, server SQLite migration is
-**6**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
-the additive SQL6 notes migration preserves current records.
+**8**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
+SQL6 adds notes, SQL7 adds Founder device bindings and SQL8 adds observer/history
+indexes while preserving all business records and shipped SQL1-SQL7.
 Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
@@ -252,10 +275,14 @@ Read [SCHEMA.md](SCHEMA.md) before changing either database.
   rejection before OS commands, exact retries, disable-before-provision, fresh
   higher-generation UID/name retention and current registry/returned/post-bind
   tuple checks; do not add a generation override CLI or reset root inventory.
-- Duplicate-owner tests must prove different live owner keys and a fresh
-  incumbent authenticated binary ping before the whole-identity ban, including Founder.
+- Duplicate-owner tests must prove different live non-Founder owner keys and a
+  fresh incumbent authenticated binary ping before the whole-identity ban.
   Same-key reconnect, dead owner, CLI traffic and unproved attempts must not
-  ban. Recovery rotates keys/generations explicitly and cannot revive old
+  ban. Founder permits independent device keys and multiple live owner sessions,
+  with device-bound proofs/certificates, scoped revocation and one shared work
+  slot. Test renewal/closure isolation, original-computer revocation, per-device
+  account generations, SQL6 preservation and all-device recovery/quarantine.
+  Recovery rotates keys/generations explicitly and cannot revive old
   certificates or work authority. Software/RAM cloning and sequential use
   remain possible; optional future native hardware signing is not implemented.
 

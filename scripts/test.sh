@@ -17,7 +17,7 @@ case "$suite" in
     sh -n scripts/install.sh
     for script in scripts/dev-agent.sh scripts/agent-cli.sh scripts/agent-service.sh scripts/agent-identity.sh; do sh -n "$script"; done
     ;;
-  unit) go test -race -count=1 . ./internal/... ./tools/... ./tests/scenario ./tests/fixtureprovider ;;
+  unit) go test -race -count=1 . ./internal/... ./mobile/... ./tools/... ./tests/scenario ./tests/fixtureprovider ;;
   integration) go test -race -count=1 -tags=integration ./tests/integration ;;
   e2e) go test -count=1 -tags=e2e ./tests/e2e ;;
   stress) go test -race -count=1 -tags=stress ./tests/stress ;;

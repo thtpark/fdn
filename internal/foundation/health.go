@@ -53,6 +53,9 @@ func healthIdentity(ctx context.Context, q queryer, a domain.Agent) (int64, bool
 		}
 		return 0, false, err
 	}
+	if a.Founder {
+		return agentOperationIdentity(ctx, q, a)
+	}
 	return identity.Generation, a.Active && !a.Banned && identity.State == "active", nil
 }
 

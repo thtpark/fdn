@@ -117,6 +117,25 @@ func TestClientCertificateIdentityAndPurposes(t *testing.T) {
 	}
 }
 
+func TestFounderDeviceCertificateIdentityAndPurposes(t *testing.T) {
+	ca, public, _, identity, now := identityFixture(t)
+	identity.DeviceID = domain.NewID("device")
+	for _, purpose := range []string{"device", "owner"} {
+		identity.Purpose, identity.OwnerGeneration = purpose, 0
+		if purpose == "owner" {
+			identity.OwnerGeneration = 3
+		}
+		cert, err := IssueClient(ca.CA, ca.CAKey, public, identity, now, time.Hour)
+		if err != nil {
+			t.Fatal(err)
+		}
+		parsed, err := ParseIdentity(identityLeaf(t, cert))
+		if err != nil || parsed != identity || parsed.BindingID() != identity.DeviceID {
+			t.Fatal("device-bound certificate lost its independent enrollment", parsed, err)
+		}
+	}
+}
+
 func TestClientIssuanceRejectsInvalidAuthorityAndIdentity(t *testing.T) {
 	ca, public, _, identity, now := identityFixture(t)
 	other, err := Generate(now)
@@ -126,6 +145,7 @@ func TestClientIssuanceRejectsInvalidAuthorityAndIdentity(t *testing.T) {
 	for name, mutate := range map[string]func(*domain.CertificateIdentity){
 		"instance":                func(i *domain.CertificateIdentity) { i.InstanceID = "" },
 		"agent":                   func(i *domain.CertificateIdentity) { i.AgentID = "agent/other" },
+		"device":                  func(i *domain.CertificateIdentity) { i.DeviceID = "device/other" },
 		"generation":              func(i *domain.CertificateIdentity) { i.Generation = 0 },
 		"purpose":                 func(i *domain.CertificateIdentity) { i.Purpose = "admin" },
 		"owner-generation":        func(i *domain.CertificateIdentity) { i.Purpose = "owner" },

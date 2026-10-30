@@ -146,7 +146,7 @@ func TestGuideDocumentsScopedNotesAndStatePreservation(t *testing.T) {
 		"MIGRATION.md": {"SQL5 databases upgrade transactionally", "A SQL5 binary cannot open a SQL6 database"},
 		"TEST_PLAN.md": {"TestNativeScopedNotesPersistAndReachBothProviderTaskPrompts", "not live model compliance"},
 		".agents/skills/foundation-work/SKILL.md":    {"shared company/project/agent notes", "note context --project PROJECT", "private `knowledge` stays separate"},
-		".agents/skills/foundation-install/SKILL.md": {"Current server SQL6", "SQL5 binaries cannot read SQL6"},
+		".agents/skills/foundation-install/SKILL.md": {"SQL6 shared company/project/agent notes", "SQL5 binaries cannot read SQL6"},
 	} {
 		data, err := guidance.Read(file)
 		if err != nil {

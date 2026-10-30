@@ -22,6 +22,23 @@ Upgrade Foundation before note-aware workers. A SQL5 binary cannot open a SQL6
 database: binary rollback is not database rollback. Notes are deliberate shared
 publication, not migration or automatic upload of private local knowledge.
 
+SQL7 adds multiple independently keyed Founder computers under one actor and
+independent live Founder owner generations. It preserves existing identity JSON,
+keys, UID/name reservations, requests/receipts, private messages and work fences.
+Account/challenge foreign keys now reference enrollment bindings; original
+bindings retain their AgentID, and additional bindings use server-issued
+device IDs. Founder alone approves fresh signed device requests and can revoke
+one computer without replacing another's keys. Non-Founder computer/owner
+exclusivity and the single work slot per agent are unchanged.
+
+Deploy compatible Foundation/account-helper binaries before enrolling extra
+devices, and use matching device-aware clients. Optional device certificate and
+proof bindings do not weaken existing primary-client admission or introduce a
+protocol downgrade. API/schema2, native protocol2, local SQL1 and backup
+manifest2 remain unchanged. A SQL6 binary cannot open SQL7; preserve a compatible
+recovery point rather than rolling back the database. Root-local whole-Founder
+recovery retires every old device, and restore quarantines all device bindings.
+
 Removing compatibility does not authorize deleting installations, credentials,
 backups, journals, identity/account reservations or operation evidence.
 

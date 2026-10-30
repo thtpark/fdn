@@ -319,10 +319,21 @@ and injected business authentication do not substitute for this boundary.
 | `SEC-004` | `TestUnixOwnerLeaseRejectsUnprovenDuplicates` | Wrong proof, replayed owner nonce and unverified device cannot obtain ownership or ban/change the live original. |
 | `SEC-005` | `TestUnixOwnerLeaseRequiresFreshRenewal` | Valid renewal rotates challenge while retaining owner generation; replay closes that owner lease without falsely banning the identity. |
 | `SEC-006` | `TestUnixOwnerReconnectAndCrashDoNotBan` | Same-key retry, closed/unresponsive owner and server restart do not ban; replacement owners fence old certificates as appropriate. |
-| `SEC-007` | `TestUnixConfirmedDuplicateBansOriginalAndFounder` | Different proved owner key plus fresh responsive incumbent ping bans the entire worker or Founder identity; both owners lose ordinary API and streams, not merely the newcomer. |
+| `SEC-007` | `TestUnixConfirmedDuplicateBansOriginalWorker` | Different proved owner key plus fresh responsive incumbent ping bans the entire non-Founder identity; both owners lose ordinary API and streams, not merely the newcomer. |
 | `SEC-008` | `TestUnixRevokedCertificatesRequireFreshKeyRecovery` | Revoked/retired credentials cannot recover themselves; explicit fresh-key recovery retains AgentID, requires reprovisioning the same reserved UID and fences old certificates/owners. |
 | `SEC-009` | `TestUnixOwnerEquivalentPublicKeyEncodingDoesNotBan` | Whitespace/CRLF encoding of the same cryptographic owner key reconnects canonically without a false different-owner ban. |
 | `SEC-010` | `TestUnixOwnerLeaseEndsWhenDeviceCertificateExpires` | Device-certificate expiry closes its owner WebSocket and denies owner API access without falsely banning the identity. |
+| `SEC-011` | `TestUnixFounderMultipleConnectionsAndFreshKeyRecovery` | Multiple Founder owners remain live together; closing/renewing one does not retire the others, while whole-Founder fresh-key recovery still denies every old certificate. |
+
+`TestFounderDeviceBinaryOwnersRenewAndRevokeIndependently` in
+[device API tests](../../internal/api/devices_test.go) exercises real TLS/protobuf
+and per-device proofs for multiple independently keyed Founder computers with
+logical UIDs. It verifies concurrent renewal and scoped revocation, not native
+multi-UID SSH accounts. `TestNativeFounderDeviceEnrollmentListAndRevocation` in
+[compiled device tests](devices_test.go) verifies exact CLI replay, private
+Founder-only device listing/approval/revocation and worker denial through the
+explicit business proxy. Both retain one actor; the Foundation unit claim race
+additionally asserts exactly one accepted work slot across Founder devices.
 
 Compiled-worker attachment regressions in
 [identity_attachment_test.go](identity_attachment_test.go) were confirmed in the

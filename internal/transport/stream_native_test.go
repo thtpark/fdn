@@ -27,6 +27,17 @@ func TestStreamPinnedNativeSSHSession(t *testing.T) {
 	if _, err := os.Stat("/usr/bin/ssh"); err != nil {
 		t.Skip("native SSH is unavailable")
 	}
+	testPinnedSSHSession(t, func(ctx context.Context, c config.SSH, mode string) (net.Conn, error) {
+		return OpenStream(ctx, c, mode, process.Native{})
+	})
+}
+
+func TestEmbeddedStreamPinnedSSHWithoutProcesses(t *testing.T) {
+	testPinnedSSHSession(t, OpenEmbeddedStream)
+}
+
+func testPinnedSSHSession(t *testing.T, open func(context.Context, config.SSH, string) (net.Conn, error)) {
+	t.Helper()
 	_, hostPrivate, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -122,7 +133,7 @@ func TestStreamPinnedNativeSSHSession(t *testing.T) {
 	c := config.SSH{Host: "127.0.0.1", User: "agent_test", Port: port, IdentityFile: identity, KnownHostsFile: pins}
 	for _, mode := range []string{"fdn-api", "fdn-join"} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		conn, err := OpenStream(ctx, c, mode, process.Native{})
+		conn, err := open(ctx, c, mode)
 		if err != nil {
 			cancel()
 			t.Fatal(err)
@@ -167,7 +178,7 @@ func TestStreamPinnedNativeSSHSession(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	conn, err := OpenStream(ctx, c, "fdn-api", process.Native{})
+	conn, err := open(ctx, c, "fdn-api")
 	if err == nil {
 		defer conn.Close()
 		conn.SetDeadline(time.Now().Add(2 * time.Second))
