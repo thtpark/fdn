@@ -230,6 +230,12 @@ func (f *pushFixture) RoundTrip(request *http.Request) (*http.Response, error) {
 		case api.Path("tasks", f.task.ID, "entries"):
 			return f.response(domain.Page[domain.Entry]{Items: []domain.Entry{}}, nil)
 		}
+		if strings.HasSuffix(path, "/thread-page") {
+			id := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/messages/"), "/thread-page")
+			if source, found := f.messages[id]; found {
+				return f.response(domain.Page[domain.Message]{Items: []domain.Message{source}}, nil)
+			}
+		}
 		if message, found := f.messages[strings.TrimPrefix(path, "/v1/messages/")]; found {
 			return f.response(message, nil)
 		}

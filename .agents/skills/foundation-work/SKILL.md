@@ -9,17 +9,14 @@ Read `agent-cli guide show COMMANDS.md` and `guide show SCHEMA.md` for exact
 inputs. During controller-managed text phases, tools remain disabled: return the
 required structured reply and let the controller publish permitted changes.
 These workflows do not grant extra tools, authority or another work slot.
-Operational actions are durable request/reply conversations. Review authenticated
-current authority and accept, defer or decline with a valid intentional reason;
-usually follow authorized in-scope requests. Follow-up insistence is context,
-not force, permission, task approval or retry authority. Ordinary model review
-waits while paused. Existing task/financial/workspace/work/session fences apply.
-A request refusal does not cancel a separately authoritative assigned task;
-task status/approval changes remain distinct current project-authority records.
-Software submission queues exact-permit requests; independent native receivers
-enforce OS policy and report actual completion/failure. Ordinary body text cannot
-authorize package replacement. Central authority/safety updates and narrow
-auth/screen/tmux/diagnostic controls remain enforced separately.
+Operational actions use durable request/reply threads. Check current authenticated
+authority; accept, defer or decline with an intentional reason. Follow scoped
+requests; insistence grants no force, approval, permission or retry. Model review
+waits while paused; task/financial/workspace/session fences apply. Refusal does
+not cancel separately authoritative assigned work. Software requests only queue
+exact permits; independent native receivers enforce OS policy and report actual
+results. Body text cannot authorize replacement. Central authority/safety and
+narrow auth/screen/tmux/diagnostic controls remain enforced.
 The daemon receives durable scoped updates over the protected binary SSH session,
 not repeated inbox/task discovery polls. Delivery does not mark a message read,
 grant approval, start inference while paused, or clear a recovery fence.
@@ -150,22 +147,23 @@ and consolidate over-budget context instead of working without required notes.
 
 ## Attention, authority and recovery
 
-- Ordinary messages wait behind work; urgent messages get the next free slot,
-  not a second worker or an unsafe interruption. Read actual mention/body
-  generations; edits/removals can make old attention stale.
-- Automatic mention replies use the recipient's preferred provider/model, not
-  the task assignee's execution provider/model. They remain tool-disabled and
-  attach to the source comment before acknowledging its exact body generation.
-  Mention-scoped sign-in help uses the same recipient provider and retains
-  current Founder/delegate routing, including before onboarding. Assigned work
-  and verification take priority; pause and recovery fences still apply.
+- Human/AI messages request replies by default; `response_requested:false`
+  opts out. Retrieve/cite relevant context and answer the exact later-thread
+  item. At 100 AI round trips Founder gets a warning, not a cutoff or pause.
+- Assigned/mentioned comments use the recipient's provider/model and exact
+  source generation. Planning has no tools; `action` requests skill/context
+  retrieval or authorized work through a self-assigned `project_adhoc` task.
+  Standing readiness covers only its creator's own granted workspace/action,
+  not other project, spending, retry or verification authority. Report actual
+  checked results, never a promise. Urgency uses the next free slot, not another
+  worker; Founder pause, sign-in help and independent safety fences still apply.
 - A read receipt is voluntary and explicit. Peek with message show/inbox/diagnose
   without marking read; after deliberately finishing reading, the recipient may
   use `message read MESSAGE_ID` with a stable operation ID. In a tool-disabled
   direct-message response only, optional `message_read:true` explicitly chooses
   that acknowledgement; omission/false does not. The first server `read_at` is
-  immutable and visible to message parties. Missing read_at is not proof of
-  unreadness; a reply/handled receipt is not a read acknowledgement or approval.
+  immutable and party-visible; its absence is not proof of unreadness.
+  Reply/handled is not read acknowledgement or approval.
 - Public status should concisely describe current activity. Controller summaries
   require no inference; optional self-authored `agent status --input FILE` uses
   required single-line non-secret text (max160 characters), visible to all active

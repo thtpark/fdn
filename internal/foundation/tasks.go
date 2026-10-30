@@ -55,7 +55,13 @@ ON CONFLICT(id) DO UPDATE SET data=excluded.data, assignee_id=excluded.assignee_
 
 func (s *Store) CreateTask(ctx context.Context, actor string, req domain.TaskRequest) (domain.Task, error) {
 	return mutate(ctx, s, actor, "task.create", req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.Task, error) {
-		p, err := get[domain.Project](ctx, tx, "projects", req.ProjectID)
+		var p domain.Project
+		var err error
+		if req.ProjectID == domain.AdhocProjectID {
+			p, err = s.adhocProject(ctx, tx, a)
+		} else {
+			p, err = get[domain.Project](ctx, tx, "projects", req.ProjectID)
+		}
 		if err != nil {
 			return domain.Task{}, err
 		}
@@ -74,6 +80,14 @@ func (s *Store) CreateTask(ctx context.Context, actor string, req domain.TaskReq
 			SpecGeneration: 1, CreatedBy: a.ID, CreatedAt: s.timestamp(),
 			Policy:      domain.ApprovalPolicy{RequiredActors: []string{}},
 			RetryPolicy: domain.RetryPolicy{MaxRetries: 3, BackoffSeconds: 30}}
+		if p.ID == domain.AdhocProjectID {
+			if req.ParentID != "" || req.Repetitive {
+				return t, domain.Fail(domain.Invalid, "Adhoc records must be standalone non-repetitive tasks")
+			}
+			t.AssigneeID, t.Status = a.ID, domain.Todo
+			t.Policy.IndependentVerification = true
+			t.RetryPolicy.MaxRetries = 0
+		}
 		if err := validateContent(t); err != nil {
 			return t, err
 		}
@@ -184,6 +198,9 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 		}
 		if t.ArchivedAt != 0 || p.Archived {
 			return t, domain.Fail(domain.Prerequisite, "task or project is archived")
+		}
+		if p.ID == domain.AdhocProjectID && (t.CreatedBy != a.ID || t.AssigneeID != a.ID) && !authority(a, p) {
+			return t, domain.Fail(domain.Denied, "only an Adhoc task's creator/assignee or current project authority may change it")
 		}
 		administrative := slices.Contains([]string{"assign", "provider", "retry-approve", "release"}, req.Kind)
 		if administrative {
@@ -366,6 +383,19 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 				}
 			}
 			t.Clarity = &domain.Clarity{ActorID: a.ID, SpecGeneration: t.SpecGeneration, DiscussionGeneration: t.DiscussionGeneration, ProjectEpoch: p.Epoch, Rationale: req.Reason, AnswerIDs: req.AnswerIDs}
+			for _, id := range req.AnswerIDs {
+				answer, err := get[domain.Entry](ctx, tx, "entries", id)
+				if err != nil {
+					return t, err
+				}
+				if answer.TaskID != t.ID || !domain.RelevantComment(answer, t, a.ID) {
+					return t, domain.Fail(domain.Invalid, "reviewed answer must be a relevant comment on this task")
+				}
+				if _, err := tx.ExecContext(ctx, `INSERT INTO attention(agent_id,entry_id,generation,task_id,state) VALUES(?,?,?,?,'handled')
+ON CONFLICT(agent_id,entry_id,generation) DO UPDATE SET state='handled'`, a.ID, answer.ID, answer.Generation, t.ID); err != nil {
+					return t, err
+				}
+			}
 			t.Waiting = nil
 			if t.Status == domain.Paused {
 				t.Status = domain.Todo

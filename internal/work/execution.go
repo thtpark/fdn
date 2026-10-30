@@ -95,6 +95,9 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	if err != nil {
 		return errors.Join(err, e.notStarted(ctx, &j, "current authority could not be validated before provider launch"))
 	}
+	if err := e.guardConversationAction(runCtx, cancel, launch); err != nil {
+		return errors.Join(err, e.notStarted(ctx, &j, "conversation source changed before provider launch"))
+	}
 	if err := e.phaseHealth(ctx, "invoking", &launch, j.ID, min(binding.TimeoutSeconds, c.InvocationTimeoutSeconds), true); err != nil {
 		return err
 	}
@@ -135,11 +138,13 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 		}
 		return errors.Join(domain.Fail(domain.Provider, "provider failed or stopped; a fenced failure report was recorded, not completion"), helpErr)
 	}
-	validReply := reply.Decision == "" && reply.RequestDecision == "" && !reply.MessageRead && validExecutionOutcome(reply.Outcome)
+	validReply := reply.Decision == "" && reply.RequestDecision == "" && !reply.MessageRead && reply.Action == nil &&
+		(launch.ConversationID != "" || reply.ResponseRequested == nil) && validExecutionOutcome(reply.Outcome)
 	if verification {
 		decision := reply.Outcome == "reviewed" && (reply.Decision == "accept" || reply.Decision == "rework") && len(reply.Evidence) > 0
 		stopped := (reply.Outcome == "paused" || reply.Outcome == "failed") && reply.Decision == ""
-		validReply = (decision || stopped) && len(reply.Questions) == 0 && len(reply.AnswerIDs) == 0 && !reply.SafeToRetry && !reply.MessageRead && reply.RequestDecision == ""
+		validReply = (decision || stopped) && len(reply.Questions) == 0 && len(reply.AnswerIDs) == 0 && !reply.SafeToRetry &&
+			!reply.MessageRead && reply.RequestDecision == "" && reply.Action == nil && reply.ResponseRequested == nil
 	}
 	if reply.Description != nil || reply.AcceptanceCriteria != nil || !validReply {
 		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
@@ -209,7 +214,12 @@ func (e *Engine) finishExecution(ctx context.Context, j *local.Journal, launch L
 	}
 	waiting := (*domain.Waiting)(nil)
 	outcome := reply.Outcome
-	if len(reply.Questions) != 0 {
+	if len(reply.Questions) != 0 && launch.ConversationID != "" && launch.Message != nil {
+		outcome = "paused"
+		if reply.Checkpoint == "" {
+			reply.Checkpoint = j.ID
+		}
+	} else if len(reply.Questions) != 0 {
 		var err error
 		waiting, err = e.publishQuestions(ctx, j, *launch.Task, reply.Questions)
 		if err != nil {
@@ -250,6 +260,9 @@ func (e *Engine) notStarted(ctx context.Context, j *local.Journal, reason string
 func (e *Engine) queueReport(ctx context.Context, j *local.Journal) error {
 	if j.Report == nil {
 		return domain.Fail(domain.Internal, "report proposal is missing")
+	}
+	if err := e.retainConversationReport(ctx, j); err != nil {
+		return err
 	}
 	if err := e.journalHealth(ctx, *j, "reporting"); err != nil {
 		return err

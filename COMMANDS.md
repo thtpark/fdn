@@ -649,6 +649,17 @@ authority or forward caller-supplied identity headers.
 Every change supplies `kind`, nonempty `reason`, operation metadata, and only
 fields allowed for that kind. The API also enforces all authority/preconditions.
 
+The reserved project ID `project_adhoc` identifies **Adhoc**, not a project
+matched by display name. The first `task create` targeting it initializes that
+Founder-owned project transactionally and creates a non-repetitive `todo` task
+assigned to its creating actor. The creator may record readiness for its own
+Adhoc task under standing policy after binding an already granted workspace and
+reviewing the current specification. No human readiness handoff is needed.
+This grants neither project delegation nor permission to execute another
+project's unapproved task, change OS privileges, spend, or verify its own result.
+Independent verification, one-slot admission, Founder pause and uncertainty
+fences remain. Adhoc actions have no automatic failure retry.
+
 | Kind | Allowed decision fields / gate |
 | --- | --- |
 | `edit` | title, description, acceptance_criteria, priority, importance; execution-affecting change invalidates old approval |
@@ -802,6 +813,34 @@ codes and secret-bearing sign-in state must not enter an AI context.
 | `agent-cli message thread` | `MESSAGE`; bounded sender/recipient-private conversation including target decisions/results |
 | `agent-cli message request-report` | `MESSAGE --input FILE`: exact revision, state and nonempty reason; recipient-only accepted/deferred/declined/executing/completed/failed lifecycle |
 
+New ordinary messages and human replies request a response by default. Omit
+`response_requested` or set it to `true`; set it explicitly to `false` when no
+response is needed. `null` is invalid. In `ai` mode the recipient's controller
+generates the reply with its preferred AI provider/model, subject to current
+authentication, its single work slot, safety and spending gates. In `manual`
+mode automatic replies wait; a human can reply. Sending does not change mode,
+grant authority, acknowledge reading or prove a response has completed.
+AI replies also default to requesting a response; a model can explicitly return
+`response_requested:false`. Later messages in a thread are independent pending
+items and are answered at their own `reply_to_id`. The controller retrieves the
+original/recent thread context and referenced task/project/notes/knowledge.
+Older context is explicitly marked as paged/incomplete, not silently treated as
+the whole conversation. If an answer needs further retrieval or an action,
+the model returns a structured `action` plan. The controller creates a
+self-assigned Adhoc task, uses matching skills and authorized tools, then
+reports actual checked results to the exact source item. Planning is not
+completion, and private requests/transcripts are not copied into public task
+records.
+
+At 100 consecutive alternating AI round trips (200 AI messages), Foundation
+sends Founder one brief private service notice for that thread, without private
+body content or a response request. The warning/count is transactional and
+survives retries/restarts; an unavailable Founder leaves a pending notice.
+There is no loop cutoff, automatic mode change or interruption. Only Founder
+may request a global pause; independent authority/safety/spending gates remain.
+Protected notices retain their non-inferencing behavior.
+Stored messages and exact retained proposals are not reinterpreted.
+
 ### Agent-owned operational requests
 
 Operational execution is requested through durable messages, not a remote CLI
@@ -811,9 +850,11 @@ the controller's internal approved actions. Central authority/safety changes
 Protected authentication, screen/tmux and diagnostic controls keep their narrow
 native interfaces; they are not arbitrary model prompts.
 
-For a work request, send `kind:"request"`, `response_requested:true`, and
+For a work request, send `kind:"request"`, and
 `request:{"kind":"work","project_id":"PROJECT","task_id":"TASK"}` alongside the
-normal recipient/body. Founder may make an unscoped informational request.
+normal recipient/body. Its response request defaults to true; operational
+requests require it and reject an explicit false rather than overriding it.
+Founder may make an unscoped informational request.
 Project delegates require their current project authority. Work acceptance does
 not create task approval, workspace permission or spending authority; execution
 uses the existing approved assigned task and serial slot.

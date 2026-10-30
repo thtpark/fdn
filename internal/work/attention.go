@@ -66,11 +66,21 @@ func (e *Engine) messages(ctx context.Context, c config.Worker, urgent, manual b
 			if message.Kind != "direct" || !message.ResponseRequest {
 				continue
 			}
+			pending, err := e.conversationActionPending(ctx, Launch{Message: &message})
+			if err != nil {
+				return false, err
+			}
+			if pending {
+				continue
+			}
 			launch, err := e.launch(ctx, "message", nil)
 			if err != nil {
 				return false, err
 			}
 			launch.Message = &message
+			if err := e.conversationContext(ctx, &launch); err != nil {
+				return false, err
+			}
 			_, err = e.text(ctx, c, launch, manual)
 			var fenced textResponseFenced
 			if errors.As(err, &fenced) {
@@ -106,6 +116,16 @@ func (e *Engine) attention(ctx context.Context, c config.Worker, manual bool) (b
 				return false, err
 			}
 			launch.Attention = &item
+			pending, err := e.conversationActionPending(ctx, launch)
+			if err != nil {
+				return false, err
+			}
+			if pending {
+				continue
+			}
+			if err := e.conversationContext(ctx, &launch); err != nil {
+				return false, err
+			}
 			_, err = e.text(ctx, c, launch, manual)
 			var fenced textResponseFenced
 			if errors.As(err, &fenced) {

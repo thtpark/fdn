@@ -9,10 +9,10 @@ import (
 )
 
 type authoritySubscription struct {
-	taskID, projectID string
-	modeOnly          bool
-	wake              chan struct{}
-	failure           error
+	taskID, projectID, messageID string
+	modeOnly                     bool
+	wake                         chan struct{}
+	failure                      error
 }
 
 func (s *authoritySubscription) relevant(update domain.Update) bool {
@@ -23,7 +23,9 @@ func (s *authoritySubscription) relevant(update domain.Update) bool {
 		return !s.modeOnly && (update.ProjectID == s.projectID || update.SourceID == s.projectID)
 	case "task", "run", "comment", "worklog":
 		return !s.modeOnly && (update.TaskID == s.taskID || update.SourceID == s.taskID)
-	case "message", "request", "attention", "agent-operation", "session", "assistance", "note":
+	case "message":
+		return s.messageID != "" && update.SourceID == s.messageID
+	case "request", "attention", "agent-operation", "session", "assistance", "note":
 		return false
 	default:
 		return true

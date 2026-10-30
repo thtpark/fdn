@@ -46,6 +46,9 @@ func invocationPrompt(context []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if launch.ConversationID != "" {
+		contract += "This is the tool-enabled execution of a recorded Adhoc conversation action, not a text acknowledgement. Inspect applicable local/project skills and retrieve relevant current thread, task, notes, knowledge and workspace context before acting or answering. Reference actual records and checks in evidence. Perform the retained action only within the recipient's current authority and existing workspace/OS permissions; an Adhoc record does not authorize another project's unapproved work, root changes, protected consent, spending, contracts or disclosure. Report actual results or concrete blockers, never a promise or invented success. Do not retry prior uncertain effects. response_requested defaults to true; set false only when a further response is unnecessary.\n"
+	}
 	return base + "\n" + contract + "\nFDN_CONTEXT_JSON\n" + string(context), nil
 }
 
@@ -74,20 +77,28 @@ type Status struct {
 }
 
 type Launch struct {
-	Phase         string              `json:"phase"`
-	AgentID       string              `json:"agent_id"`
-	Task          *domain.Task        `json:"task,omitempty"`
-	Project       *domain.Project     `json:"project,omitempty"`
-	Discussion    []domain.Entry      `json:"discussion"`
-	Capabilities  []local.Observation `json:"capabilities"`
-	Knowledge     []local.Knowledge   `json:"selected_private_knowledge"`
-	SharedNotes   []domain.Note       `json:"shared_notes"`
-	Message       *domain.Message     `json:"message,omitempty"`
-	RequestParent *domain.Message     `json:"request_parent,omitempty"`
-	Attention     *domain.Attention   `json:"attention,omitempty"`
-	InventoryHash string              `json:"inventory_hash,omitempty"`
-	ActionKey     string              `json:"action_key,omitempty"`
-	Continuation  *provider.Reply     `json:"continuation,omitempty"`
+	Phase              string              `json:"phase"`
+	AgentID            string              `json:"agent_id"`
+	Task               *domain.Task        `json:"task,omitempty"`
+	Project            *domain.Project     `json:"project,omitempty"`
+	Discussion         []domain.Entry      `json:"discussion"`
+	Capabilities       []local.Observation `json:"capabilities"`
+	Knowledge          []local.Knowledge   `json:"selected_private_knowledge"`
+	SharedNotes        []domain.Note       `json:"shared_notes"`
+	Message            *domain.Message     `json:"message,omitempty"`
+	RequestParent      *domain.Message     `json:"request_parent,omitempty"`
+	Attention          *domain.Attention   `json:"attention,omitempty"`
+	InventoryHash      string              `json:"inventory_hash,omitempty"`
+	ActionKey          string              `json:"action_key,omitempty"`
+	Continuation       *provider.Reply     `json:"continuation,omitempty"`
+	Thread             []domain.Message    `json:"message_thread,omitempty"`
+	ThreadCursor       string              `json:"thread_cursor,omitempty"`
+	ContextIncomplete  bool                `json:"context_incomplete,omitempty"`
+	ReferencedTasks    []domain.Task       `json:"referenced_tasks,omitempty"`
+	ReferencedProjects []domain.Project    `json:"referenced_projects,omitempty"`
+	Requester          *domain.Agent       `json:"requester,omitempty"`
+	ConversationID     string              `json:"conversation_action_id,omitempty"`
+	ActionInstructions string              `json:"action_instructions,omitempty"`
 }
 
 type Engine struct {
@@ -386,6 +397,12 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 			return status, nil
 		}
 	}
+	if acted, err := e.continueConversationActions(ctx, c, manual); err != nil {
+		return status, err
+	} else if acted {
+		status.State = "task"
+		return status, nil
+	}
 	if acted, err := e.messages(ctx, c, true, manual); err != nil {
 		return status, err
 	} else if acted {
@@ -412,6 +429,14 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return 0
 	})
 	for _, task := range tasks {
+		var conversation string
+		managed, err := e.State.Get(ctx, "conversation-task:"+task.ID, &conversation)
+		if err != nil {
+			return status, err
+		}
+		if managed {
+			continue
+		}
 		if task.Status != domain.Todo && task.Status != domain.Paused {
 			continue
 		}
@@ -535,11 +560,18 @@ func (e *Engine) launch(ctx context.Context, phase string, task *domain.Task) (L
 		}
 		for _, entry := range page.Items {
 			size += len(entry.Body)
-			if size > 256<<10 {
+			if size > 256<<10 && phase != "attention" {
 				return launch, domain.Fail(domain.Prerequisite, "discussion exceeds the bounded review context; consolidate the current specification")
 			}
+			if size > 128<<10 && phase == "attention" {
+				launch.ContextIncomplete = true
+				break
+			}
+			launch.Discussion = append(launch.Discussion, entry)
 		}
-		launch.Discussion = append(launch.Discussion, page.Items...)
+		if launch.ContextIncomplete {
+			break
+		}
 		cursor = page.NextCursor
 		if cursor == "" {
 			break

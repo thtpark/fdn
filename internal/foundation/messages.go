@@ -66,7 +66,10 @@ func (s *Store) SendMessage(ctx context.Context, actor string, req domain.Messag
 		} else if req.Insistence {
 			return domain.Message{}, domain.Fail(domain.Invalid, "insistence requires a linked earlier request")
 		}
-		return insertMessage(ctx, tx, m)
+		if _, err := insertMessage(ctx, tx, m); err != nil {
+			return m, err
+		}
+		return m, s.recordReplyLoop(ctx, tx, m)
 	})
 }
 

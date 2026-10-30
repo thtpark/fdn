@@ -97,6 +97,9 @@ guide includes this file, all skills, and the development references.
   require an exact Founder permit and an independently supervised policy-bound
   target receiver; Foundation uses its deterministic private maintenance mailbox.
   Delivery/acceptance is not installation or independent verification.
+  Standalone actions use self-assigned `project_adhoc` records and narrow
+  creator-only standing readiness, not other project/spending/verification
+  authority. Deliver checked results to the exact source, not a promise.
 - Stop active operations before pausing/switching tasks. Preserve checkpoints,
   run/spec references, journals, pending reports, and uncertainty. Reconcile a
   lost response with the same operation and exact proposal. Never blindly rerun

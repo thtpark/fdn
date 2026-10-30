@@ -969,6 +969,7 @@ preserved through current-format identity attachment.
 | Create/edit ordinary task text | Any active enrolled agent |
 | Assign, choose provider/model, retry policy | Founder or the task project's current delegate |
 | Readiness, unsafe retry, verification | Current project authority plus the task's named/independent policy |
+| Create/prepare own Adhoc action | Reserved `project_adhoc` only: self-assignment and creator-only standing readiness; no delegation, unsafe-retry or self-verification grant |
 | Set workspace, record understanding/blockers, claim/report | Current assigned worker, with operation-specific fences |
 | Edit comment/worklog | Its creator only, including when requester is Founder |
 | Read private messages/sessions | Their parties through the private API |
@@ -1094,6 +1095,45 @@ Shared application context is team-readable. Messages are sender/recipient
 private; origin labels are provenance, not human attestation. Protected
 authentication/session notices cannot request automatic AI replies. Urgency gets
 the next free slot, not a second worker.
+
+On new CLI/API ordinary-message input, omitted `response_requested` means true;
+explicit false opts out and null is invalid. This is an input default, not a
+stored-message migration or changed native field/type. The shared desktop/mobile
+composers default fresh messages and human replies to true, retaining old drafts
+and exact proposals unchanged. In ai mode the existing tool-disabled controller
+produces requested replies under authentication, slot, safety and spending
+fences; manual pauses automatic replies. AI replies also request a response by
+default and may explicitly opt out. Every pending later-thread message is
+handled independently with original/recent context, referenced records and
+fresh applicable notes. Assigned workers receive generation-bound attention
+for others' task comments even without a mention; mentioned actors remain
+eligible. Read-only attention derives unmentioned assigned comments without
+inventing a stored receipt or changing old generations.
+When task clarity explicitly incorporates `answer_ids`, only those exact
+comment generations are transactionally marked handled. Unrelated or later
+edited comments remain pending; incorporating an answer must not trigger a
+second generic response invocation for that same body.
+
+Tool-disabled planning may request a structured action/investigation. The
+controller durably records its exact source/plan, creates a self-assigned
+non-repetitive task in the fixed-ID Adhoc project, and uses the existing claimed,
+tool-enabled execution path under creator-only standing readiness. Workspace
+permission, current source generation/assignment, one slot, independent
+verification and all non-project OS/spending/consent boundaries remain.
+Results are delivered to the precise message/comment only after the actual run
+report is acknowledged. Private source text and raw results remain in private
+journals/conversations rather than shared Adhoc descriptions/run evidence.
+Restart/lost acknowledgement replays the same proposal, not inference/actions;
+changed sources become stale records, not permission to rerun.
+
+An O(1) per-thread setting retains AI reply counts after an initial bounded
+ancestry seed. At 200 alternating AI messages (100 round trips), a transactional,
+non-inferencing, body-free warning is sent privately to Founder once per thread.
+Missing Founder delivery remains explicitly pending. Neither threshold nor
+warning changes mode, stops a loop, resets budgets or interrupts work.
+No native payload fields or SQL migration are added: server SQL8/local SQL1
+remain current. Protected notices remain non-inferencing, and typed operational
+requests still require a response request.
 
 Non-Founder agents operate autonomously in ai unless an explicit authenticated
 Founder request sets manual. Mode changes are versioned and attributed; workers

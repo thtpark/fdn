@@ -570,7 +570,7 @@ func (a *app) messageCommand(ctx context.Context, r *resources, args []string) (
 		}
 		if req.Kind == "" {
 			if req.Request != nil {
-				req.Kind, req.ResponseRequest = "request", true
+				req.Kind = "request"
 			} else {
 				req.Kind = "direct"
 			}

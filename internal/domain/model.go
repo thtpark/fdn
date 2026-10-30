@@ -123,8 +123,12 @@ type ApprovalPolicy struct {
 	IndependentVerification bool     `json:"independent_verification"`
 }
 
+const AdhocProjectID = "project_adhoc"
+
 func EligibleApprover(a Agent, p Project, t Task, verification bool) bool {
-	if !a.Active || p.Archived || (!a.Founder && !slices.Contains(p.Delegates, a.ID)) {
+	ownAdhoc := !verification && p.ID == AdhocProjectID && t.ProjectID == p.ID &&
+		t.CreatedBy == a.ID && t.AssigneeID == a.ID
+	if !a.Active || a.Banned || p.Archived || (!a.Founder && !slices.Contains(p.Delegates, a.ID) && !ownAdhoc) {
 		return false
 	}
 	if len(t.Policy.RequiredActors) != 0 && !slices.Contains(t.Policy.RequiredActors, a.ID) {

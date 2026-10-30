@@ -6,6 +6,27 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Response-by-default source work (0.3.14)
+
+Fresh ordinary CLI/API messages and desktop/mobile human replies request a
+response unless explicitly disabled. Existing AI-mode text replies use the
+recipient's provider/model and serial controller; manual mode and independent
+authentication/safety/spending gates remain unchanged. AI replies can request
+subsequent replies; at 100 round trips Founder receives one informational
+warning, not an interruption or cutoff. The controller loads relevant original/
+recent thread and task context and handles later messages independently.
+Assigned/mentioned task comments use exact generation-bound attention.
+
+Further retrieval/actions use durable source-bound plans and self-assigned
+Adhoc records under narrow standing readiness, then the existing tool-enabled
+claimed execution path. Applicable skills/context and actual checks are
+referenced in the source reply only after the real report is acknowledged.
+Private requests/results are not copied into shared task records. There is no
+new controller/slot, blind inference/action retry, SQL migration or native
+payload field/type. Existing stored messages, drafts, proposals, mode, OS,
+spending, verification and uncertainty fences remain. Publication/deployment
+are separate from source/fixture acceptance.
+
 ### Foreground mobile source work (0.3.13)
 
 The `mobile` facade/C bridge embeds bounded CLI reads/manual dispatch and the

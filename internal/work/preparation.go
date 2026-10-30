@@ -162,6 +162,9 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 	if reply.Decision != "" {
 		return domain.Fail(domain.Provider, "text-only responses cannot make verification decisions")
 	}
+	if reply.Action != nil {
+		return e.queueConversationAction(ctx, j, launch, reply)
+	}
 	switch launch.Phase {
 	case "onboarding":
 		if reply.Outcome != "reviewed" || len(reply.Questions) != 0 {
@@ -348,7 +351,7 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 				return errors.Join(domain.Fail(domain.Prerequisite, "explicit message read acknowledgement remains pending; reconcile the exact receipt without another model call"), err)
 			}
 		}
-		if _, err := commit[domain.Message](ctx, e, "POST", "/v1/messages", domain.MessageRequest{Command: domain.Command{OperationID: j.ID + ".reply"}, RecipientID: source.SenderID, Body: neutralMentions(reply.Summary), Origin: "ai", Kind: "direct", ReplyToID: source.ID}); err != nil {
+		if err := e.sendConversationReply(ctx, j.ID+".reply", source, reply); err != nil {
 			return err
 		}
 		if _, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", source.ID, "receipt"), domain.MessageReceipt{Command: domain.Command{OperationID: j.ID + ".receipt", ExpectedRevision: source.Revision}, State: "handled"}); err != nil {
@@ -369,10 +372,14 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 				source = &copy
 			}
 		}
-		if source == nil || source.Generation != launch.Attention.Generation || !slices.Contains(source.Mentions, e.Client.Credential.AgentID) {
-			return domain.Fail(domain.Conflict, "mention changed during response")
+		if source == nil || source.Generation != launch.Attention.Generation || !domain.RelevantComment(*source, *launch.Task, e.Client.Credential.AgentID) {
+			return domain.Fail(domain.Conflict, "comment assignment, mention or generation changed during response")
 		}
-		if _, err := commit[domain.Entry](ctx, e, "POST", api.Path("tasks", source.TaskID, "entries"), domain.EntryRequest{Command: domain.Command{OperationID: j.ID + ".reply"}, Kind: "comment", ParentID: source.ID, Body: neutralMentions(reply.Summary)}); err != nil {
+		body, err := conversationBody(reply)
+		if err != nil {
+			return err
+		}
+		if _, err := commit[domain.Entry](ctx, e, "POST", api.Path("tasks", source.TaskID, "entries"), domain.EntryRequest{Command: domain.Command{OperationID: j.ID + ".reply"}, Kind: "comment", ParentID: source.ID, Body: body}); err != nil {
 			return err
 		}
 		if _, err := commit[domain.Attention](ctx, e, "POST", api.Path("attention", source.ID), domain.AttentionRequest{Command: domain.Command{OperationID: j.ID + ".receipt"}, Generation: source.Generation, State: "handled"}); err != nil {

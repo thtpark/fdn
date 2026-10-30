@@ -46,6 +46,31 @@ remain explicit physical-device acceptance, not inferred from fixture tests.
 
 ## Desktop history and read-only observation
 
+`go test -race -count=1 ./internal/domain ./internal/api ./internal/cli -run 'MessageResponse|MessageSendDefaults|ExplicitAIOptOut|NativeMessageResponse'`
+and `go test -race -count=1 -tags=integration ./tests/integration -run 'DefaultRequestedMessage|ControllerMarksRead|ExplicitReadLostAck'`
+cover omitted response defaults, explicit opt-out/null/type rejection, native
+replay, CLI-inferred operational requests, AI/manual behavior, optional AI reply
+opt-out and unchanged voluntary read receipts. Shared Swift editor tests
+cover fresh message/reply defaults and preserved restored false drafts.
+
+`go test -race -count=1 ./internal/foundation ./internal/provider ./internal/work ./internal/local -run 'ReplyLoop|Adhoc|AssignedComments|Conversation|AIResponse'`
+and `go test -race -count=1 -tags=integration ./tests/integration -run 'LaterThreadAction|AssignedUnmentionedCommentAction|AdhocActionLostReceipt|QueuedAdhocAction'`
+cover the exact 199/200-message warning boundary, continued replies, real store
+restart and replay deduplication, private warning content, creator-only Adhoc
+readiness, generation-bound assigned attention, later-thread context, actual
+fixture skill/file effects, report-before-response, lost receipt restart,
+explicit model opt-out and Founder pause/resume. These use local deterministic
+providers and temporary state, not paid/live inference.
+`TestClarityConsumesOnlyExplicitlyReviewedCommentGenerations` preserves the
+existing productive clarification loop: incorporated answers are handled
+atomically, unrelated comments and later edits remain pending.
+
+`go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeConversationAction'`
+also drives the actual compiled CLI, identity proxy, daemon and both scripted
+provider executables through a later-thread action: omitted response default,
+applicable workspace skill read, file effect/check, self-assigned Adhoc claim,
+actual report and exact-source result. It is not live-provider qualification.
+
 `go test -race -count=1 ./internal/observe ./internal/foundation ./internal/api ./internal/cli`
 covers private received/sent/thread pages, insertion-ceiling/keyset stability,
 no implicit reading, signed actor/query/generation cursors, scoped post-commit

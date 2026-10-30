@@ -211,7 +211,12 @@ func (s *Store) Attention(ctx context.Context, actor, after string, limit int) (
 	if err != nil {
 		return page, err
 	}
-	rows, err := s.db.QueryContext(ctx, "SELECT entry_id, task_id, generation, state FROM attention WHERE agent_id = ? AND state = 'pending' AND entry_id > ? ORDER BY entry_id LIMIT ?", actor, last, limit+1)
+	rows, err := s.db.QueryContext(ctx, `SELECT e.id,e.task_id,json_extract(e.data,'$.generation'),coalesce(a.state,'pending')
+FROM entries e JOIN tasks t ON t.id=e.task_id
+LEFT JOIN attention a ON a.agent_id=? AND a.entry_id=e.id AND a.generation=json_extract(e.data,'$.generation')
+WHERE e.kind='comment' AND e.author_id<>? AND e.id>? AND coalesce(a.state,'pending')='pending'
+AND (t.assignee_id=? OR EXISTS(SELECT 1 FROM json_each(e.data,'$.mentions') WHERE value=?))
+ORDER BY e.id LIMIT ?`, actor, actor, last, actor, actor, limit+1)
 	if err != nil {
 		return page, err
 	}
@@ -236,23 +241,28 @@ func (s *Store) AttentionReceipt(ctx context.Context, actor, entryID string, req
 		if err != nil {
 			return domain.Attention{}, err
 		}
-		if e.Kind != "comment" || !slices.Contains(e.Mentions, a.ID) || e.Generation != req.Generation {
-			return domain.Attention{}, domain.Fail(domain.Conflict, "mention was removed or its body generation changed")
+		task, err := get[domain.Task](ctx, tx, "tasks", e.TaskID)
+		if err != nil {
+			return domain.Attention{}, err
+		}
+		if !domain.RelevantComment(e, task, a.ID) || e.Generation != req.Generation {
+			return domain.Attention{}, domain.Fail(domain.Conflict, "comment assignment, mention or body generation changed")
 		}
 		if req.State != "handled" && req.State != "deferred" {
 			return domain.Attention{}, domain.Fail(domain.Invalid, "receipt state must be handled or deferred")
 		}
 		var current string
-		if err := tx.QueryRowContext(ctx, "SELECT state FROM attention WHERE agent_id = ? AND entry_id = ? AND generation = ?", a.ID, entryID, req.Generation).Scan(&current); err != nil {
-			if err == sql.ErrNoRows {
-				return domain.Attention{}, domain.Fail(domain.NotFound, "attention not found")
-			}
+		err = tx.QueryRowContext(ctx, "SELECT state FROM attention WHERE agent_id = ? AND entry_id = ? AND generation = ?", a.ID, entryID, req.Generation).Scan(&current)
+		if err == sql.ErrNoRows {
+			current = "pending"
+		} else if err != nil {
 			return domain.Attention{}, err
 		}
 		if current != "pending" && current != req.State {
 			return domain.Attention{}, domain.Fail(domain.Conflict, "attention is already disposed")
 		}
-		_, err = tx.ExecContext(ctx, "UPDATE attention SET state = ? WHERE agent_id = ? AND entry_id = ? AND generation = ?", req.State, a.ID, entryID, req.Generation)
+		_, err = tx.ExecContext(ctx, `INSERT INTO attention(agent_id,entry_id,generation,task_id,state) VALUES(?,?,?,?,?)
+ON CONFLICT(agent_id,entry_id,generation) DO UPDATE SET state=excluded.state`, a.ID, entryID, req.Generation, e.TaskID, req.State)
 		return domain.Attention{EntryID: e.ID, TaskID: e.TaskID, Generation: e.Generation, State: req.State}, err
 	})
 }
