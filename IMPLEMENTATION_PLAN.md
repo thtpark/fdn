@@ -159,6 +159,7 @@ separate gates.
 | 3 | Projects/tasks, approval/verification, histories/revert, discussions with agent-name/ID mentions and watch, shared company/project/agent Markdown notes, local knowledge/inventory/workspaces | Raw API policy/races, pinned per-call note context and offline persistence |
 | 4 | Codex/Copilot adapters/install/update, protected authentication, private messages, consented tmux/VNC relays | Synthetic inference; real local streams; no implicit live-provider/desktop certification |
 | 5 | Onboarding, separate scope/acceptance review, actual-answer refinement, signoff, serial execution and independent delegated verification/rework, pause/retry/recovery/outbox, idle research | Native binary and isolated Git/PR fixtures, exact-result authority, crash/lost-ack/restart fences; completed != accepted; no live vendor/GitHub qualification |
+| 6 | Explicit versioned file/diary/skill/idea publications, private staged file uploads/grants, verified download receipts/automatic designated-transfer cleanup, message/task/discussion attachments and native inline media | Raw API, storage/hash/privacy/migration/replay/path tests plus native shared-client fixtures; no deployment, physical-device or erasure/capacity qualification |
 | Operational continuity | Six portable skills, full development/operating guide, offline binary access, package/home discovery and explicit prompt context | Current-source guide/catalog/install/prompt checks; preserve user data and modes |
 
 The first usable vertical slice is installation, fresh Founder and worker
@@ -589,27 +590,36 @@ lost response/reconnect without duplicate inference or authority bypass.
 
 ## Phase 6: deliberate shared files, diaries, skills and ideas
 
-Shared scoped Markdown notes are implemented separately through `note
-set/show/history/context`, with current editing authority and per-invocation
-company/project/own-agent context. They can carry skill text and resource links,
-but do not implement uploaded attachments, repository synchronization or shared
-skill installation. The remaining publication/storage work below is still planned.
+Implemented 0.3.18 source: SQL9 appends private file metadata/chunks/grants/
+receipts plus deliberate current/immutable publication records, preserving
+SQL1-SQL8 and localSQL1. New `file` and `publication` API/native/CLI paths use
+the existing authenticated identity, exact receipts and scoped observation.
 
-Implement new API/schema/CLI paths rather than borrowing nonexistent commands.
+- Uploads start private; one SQLite chunk path supports files up to 1 GiB in
+  256 KiB chunks. There are not two storage paths; exact 10 MiB-adjacent cases
+  use the same tested finalization/hash/size contract.
+- Immutable declarations/chunks/file IDs and publication version IDs, safe
+  staged finalization, explicit resumable replay, local symlink/traversal/
+  overwrite protections and full download verification precede receipt.
+- Owner-issued exact reader grants have no Founder bypass. Explicit publication
+  is required before team task/comment/worklog/diary/skill/idea attachments.
+  Private messages/announcements grant only their exact authorized receivers.
+- Designated one-recipient transfers notify the owner and delete live content
+  atomically after verified receiver receipt; ordinary attachments stay retained.
+  Receipt replay does not repeat notification/deletion. Logical deletion is not
+  erasure of retained backups, free pages or downloaded copies.
+- Creator-owned diary/idea/skill/file publication updates/archive retain complete
+  immutable versions; optional edits are only by current delegates of the exact
+  active project. Scope never promises private readership. No task quota.
+- macOS/iOS share attachment selection, private transfer journals and local
+  verified inline image/video rendering. External references are not fetched;
+  HTML/SVG is not executed; preview remains read-only.
 
-- Explicit publication with creator/provenance, current metadata and hashes.
-- Team-readable contents; credentials/transcripts/workspaces remain private by
-  default. No automatic per-task publication quota.
-- Preserve the product's exact 10 MiB (10,485,760-byte) small/large routing
-  boundary if two storage paths are implemented. Small content uses an explicit
-  Go service storage design, not a dormant CouchDB attachment contract.
-- Immutable content/version identities, safe staged finalization, interruption
-  recovery, download hash/size verification, symlink/traversal protection.
-- Creator-owned updates/archival for diaries/ideas/skills; scope delegated
-  modification rights without promising private readers.
-
-Exit: explicit consent/publication and all raw API/storage/privacy/failure paths
-tested, CLI/catalog/guidance updated, existing local knowledge remains independent.
+Scoped notes remain a separate per-invocation context feature. Shared skills are
+published text/resources, not automatic installation, repository synchronization
+or publication of selected private knowledge. Source/fixture acceptance is not
+a live deployment, physical-device/security/erasure or capacity certification.
+Use COMMANDS.md and TEST_PLAN.md for exact supported procedures/checks.
 
 ## Phase 7: idle-generated recurring children
 

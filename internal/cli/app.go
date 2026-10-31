@@ -44,6 +44,8 @@ var AgentCommands = []string{
 	"message send", "message show", "message read", "message diagnose", "message inbox", "message list", "message receipt", "message thread", "message thread-page", "message request-report", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
 	"note set", "note show", "note history", "note context",
+	"file upload", "file transfer", "file upload-status", "file begin", "file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded", "file list", "file show", "file chunk", "file download",
+	"publication create", "publication change", "publication list", "publication show", "publication versions", "publication version",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
 	"work prompt", "work status", "work run", "work recover", "service plan", "service install", "service status",
@@ -122,6 +124,18 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			}
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
+			case "file transfer", "file upload":
+				usage = "file upload --path FILE [--media-type MIME --to AGENT --delete-after-download]; file transfer requires --to and defaults to automatic deletion after verified receipt. Private, staged, immutable, 1 GiB maximum, 256 KiB chunks. Retain operation-id and original source for explicit resumable replay; never auto-publish."
+			case "file download":
+				usage = "file download FILE_ID --output FILE; verify all sizes/SHA-256, fsync and finalize owner-only local content without overwriting, then send one durable receipt/owner notification. Designated transfers delete server bytes atomically. Replay the same operation/output after an uncertain receipt."
+			case "file publish":
+				usage = "file publish FILE_ID --input FILE; explicit owner-only team publication of ready retained content, with reason/current revision; required before attaching to shared records. Transfers cannot be broadened."
+			case "file grant":
+				usage = "file grant FILE_ID --input FILE; owner grants/revokes an exact active agent_id with reason/current revision. No Founder read bypass; private transfers remain single-recipient."
+			case "file delete":
+				usage = "file delete FILE_ID --input FILE; owner-only content/staging deletion with reason/current revision; retain immutable references/receipts."
+			case "publication create", "publication change":
+				usage = "publication create --input FILE; kind file|diary|skill|idea, scope company|project|agent and exact target_id, title/body/attachment_ids. Team-readable intentional publication. publication change ID --input FILE uses current revision/reason; creator-owned, optionally exact current project delegates; immutable versions, no auto-fetch or shared-skill installation."
 			case "agent environment":
 				usage = "agent environment AGENT; reported OS/CPU/memory/storage and Foundation executable versions/source/hashes per current computer/key generation; safe public facts with server receipt freshness, no provider probe or private paths"
 			case "agent environment-report":

@@ -91,6 +91,13 @@ func (s *Store) CreateTask(ctx context.Context, actor string, req domain.TaskReq
 		if err := validateContent(t); err != nil {
 			return t, err
 		}
+		t.Attachments, err = s.resolveAttachments(ctx, tx, a.ID, "", req.AttachmentIDs)
+		if err != nil {
+			return t, err
+		}
+		if err := checkInlineAttachments(t.Description+"\n"+t.AcceptanceCriteria, t.Attachments); err != nil {
+			return t, err
+		}
 		if req.ParentID != "" {
 			parent, err := get[domain.Task](ctx, tx, "tasks", req.ParentID)
 			if err != nil {
@@ -149,7 +156,7 @@ func (s *Store) validApproval(ctx context.Context, tx *sql.Tx, p domain.Project,
 
 func validateChange(req domain.TaskChange) error {
 	fields := map[string]string{
-		"edit":   "title description acceptance_criteria priority importance",
+		"edit":   "title description acceptance_criteria priority importance attachment_ids",
 		"status": "status", "assign": "agent_id provider model", "provider": "provider model",
 		"workspace": "workspace_ref", "policy": "policy", "retry-policy": "retry_policy",
 		"approve": "spec_generation", "verify": "spec_generation result_generation decision",
@@ -210,7 +217,7 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 		}
 		switch req.Kind {
 		case "edit":
-			if req.Title == nil && req.Description == nil && req.AcceptanceCriteria == nil && req.Priority == nil && req.Importance == nil {
+			if req.Title == nil && req.Description == nil && req.AcceptanceCriteria == nil && req.Priority == nil && req.Importance == nil && req.AttachmentIDs == nil {
 				return t, domain.Fail(domain.Invalid, "edit must include an editable field")
 			}
 			if req.Title != nil {
@@ -227,6 +234,15 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 			}
 			if req.Importance != nil {
 				t.Importance = *req.Importance
+			}
+			if req.AttachmentIDs != nil {
+				t.Attachments, err = s.resolveAttachments(ctx, tx, a.ID, "", *req.AttachmentIDs)
+				if err != nil {
+					return t, err
+				}
+			}
+			if err := checkInlineAttachments(t.Description+"\n"+t.AcceptanceCriteria, t.Attachments); err != nil {
+				return t, err
 			}
 			invalidate(&t)
 		case "assign", "provider":
@@ -570,7 +586,7 @@ func (s *Store) Histories(ctx context.Context, actor, source string) ([]domain.H
 	if _, err := s.actor(ctx, s.db, actor); err != nil {
 		return nil, err
 	}
-	if !strings.HasPrefix(source, "task_") && !strings.HasPrefix(source, "project_") && !strings.HasPrefix(source, "comment_") && !strings.HasPrefix(source, "worklog_") && !strings.HasPrefix(source, "note_") {
+	if !strings.HasPrefix(source, "task_") && !strings.HasPrefix(source, "project_") && !strings.HasPrefix(source, "comment_") && !strings.HasPrefix(source, "worklog_") && !strings.HasPrefix(source, "note_") && !strings.HasPrefix(source, "publication_") {
 		return nil, domain.Fail(domain.Denied, "private or unknown history source")
 	}
 	rows, err := s.db.QueryContext(ctx, "SELECT sequence, source_id, actor_id, action, reason, created_at, snapshot FROM histories WHERE source_id = ? ORDER BY sequence DESC", source)

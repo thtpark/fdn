@@ -115,6 +115,7 @@ registration. Native managers continue to bind the actual OS user's HOME.
 | Entrypoints/commands | `cmd/`, `internal/cli/` | Flags, bounded input, envelopes, private write proposals, native operations |
 | Contracts | `internal/domain/` | IDs, DTOs, generations, errors and limits |
 | Server authority | `internal/foundation/` | Transactional policy, enrollment, projects, tasks, reports, discussions, messages/sessions |
+| Shared files/publications | `internal/foundation/shared_files.go`, `publications.go`, `attachments.go` | Private immutable chunks/grants/receipts, explicit team publication, versioned diaries/skills/ideas and attachment audience checks |
 | Persistence | `internal/database/` | Private SQLite, WAL/full sync, migrations and integrity |
 | Transport and identity | `internal/api/`, `internal/pki/`, `internal/transport/`, `internal/ingress/`, `internal/device/`, `internal/identityservice/`, `cmd/agent-identity/` | Signed public registration, pinned SSH stdio, peer-UID/mTLS binding, protected identity proxy and owner control |
 | Binary message contract | `internal/message/`, `tools/protocol/` | Locked protobuf schema, bounded framing, duplex commands/queries/updates, priority ping/cancel and reproducible generation |
@@ -259,12 +260,25 @@ resources untouched. An `operator-required` result is not a successful reset.
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
 version is **2**; native message protocol is **2**, server SQLite migration is
-**8**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
+**9**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
 SQL6 adds notes, SQL7 adds Founder device bindings and SQL8 adds observer/history
-indexes while preserving all business records and shipped SQL1-SQL7.
+indexes; SQL9 appends shared publications/private files while preserving all
+business records and shipped SQL1-SQL8.
 Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
+- File content/version identities and aligned chunks are immutable. Keep staged
+  recovery, exact size/hash finalization, private grants and unique verified
+  receipt/notification/deletion atomic. Test raw private access without Founder
+  bypass, explicit publication before shared attachments, revocation, corrupted/
+  interrupted downloads, local path safety and both sides of 10,485,760 bytes
+  on the single storage path. Private source/cache/proposals stay local.
+  Native app uploads retain exact pending chunk operations and bounded receipt
+  journals; file/version IDs must stay distinct for generic UI paging.
+  Inline media uses local verified thumbnails/native players, not HTTP viewers,
+  executable HTML or automatic third-party fetching. Keep local knowledge and
+  note invocation snapshots independent. SQLite backups include file rows;
+  refuse unrestorable sources rather than bypass the current entry limit.
 - Scoped Markdown notes live in SQL6, separate from private local knowledge.
   Keep company/project/self snapshots atomic, editing authority transactional
   and project-assignment-bounded, and every new text/coding invocation wired to

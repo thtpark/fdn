@@ -5,8 +5,8 @@ Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
 Native message protocol version is **2**; server SQLite migration version is
-**8**; local-worker SQLite remains **1**. Existing SQL5/SQL6/SQL7 databases migrate
-transactionally through SQL8; earlier server-state formats remain unsupported.
+**9**; local-worker SQLite remains **1**. Existing SQL5-SQL8 databases migrate
+transactionally through SQL9; earlier server-state formats remain unsupported.
 Deploy the server first. Version 2 requires account-bound public-key admission
 and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
 create new runtime identities. Native multi-UID qualification is separate from
@@ -37,7 +37,10 @@ multiple Founder device bindings, adding device-scoped request/key/receipt
 metadata and independent Founder owner records. Shipped SQL1-SQL6 are unchanged.
 SQL8 adds only history/observer indexes; shipped SQL1-SQL7 and private message
 bytes, insertion order, receipts, identity/work records and history retention
-remain unchanged. Older binaries cannot open the SQL8 database.
+remain unchanged. SQL9 appends deliberate publications/immutable versions and
+private file metadata, chunks, grants and receipts without rewriting SQL1-SQL8.
+Older binaries cannot open SQL9. Logical content deletion does not certify
+physical erasure from backups/WAL/free pages or previously downloaded copies.
 
 New user defaults are grouped under `$HOME/.foundation`: private `config`,
 runner `state`, key `identity`, socket `run`, owned `workspaces`, managed `bin`
@@ -80,6 +83,12 @@ creates a whole-desktop profile or screen authorization.
 | `projects` | Name/description, owner, service-maintained delegate list, revision, authority/context epoch, archive state |
 | `project_creators` | Specific Founder-issued one-use project-creation authorization |
 | `notes` | One revisioned team-readable Markdown document per company/project/agent scope, explicit author/time provenance; latest three snapshots in `histories` |
+| `files` | Immutable file ID/name/MIME/size/SHA-256, private owner/staging progress, ready/deleted state, explicit team publisher/time and optional single-recipient automatic-cleanup transfer |
+| `file_chunks` | Immutable aligned bounded upload bytes and hashes, hidden until verified finalization; deleted only by owner or designated verified-receipt cleanup |
+| `file_grants` | Owner-issued revocable exact-agent read access; no Founder bypass or reader re-sharing authority |
+| `file_downloads` | Unique file/reader immutable size/hash attestation and private notification/deletion receipt |
+| `publications` | Team-readable current file/diary/skill/idea, scope/target metadata, creator/editor, hash/version/revision/archive and optional exact-project delegate edits |
+| `publication_versions` | Immutable complete publication snapshots, unique source/revision and globally distinct version IDs; independent of three-history retention |
 | `tasks` | Authoritative task aggregate; indexed project, assignee, status, priority, archive and active owner |
 | `runs` | Immutable execution/verification claim identity and stopped/result projection, provider/model, attempt, ownership-token hash; verification additionally binds result/discussion generations and project epoch |
 | `entries` | Creator-owned comment/worklog, body generation/revision, task/reply references, mentions; server-only run/spec/result/decision provenance on verification feedback |
@@ -141,8 +150,63 @@ An in-flight or retained invocation keeps its original snapshot in private
 new invocation, without cancelling current work, replaying inference, resetting
 text-response/retry fences or manufacturing approval. Markdown may contain
 custom instructions, skills, missions, visions, goals and file/website/GitHub
-references, but no automatic fetching, cloning, attachment storage, skill
-installation or publication of private local knowledge is implied.
+references, but notes do not automatically fetch/clone references, install skills
+or upload/publish private knowledge. SQL9 file/publication operations below are
+distinct deliberate actions, not an extension of note context loading.
+
+### Deliberate files, publications and attachment authority
+
+Files use one SQLite-backed 256 KiB chunk path, with an exact 1 GiB limit;
+there is no two-path small/large storage boundary. Upload declarations, committed
+chunks and finalized bytes are immutable. Finalization streams and checks all
+offsets/chunk hashes, complete size/SHA-256 and supported inline media signatures
+inside the authoritative transaction. Staging survives disconnect/reopen and
+remains owner-private until ready. File names are not filesystem paths.
+
+Current active identities are checked on all reads/writes; private metadata,
+chunks and receipt creation additionally require owner/team/grant readership.
+Only the owner grants/revokes, finalizes, publishes or deletes. Publication is
+explicit and one-way: scope never promises private team readers. Transfers bind
+one different active recipient, cannot be broadened, and grant that recipient
+at verified finalization. File read/chunk/list access is bodyless and scoped;
+reads do not imply download, read receipt, task approval or inference.
+
+Supported downloads verify each chunk and the complete size/hash, fsync and
+atomically finalize an owner-only local copy without overwriting, then attest
+that exact content. Receipt/notification uniqueness is file/reader-bound.
+Server-only message `file_download` provenance distinguishes actual accepted
+receipts from ordinary body claims. Designated automatic deletion, receipt and
+private owner notification commit atomically. Owner reads, previews, retained
+attachments and ordinary publications are not automatically deleted. Receipt
+replay never repeats deletion/notification; deleted bytes remain unavailable.
+Metadata/versions/history/references and existing task/identity/work fences are
+retained. This is logical content deletion, not physical secure erasure.
+
+Private message attachment grants are resolved transactionally; existing readers
+cannot grant third-party access. Shared tasks/descriptions/criteria, entries and
+publications require prior explicit team publication. Snapshots pin immutable
+file references, not mutable URLs or private workspace paths. Task attachment
+edits retain specification/approval invalidation; creator-only entry updates
+retain body-generation/attention rules. Protected handoffs cannot accept ordinary
+attachments. Announcement fan-out uses exact current recipients/epoch and the
+same grants, without weakening request/native-upgrade/spending authority.
+
+All diary/skill/idea/file publications and complete immutable versions are
+team-readable. Creator/kind/scope/target are immutable; ordinary updates/archive
+are creator-owned, including against another Founder requester. Optional edits
+are only by current delegates of the explicit active project, and only the
+creator changes that permission. Each accepted update has a new version ID,
+canonical content hash and editor/time provenance; replay returns that version,
+not a later edit. Version pages expose unique `id`, `publication_id` and the
+immutable `publication` snapshot. The private local knowledge/selection, note snapshots
+and installed skills remain independent; no quota, fetch or synchronization.
+
+The apps render attached supported image/video Markdown markers from verified
+private local caches, never executable HTML or automatic external-URL fetches.
+Preview remains a read; explicit Download produces a receipt. File updates are
+party-private until deliberate team publication; publication events are public.
+Bodyless scoped observer invalidations include actual topic/source IDs; chunk
+and immutable-version reads are not subscribed or sampled.
 
 ### Concise team-visible agent activity
 
@@ -1179,8 +1243,8 @@ ancestry seed. At 200 alternating AI messages (100 round trips), a transactional
 non-inferencing, body-free warning is sent privately to Founder once per thread.
 Missing Founder delivery remains explicitly pending. Neither threshold nor
 warning changes mode, stops a loop, resets budgets or interrupts work.
-No native payload fields or SQL migration are added: server SQL8/local SQL1
-remain current. Protected notices remain non-inferencing, and typed operational
+This response-default feature added no native fields or SQL migration.
+Current source uses SQL9/local SQL1. Protected notices remain non-inferencing, and typed operational
 requests still require a response request.
 
 Non-Founder agents operate autonomously in ai unless an explicit authenticated
@@ -1233,8 +1297,7 @@ cross-origin access. Credentials are entered only in the human browser and sent
 to RFB, never HTTP endpoints, URLs, logs, shared records or models. A token-bearing
 viewer bootstrap URL is session access material, unlike a public verification URL.
 
-Future files, diaries, shared skills/ideas and recurring children remain in
-[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), not this schema's implemented
-table registry. Their final privacy decision is team-readable deliberate
-publication; sensitive material stays local. Do not emulate unimplemented
-publication by copying private workspaces or provider logs into shared records.
+Recurring children and broader retention/full-host recovery remain in
+[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md). SQL9 implements deliberate
+files, diaries and shared skills/ideas, not automatic private-workspace/provider
+publication, repository synchronization or shared-skill installation.

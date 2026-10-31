@@ -24,6 +24,36 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Phase 6 files, publications and native attachments
+
+`go test -race -count=1 ./internal/domain ./internal/foundation ./internal/api ./internal/cli ./internal/observe ./internal/identityservice ./internal/work ./internal/backup -run 'File|Attachment|Publication|SQL9'`
+checks exact 1 GiB/256 KiB input limits, the same storage path immediately below/
+at/above 10,485,760 bytes, immutable staged chunks/finalization/hash verification,
+SQL8-to-SQL9 preservation/rollback refusal, owner/grantee privacy without Founder
+bypass, explicit publication before shared attachments, generation invalidation,
+unique receipts/notification/atomic designated cleanup and logical tombstones.
+Raw/proxy tests must reject unknown fields, unsupported methods/query metadata,
+scope escalation, third-party re-sharing and forged receipt provenance.
+CLI/native fixtures verify durable local commit before acknowledgement,
+interruption/lost-response replay, replaced/symlinked resources and no overwrite.
+No inference, host service, production endpoint, credentials or physical erasure.
+
+The shared Swift `AttachmentsTests` exercise exact pending chunk replay after a
+lost acknowledgement, private journal/generation isolation, complete/chunk hash
+failures without receipt, owner-only finalized downloads, retained historical
+draft references, distinct immutable version paging and bounded safe Markdown
+image/video markers. Native views share FoundationMedia; previews use only local
+verified content and do not acknowledge downloads or fetch external URLs.
+Run related/full macOS Swift suites, rebuild iOS device/simulator/macOS-test
+runtime slices, build the unsigned simulator app and run dedicated local UI
+fixtures. Then run protocol reproducibility and every independent Go suite.
+
+File rows are included in the existing SQLite/trust archive; oversized sources
+must fail before an unrestorable archive is created. Backups/free pages and
+previously downloaded copies are not secure-erasure evidence. These checks do
+not certify live fleet transfers, physical-phone network/lock/kill behavior,
+deployment, vendor/provider, large-database backup drills or capacity/SLOs.
+
 ## Computer environments and announcements
 
 `go test -race -count=1 ./internal/local ./internal/work ./internal/cli ./mobile -run 'Environment|Inventory|SystemCapabilities|PrivateKnowledge'`

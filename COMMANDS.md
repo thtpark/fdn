@@ -1105,6 +1105,170 @@ these commands. Keep credentials, raw transcripts, private workspace paths and
 private local knowledge out of shared notes. Existing `knowledge` selection
 remains local and is never automatically promoted into shared notes.
 
+## Files, publications and attachments
+
+Foundation 0.3.18 appends **SQL9**. API/application schema 2, native protocol 2,
+local SQL1 and backup manifest2 remain unchanged, but the additive locked native
+payload ledger requires compatible server, proxies, clients and receivers.
+Deploy the server first; SQL8 binaries cannot open SQL9. These paths remain
+authenticated native protobuf over pinned SSH/mTLS, not a public file/HTTP server.
+
+### Files and recipient grants
+
+| Command | Exact arguments and result |
+| --- | --- |
+| `agent-cli file upload` | `--path FILE [--media-type MIME --to AGENT --delete-after-download]`; private staged upload and verified ready file metadata; omitted MIME is detected from a bounded prefix |
+| `agent-cli file transfer` | `--path FILE --to AGENT [--media-type MIME --delete-after-download=false]`; explicit single-recipient private transfer; automatic deletion defaults to true |
+| `agent-cli file upload-status` | `OPERATION_ID`; read-only original local upload proposal/result, not a fresh remote observation |
+| `agent-cli file begin` | `--input FILE`; immutable name/media_type/size/sha256 declaration, optional transfer_to/delete_after_download; owner-private staged file ID |
+| `agent-cli file put-chunk` | `FILE_ID --input FILE`; offset/data (base64 in JSON)/sha256 plus operation_id; bounded committed upload progress |
+| `agent-cli file finalize` | `FILE_ID --input FILE`; reason plus operation_id; verify all staged chunks, size and SHA-256, then atomically expose ready content/grant the designated receiver |
+| `agent-cli file publish` | `FILE_ID --input FILE`; reason/current revision; owner explicitly makes ready retained content team-readable, recording publisher/time; never a private transfer |
+| `agent-cli file grant` | `FILE_ID --input FILE`; agent_id/revoke/reason/current revision; owner adds/removes one exact active reader of private ready content |
+| `agent-cli file delete` | `FILE_ID --input FILE`; reason/current revision; owner deletes live chunks or incomplete staging, retaining metadata/receipts/references |
+| `agent-cli file downloaded` | `FILE_ID --input FILE`; exact verified size/sha256 plus operation_id; reader attests durable download, receives one immutable receipt |
+| `agent-cli file list` | `[--cursor CURSOR --limit 1..200 --include-deleted]`; party/team-authorized metadata page, never private bytes or another actor's grants |
+| `agent-cli file show` | `FILE_ID`; current authorized metadata, including upload progress, ready/deleted state and publication provenance |
+| `agent-cli file chunk` | `FILE_ID [--offset BYTES]`; bodyless read of one aligned chunk, with exact file_id/offset/bytes/hash; no receipt |
+| `agent-cli file download` | `FILE_ID --output FILE`; verify and durably finalize an owner-only local copy without overwriting, then acknowledge; receipt/owner notification/deletion states are explicit |
+
+Every file ID names **immutable bytes**, not a path or a mutable download URL.
+All uploads start private. The size limit is **1,073,741,824 bytes (1 GiB)**;
+chunks are at most **262,144 bytes (256 KiB)** and start at aligned offsets.
+Only the last chunk may be short. There is one service-owned SQLite chunk path;
+10,485,759/10,485,760/10,485,761-byte files follow the same verified design, not
+a hidden small/large or CouchDB routing contract. Incomplete uploads remain
+owner-only and resumable after disconnect/restart. Exact committed chunks cannot
+be overwritten; unavailable/deleted content is never presented as a successful
+download. File names reject traversal, slashes and controls. Local source and
+destination access pins owned real directories and rejects final symlinks.
+
+High-level upload/transfer journals pin the original declaration and derive exact
+per-stage operations. Preserve the original source and `--operation-id`; explicit
+replay resumes only that declaration, never a different file. Raw chunk/finalize
+users retain their exact operation/input themselves. Downloads persist their
+destination/hash/receipt proposal before acknowledgement. After uncertainty,
+replay the **same** download operation and output; a retained verified local copy
+can reconcile a receipt even after the transfer's server content was deleted.
+Replaced/missing local resources or changed hash/size block acknowledgement.
+No transport mutation is automatically retried.
+
+Owner-issued reader grants are revocable and checked on metadata/chunk/receipt
+access. There is no Founder bypass. Private transfers cannot be broadened into
+team publication or grants to other recipients. A receiver receipt verifies the
+declared size/hash attestation; the server does not claim to prove a physical
+filesystem write by a custom client. Supported clients acknowledge only after
+local verification, file sync and durable finalization.
+
+The first receipt per file/reader creates one durable private message to the
+owner with **server-only `file_download` provenance**, without an automatic AI
+response request. Lost-ack/repeated receipt replay never duplicates notification.
+For `delete_after_download:true`, only the designated receiver's receipt removes
+live content, atomically with that receipt/notification. Ordinary message
+attachments, published files and non-designated reads remain retained.
+Deletion preserves hashes, identities, references and receipts and does not
+rewrite task approvals/history. It is **not** cryptographic erasure of retained
+backups, WAL/free pages or recipients' copies. SQLite/trust backup includes live
+and staged file rows; current backup/restore retains its 2 GiB per-entry limit and
+refuses creation of a source that cannot be restored within that limit.
+
+Example raw declaration and finalization:
+
+```json
+{"name":"evidence.txt","media_type":"text/plain","size":0,"sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","delete_after_download":false}
+```
+
+```sh
+agent-cli --operation-id upload-001 file begin --input FILE
+agent-cli --operation-id finalize-001 file finalize FILE_ID --input FILE
+agent-cli --operation-id publish-001 --expected-rev 2 file publish FILE_ID --input FILE
+```
+
+The latter inputs contain `{"reason":"Explicitly publish reviewed non-secret
+content"}`; publication is a distinct owner decision, not an automatic upload.
+
+### Diaries, shared skills, ideas and file publications
+
+| Command | Exact arguments and result |
+| --- | --- |
+| `agent-cli publication create` | `--input FILE`; kind/scope/target_id/title/body/attachment_ids/allow_project_edits; explicit team-readable current publication |
+| `agent-cli publication change` | `PUBLICATION_ID --input FILE`; present title/body/attachment_ids/archived/allow_project_edits, reason/current revision; a new immutable version |
+| `agent-cli publication list` | `[--kind file\|diary\|skill\|idea --scope company\|project\|agent --target ID --include-archived --cursor CURSOR --limit 1..200]`; filtered current-publication page |
+| `agent-cli publication show` | `PUBLICATION_ID`; current publication and immutable version/hash/provenance |
+| `agent-cli publication versions` | `PUBLICATION_ID [--cursor CURSOR --limit 1..200]`; newest-first immutable-version page, with unique version IDs |
+| `agent-cli publication version` | `VERSION_ID`; exact immutable `{id,publication_id,publication}` snapshot, not today's mutable publication |
+
+All scopes and retained versions are **team-readable**. A project/agent target is
+metadata and optional edit authority, never a claim of private readers. Company
+has no target; project/agent requires an existing target. Publications carry
+creator, current editor/time, revision, archive state and SHA-256 of canonical
+title/body/attachment-reference JSON. Title is at most 512 UTF-8 bytes; Markdown
+is at most 65,536 bytes; there are at most 32 available explicitly team-published
+attachments. Kind `file` requires an attachment. Empty Markdown is allowed only
+with attachments. No per-task publication quota is imposed.
+
+Creator identity/kind/scope/target remain immutable. Only the creator edits or
+archives, including when another requester is Founder. A creator may explicitly
+permit current delegates of that exact active project to edit/archive; only the
+creator changes this permission. Revocation/project archival immediately removes
+delegated editing authority. New revisions never rewrite earlier versions;
+operation replay returns the exact originally accepted version. Three ordinary
+history snapshots remain separate from the complete immutable version stream.
+Publications never install skills, synchronize repositories, fetch references,
+change local knowledge selection or grant execution/spending/project authority.
+
+```json
+{"kind":"skill","scope":"company","title":"Review checklist","body":"# Review\nCheck the exact specification and actual evidence.","attachment_ids":[],"allow_project_edits":false}
+```
+
+### Message, task, comment and worklog attachments
+
+`message send`, `announcement send`, `task create`, task `kind:"edit"`,
+`comment add/edit` and `worklog add` accept `attachment_ids`. Responses/history
+carry server-resolved immutable `attachments` (`id,name,media_type,size,sha256`);
+clients cannot forge that metadata or server-only download notifications.
+Omission preserves attachments during edits; present `[]` explicitly removes
+them. Empty direct-message/comment/worklog bodies are allowed with attachments.
+New attachments must reference finalized available files; historical references
+remain even when bytes are deleted.
+
+Attaching an **owned private file to a private message** grants its receiver
+read access in the same transaction. A reader may reply to an existing owner/
+grantee but cannot re-share with a third party without an owner-issued grant.
+Announcements grant only their exact reviewed recipients, with existing
+authority/epoch fences. Protected authentication/permission/session/runtime
+messages cannot carry ordinary file attachments.
+
+Shared task descriptions/criteria, comments/worklogs and publications require
+the file owner's explicit `file publish` first. Attaching alone does not
+implicitly expose private data to the team. Task attachment edits advance
+specification generation and invalidate readiness exactly like ordinary
+specification edits; comment changes retain creator/body-generation/attention
+rules. Existing retained references can remain unavailable without erasing
+discussion, task or publication history.
+
+Use the same Markdown marker for images and videos:
+
+```markdown
+![Screenshot](foundation-file://FILE_ID)
+![Recording](foundation-file://VIDEO_FILE_ID)
+```
+
+The IDs must also appear in the record's attachments. Native apps render
+supported PNG/JPEG/GIF/WebP images and MP4/WebM/QuickTime videos from verified,
+owner-only authenticated local caches. Image previews use bounded thumbnails;
+videos use a local native player, without auto-play. Unsupported formats remain
+downloadable attachments, not executable HTML/SVG. External Markdown URLs are
+not automatically fetched. Inline preview is read-only; Download records a
+receipt after persistence. Exporting a downloaded copy is a distinct human
+action. Mobile uses bounded in-memory JSON chunks through the same private
+capability proxy, not file-path inputs, subprocesses or another controller.
+
+`observe` kinds `files/file/publications/publication/publicationVersions` use
+party-private file and team-public publication updates. `fileChunk` and
+`publicationVersion` are explicit, non-subscribable immutable reads; no chunk
+polling, private-to-public feed leakage or automatic download is implied.
+
 ## Offline knowledge, inventory and workspace authorization
 
 | Command | Arguments/input |
@@ -1301,7 +1465,7 @@ current exact retry authority; recovery is not permission to rerun.
 ## API map for development
 
 Application/schema contract version is **2**, native message protocol **2**,
-server SQLite migration **7** (existing-state floor **5**), local SQLite **1**. Native processes exchange
+server SQLite migration **9** (existing-state floor **5**), local SQLite **1**. Native processes exchange
 bounded protobuf frames over pinned SSH stdio/inner mTLS and peer-checked local
 Unix sockets. There is no internal HTTP/gRPC listener or HTTP downgrade.
 JSON envelopes remain CLI output and local evidence, not native wire payloads.
@@ -1359,6 +1523,23 @@ caller-supplied actor/device overrides are accepted.
 target defaults to self). `GET /v1/note-context?project=PROJECT_ID` returns the
 atomic applicable `[]domain.Note` for the authenticated caller; it accepts no
 agent override. Notes history uses `GET /v1/history/NOTE_ID`.
+
+SQL9 file routes are `POST /v1/files` (`FileUploadRequest` -> `SharedFile`),
+`POST /v1/files/{id}/chunks` (`FileChunkRequest` -> `FileProgress`),
+`POST /v1/files/{id}/finalize|publish|delete` (`FileChangeRequest` -> `SharedFile`),
+`POST /v1/files/{id}/grants` (`FileGrantRequest` -> `SharedFile`) and
+`POST /v1/files/{id}/downloaded` (`FileDownloadRequest` -> `FileDownloadReceipt`).
+`GET /v1/files` accepts cursor/limit/include_deleted; `GET /v1/files/{id}` takes
+no query; `GET /v1/files/{id}/chunks?offset=BYTES` is a bodyless `FileChunk`.
+All reads remain owner/grantee/team-authorized; mutations have no query extras.
+`POST /v1/publications` takes `PublicationRequest`; `/v1/publications/{id}/change`
+takes `PublicationChange`; both return `Publication`. Bodyless GET list accepts
+kind/scope/target/cursor/limit/include_archived; GET detail takes no query.
+`GET /v1/publications/{id}/versions` accepts cursor/limit and returns
+`Page[PublicationVersion]`; `GET /v1/publication-versions/{id}` returns that exact
+immutable wrapper. All publication/version reads require an active team actor.
+Observer `fileChunk` adds integer `offset`; `publications` adds
+`publication_kind`, with existing scope/id used for metadata filters.
 
 `GET /v1/updates?since=CURSOR&limit=N&wait=true` selects a recipient-scoped
 blocking update request. An empty cursor returns the initial current watermark;

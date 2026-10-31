@@ -567,7 +567,11 @@ func (e *Engine) launch(ctx context.Context, phase string, task *domain.Task) (L
 			return launch, err
 		}
 		for _, entry := range page.Items {
-			size += len(entry.Body)
+			entrySize, err := entryContextSize(entry)
+			if err != nil {
+				return launch, err
+			}
+			size += entrySize
 			if size > 256<<10 && phase != "attention" {
 				return launch, domain.Fail(domain.Prerequisite, "discussion exceeds the bounded review context; consolidate the current specification")
 			}

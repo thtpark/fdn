@@ -1,13 +1,14 @@
 # Foundation in Go
 
-A self-contained Go implementation of Foundation through **Phase 5**, with an
+A self-contained Go implementation of Foundation through **Phase 6**, with an
 authoritative SQLite-backed service, a native worker daemon, and one structured
 CLI for people and coding agents. Development and operation need no companion
 checkout. The supported baseline is 0.3.5: API/schema **2**, native protocol
 **2**, server SQL **5** and local SQL **1**. Older formats/layouts are not
-imported or overwritten. Current source advances server SQL to **7**, preserving
-the SQL6 shared-notes migration and adding Founder device enrollments and
-concurrent owner records from that SQL5 floor. The software-first security model
+imported or overwritten. Current source advances server SQL to **9**, preserving
+SQL6 notes, SQL7 Founder devices and SQL8 observation indexes, and adding
+deliberate publications and private, chunked file transfers from that SQL5 floor.
+The software-first security model
 is being integrated; source-bound acceptance and native qualification are
 separate. No hardware adapter or attestation is claimed.
 
@@ -51,10 +52,12 @@ supplies bounded guidance explicitly when provider discovery is disabled.
 | 3 | Projects, collaborative tasks, assignment, named/independent approvals, verification/rework, three-history retention/revert with reasons, creator-owned discussions/worklogs, mentions, paginated watches, shared company/project/agent notes, offline private knowledge, capability inventory, explicit workspace authorization. |
 | 4 | Codex/Copilot adapters, private messages, urgent inboxes, staged provider installation/updates, protected login handoff, expiring target-consented tmux/existing-VNC sessions. |
 | 5 | Shared manual/automatic controller and prompt, first capability review, scope/acceptance refinement, actual-answer incorporation, exact-specification signoff requests, preflight, serial claims, supervised processes, pause/checkpoints, durable report outbox, restart reconciliation, unsafe-retry approval/backoff, idle research. |
+| 6 | Deliberate team-readable file/diary/skill/idea publications, immutable versions, staged SHA-256-verified uploads, exact private reader grants, durable download receipts and automatic designated-transfer cleanup; message/task/comment/worklog attachments and native inline images/videos. |
 
-Files/diaries/shared skill publication, recurring-child generation, and full-host
-disaster-recovery automation from the original Phases 6-8 are outside this
-milestone. Repetitive parents are recognized but cannot be executed.
+Recurring-child generation and full-host disaster-recovery automation from
+Phases 7-8 remain outside this milestone. Repetitive parents are recognized but
+cannot be executed. Shared skills are publications, not automatic installation
+or synchronization of another computer's private knowledge/workspaces.
 
 ## Architecture and boundaries
 
@@ -609,6 +612,43 @@ selection are fields of `knowledge put`. Selected content is bounded to 64 KiB.
 `inventory refresh/show` records native OS/architecture/CPU, memory, disk space,
 interface counts, tool presence, and explicit availability/permission unknowns;
 it does not scan networks or publish addresses/identifiers.
+
+### Deliberate publications and secure file transfer
+
+`file upload --path FILE` stages private content in Foundation. `file transfer
+--path FILE --to AGENT_ID` grants only that receiver access and defaults to
+deleting live server content after its verified download receipt:
+
+```sh
+agent-cli --operation-id transfer-001 file transfer --path FILE --to AGENT_ID
+agent-cli --operation-id receive-001 file download FILE_ID --output FILE
+```
+
+Files use one SQLite-backed, resumable 256 KiB chunk path, with a **1 GiB**
+per-file limit. Finalization verifies exact size/SHA-256. Download verifies
+chunks and the complete file, durably commits an owner-only local copy without
+overwriting, then records receipt and a private owner notification. A read or
+inline preview alone sends no receipt. Automatic cleanup is limited to the
+designated single-recipient transfer; ordinary attachments remain retained.
+Deletion is logical live-content removal, not erasure of backups/free pages or
+previously downloaded copies. Metadata and historical references remain.
+
+Only the owner may grant/revoke readers, publish to the team or delete content;
+Founder has no private-read bypass. Shared tasks/comments/worklogs/publications
+require the owner's explicit `file publish` first. Private message attachment
+selection grants that message's receiver access, without enabling reader
+re-sharing to third parties. Announcements retain their exact reviewed audience.
+
+`publication create/change/list/show/versions/version` publishes team-readable
+Markdown of kind `file`, `diary`, `skill` or `idea`, with company/project/agent
+metadata scope, creator/editor provenance, content hashes and immutable version
+IDs. Scope is not reader privacy. Updates/archival are creator-owned; optional
+editing permission is limited to current delegates of that exact active project.
+No quota, automatic fetching, inference or shared-skill installation is implied.
+The apps render attached supported images/videos using
+`![label](foundation-file://FILE_ID)` and authenticated, verified private local
+media, not public URLs or executable HTML.
+See [complete contracts and recovery](COMMANDS.md#files-publications-and-attachments).
 
 ## Command groups
 

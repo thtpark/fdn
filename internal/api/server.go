@@ -48,6 +48,7 @@ func New(store *foundation.Store, log *slog.Logger) (*Server, error) {
 	s := &Server{Store: store, Log: log, Relay: relay.New(store), mux: http.NewServeMux()}
 	s.identity = newIdentityServer(s)
 	s.routes()
+	s.publicationRoutes()
 	s.identityRoutes()
 	s.healthRoutes()
 	s.agentOperationRoutes()

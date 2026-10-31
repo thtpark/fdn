@@ -107,7 +107,8 @@ func (s *Store) CreateEntry(ctx context.Context, actor, taskID string, req domai
 		if req.Kind != "comment" && req.Kind != "worklog" {
 			return e, domain.Fail(domain.Invalid, "entry kind must be comment or worklog")
 		}
-		if err := domain.CheckText(req.Body, "entry body", 65536, true); err != nil {
+		hasFiles := req.AttachmentIDs != nil && len(*req.AttachmentIDs) != 0
+		if err := domain.CheckText(req.Body, "entry body", 65536, !hasFiles); err != nil {
 			return e, err
 		}
 		if _, err := get[domain.Task](ctx, tx, "tasks", taskID); err != nil {
@@ -125,6 +126,16 @@ func (s *Store) CreateEntry(ctx context.Context, actor, taskID string, req domai
 		e = domain.Entry{ID: domain.NewID(req.Kind), TaskID: taskID, Kind: req.Kind, Body: req.Body,
 			ParentID: req.ParentID, AuthorID: a.ID, Generation: 1, Revision: 1,
 			CreatedAt: s.timestamp(), UpdatedAt: s.timestamp()}
+		if req.AttachmentIDs != nil {
+			var err error
+			e.Attachments, err = s.resolveAttachments(ctx, tx, a.ID, "", *req.AttachmentIDs)
+			if err != nil {
+				return e, err
+			}
+		}
+		if err := checkInlineAttachments(e.Body, e.Attachments); err != nil {
+			return e, err
+		}
 		if err := s.saveEntry(ctx, tx, &e, a.ID, "create"); err != nil {
 			return e, err
 		}
@@ -147,7 +158,16 @@ func (s *Store) EditEntry(ctx context.Context, actor, id string, req domain.Entr
 		if (req.Kind != "" && req.Kind != e.Kind) || (req.ParentID != "" && req.ParentID != e.ParentID) {
 			return e, domain.Fail(domain.Invalid, "kind and reply parent are immutable")
 		}
-		if err := domain.CheckText(req.Body, "entry body", 65536, true); err != nil {
+		if req.AttachmentIDs != nil {
+			e.Attachments, err = s.resolveAttachments(ctx, tx, a.ID, "", *req.AttachmentIDs)
+			if err != nil {
+				return e, err
+			}
+		}
+		if err := domain.CheckText(req.Body, "entry body", 65536, len(e.Attachments) == 0); err != nil {
+			return e, err
+		}
+		if err := checkInlineAttachments(req.Body, e.Attachments); err != nil {
 			return e, err
 		}
 		e.Body, e.UpdatedAt = req.Body, s.timestamp()

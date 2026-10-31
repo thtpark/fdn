@@ -150,6 +150,13 @@ func (s *Store) Announce(ctx context.Context, actor string, req domain.Announcem
 				State: "pending", CreatedAt: result.CreatedAt, Revision: 1,
 				Announcement: &domain.AnnouncementContext{ID: result.ID, Scope: req.Scope, ProjectID: req.ProjectID, Kind: req.Kind,
 					ProjectEpoch: req.ProjectEpoch, SenderGeneration: senderGeneration, RecipientGeneration: generation}}
+			message.Attachments, err = s.resolveAttachments(ctx, tx, a.ID, recipient.AgentID, req.AttachmentIDs)
+			if err != nil {
+				return result, err
+			}
+			if err := checkInlineAttachments(message.Body, message.Attachments); err != nil {
+				return result, err
+			}
 			message.ThreadID = message.ID
 			if _, err := insertMessage(ctx, tx, message); err != nil {
 				return result, err

@@ -54,7 +54,7 @@ func TestGuideCatalogSkillsLinksAndCurrentCommands(t *testing.T) {
 		}
 		for _, match := range link.FindAllStringSubmatch(string(data), -1) {
 			target := strings.Trim(match[1], "<>")
-			if strings.HasPrefix(target, "https://") || strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "#") || strings.HasPrefix(target, "mailto:") {
+			if strings.HasPrefix(target, "https://") || strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "foundation-file://") || strings.HasPrefix(target, "#") || strings.HasPrefix(target, "mailto:") {
 				continue
 			}
 			target = strings.SplitN(target, "#", 2)[0]

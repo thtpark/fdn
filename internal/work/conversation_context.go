@@ -46,10 +46,18 @@ func (e *Engine) conversationContext(ctx context.Context, launch *Launch) error 
 			}
 		}
 		launch.Thread, launch.ThreadCursor = []domain.Message{root}, page.NextCursor
-		seen, size := map[string]bool{root.ID: true}, len(root.Body)
+		size, err := messageContextSize(root)
+		if err != nil {
+			return err
+		}
+		seen := map[string]bool{root.ID: true}
 		if source.ID != root.ID {
 			launch.Thread = append(launch.Thread, *source)
-			seen[source.ID], size = true, size+len(source.Body)
+			sourceSize, err := messageContextSize(*source)
+			if err != nil {
+				return err
+			}
+			seen[source.ID], size = true, size+sourceSize
 		}
 		parent := source.ReplyToID
 		if parent != "" && !seen[parent] {
@@ -67,18 +75,26 @@ func (e *Engine) conversationContext(ctx context.Context, launch *Launch) error 
 					return err
 				}
 			}
-			seen[ancestor.ID], size = true, size+len(ancestor.Body)
+			ancestorSize, err := messageContextSize(ancestor)
+			if err != nil {
+				return err
+			}
+			seen[ancestor.ID], size = true, size+ancestorSize
 			launch.Thread = append(launch.Thread, ancestor)
 		}
 		for _, message := range page.Items {
 			if seen[message.ID] {
 				continue
 			}
-			if size+len(message.Body) > 128<<10 {
+			messageSize, err := messageContextSize(message)
+			if err != nil {
+				return err
+			}
+			if size+messageSize > 128<<10 {
 				launch.ContextIncomplete = true
 				continue
 			}
-			seen[message.ID], size = true, size+len(message.Body)
+			seen[message.ID], size = true, size+messageSize
 			launch.Thread = append(launch.Thread, message)
 		}
 		launch.ContextIncomplete = launch.ContextIncomplete || page.NextCursor != ""
@@ -105,7 +121,10 @@ func (e *Engine) conversationContext(ctx context.Context, launch *Launch) error 
 			launch.Discussion = append(launch.Discussion, source)
 		}
 		parent := source.ParentID
-		size := len(source.Body)
+		size, err := entryContextSize(source)
+		if err != nil {
+			return err
+		}
 		for depth := 0; parent != ""; depth++ {
 			if depth == 8 {
 				launch.ContextIncomplete = true
@@ -118,11 +137,15 @@ func (e *Engine) conversationContext(ctx context.Context, launch *Launch) error 
 			if entry.TaskID != source.TaskID {
 				return domain.Fail(domain.Conflict, "comment ancestor belongs to another task")
 			}
-			if size+len(entry.Body) > 128<<10 {
+			entrySize, err := entryContextSize(entry)
+			if err != nil {
+				return err
+			}
+			if size+entrySize > 128<<10 {
 				launch.ContextIncomplete = true
 				break
 			}
-			size += len(entry.Body)
+			size += entrySize
 			if !slices.ContainsFunc(launch.Discussion, func(value domain.Entry) bool { return value.ID == entry.ID }) {
 				launch.Discussion = append(launch.Discussion, entry)
 			}

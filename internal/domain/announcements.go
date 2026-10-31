@@ -22,13 +22,14 @@ type AnnouncementAudience struct {
 
 type AnnouncementRequest struct {
 	Command
-	Scope        string   `json:"scope"`
-	ProjectID    string   `json:"project_id,omitempty"`
-	ProjectEpoch int64    `json:"project_epoch,omitempty"`
-	Kind         string   `json:"kind"`
-	Title        string   `json:"title"`
-	Body         string   `json:"body"`
-	RecipientIDs []string `json:"recipient_ids"`
+	AttachmentIDs []string `json:"attachment_ids,omitempty"`
+	Scope         string   `json:"scope"`
+	ProjectID     string   `json:"project_id,omitempty"`
+	ProjectEpoch  int64    `json:"project_epoch,omitempty"`
+	Kind          string   `json:"kind"`
+	Title         string   `json:"title"`
+	Body          string   `json:"body"`
+	RecipientIDs  []string `json:"recipient_ids"`
 }
 
 type AnnouncementDelivery struct {
@@ -68,8 +69,11 @@ func ValidateAnnouncement(q AnnouncementRequest) error {
 	if err := CheckText(q.Title+"\n\n"+q.Body, "announcement body", 32768, true); err != nil {
 		return err
 	}
-	if err := CheckText(q.Body, "announcement body", 32768, true); err != nil {
+	if err := CheckText(q.Body, "announcement body", 32768, len(q.AttachmentIDs) == 0); err != nil {
 		return err
+	}
+	if len(q.AttachmentIDs) > MaxAttachments {
+		return Fail(Invalid, "at most 32 announcement files may be attached")
 	}
 	seen := map[string]bool{}
 	for _, id := range q.RecipientIDs {

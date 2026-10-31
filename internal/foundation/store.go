@@ -71,7 +71,7 @@ type Store struct {
 }
 
 func Open(ctx context.Context, path string) (*Store, error) {
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, devicesSchema, observationSchema}, 5)
+	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, devicesSchema, observationSchema, publicationsSchema}, 5)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (s *Store) event(ctx context.Context, tx *sql.Tx, topic, source, task, proj
 		return err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO update_changes(source_table,source_id,before_data,after_data)
-VALUES('events',?,NULL,json_object('project_id',?,'task_id',?))`, sequence, project, task)
+VALUES('events',?,NULL,json_object('topic',?,'source_id',?,'project_id',?,'task_id',?))`, sequence, topic, source, project, task)
 	return err
 }
 

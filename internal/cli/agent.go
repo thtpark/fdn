@@ -32,6 +32,7 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.nativeService(ctx, tail, "agent")
 	}
 	localOnly := slices.Contains([]string{"config", "knowledge", "inventory", "workspace", "provider", "preferences", "service", "screen"}, group) ||
+		(group == "file" && len(tail) > 0 && tail[0] == "upload-status") ||
 		(group == "agent" && len(tail) > 0 && tail[0] == "add-status") ||
 		(group == "upgrade" && len(tail) > 0 && tail[0] == "status") ||
 		(group == "mode" && len(tail) > 0 && tail[0] == "show") ||
@@ -87,6 +88,10 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.projectCommand(ctx, r, tail)
 	case "note":
 		return a.noteCommand(ctx, r, tail)
+	case "file":
+		return a.fileCommand(ctx, r, tail)
+	case "publication":
+		return a.publicationCommand(ctx, r, tail)
 	case "task":
 		return a.taskCommand(ctx, r, tail)
 	case "comment", "worklog", "discussion":

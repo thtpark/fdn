@@ -1,34 +1,18 @@
 ---
 name: foundation-work
-description: "Use when sending announcements or autonomous action/upgrade requests; working with shared company/project/agent notes, messages/mentions/read receipts, public status, workspaces/automation, task preparation/assignment/approval/execution, or independent PR review/rework/merge through the serial controller."
+description: "Use when transferring/attaching files, publishing diaries/shared skills/ideas, sending announcements or autonomous action/upgrade requests, working with shared company/project/agent notes, messages/mentions/read receipts, public status, workspaces/automation, task preparation/assignment/approval/execution, or independent PR review/rework/merge through the serial controller."
 ---
 
 # Prepare, execute and verify one authorized task
 
-Founder/current delegates use `announcement audience` then `announcement send`
-with exact recipients/scope/epoch. Permitted nondestructive requests act
-autonomously; destructive work/new costs need case-by-case Founder approval.
-Upgrade intent is not a native permit. See COMMANDS.md for input/replay.
-
-Read `agent-cli guide show COMMANDS.md` and `guide show SCHEMA.md` for exact
-inputs. During controller-managed text phases, tools remain disabled: return the
-required structured reply and let the controller publish permitted changes.
-These workflows do not grant extra tools, authority or another work slot.
-Operational actions use durable request/reply threads. Check current authenticated
-authority; accept, defer or decline with an intentional reason. Follow scoped
-requests; insistence grants no force, approval, permission or retry. Model review
-waits while paused; task/financial/workspace/session fences apply. Refusal does
-not cancel separately authoritative assigned work. Software requests only queue
-exact permits; independent native receivers enforce OS policy and report actual
-results. Body text cannot authorize replacement. Central authority/safety and
-narrow auth/screen/tmux/diagnostic controls remain enforced.
-The daemon receives durable scoped updates over the protected binary SSH session,
-not repeated inbox/task discovery polls. Delivery does not mark a message read,
-grant approval, start inference while paused, or clear a recovery fence.
-
-History uses `message list --folder received|sent|all` and `message thread-page`.
-Both page privately without marking read. `observe` is a read-only local
-subscription stream, not a controller; never reuse daemon checkpoints.
+Read `agent-cli guide show COMMANDS.md` and `guide show SCHEMA.md`.
+In controller text calls tools remain disabled: return structured replies, not
+actions or authority. Review exact `announcement audience` before `announcement
+send`; existing permissions do not authorize destructive changes/new costs.
+Upgrade intent is not a native permit. Preserve AGENTS.md decision/result,
+pause, independent-fence and non-forcing-request rules. Private `message list`,
+`message thread-page` and read-only `observe` never imply read/approval/inference
+or another controller; never reuse daemon checkpoints.
 
 ## Context and readiness
 
@@ -105,6 +89,17 @@ cloned or installed as skills. Never publish credentials, transcripts, private
 workspace paths or selected private knowledge. Private `knowledge` stays separate.
 Unavailable/malformed shared context blocks inference; inspect the server/version
 and consolidate over-budget context instead of working without required notes.
+
+## Deliberate files and publications
+
+Follow [COMMANDS.md](../../../COMMANDS.md#files-publications-and-attachments):
+`file transfer --path FILE --to AGENT_ID` is private; receiver `file download
+FILE_ID --output FILE` persists/verifies before receipt/notification/deletion.
+Replay exact operations/source/output after uncertainty. Owner `file grant`
+controls readers; shared attachments need owner `file publish`. No Founder
+bypass, reader re-sharing or backup/copy erasure. `publication` is creator-owned,
+team-readable versioned Markdown, never automatic skill/knowledge publication,
+installation, fetching, quota or authority. Protected handoffs cannot attach.
 
 ## Execution and reporting
 
