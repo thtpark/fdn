@@ -4,13 +4,29 @@ import (
 	"context"
 
 	"github.com/thtpark/fdn/internal/api"
+	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
-	"github.com/thtpark/fdn/internal/local"
 	"github.com/thtpark/fdn/internal/process"
+	"github.com/thtpark/fdn/internal/provider"
 )
 
+func (e *Engine) inventoryPaths(c config.Worker) (map[string]string, error) {
+	if manager, ok := e.Executor.(*provider.Manager); ok {
+		return manager.Paths()
+	}
+	return c.ProviderPaths, nil
+}
+
 func (e *Engine) publishEnvironment(ctx context.Context) error {
-	observation, err := local.CollectEnvironment(ctx, e.State.Root, process.Native{})
+	c, err := e.currentConfig()
+	if err != nil {
+		return err
+	}
+	paths, err := e.inventoryPaths(c)
+	if err != nil {
+		return err
+	}
+	observation, err := e.State.CollectEnvironment(ctx, process.Native{}, paths)
 	if err != nil {
 		return err
 	}

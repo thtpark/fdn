@@ -5,8 +5,8 @@ import (
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/domain"
-	"github.com/thtpark/fdn/internal/local"
 	"github.com/thtpark/fdn/internal/process"
+	"github.com/thtpark/fdn/internal/provider"
 )
 
 func (a *app) reportEnvironment(ctx context.Context, r *resources) (any, error) {
@@ -17,7 +17,11 @@ func (a *app) reportEnvironment(ctx context.Context, r *resources) (any, error) 
 		return nil, err
 	}
 	if !found {
-		observation, err = local.CollectEnvironment(ctx, r.config.StateDir, process.Native{})
+		paths, err := provider.New(r.config).Paths()
+		if err != nil {
+			return nil, err
+		}
+		observation, err = r.state.CollectEnvironment(ctx, process.Native{}, paths)
 		if err != nil {
 			return nil, err
 		}

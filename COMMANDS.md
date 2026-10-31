@@ -1120,6 +1120,16 @@ remains local and is never automatically promoted into shared notes.
 | `agent-cli workspace enable` | `REF`; explicit local re-enable, never a new ref to bypass disablement |
 | `agent-cli workspace disable` | `REF`; prevents future/bounded running admission |
 
+Startup discovery and computer environment reporting share one private
+system-capacity inventory. Reports project its static OS/CPU/total-resource
+facts and refresh only live usage, runtime and executable details; private
+tool/network observations and paths are not published. Existing inventories
+are enriched without changing their original review hashes or triggering AI.
+`inventory refresh` explicitly recaptures static facts and creates a new review
+basis for the controller, but the command itself starts no AI. Refresh is
+required if live usage exceeds a retained total. Foreground embedded clients
+initialize a subprocess-free snapshot without desktop tool/network discovery.
+
 Archived knowledge cannot be selected. Selected private knowledge has a 64 KiB
 prompt budget and is not automatically published. Bindings require ownership,
 no group/other write access, stable directory identity, and exclusion of private

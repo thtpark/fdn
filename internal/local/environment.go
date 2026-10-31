@@ -18,43 +18,54 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func appendEnvironmentProblem(problems *[]domain.EnvironmentProblem, component, code string) {
+	if len(*problems) < 16 {
+		*problems = append(*problems, domain.EnvironmentProblem{Component: component, Code: code})
+	}
+}
+
 func environmentProblem(o *domain.EnvironmentObservation, component, code string) {
-	if len(o.Problems) < 16 {
-		o.Problems = append(o.Problems, domain.EnvironmentProblem{Component: component, Code: code})
-	}
+	appendEnvironmentProblem(&o.Problems, component, code)
 }
 
-func collectEnvironmentFacts(stateRoot string) domain.EnvironmentObservation {
-	o := domain.EnvironmentObservation{Version: domain.EnvironmentVersion, ObservedAt: time.Now().UTC().Unix(),
-		System:      domain.SystemEnvironment{OS: runtime.GOOS, Architecture: runtime.GOARCH, GoVersion: runtime.Version()},
-		CPU:         domain.CPUEnvironment{LogicalCores: runtime.NumCPU()},
-		Executables: []domain.FoundationExecutable{}, Problems: []domain.EnvironmentProblem{}}
-	memory, err := physicalMemory()
+func (s *State) environmentFacts(ctx context.Context, embedded bool, overrides ...map[string]string) (domain.EnvironmentObservation, error) {
+	inventory, err := s.systemInventory(ctx, embedded, overrides...)
 	if err != nil {
-		environmentProblem(&o, "memory-total", "os-observation-unavailable")
-	} else {
-		o.Memory.TotalBytes = &memory
+		return domain.EnvironmentObservation{}, err
 	}
-	collectEnvironmentSystem(&o)
+	o := inventory.SystemCapabilities.environment()
+	o.System.GoVersion = runtime.Version()
+	collectSystemUsage(&o)
 	var disk unix.Statfs_t
-	if err := unix.Statfs(stateRoot, &disk); err != nil {
-		environmentProblem(&o, "state-filesystem", "os-observation-unavailable")
+	if err := unix.Statfs(s.Root, &disk); err != nil {
+		environmentProblem(&o, "state-filesystem-available", "os-observation-unavailable")
 	} else {
-		total, available := uint64(disk.Blocks)*uint64(disk.Bsize), uint64(disk.Bavail)*uint64(disk.Bsize)
-		o.Disk.TotalBytes, o.Disk.AvailableBytes = &total, &available
+		available := uint64(disk.Bavail) * uint64(disk.Bsize)
+		o.Disk.AvailableBytes = &available
 	}
-	return o
+	if o.Memory.TotalBytes != nil && (o.Memory.FreeBytes != nil && *o.Memory.FreeBytes > *o.Memory.TotalBytes ||
+		o.Memory.AvailableBytes != nil && *o.Memory.AvailableBytes > *o.Memory.TotalBytes) ||
+		o.Disk.TotalBytes != nil && o.Disk.AvailableBytes != nil && *o.Disk.AvailableBytes > *o.Disk.TotalBytes {
+		return o, domain.Fail(domain.Prerequisite, "live usage exceeds the retained system capacity; refresh the private capacity inventory before reporting")
+	}
+	return o, nil
 }
 
-func CollectEmbeddedEnvironment(stateRoot string) (domain.EnvironmentObservation, error) {
-	o := collectEnvironmentFacts(stateRoot)
+func (s *State) CollectEmbeddedEnvironment(ctx context.Context) (domain.EnvironmentObservation, error) {
+	o, err := s.environmentFacts(ctx, true)
+	if err != nil {
+		return o, err
+	}
 	o.Executables = append(o.Executables, domain.FoundationExecutable{Name: "agent-cli", State: "embedded",
 		Version: domain.Version, Commit: domain.Commit, Running: true, RunningVersion: domain.Version, RunningCommit: domain.Commit})
 	return o, domain.ValidateEnvironment(o)
 }
 
-func CollectEnvironment(ctx context.Context, stateRoot string, runner process.Runner) (domain.EnvironmentObservation, error) {
-	o := collectEnvironmentFacts(stateRoot)
+func (s *State) CollectEnvironment(ctx context.Context, runner process.Runner, overrides ...map[string]string) (domain.EnvironmentObservation, error) {
+	o, err := s.environmentFacts(ctx, false, overrides...)
+	if err != nil {
+		return o, err
+	}
 	current, err := os.Executable()
 	if err != nil {
 		return o, err

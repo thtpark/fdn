@@ -26,6 +26,16 @@ Cancel only owned processes, using exact process identities/process groups.
 
 ## Computer environments and announcements
 
+`go test -race -count=1 ./internal/local ./internal/work ./internal/cli ./mobile -run 'Environment|Inventory|SystemCapabilities|PrivateKnowledge'`
+checks the shared capacity collector and private inventory projection: exact
+historical JSON hashes, transactional legacy enrichment/concurrent refresh,
+unchanged identity/knowledge/review/journals/outbox, provider path overrides,
+no repeated initial AI review, detailed onboarding context and subprocess-free
+embedded initialization. Repeated telemetry must retain the complete private
+snapshot while refreshing live usage/runtime/executable versions. Projection
+must not alias private resource pointers; changed totals require an explicit
+inventory refresh instead of clamping counts or manufacturing a review.
+
 `go test -race ./internal/foundation ./internal/api ./internal/local ./internal/work ./mobile ./cmd/agent-identity -run 'Environment|Announcements|Monitoring|WorkerHealth|Push|Mobile|IdentityVersion'`
 checks measurable native/embedded resources, bounded version-only probes,
 explicit missing observations, private-field rejection, computer/device/key

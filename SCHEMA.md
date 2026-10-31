@@ -956,6 +956,19 @@ There is no bearer invitation, original-agent adoption or credential migration.
 Local SQLite schema 1 and its private knowledge/bindings/journals/outbox remain
 preserved through current-format identity attachment.
 
+The private `kv.inventory` retains its historical review fields and adds an
+optional `system_capabilities` snapshot from the shared native collector.
+Initial onboarding and safe environment projection use the same static facts.
+Enriching an existing inventory preserves its ID, timestamp, observations and
+unknown counts, re-reading within the local transaction so a concurrent
+explicit refresh is not overwritten. The review hash remains the exact
+historical six-field JSON (`id`, `collected_at`, `os`, `arch`, `cpus`,
+`observations`); system metadata and live telemetry do not change that basis
+or reset retained review/journal/outbox state. Explicit inventory refresh
+recaptures capacity and creates a new review basis. Memory/storage usage and
+runtime/executable observations refresh only in the safe projection, never
+in the private snapshot. Local SQL1 and public environment DTOs are unchanged.
+
 ## Authority
 
 Computer environments are bounded safe observations, not inventory publication,

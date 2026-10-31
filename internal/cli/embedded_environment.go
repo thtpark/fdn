@@ -5,11 +5,10 @@ import (
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/domain"
-	"github.com/thtpark/fdn/internal/local"
 )
 
 func (e *Embedded) PublishEnvironment(ctx context.Context) error {
-	observation, err := local.CollectEmbeddedEnvironment(e.res.config.StateDir)
+	observation, err := e.res.state.CollectEmbeddedEnvironment(ctx)
 	if err != nil {
 		return err
 	}

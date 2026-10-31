@@ -6,6 +6,22 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Shared capacity and environment source work (0.3.17)
+
+Startup capacity discovery and environment reporting use one native collector
+and the existing private inventory. Onboarding receives detailed stable system
+facts alongside its original observations/hash. Native and embedded reports
+project that snapshot and refresh only live memory/storage usage, runtime and
+Foundation executable details; embedded initialization performs no desktop
+tool/network discovery or subprocesses. Legacy inventories are enriched
+transactionally without changing historical review hashes, unknown counts,
+identity, knowledge, journals or exact-operation evidence. Explicit inventory
+refresh creates a new review basis; periodic telemetry does not invoke AI or
+rewrite it. Live usage exceeding a retained total blocks reporting pending an
+explicit refresh. Public environment DTOs, the locked native payload contract,
+API/native versions and SQL8/localSQL1 remain unchanged. This is local source/
+fixture work, not a live deployment or provider/fleet qualification.
+
 ### Monitoring and scoped announcements source work (0.3.16)
 
 Both apps display current reported computer OS/CPU/memory/storage and Foundation

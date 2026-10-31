@@ -80,28 +80,29 @@ type Status struct {
 }
 
 type Launch struct {
-	Phase              string              `json:"phase"`
-	AgentID            string              `json:"agent_id"`
-	Task               *domain.Task        `json:"task,omitempty"`
-	Project            *domain.Project     `json:"project,omitempty"`
-	Discussion         []domain.Entry      `json:"discussion"`
-	Capabilities       []local.Observation `json:"capabilities"`
-	Knowledge          []local.Knowledge   `json:"selected_private_knowledge"`
-	SharedNotes        []domain.Note       `json:"shared_notes"`
-	Message            *domain.Message     `json:"message,omitempty"`
-	RequestParent      *domain.Message     `json:"request_parent,omitempty"`
-	Attention          *domain.Attention   `json:"attention,omitempty"`
-	InventoryHash      string              `json:"inventory_hash,omitempty"`
-	ActionKey          string              `json:"action_key,omitempty"`
-	Continuation       *provider.Reply     `json:"continuation,omitempty"`
-	Thread             []domain.Message    `json:"message_thread,omitempty"`
-	ThreadCursor       string              `json:"thread_cursor,omitempty"`
-	ContextIncomplete  bool                `json:"context_incomplete,omitempty"`
-	ReferencedTasks    []domain.Task       `json:"referenced_tasks,omitempty"`
-	ReferencedProjects []domain.Project    `json:"referenced_projects,omitempty"`
-	Requester          *domain.Agent       `json:"requester,omitempty"`
-	ConversationID     string              `json:"conversation_action_id,omitempty"`
-	ActionInstructions string              `json:"action_instructions,omitempty"`
+	Phase              string                    `json:"phase"`
+	AgentID            string                    `json:"agent_id"`
+	Task               *domain.Task              `json:"task,omitempty"`
+	Project            *domain.Project           `json:"project,omitempty"`
+	Discussion         []domain.Entry            `json:"discussion"`
+	Capabilities       []local.Observation       `json:"capabilities"`
+	Knowledge          []local.Knowledge         `json:"selected_private_knowledge"`
+	SharedNotes        []domain.Note             `json:"shared_notes"`
+	Message            *domain.Message           `json:"message,omitempty"`
+	RequestParent      *domain.Message           `json:"request_parent,omitempty"`
+	Attention          *domain.Attention         `json:"attention,omitempty"`
+	InventoryHash      string                    `json:"inventory_hash,omitempty"`
+	SystemCapabilities *local.SystemCapabilities `json:"system_capabilities,omitempty"`
+	ActionKey          string                    `json:"action_key,omitempty"`
+	Continuation       *provider.Reply           `json:"continuation,omitempty"`
+	Thread             []domain.Message          `json:"message_thread,omitempty"`
+	ThreadCursor       string                    `json:"thread_cursor,omitempty"`
+	ContextIncomplete  bool                      `json:"context_incomplete,omitempty"`
+	ReferencedTasks    []domain.Task             `json:"referenced_tasks,omitempty"`
+	ReferencedProjects []domain.Project          `json:"referenced_projects,omitempty"`
+	Requester          *domain.Agent             `json:"requester,omitempty"`
+	ConversationID     string                    `json:"conversation_action_id,omitempty"`
+	ActionInstructions string                    `json:"action_instructions,omitempty"`
 }
 
 type Engine struct {
@@ -358,14 +359,17 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		if domain.AsFault(err).Code != domain.Prerequisite {
 			return status, err
 		}
-		paths := c.ProviderPaths
-		if manager, ok := e.Executor.(*provider.Manager); ok {
-			paths, err = manager.Paths()
-			if err != nil {
-				return status, err
-			}
+		paths, err := e.inventoryPaths(c)
+		if err != nil {
+			return status, err
 		}
 		inventory, err = e.State.RefreshInventory(ctx, paths)
+		if err != nil {
+			return status, err
+		}
+	}
+	if inventory.SystemCapabilities == nil {
+		inventory, err = e.State.SystemCapabilitiesInventory(ctx)
 		if err != nil {
 			return status, err
 		}
@@ -384,6 +388,7 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 			return status, err
 		}
 		launch.Capabilities, launch.InventoryHash = inventory.Summary(), inventory.Hash()
+		launch.SystemCapabilities = inventory.SystemCapabilities
 		status.State, status.JournalID = "onboarding", ""
 		journal, err := e.text(ctx, c, launch, manual)
 		status.JournalID = journal.ID

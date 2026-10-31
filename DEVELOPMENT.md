@@ -132,11 +132,20 @@ of a future need.
 
 ## Making a behavior change
 
-Computer reporting lives in `internal/local/environment*.go`,
+Native capacity discovery uses `internal/local/system_capabilities.go` and the
+existing private inventory. Onboarding receives that snapshot and its original
+observations; computer reporting projects the same static OS/CPU/total-resource
+facts through `internal/local/environment*.go`,
 `internal/foundation/environments.go`, the worker heartbeat loop and the
-foreground mobile lifecycle. Keep embedded reporting subprocess-free and
-desktop binary probes version-only. Preserve private inventory/initial-review
-hashes; environment publication is a separate safe projection. Source/installed
+foreground mobile lifecycle. Refresh only live memory/storage usage, runtime
+version and version-only executable observations during publication. Embedded
+initialization skips desktop tool/network discovery and all subprocesses.
+Legacy enrichment re-reads inventory transactionally and preserves its ID,
+timestamp, observations, unknown counts and exact historical initial-review
+hash. Metadata is outside that hash; explicit `inventory refresh` recaptures the
+capacity and creates a new review basis. Live usage exceeding retained totals
+requires an explicit refresh, never a silent clamp or automatic review reset.
+Keep private observations/paths out of the safe projection. Source/installed
 and running binary versions must not be conflated.
 `internal/foundation/announcements.go` reuses the existing private message table
 and exact receipts; announcement requests use existing autonomous Adhoc action

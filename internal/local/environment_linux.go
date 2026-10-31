@@ -9,10 +9,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func collectEnvironmentSystem(o *domain.EnvironmentObservation) {
+func collectSystemDetails(o *SystemCapabilities) {
 	release, err := os.ReadFile("/etc/os-release")
 	if err != nil {
-		environmentProblem(o, "os-version", "os-observation-unavailable")
+		appendEnvironmentProblem(&o.Problems, "os-version", "os-observation-unavailable")
 	} else {
 		for _, line := range strings.Split(string(release), "\n") {
 			if value, ok := strings.CutPrefix(line, "PRETTY_NAME="); ok {
@@ -23,13 +23,13 @@ func collectEnvironmentSystem(o *domain.EnvironmentObservation) {
 	}
 	var info unix.Utsname
 	if err := unix.Uname(&info); err != nil {
-		environmentProblem(o, "kernel", "os-observation-unavailable")
+		appendEnvironmentProblem(&o.Problems, "kernel", "os-observation-unavailable")
 	} else {
 		o.System.Kernel = unix.ByteSliceToString(info.Release[:])
 	}
 	cpu, err := os.ReadFile("/proc/cpuinfo")
 	if err != nil {
-		environmentProblem(o, "cpu-model", "os-observation-unavailable")
+		appendEnvironmentProblem(&o.Problems, "cpu-model", "os-observation-unavailable")
 	} else {
 		cores := map[string]bool{}
 		for _, block := range strings.Split(string(cpu), "\n\n") {
@@ -62,6 +62,9 @@ func collectEnvironmentSystem(o *domain.EnvironmentObservation) {
 			}
 		}
 	}
+}
+
+func collectSystemUsage(o *domain.EnvironmentObservation) {
 	memory, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
 		environmentProblem(o, "memory-available", "os-observation-unavailable")
