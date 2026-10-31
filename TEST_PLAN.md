@@ -24,6 +24,26 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Computer environments and announcements
+
+`go test -race ./internal/foundation ./internal/api ./internal/local ./internal/work ./mobile ./cmd/agent-identity -run 'Environment|Announcements|Monitoring|WorkerHealth|Push|Mobile|IdentityVersion'`
+checks measurable native/embedded resources, bounded version-only probes,
+explicit missing observations, private-field rejection, computer/device/key
+binding, server-timed staleness and non-renewing replay. Broadcast tests check
+global/current-project Founder/delegate authority, exact audiences, independent
+private threads, no implicit reads, no duplicate replay, stale delegate fences
+and upgrade intent without forged permits. Existing deterministic conversation
+action tests remain the execution/authority boundary.
+
+Swift `MonitoringTests` cover typed views, missing-versus-zero values, private
+draft restore, audience/exact-output shapes and delivery references. Native
+renderer tests include system details and request forms. Rebuild iOS device,
+simulator and macOS-test runtime slices; the foreground host publishes safe
+computer facts but no worker health/controller/provider output. Run protocol
+reproducibility and all independent Foundation suites. Local fixtures and
+development builds are not live fleet, desktop/provider, upgrade or
+1,000-agent qualification.
+
 ## Founder desktop onboarding and protected clients
 
 `go test -race -count=1 ./internal/cli ./internal/upgrade -run 'AgentAddition|AssistanceStatus|ReleasePublished'`

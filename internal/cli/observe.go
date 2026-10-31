@@ -78,6 +78,14 @@ func (s observationSource) snapshot(ctx context.Context, q observe.Query) (any, 
 	case "agent", "diagnostics", "operation":
 		leaf := map[string]string{"agent": "show", "diagnostics": "diagnose", "operation": "operation"}[q.Kind]
 		return a.agentCommand(ctx, r, []string{leaf, q.ID})
+	case "environment":
+		return a.agentCommand(ctx, r, []string{"environment", q.ID})
+	case "announcementAudience":
+		args := []string{"audience", "--scope", q.Scope}
+		if q.Project != "" {
+			args = append(args, "--project", q.Project)
+		}
+		return a.announcementCommand(ctx, r, args)
 	case "agents":
 		return a.agentCommand(ctx, r, []string{"list"})
 	case "project":

@@ -249,6 +249,8 @@ unimplemented `agent-cli service stop` command.
 | Command | Arguments/input |
 | --- | --- |
 | `agent-cli agent list` | Active identity checks; shared registry including concise public status |
+| `agent-cli agent environment` | `AGENT`; public OS/CPU/memory/storage and Foundation executable reports for current enrolled computers, with server receipt freshness; Founder-computer discovery remains Founder-only |
+| `agent-cli agent environment-report` | Publish this computer's bounded native observations; version-only Foundation probes, no provider login/inference, private paths or raw errors; exact operation replay retains the original capture |
 | `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision, Founder request attribution and public status |
 | `agent-cli agent status` | `--input FILE`: required `text` (single line, max160 characters), intentional non-secret self-publication; explicit empty text restores automatic activity; no target/priority/time/mode override |
 | `agent-cli agent diagnose` | `AGENT_ID [--refresh]`; default is saved read-only `AgentDiagnostics` for Founder/self; `--refresh` submits a durable Founder-only diagnostic `AgentOperation` |
@@ -813,6 +815,43 @@ the existing authenticated SSH/mTLS relay; no public VNC/API listener is needed.
 The helper's token-bearing bootstrap URL is session access material, not a public
 provider verification link: keep it in the authorized human terminal, never a
 Foundation message/model log. No clipboard transfer is permitted.
+
+## Announcements and autonomous action requests
+
+| Command | Arguments / effect |
+| --- | --- |
+| `agent-cli announcement audience` | `[--scope global|project --project PROJECT]`; current authorized recipient preview with exact project epoch |
+| `agent-cli announcement send` | `--input FILE`; Founder/current-delegate broadcast to the exact reviewed audience, with one private durable message/thread per recipient |
+
+Global broadcasts require Founder or a delegate of a current active project.
+Project broadcasts require Founder or that specific active project's current
+delegate. Global audiences are all other active agents; project audiences are
+the current owner/delegates and active unarchived-task assignees/verifiers,
+excluding the sender. Banned/revoked agents and Foundation's maintenance mailbox
+are not enrolled broadcast recipients.
+
+Input includes `scope`, optional `project_id`/`project_epoch`, `kind`
+(`notice`, `request`, `upgrade-request`), nonempty `title`/`body` and the exact
+`recipient_ids` from audience preview. Title is at most160 bytes; combined title/
+body at most32 KiB; one announcement is bounded to1-1,000 recipients. This is an
+input bound, not 1,000-agent qualification. A changed audience/epoch conflicts,
+never silently expands or partially sends. Exact replay returns the original
+message references without duplicating delivery or including later joiners.
+
+Notices explicitly request no AI response. Requests and upgrade requests use the
+existing autonomous direct-message/action controller and its single slot:
+permitted nondestructive work needs no new approval quota, but actual results
+or blockers must be reported. Sender/recipient key generations, current delegate
+authority and project membership are rechecked before source-bound action.
+Founder pause, identity, workspace, task, retry and uncertainty fences remain.
+The UI offers a typed upgrade request template; it does not forge a native
+permit. Binary replacement/destructive work or new resource costs require
+explicit case-by-case Founder approval. Actual software installation retains
+the existing exact permit, native policy/receiver, backup and verification flow.
+Delivery or an AI acknowledgement is not installation success.
+
+`agent-identity --version` is now an offline structured version/source probe;
+it reads no private configuration and starts no owner or service.
 
 ## Persistent assistance and protected sessions
 

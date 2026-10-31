@@ -38,6 +38,7 @@ var AgentCommands = []string{
 	"agent list", "agent status", "agent diagnose", "agent reset", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"device list", "device register", "device revoke",
 	"agent add", "agent add-status",
+	"agent environment", "agent environment-report", "announcement audience", "announcement send",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "discussion show", "mention list", "mention acknowledge", "watch", "observe",
 	"message send", "message show", "message read", "message diagnose", "message inbox", "message list", "message receipt", "message thread", "message thread-page", "message request-report", "session request", "session list", "session show", "session change", "session open",
@@ -121,6 +122,14 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			}
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
+			case "agent environment":
+				usage = "agent environment AGENT; reported OS/CPU/memory/storage and Foundation executable versions/source/hashes per current computer/key generation; safe public facts with server receipt freshness, no provider probe or private paths"
+			case "agent environment-report":
+				usage = "agent environment-report; explicitly collect and publish this computer's safe native system facts and version-only Foundation binary observations; original operation retains its exact capture after uncertainty"
+			case "announcement audience":
+				usage = "announcement audience [--scope global|project --project PROJECT]; Founder/current active-project delegate only; exact recipient IDs and project epoch, no message sending"
+			case "announcement send":
+				usage = "announcement send --input FILE; exact reviewed scope/project epoch/recipient_ids, title/body and kind notice|request|upgrade-request; private durable fan-out and normal autonomous action gates; no native installation permit or destructive/spending approval is inferred"
 			case "agent add":
 				usage = "agent add --host IP --user SSH_USER --name AGENT [--port 22 --identity-file ABS]; Founder-only explicit new-worker installation/enrollment under the existing non-root SSH user; protected human terminal required for host-key/password prompts; exact published server release and normal AI-mode worker startup, no sudo, existing-state adoption or direct provider login; preserve operation-id after uncertainty"
 			case "agent add-status":

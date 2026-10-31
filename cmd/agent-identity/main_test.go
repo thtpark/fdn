@@ -11,7 +11,26 @@ import (
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
+	"github.com/thtpark/fdn/internal/domain"
 )
+
+func TestIdentityVersionIsOfflineAndStructured(t *testing.T) {
+	var output, diagnostic bytes.Buffer
+	if code := run(context.Background(), []string{"--version"}, &output, &diagnostic); code != 0 {
+		t.Fatal("offline version failed", code)
+	}
+	var envelope api.Envelope
+	if err := json.Unmarshal(output.Bytes(), &envelope); err != nil || !envelope.OK {
+		t.Fatal("version did not return a valid envelope", err)
+	}
+	var version struct {
+		Version string `json:"version"`
+		Commit  string `json:"commit"`
+	}
+	if err := json.Unmarshal(envelope.Data, &version); err != nil || version.Version != domain.Version || version.Commit != domain.Commit {
+		t.Fatal("version did not expose the exact compiled binary", version, err)
+	}
+}
 
 func TestIdentityCommandOfflineHelpAndStrictPrivateConfiguration(t *testing.T) {
 	var output, errors bytes.Buffer

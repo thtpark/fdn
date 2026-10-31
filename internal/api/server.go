@@ -252,6 +252,33 @@ func (s *Server) routes() {
 	read(s, "GET /v1/agents/{id}/screens", func(r *operationRequest, a domain.Agent) ([]domain.Screen, error) {
 		return s.Store.Screens(r.Context(), a.ID, r.PathValue("id"))
 	})
+	read(s, "GET /v1/agents/{id}/environment", func(r *operationRequest, a domain.Agent) (domain.AgentEnvironment, error) {
+		if err := monitoringRead(r, false); err != nil {
+			return domain.AgentEnvironment{}, err
+		}
+		return s.Store.AgentEnvironment(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/agents/{id}/environment", false, func(r *operationRequest, a domain.Agent, q domain.EnvironmentRequest) (domain.ComputerEnvironment, error) {
+		if a.ID != r.PathValue("id") {
+			return domain.ComputerEnvironment{}, domain.Fail(domain.Denied, "only the enrolled computer may publish its own environment")
+		}
+		return s.Store.PublishEnvironment(r.Context(), a.ID, q)
+	})
+	read(s, "GET /v1/announcements/audience", func(r *operationRequest, a domain.Agent) (domain.AnnouncementAudience, error) {
+		if err := monitoringRead(r, true); err != nil {
+			return domain.AnnouncementAudience{}, err
+		}
+		return s.Store.AnnouncementAudience(r.Context(), a.ID, r.URL.Query().Get("scope"), r.URL.Query().Get("project"))
+	})
+	body(s, "POST /v1/announcements", false, func(r *operationRequest, a domain.Agent, q domain.AnnouncementRequest) (domain.AnnouncementReceipt, error) {
+		return s.Store.Announce(r.Context(), a.ID, q)
+	})
+	read(s, "GET /v1/messages/{id}/announcement-authority", func(r *operationRequest, a domain.Agent) (map[string]bool, error) {
+		if err := monitoringRead(r, false); err != nil {
+			return nil, err
+		}
+		return s.Store.AnnouncementMessageAuthority(r.Context(), a.ID, r.PathValue("id"))
+	})
 	body(s, "POST /v1/assistance/requests", false, func(r *operationRequest, a domain.Agent, q domain.AssistanceHelpRequest) (domain.AssistanceHelp, error) {
 		return s.Store.RequestAssistanceHelp(r.Context(), a.ID, q)
 	})

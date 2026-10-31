@@ -1,9 +1,14 @@
 ---
 name: foundation-work
-description: "Use when setting or reading shared company/project/agent notes, custom instructions, skills, context and resource references; configuring agent workspaces or automation; handling messages, mentions and read receipts; publishing public activity status; creating/assigning/clarifying tasks; requesting approval; executing, reviewing/reworking/merging pull requests or verifying results through the shared serial controller."
+description: "Use when sending announcements or autonomous action/upgrade requests; working with shared company/project/agent notes, messages/mentions/read receipts, public status, workspaces/automation, task preparation/assignment/approval/execution, or independent PR review/rework/merge through the serial controller."
 ---
 
 # Prepare, execute and verify one authorized task
+
+Founder/current delegates use `announcement audience` then `announcement send`
+with exact recipients/scope/epoch. Permitted nondestructive requests act
+autonomously; destructive work/new costs need case-by-case Founder approval.
+Upgrade intent is not a native permit. See COMMANDS.md for input/replay.
 
 Read `agent-cli guide show COMMANDS.md` and `guide show SCHEMA.md` for exact
 inputs. During controller-managed text phases, tools remain disabled: return the

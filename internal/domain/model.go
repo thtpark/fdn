@@ -298,6 +298,7 @@ type AuthenticationRefresh struct {
 }
 
 type Message struct {
+	Announcement          *AnnouncementContext   `json:"announcement,omitempty"`
 	ID                    string                 `json:"id"`
 	SenderID              string                 `json:"sender_id"`
 	RecipientID           string                 `json:"recipient_id"`

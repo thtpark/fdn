@@ -25,7 +25,7 @@ type Query struct {
 	Limit    int    `json:"limit,omitempty"`
 }
 
-var kinds = strings.Fields("version help status identity work agents agent projects project tasks task taskHistory runs discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens devices diagnostics operation upgrade configuration guides guide doctor events")
+var kinds = strings.Fields("version help status identity work agents agent environment announcementAudience projects project tasks task taskHistory runs discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens devices diagnostics operation upgrade configuration guides guide doctor events")
 
 func (q Query) Validate() error {
 	if !slices.Contains(kinds, q.Kind) || q.Limit < 0 || q.Limit > 200 || len(q.Cursor) > 512 {
@@ -45,14 +45,14 @@ func (q Query) Key() string {
 }
 
 func (q Query) Subscribable() bool {
-	return q.Kind != "provider" && q.Kind != "inventoryRefresh" && q.Kind != "doctor"
+	return q.Kind != "provider" && q.Kind != "inventoryRefresh" && q.Kind != "doctor" && q.Kind != "announcementAudience"
 }
 
 func (q Query) SampleInterval() time.Duration {
 	switch q.Kind {
 	case "work", "knowledge", "knowledgeItem", "knowledgeHistory", "workspaces", "inventory", "preferences", "configuration", "screens", "upgrade", "diagnostics", "messageDiagnostics":
 		return 5 * time.Second
-	case "agents", "agent":
+	case "agents", "agent", "environment":
 		return 30 * time.Second
 	default:
 		return 0

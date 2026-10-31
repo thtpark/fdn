@@ -86,6 +86,15 @@ func (e *Engine) validateConversationSource(ctx context.Context, launch Launch) 
 			current.Revision != source.Revision || !current.ResponseRequest {
 			return domain.Fail(domain.Conflict, "source message disposition or recipient changed")
 		}
+		if current.Announcement != nil {
+			authorized, err := api.Call[map[string]bool](ctx, e.Client, "GET", api.Path("messages", current.ID, "announcement-authority"), nil)
+			if err != nil {
+				return err
+			}
+			if !authorized["authorized"] {
+				return domain.Fail(domain.Denied, "announcement authority is no longer current")
+			}
+		}
 		return nil
 	}
 	if item := launch.Attention; item != nil {

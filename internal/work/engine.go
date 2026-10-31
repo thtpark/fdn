@@ -49,6 +49,9 @@ func invocationPrompt(context []byte) (string, error) {
 	if launch.ConversationID != "" {
 		contract += "This is the tool-enabled execution of a recorded Adhoc conversation action, not a text acknowledgement. Inspect applicable local/project skills and retrieve relevant current thread, task, notes, knowledge and workspace context before acting or answering. Reference actual records and checks in evidence. Perform the retained action only within the recipient's current authority and existing workspace/OS permissions; an Adhoc record does not authorize another project's unapproved work, root changes, protected consent, spending, contracts or disclosure. Report actual results or concrete blockers, never a promise or invented success. Do not retry prior uncertain effects. response_requested defaults to true; set false only when a further response is unnecessary.\n"
 	}
+	if launch.Message != nil && launch.Message.Announcement != nil {
+		contract += "This is an authenticated scoped announcement. Action requests use the same autonomous source-bound action workflow: act within current authority and granted OS/workspace permissions, then report actual results or blockers. Do not add per-message approval for already permitted nondestructive work. Destructive changes, new resource costs and native software replacement require explicit Founder approval; an upgrade request is not an exact native installation permit. Never bypass native upgrade policy, pause, work-slot, retry, identity or uncertainty fences.\n"
+	}
 	return base + "\n" + contract + "\nFDN_CONTEXT_JSON\n" + string(context), nil
 }
 

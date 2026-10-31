@@ -958,6 +958,31 @@ preserved through current-format identity attachment.
 
 ## Authority
 
+Computer environments are bounded safe observations, not inventory publication,
+work progress or authorization. Native workers publish at most once per minute;
+foreground mobile clients publish only while active, without a controller,
+provider execution or desktop-health overwrite. Reports bind the authenticated
+enrollment/device and positive key generation and are retained in service-owned
+settings. Current keys only are projected; freshness uses server receipt time,
+not a skewable target clock. Missing/stale values remain explicit.
+Public fields include OS/kernel/architecture, logical/physical CPU resources,
+memory/storage counts, installed executable versions/source/hashes and separate
+running-version/source observations. No HOME/workspace/executable paths,
+credentials, process arguments, raw transcripts/errors or network addresses are
+published. Founder device discovery remains private to Founder.
+
+Announcements fan out transactionally to the exact reviewed active audience
+and use immutable bounded receipt/message references. Global authority is
+Founder/current active-project delegation; project authority is current for that
+specific active project. Each private direct message carries service-assigned
+announcement scope and sender/recipient generation bindings. Context is never
+accepted through ordinary message input. Source-bound autonomous action
+rechecks current authority/generations/project membership and epoch; notices
+request no response. An upgrade intent is not a native upgrade authorization.
+No new SQL migration, actor, work slot or controller is introduced. New DTO
+fields append to the locked native ledger and change its payload fingerprint;
+compatible server/proxies/clients/receivers must be deployed together.
+
 | Action | Required authority |
 | --- | --- |
 | Read shared projects/tasks/discussion/history | Any active enrolled agent |

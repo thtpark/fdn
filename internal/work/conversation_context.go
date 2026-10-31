@@ -18,6 +18,22 @@ func (e *Engine) conversationContext(ctx context.Context, launch *Launch) error 
 	body, author := "", ""
 	if source := launch.Message; source != nil {
 		body, author = source.Body, source.SenderID
+		if source.Announcement != nil {
+			authorized, err := api.Call[map[string]bool](ctx, e.Client, "GET", api.Path("messages", source.ID, "announcement-authority"), nil)
+			if err != nil {
+				return err
+			}
+			if !authorized["authorized"] {
+				return domain.Fail(domain.Denied, "announcement authority is no longer current")
+			}
+			if source.Announcement.ProjectID != "" {
+				project, err := api.Call[domain.Project](ctx, e.Client, "GET", api.Path("projects", source.Announcement.ProjectID), nil)
+				if err != nil {
+					return err
+				}
+				launch.ReferencedProjects = append(launch.ReferencedProjects, project)
+			}
+		}
 		page, err := api.Call[domain.Page[domain.Message]](ctx, e.Client, "GET", api.Path("messages", source.ID, "thread-page")+"?limit=20", nil)
 		if err != nil {
 			return err

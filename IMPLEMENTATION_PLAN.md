@@ -6,6 +6,22 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Monitoring and scoped announcements source work (0.3.16)
+
+Both apps display current reported computer OS/CPU/memory/storage and Foundation
+executable details with independent device/key binding, installed versus running
+source and server-timed stale/missing states. Native workers and foreground
+mobile hosts publish safe observations without private paths, provider probes
+or new slots/controllers.
+Founder/current delegates preview exact global/project broadcast audiences and
+send notices, autonomous action requests or upgrade intents. Each recipient has
+an ordinary private durable thread and exact replay; authority changes fence
+source-bound actions. Existing nondestructive permissions remain usable without
+per-message signoff. Destructive changes/new costs require case-by-case Founder
+approval; software replacement retains exact signed native upgrade authority.
+API/native versions and SQL8/localSQL1 remain; additive DTO ledger/fingerprint
+changes require compatible binaries. Publication/live rollout are separate.
+
 ### Founder desktop onboarding source work (0.3.15)
 
 The macOS app adds a Founder-only Add agent form and fresh sign-in requests,

@@ -251,6 +251,17 @@ func (f *pushFixture) RoundTrip(request *http.Request) (*http.Response, error) {
 		}
 		return f.response(f.me, nil)
 	}
+	if request.Method == http.MethodPost && path == "/v1/agents/"+f.me.ID+"/environment" {
+		var body domain.EnvironmentRequest
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			return nil, err
+		}
+		if err := domain.ValidateEnvironment(body.Observation); err != nil {
+			return nil, err
+		}
+		return f.response(domain.ComputerEnvironment{BindingID: f.me.ID, DeviceName: f.me.Name,
+			Generation: 1, ReceivedAt: time.Now().Unix(), Observation: body.Observation}, nil)
+	}
 	if request.Method == http.MethodPost && strings.HasPrefix(path, "/v1/messages") {
 		body, err := io.ReadAll(request.Body)
 		if err != nil {

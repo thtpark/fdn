@@ -132,6 +132,17 @@ of a future need.
 
 ## Making a behavior change
 
+Computer reporting lives in `internal/local/environment*.go`,
+`internal/foundation/environments.go`, the worker heartbeat loop and the
+foreground mobile lifecycle. Keep embedded reporting subprocess-free and
+desktop binary probes version-only. Preserve private inventory/initial-review
+hashes; environment publication is a separate safe projection. Source/installed
+and running binary versions must not be conflated.
+`internal/foundation/announcements.go` reuses the existing private message table
+and exact receipts; announcement requests use existing autonomous Adhoc action
+admission. Test raw Founder/delegate scope, recipient/epoch changes, revocation,
+lost acknowledgements, and the destructive/spending/native-upgrade boundaries.
+
 1. State the exact contract and failure/recovery cases. Find the existing helper
    and tests before adding logic.
 2. Add/update DTOs and narrow validation; reject unknown JSON fields and invalid

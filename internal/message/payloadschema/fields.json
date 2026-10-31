@@ -225,6 +225,20 @@
       "name": "status"
     }
   },
+  "AgentEnvironment": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "Computers": {
+      "id": 3,
+      "name": "computers"
+    },
+    "ServerObservedAt": {
+      "id": 2,
+      "name": "server_observed_at"
+    }
+  },
   "AgentIdentity": {
     "AgentID": {
       "id": 1,
@@ -505,6 +519,142 @@
     "UpdatedAt": {
       "id": 4,
       "name": "updated_at"
+    }
+  },
+  "AnnouncementAudience": {
+    "ActorID": {
+      "id": 1,
+      "name": "actor_id"
+    },
+    "ProjectEpoch": {
+      "id": 4,
+      "name": "project_epoch"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "Recipients": {
+      "id": 5,
+      "name": "recipients"
+    },
+    "Scope": {
+      "id": 2,
+      "name": "scope"
+    }
+  },
+  "AnnouncementContext": {
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 5,
+      "name": "kind"
+    },
+    "ProjectEpoch": {
+      "id": 4,
+      "name": "project_epoch"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "RecipientGeneration": {
+      "id": 7,
+      "name": "recipient_generation"
+    },
+    "Scope": {
+      "id": 2,
+      "name": "scope"
+    },
+    "SenderGeneration": {
+      "id": 6,
+      "name": "sender_generation"
+    }
+  },
+  "AnnouncementDelivery": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "MessageID": {
+      "id": 2,
+      "name": "message_id"
+    }
+  },
+  "AnnouncementReceipt": {
+    "CreatedAt": {
+      "id": 5,
+      "name": "created_at"
+    },
+    "Deliveries": {
+      "id": 6,
+      "name": "deliveries"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 4,
+      "name": "kind"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "Scope": {
+      "id": 2,
+      "name": "scope"
+    }
+  },
+  "AnnouncementRecipient": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "Name": {
+      "id": 2,
+      "name": "name"
+    }
+  },
+  "AnnouncementRequest": {
+    "Body": {
+      "id": 8,
+      "name": "body"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Kind": {
+      "id": 6,
+      "name": "kind"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectEpoch": {
+      "id": 5,
+      "name": "project_epoch"
+    },
+    "ProjectID": {
+      "id": 4,
+      "name": "project_id"
+    },
+    "RecipientIDs": {
+      "id": 9,
+      "name": "recipient_ids"
+    },
+    "Scope": {
+      "id": 3,
+      "name": "scope"
+    },
+    "Title": {
+      "id": 7,
+      "name": "title"
     }
   },
   "Approval": {
@@ -821,6 +971,20 @@
       "name": "reason"
     }
   },
+  "CPUEnvironment": {
+    "LogicalCores": {
+      "id": 2,
+      "name": "logical_cores"
+    },
+    "Model": {
+      "id": 1,
+      "name": "model"
+    },
+    "PhysicalCores": {
+      "id": 3,
+      "name": "physical_cores"
+    }
+  },
   "CertificateIdentity": {
     "AgentID": {
       "id": 2,
@@ -921,6 +1085,32 @@
       "name": "operation_id"
     }
   },
+  "ComputerEnvironment": {
+    "BindingID": {
+      "id": 1,
+      "name": "binding_id"
+    },
+    "DeviceName": {
+      "id": 2,
+      "name": "device_name"
+    },
+    "Generation": {
+      "id": 3,
+      "name": "generation"
+    },
+    "Observation": {
+      "id": 6,
+      "name": "observation"
+    },
+    "ReceivedAt": {
+      "id": 4,
+      "name": "received_at"
+    },
+    "Stale": {
+      "id": 5,
+      "name": "stale"
+    }
+  },
   "ConnectionProfile": {
     "CA": {
       "id": 3,
@@ -959,6 +1149,16 @@
     "Reason": {
       "id": 3,
       "name": "reason"
+    }
+  },
+  "DiskEnvironment": {
+    "AvailableBytes": {
+      "id": 2,
+      "name": "available_bytes"
+    },
+    "TotalBytes": {
+      "id": 1,
+      "name": "total_bytes"
     }
   },
   "EnrollRequest": {
@@ -1055,6 +1255,64 @@
       "name": "parent_id"
     }
   },
+  "EnvironmentObservation": {
+    "CPU": {
+      "id": 4,
+      "name": "cpu"
+    },
+    "Disk": {
+      "id": 6,
+      "name": "disk"
+    },
+    "Executables": {
+      "id": 7,
+      "name": "executables"
+    },
+    "Memory": {
+      "id": 5,
+      "name": "memory"
+    },
+    "ObservedAt": {
+      "id": 2,
+      "name": "observed_at"
+    },
+    "Problems": {
+      "id": 8,
+      "name": "problems"
+    },
+    "System": {
+      "id": 3,
+      "name": "system"
+    },
+    "Version": {
+      "id": 1,
+      "name": "version"
+    }
+  },
+  "EnvironmentProblem": {
+    "Code": {
+      "id": 2,
+      "name": "code"
+    },
+    "Component": {
+      "id": 1,
+      "name": "component"
+    }
+  },
+  "EnvironmentRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Observation": {
+      "id": 3,
+      "name": "observation"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
   "Event": {
     "CreatedAt": {
       "id": 6,
@@ -1093,6 +1351,40 @@
     "Retryable": {
       "id": 3,
       "name": "retryable"
+    }
+  },
+  "FoundationExecutable": {
+    "Commit": {
+      "id": 4,
+      "name": "commit"
+    },
+    "Name": {
+      "id": 1,
+      "name": "name"
+    },
+    "Running": {
+      "id": 6,
+      "name": "running"
+    },
+    "RunningCommit": {
+      "id": 8,
+      "name": "running_commit"
+    },
+    "RunningVersion": {
+      "id": 7,
+      "name": "running_version"
+    },
+    "SHA256": {
+      "id": 5,
+      "name": "sha256"
+    },
+    "State": {
+      "id": 2,
+      "name": "state"
+    },
+    "Version": {
+      "id": 3,
+      "name": "version"
     }
   },
   "GrantRequest": {
@@ -1393,10 +1685,28 @@
       "name": "username"
     }
   },
+  "MemoryEnvironment": {
+    "AvailableBytes": {
+      "id": 2,
+      "name": "available_bytes"
+    },
+    "FreeBytes": {
+      "id": 3,
+      "name": "free_bytes"
+    },
+    "TotalBytes": {
+      "id": 1,
+      "name": "total_bytes"
+    }
+  },
   "Message": {
     "AgentOperation": {
       "id": 15,
       "name": "agent_operation"
+    },
+    "Announcement": {
+      "id": 21,
+      "name": "announcement"
     },
     "AuthenticationRefresh": {
       "id": 14,
@@ -2517,6 +2827,28 @@
     "TaskID": {
       "id": 5,
       "name": "task_id"
+    }
+  },
+  "SystemEnvironment": {
+    "Architecture": {
+      "id": 4,
+      "name": "architecture"
+    },
+    "GoVersion": {
+      "id": 5,
+      "name": "go_version"
+    },
+    "Kernel": {
+      "id": 3,
+      "name": "kernel"
+    },
+    "OS": {
+      "id": 1,
+      "name": "os"
+    },
+    "OSVersion": {
+      "id": 2,
+      "name": "os_version"
     }
   },
   "Task": {

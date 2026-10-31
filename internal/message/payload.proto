@@ -86,6 +86,12 @@ message Go_AgentDiagnostics {
   Go_AgentTextStatus status = 15;
 }
 
+message Go_AgentEnvironment {
+  String agent_id = 1;
+  Signed server_observed_at = 2;
+  List_Go_ComputerEnvironment computers = 3;
+}
+
 message Go_AgentIdentity {
   String agent_id = 1;
   String instance_id = 2;
@@ -177,6 +183,55 @@ message Go_AgentTextStatus {
   Signed updated_at = 4;
   Signed observed_at = 5;
   Bool stale = 6;
+}
+
+message Go_AnnouncementAudience {
+  String actor_id = 1;
+  String scope = 2;
+  String project_id = 3;
+  Signed project_epoch = 4;
+  List_Go_AnnouncementRecipient recipients = 5;
+}
+
+message Go_AnnouncementContext {
+  String id = 1;
+  String scope = 2;
+  String project_id = 3;
+  Signed project_epoch = 4;
+  String kind = 5;
+  Signed sender_generation = 6;
+  Signed recipient_generation = 7;
+}
+
+message Go_AnnouncementDelivery {
+  String agent_id = 1;
+  String message_id = 2;
+}
+
+message Go_AnnouncementReceipt {
+  String id = 1;
+  String scope = 2;
+  String project_id = 3;
+  String kind = 4;
+  Signed created_at = 5;
+  List_Go_AnnouncementDelivery deliveries = 6;
+}
+
+message Go_AnnouncementRecipient {
+  String agent_id = 1;
+  String name = 2;
+}
+
+message Go_AnnouncementRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String scope = 3;
+  String project_id = 4;
+  Signed project_epoch = 5;
+  String kind = 6;
+  String title = 7;
+  String body = 8;
+  List_String recipient_ids = 9;
 }
 
 message Go_Approval {
@@ -285,6 +340,12 @@ message Go_AuthenticationRefreshRequest {
   String reason = 5;
 }
 
+message Go_CPUEnvironment {
+  String model = 1;
+  Signed logical_cores = 2;
+  Unsigned physical_cores = 3;
+}
+
 message Go_CertificateIdentity {
   String instance_id = 1;
   String agent_id = 2;
@@ -320,6 +381,15 @@ message Go_Command {
   Signed expected_revision = 2;
 }
 
+message Go_ComputerEnvironment {
+  String binding_id = 1;
+  String device_name = 2;
+  Signed generation = 3;
+  Signed received_at = 4;
+  Bool stale = 5;
+  Go_EnvironmentObservation observation = 6;
+}
+
 message Go_ConnectionProfile {
   Go_AgentIdentity identity = 1;
   String url = 2;
@@ -333,6 +403,11 @@ message Go_DiagnosticRefreshRequest {
   String operation_id = 1;
   Signed expected_revision = 2;
   String reason = 3;
+}
+
+message Go_DiskEnvironment {
+  Unsigned total_bytes = 1;
+  Unsigned available_bytes = 2;
 }
 
 message Go_Entry {
@@ -358,6 +433,28 @@ message Go_EntryRequest {
   String parent_id = 5;
 }
 
+message Go_EnvironmentObservation {
+  Signed version = 1;
+  Signed observed_at = 2;
+  Go_SystemEnvironment system = 3;
+  Go_CPUEnvironment cpu = 4;
+  Go_MemoryEnvironment memory = 5;
+  Go_DiskEnvironment disk = 6;
+  List_Go_FoundationExecutable executables = 7;
+  List_Go_EnvironmentProblem problems = 8;
+}
+
+message Go_EnvironmentProblem {
+  String component = 1;
+  String code = 2;
+}
+
+message Go_EnvironmentRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  Go_EnvironmentObservation observation = 3;
+}
+
 message Go_Event {
   Signed sequence = 1;
   String topic = 2;
@@ -371,6 +468,17 @@ message Go_Fault {
   String code = 1;
   String message = 2;
   Bool retryable = 3;
+}
+
+message Go_FoundationExecutable {
+  String name = 1;
+  String state = 2;
+  String version = 3;
+  String commit = 4;
+  String sha256 = 5;
+  Bool running = 6;
+  String running_version = 7;
+  String running_commit = 8;
 }
 
 message Go_GrantRequest {
@@ -465,6 +573,12 @@ message Go_ManagedAccount {
   Signed generation = 9;
 }
 
+message Go_MemoryEnvironment {
+  Unsigned total_bytes = 1;
+  Unsigned available_bytes = 2;
+  Unsigned free_bytes = 3;
+}
+
 message Go_Message {
   String id = 1;
   String sender_id = 2;
@@ -486,6 +600,7 @@ message Go_Message {
   Bool insistence = 18;
   Go_MessageActionState request = 19;
   Go_MessageActionUpdate request_update = 20;
+  Go_AnnouncementContext announcement = 21;
 }
 
 message Go_MessageAction {
@@ -850,6 +965,14 @@ message Go_SessionRequest {
   Bool desktop_fallback = 14;
 }
 
+message Go_SystemEnvironment {
+  String os = 1;
+  String os_version = 2;
+  String kernel = 3;
+  String architecture = 4;
+  String go_version = 5;
+}
+
 message Go_Task {
   String id = 1;
   String project_id = 2;
@@ -1112,6 +1235,11 @@ message List_Go_AgentDiagnostics {
   bool present = 2;
 }
 
+message List_Go_AgentEnvironment {
+  repeated Go_AgentEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Go_AgentIdentity {
   repeated Go_AgentIdentity items = 1;
   bool present = 2;
@@ -1154,6 +1282,36 @@ message List_Go_AgentStatusRequest {
 
 message List_Go_AgentTextStatus {
   repeated Go_AgentTextStatus items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementAudience {
+  repeated Go_AnnouncementAudience items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementContext {
+  repeated Go_AnnouncementContext items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementDelivery {
+  repeated Go_AnnouncementDelivery items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementReceipt {
+  repeated Go_AnnouncementReceipt items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementRecipient {
+  repeated Go_AnnouncementRecipient items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementRequest {
+  repeated Go_AnnouncementRequest items = 1;
   bool present = 2;
 }
 
@@ -1212,6 +1370,11 @@ message List_Go_AuthenticationRefreshRequest {
   bool present = 2;
 }
 
+message List_Go_CPUEnvironment {
+  repeated Go_CPUEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Go_CertificateIdentity {
   repeated Go_CertificateIdentity items = 1;
   bool present = 2;
@@ -1232,6 +1395,11 @@ message List_Go_Command {
   bool present = 2;
 }
 
+message List_Go_ComputerEnvironment {
+  repeated Go_ComputerEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Go_ConnectionProfile {
   repeated Go_ConnectionProfile items = 1;
   bool present = 2;
@@ -1239,6 +1407,11 @@ message List_Go_ConnectionProfile {
 
 message List_Go_DiagnosticRefreshRequest {
   repeated Go_DiagnosticRefreshRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_DiskEnvironment {
+  repeated Go_DiskEnvironment items = 1;
   bool present = 2;
 }
 
@@ -1252,6 +1425,21 @@ message List_Go_EntryRequest {
   bool present = 2;
 }
 
+message List_Go_EnvironmentObservation {
+  repeated Go_EnvironmentObservation items = 1;
+  bool present = 2;
+}
+
+message List_Go_EnvironmentProblem {
+  repeated Go_EnvironmentProblem items = 1;
+  bool present = 2;
+}
+
+message List_Go_EnvironmentRequest {
+  repeated Go_EnvironmentRequest items = 1;
+  bool present = 2;
+}
+
 message List_Go_Event {
   repeated Go_Event items = 1;
   bool present = 2;
@@ -1259,6 +1447,11 @@ message List_Go_Event {
 
 message List_Go_Fault {
   repeated Go_Fault items = 1;
+  bool present = 2;
+}
+
+message List_Go_FoundationExecutable {
+  repeated Go_FoundationExecutable items = 1;
   bool present = 2;
 }
 
@@ -1314,6 +1507,11 @@ message List_Go_LocalStatus {
 
 message List_Go_ManagedAccount {
   repeated Go_ManagedAccount items = 1;
+  bool present = 2;
+}
+
+message List_Go_MemoryEnvironment {
+  repeated Go_MemoryEnvironment items = 1;
   bool present = 2;
 }
 
@@ -1522,6 +1720,11 @@ message List_Go_SessionRequest {
   bool present = 2;
 }
 
+message List_Go_SystemEnvironment {
+  repeated Go_SystemEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Go_Task {
   repeated Go_Task items = 1;
   bool present = 2;
@@ -1642,6 +1845,11 @@ message List_Page_Go_AgentDiagnostics {
   bool present = 2;
 }
 
+message List_Page_Go_AgentEnvironment {
+  repeated Page_Go_AgentEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_AgentIdentity {
   repeated Page_Go_AgentIdentity items = 1;
   bool present = 2;
@@ -1684,6 +1892,36 @@ message List_Page_Go_AgentStatusRequest {
 
 message List_Page_Go_AgentTextStatus {
   repeated Page_Go_AgentTextStatus items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementAudience {
+  repeated Page_Go_AnnouncementAudience items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementContext {
+  repeated Page_Go_AnnouncementContext items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementDelivery {
+  repeated Page_Go_AnnouncementDelivery items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementReceipt {
+  repeated Page_Go_AnnouncementReceipt items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementRecipient {
+  repeated Page_Go_AnnouncementRecipient items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementRequest {
+  repeated Page_Go_AnnouncementRequest items = 1;
   bool present = 2;
 }
 
@@ -1742,6 +1980,11 @@ message List_Page_Go_AuthenticationRefreshRequest {
   bool present = 2;
 }
 
+message List_Page_Go_CPUEnvironment {
+  repeated Page_Go_CPUEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_CertificateIdentity {
   repeated Page_Go_CertificateIdentity items = 1;
   bool present = 2;
@@ -1762,6 +2005,11 @@ message List_Page_Go_Command {
   bool present = 2;
 }
 
+message List_Page_Go_ComputerEnvironment {
+  repeated Page_Go_ComputerEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_ConnectionProfile {
   repeated Page_Go_ConnectionProfile items = 1;
   bool present = 2;
@@ -1769,6 +2017,11 @@ message List_Page_Go_ConnectionProfile {
 
 message List_Page_Go_DiagnosticRefreshRequest {
   repeated Page_Go_DiagnosticRefreshRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_DiskEnvironment {
+  repeated Page_Go_DiskEnvironment items = 1;
   bool present = 2;
 }
 
@@ -1782,6 +2035,21 @@ message List_Page_Go_EntryRequest {
   bool present = 2;
 }
 
+message List_Page_Go_EnvironmentObservation {
+  repeated Page_Go_EnvironmentObservation items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_EnvironmentProblem {
+  repeated Page_Go_EnvironmentProblem items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_EnvironmentRequest {
+  repeated Page_Go_EnvironmentRequest items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_Event {
   repeated Page_Go_Event items = 1;
   bool present = 2;
@@ -1789,6 +2057,11 @@ message List_Page_Go_Event {
 
 message List_Page_Go_Fault {
   repeated Page_Go_Fault items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FoundationExecutable {
+  repeated Page_Go_FoundationExecutable items = 1;
   bool present = 2;
 }
 
@@ -1844,6 +2117,11 @@ message List_Page_Go_LocalStatus {
 
 message List_Page_Go_ManagedAccount {
   repeated Page_Go_ManagedAccount items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_MemoryEnvironment {
+  repeated Page_Go_MemoryEnvironment items = 1;
   bool present = 2;
 }
 
@@ -2052,6 +2330,11 @@ message List_Page_Go_SessionRequest {
   bool present = 2;
 }
 
+message List_Page_Go_SystemEnvironment {
+  repeated Page_Go_SystemEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_Task {
   repeated Page_Go_Task items = 1;
   bool present = 2;
@@ -2237,6 +2520,16 @@ message Map_Go_AgentDiagnostics_Entry {
   Go_AgentDiagnostics value = 2;
 }
 
+message Map_Go_AgentEnvironment {
+  repeated Map_Go_AgentEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AgentEnvironment_Entry {
+  optional string key = 1;
+  Go_AgentEnvironment value = 2;
+}
+
 message Map_Go_AgentIdentity {
   repeated Map_Go_AgentIdentity_Entry items = 1;
   bool present = 2;
@@ -2330,6 +2623,66 @@ message Map_Go_AgentTextStatus_Entry {
 message Map_Go_Agent_Entry {
   optional string key = 1;
   Go_Agent value = 2;
+}
+
+message Map_Go_AnnouncementAudience {
+  repeated Map_Go_AnnouncementAudience_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementAudience_Entry {
+  optional string key = 1;
+  Go_AnnouncementAudience value = 2;
+}
+
+message Map_Go_AnnouncementContext {
+  repeated Map_Go_AnnouncementContext_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementContext_Entry {
+  optional string key = 1;
+  Go_AnnouncementContext value = 2;
+}
+
+message Map_Go_AnnouncementDelivery {
+  repeated Map_Go_AnnouncementDelivery_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementDelivery_Entry {
+  optional string key = 1;
+  Go_AnnouncementDelivery value = 2;
+}
+
+message Map_Go_AnnouncementReceipt {
+  repeated Map_Go_AnnouncementReceipt_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementReceipt_Entry {
+  optional string key = 1;
+  Go_AnnouncementReceipt value = 2;
+}
+
+message Map_Go_AnnouncementRecipient {
+  repeated Map_Go_AnnouncementRecipient_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementRecipient_Entry {
+  optional string key = 1;
+  Go_AnnouncementRecipient value = 2;
+}
+
+message Map_Go_AnnouncementRequest {
+  repeated Map_Go_AnnouncementRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementRequest_Entry {
+  optional string key = 1;
+  Go_AnnouncementRequest value = 2;
 }
 
 message Map_Go_Approval {
@@ -2442,6 +2795,16 @@ message Map_Go_AuthenticationRefresh_Entry {
   Go_AuthenticationRefresh value = 2;
 }
 
+message Map_Go_CPUEnvironment {
+  repeated Map_Go_CPUEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_CPUEnvironment_Entry {
+  optional string key = 1;
+  Go_CPUEnvironment value = 2;
+}
+
 message Map_Go_CertificateIdentity {
   repeated Map_Go_CertificateIdentity_Entry items = 1;
   bool present = 2;
@@ -2482,6 +2845,16 @@ message Map_Go_Command_Entry {
   Go_Command value = 2;
 }
 
+message Map_Go_ComputerEnvironment {
+  repeated Map_Go_ComputerEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ComputerEnvironment_Entry {
+  optional string key = 1;
+  Go_ComputerEnvironment value = 2;
+}
+
 message Map_Go_ConnectionProfile {
   repeated Map_Go_ConnectionProfile_Entry items = 1;
   bool present = 2;
@@ -2500,6 +2873,16 @@ message Map_Go_DiagnosticRefreshRequest {
 message Map_Go_DiagnosticRefreshRequest_Entry {
   optional string key = 1;
   Go_DiagnosticRefreshRequest value = 2;
+}
+
+message Map_Go_DiskEnvironment {
+  repeated Map_Go_DiskEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_DiskEnvironment_Entry {
+  optional string key = 1;
+  Go_DiskEnvironment value = 2;
 }
 
 message Map_Go_Entry {
@@ -2522,6 +2905,36 @@ message Map_Go_Entry_Entry {
   Go_Entry value = 2;
 }
 
+message Map_Go_EnvironmentObservation {
+  repeated Map_Go_EnvironmentObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_EnvironmentObservation_Entry {
+  optional string key = 1;
+  Go_EnvironmentObservation value = 2;
+}
+
+message Map_Go_EnvironmentProblem {
+  repeated Map_Go_EnvironmentProblem_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_EnvironmentProblem_Entry {
+  optional string key = 1;
+  Go_EnvironmentProblem value = 2;
+}
+
+message Map_Go_EnvironmentRequest {
+  repeated Map_Go_EnvironmentRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_EnvironmentRequest_Entry {
+  optional string key = 1;
+  Go_EnvironmentRequest value = 2;
+}
+
 message Map_Go_Event {
   repeated Map_Go_Event_Entry items = 1;
   bool present = 2;
@@ -2540,6 +2953,16 @@ message Map_Go_Fault {
 message Map_Go_Fault_Entry {
   optional string key = 1;
   Go_Fault value = 2;
+}
+
+message Map_Go_FoundationExecutable {
+  repeated Map_Go_FoundationExecutable_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FoundationExecutable_Entry {
+  optional string key = 1;
+  Go_FoundationExecutable value = 2;
 }
 
 message Map_Go_GrantRequest {
@@ -2650,6 +3073,16 @@ message Map_Go_ManagedAccount {
 message Map_Go_ManagedAccount_Entry {
   optional string key = 1;
   Go_ManagedAccount value = 2;
+}
+
+message Map_Go_MemoryEnvironment {
+  repeated Map_Go_MemoryEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_MemoryEnvironment_Entry {
+  optional string key = 1;
+  Go_MemoryEnvironment value = 2;
 }
 
 message Map_Go_Message {
@@ -3062,6 +3495,16 @@ message Map_Go_Session_Entry {
   Go_Session value = 2;
 }
 
+message Map_Go_SystemEnvironment {
+  repeated Map_Go_SystemEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SystemEnvironment_Entry {
+  optional string key = 1;
+  Go_SystemEnvironment value = 2;
+}
+
 message Map_Go_Task {
   repeated Map_Go_Task_Entry items = 1;
   bool present = 2;
@@ -3297,6 +3740,16 @@ message Map_Page_Go_AgentDiagnostics_Entry {
   Page_Go_AgentDiagnostics value = 2;
 }
 
+message Map_Page_Go_AgentEnvironment {
+  repeated Map_Page_Go_AgentEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AgentEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_AgentEnvironment value = 2;
+}
+
 message Map_Page_Go_AgentIdentity {
   repeated Map_Page_Go_AgentIdentity_Entry items = 1;
   bool present = 2;
@@ -3390,6 +3843,66 @@ message Map_Page_Go_AgentTextStatus_Entry {
 message Map_Page_Go_Agent_Entry {
   optional string key = 1;
   Page_Go_Agent value = 2;
+}
+
+message Map_Page_Go_AnnouncementAudience {
+  repeated Map_Page_Go_AnnouncementAudience_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementAudience_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementAudience value = 2;
+}
+
+message Map_Page_Go_AnnouncementContext {
+  repeated Map_Page_Go_AnnouncementContext_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementContext_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementContext value = 2;
+}
+
+message Map_Page_Go_AnnouncementDelivery {
+  repeated Map_Page_Go_AnnouncementDelivery_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementDelivery_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementDelivery value = 2;
+}
+
+message Map_Page_Go_AnnouncementReceipt {
+  repeated Map_Page_Go_AnnouncementReceipt_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementReceipt_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementReceipt value = 2;
+}
+
+message Map_Page_Go_AnnouncementRecipient {
+  repeated Map_Page_Go_AnnouncementRecipient_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementRecipient_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementRecipient value = 2;
+}
+
+message Map_Page_Go_AnnouncementRequest {
+  repeated Map_Page_Go_AnnouncementRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementRequest_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementRequest value = 2;
 }
 
 message Map_Page_Go_Approval {
@@ -3502,6 +4015,16 @@ message Map_Page_Go_AuthenticationRefresh_Entry {
   Page_Go_AuthenticationRefresh value = 2;
 }
 
+message Map_Page_Go_CPUEnvironment {
+  repeated Map_Page_Go_CPUEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_CPUEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_CPUEnvironment value = 2;
+}
+
 message Map_Page_Go_CertificateIdentity {
   repeated Map_Page_Go_CertificateIdentity_Entry items = 1;
   bool present = 2;
@@ -3542,6 +4065,16 @@ message Map_Page_Go_Command_Entry {
   Page_Go_Command value = 2;
 }
 
+message Map_Page_Go_ComputerEnvironment {
+  repeated Map_Page_Go_ComputerEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ComputerEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_ComputerEnvironment value = 2;
+}
+
 message Map_Page_Go_ConnectionProfile {
   repeated Map_Page_Go_ConnectionProfile_Entry items = 1;
   bool present = 2;
@@ -3560,6 +4093,16 @@ message Map_Page_Go_DiagnosticRefreshRequest {
 message Map_Page_Go_DiagnosticRefreshRequest_Entry {
   optional string key = 1;
   Page_Go_DiagnosticRefreshRequest value = 2;
+}
+
+message Map_Page_Go_DiskEnvironment {
+  repeated Map_Page_Go_DiskEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_DiskEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_DiskEnvironment value = 2;
 }
 
 message Map_Page_Go_Entry {
@@ -3582,6 +4125,36 @@ message Map_Page_Go_Entry_Entry {
   Page_Go_Entry value = 2;
 }
 
+message Map_Page_Go_EnvironmentObservation {
+  repeated Map_Page_Go_EnvironmentObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_EnvironmentObservation_Entry {
+  optional string key = 1;
+  Page_Go_EnvironmentObservation value = 2;
+}
+
+message Map_Page_Go_EnvironmentProblem {
+  repeated Map_Page_Go_EnvironmentProblem_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_EnvironmentProblem_Entry {
+  optional string key = 1;
+  Page_Go_EnvironmentProblem value = 2;
+}
+
+message Map_Page_Go_EnvironmentRequest {
+  repeated Map_Page_Go_EnvironmentRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_EnvironmentRequest_Entry {
+  optional string key = 1;
+  Page_Go_EnvironmentRequest value = 2;
+}
+
 message Map_Page_Go_Event {
   repeated Map_Page_Go_Event_Entry items = 1;
   bool present = 2;
@@ -3600,6 +4173,16 @@ message Map_Page_Go_Fault {
 message Map_Page_Go_Fault_Entry {
   optional string key = 1;
   Page_Go_Fault value = 2;
+}
+
+message Map_Page_Go_FoundationExecutable {
+  repeated Map_Page_Go_FoundationExecutable_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FoundationExecutable_Entry {
+  optional string key = 1;
+  Page_Go_FoundationExecutable value = 2;
 }
 
 message Map_Page_Go_GrantRequest {
@@ -3710,6 +4293,16 @@ message Map_Page_Go_ManagedAccount {
 message Map_Page_Go_ManagedAccount_Entry {
   optional string key = 1;
   Page_Go_ManagedAccount value = 2;
+}
+
+message Map_Page_Go_MemoryEnvironment {
+  repeated Map_Page_Go_MemoryEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_MemoryEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_MemoryEnvironment value = 2;
 }
 
 message Map_Page_Go_Message {
@@ -4122,6 +4715,16 @@ message Map_Page_Go_Session_Entry {
   Page_Go_Session value = 2;
 }
 
+message Map_Page_Go_SystemEnvironment {
+  repeated Map_Page_Go_SystemEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SystemEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_SystemEnvironment value = 2;
+}
+
 message Map_Page_Go_Task {
   repeated Map_Page_Go_Task_Entry items = 1;
   bool present = 2;
@@ -4357,6 +4960,11 @@ message Page_Go_AgentDiagnostics {
   String next_cursor = 2;
 }
 
+message Page_Go_AgentEnvironment {
+  List_Go_AgentEnvironment items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_AgentIdentity {
   List_Go_AgentIdentity items = 1;
   String next_cursor = 2;
@@ -4399,6 +5007,36 @@ message Page_Go_AgentStatusRequest {
 
 message Page_Go_AgentTextStatus {
   List_Go_AgentTextStatus items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementAudience {
+  List_Go_AnnouncementAudience items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementContext {
+  List_Go_AnnouncementContext items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementDelivery {
+  List_Go_AnnouncementDelivery items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementReceipt {
+  List_Go_AnnouncementReceipt items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementRecipient {
+  List_Go_AnnouncementRecipient items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementRequest {
+  List_Go_AnnouncementRequest items = 1;
   String next_cursor = 2;
 }
 
@@ -4457,6 +5095,11 @@ message Page_Go_AuthenticationRefreshRequest {
   String next_cursor = 2;
 }
 
+message Page_Go_CPUEnvironment {
+  List_Go_CPUEnvironment items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_CertificateIdentity {
   List_Go_CertificateIdentity items = 1;
   String next_cursor = 2;
@@ -4477,6 +5120,11 @@ message Page_Go_Command {
   String next_cursor = 2;
 }
 
+message Page_Go_ComputerEnvironment {
+  List_Go_ComputerEnvironment items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_ConnectionProfile {
   List_Go_ConnectionProfile items = 1;
   String next_cursor = 2;
@@ -4484,6 +5132,11 @@ message Page_Go_ConnectionProfile {
 
 message Page_Go_DiagnosticRefreshRequest {
   List_Go_DiagnosticRefreshRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_DiskEnvironment {
+  List_Go_DiskEnvironment items = 1;
   String next_cursor = 2;
 }
 
@@ -4497,6 +5150,21 @@ message Page_Go_EntryRequest {
   String next_cursor = 2;
 }
 
+message Page_Go_EnvironmentObservation {
+  List_Go_EnvironmentObservation items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_EnvironmentProblem {
+  List_Go_EnvironmentProblem items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_EnvironmentRequest {
+  List_Go_EnvironmentRequest items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_Event {
   List_Go_Event items = 1;
   String next_cursor = 2;
@@ -4504,6 +5172,11 @@ message Page_Go_Event {
 
 message Page_Go_Fault {
   List_Go_Fault items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FoundationExecutable {
+  List_Go_FoundationExecutable items = 1;
   String next_cursor = 2;
 }
 
@@ -4559,6 +5232,11 @@ message Page_Go_LocalStatus {
 
 message Page_Go_ManagedAccount {
   List_Go_ManagedAccount items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_MemoryEnvironment {
+  List_Go_MemoryEnvironment items = 1;
   String next_cursor = 2;
 }
 
@@ -4764,6 +5442,11 @@ message Page_Go_SessionRecoveryRequest {
 
 message Page_Go_SessionRequest {
   List_Go_SessionRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SystemEnvironment {
+  List_Go_SystemEnvironment items = 1;
   String next_cursor = 2;
 }
 
