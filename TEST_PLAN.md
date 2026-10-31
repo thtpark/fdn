@@ -24,6 +24,32 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Founder desktop onboarding and protected clients
+
+`go test -race -count=1 ./internal/cli ./internal/upgrade -run 'AgentAddition|AssistanceStatus|ReleasePublished'`
+checks worker denial before SSH/terminal access, strict host pins and literal
+inputs, current-user native options, signed-public-only registration, separate
+installed/enrolled/connected observations, exact target replay, no reinstall
+after uncertain acknowledgements or stopped services, exclusive literal JSON
+writes, safe archive shape and exact server-version release selection.
+Assistance status must be bodyless/read-only, preserve unknown session creation
+and never open login/inference. Existing server registration/grant/relay tests
+remain authoritative for server-side policy.
+
+The sibling macOS package's `swift test --filter Administration` covers fresh
+Founder authority, absent non-Founder Add agent UI, sign-in request shape/expiry,
+exact grant requester/provider scope, screen/application/desktop-fallback
+requirements, bounded private VNC bootstrap parsing, exact-origin browser policy
+and a real PTY running an isolated fake CLI without transcript files.
+The app build includes pinned SwiftTerm/noVNC dependencies and license notices.
+With an explicitly built app, `FOUNDATION_NOVNC_ASSETS=/ABSOLUTE/APP/Contents/Resources/noVNC
+go test ./internal/remote -run BrowserInstalledNoVNC` verifies the actual bundled
+ES-module closure against the protected CLI asset loader, without a session,
+desktop, provider or external connection.
+These are local recording/process/native-render fixtures, not a live SSH
+installation, provider sign-in, real desktop/VNC or native reboot qualification.
+Then run the protocol check and all independent Foundation suites.
+
 ## Foreground mobile embedding
 
 `go test -race -count=1 ./mobile ./internal/transport ./internal/identityservice ./internal/cli -run 'Embedded|Mobile'`

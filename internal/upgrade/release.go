@@ -126,9 +126,25 @@ func (c Catalog) get(ctx context.Context, address string, limit int64, destinati
 }
 
 func (c Catalog) Latest(ctx context.Context, platform string) (domain.UpgradeRelease, error) {
+	return c.release(ctx, "latest", platform)
+}
+
+// Published selects an exact server-compatible release, never a newer client.
+func (c Catalog) Published(ctx context.Context, version, platform string) (domain.UpgradeRelease, error) {
+	if _, err := CompareVersion(version, version); err != nil {
+		return domain.UpgradeRelease{}, err
+	}
+	release, err := c.release(ctx, "tags/v"+version, platform)
+	if err == nil && release.Version != version {
+		return release, domain.Fail(domain.Denied, "published release differs from the requested server version")
+	}
+	return release, err
+}
+
+func (c Catalog) release(ctx context.Context, selector, platform string) (domain.UpgradeRelease, error) {
 	var release domain.UpgradeRelease
 	var buffer strings.Builder
-	if err := c.get(ctx, "https://api.github.com/repos/"+Repository+"/releases/latest", 1<<20, &buffer); err != nil {
+	if err := c.get(ctx, "https://api.github.com/repos/"+Repository+"/releases/"+selector, 1<<20, &buffer); err != nil {
 		return release, err
 	}
 	var response struct {

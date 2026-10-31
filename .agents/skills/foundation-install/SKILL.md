@@ -5,6 +5,19 @@ description: "Use when installing Foundation or a worker under the existing inst
 
 # Install or upgrade Foundation
 
+Fresh worker setup may be explicitly launched by Founder with `agent-cli agent
+add --host IP --user EXISTING_USER --name NAME` and a stable global
+`--operation-id`. It installs only under that existing non-root user's HOME,
+requires an already available user manager/GUI login domain, and selects the
+exact published running-server version/source. Existing state, unpublished
+sources and missing native prerequisites fail closed. Use protected human SSH
+host-key/password input; never collect those credentials through model/chat
+or structured output. `agent add-status OP` inspects retained installed,
+enrolled and connected stages without remote effects. An uncertain native step
+needs operator inspection, not an automatic retry, upgrade, recovery or a new
+operation. The macOS app hosts this same Founder CLI flow; it does not provision
+root/server services or providers.
+
 Read the version-matched guide with `fdn-service guide show DEPLOYMENT.md`
 (or `agent-cli guide show DEPLOYMENT.md`). In a source checkout the guide is at
 the repository root. Use the installed binary's help, not remembered legacy

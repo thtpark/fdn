@@ -6,6 +6,21 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Founder desktop onboarding source work (0.3.15)
+
+The macOS app adds a Founder-only Add agent form and fresh sign-in requests,
+plus a protected native PTY/tmux terminal and an embedded ephemeral VNC browser.
+`agent add` performs explicit fresh-worker SSH bootstrap using the existing OS
+account, independently confirmed host pin and exact published server release.
+Only signed public enrollment material crosses machines; installation,
+registration, connected native services and provider authentication stay
+distinct. `agent add-status` and `assistance status` inspect retained outcomes
+without retrying uncertain native work, creating sessions or starting login.
+There is no server/root installer, live-state adoption, Founder-device
+enrollment, new controller, inference authority or schema/protocol change.
+Local fixtures and a development bundle do not qualify live SSH, provider,
+desktop/VNC, native reboot or distribution behavior.
+
 ### Response-by-default source work (0.3.14)
 
 Fresh ordinary CLI/API messages and desktop/mobile human replies request a

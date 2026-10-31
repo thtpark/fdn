@@ -259,6 +259,8 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban applies only to non-Founders |
 | `agent-cli agent register` | `--input SIGNED_PUBLIC [--output PUBLIC_PROFILE]`; Founder-only new signed public-key registration |
+| `agent-cli agent add` | `--host IP --user SSH_USER --name NAME [--port 22 --identity-file ABS]`; Founder-only new-worker installation and signed registration in a protected human terminal |
+| `agent-cli agent add-status` | `OPERATION_ID`; read-only original Founder's retained local addition journal; no SSH, installation, key generation or retry |
 | `agent-cli agent recover` | `AGENT --input NEW_SIGNED_PUBLIC --reason REASON [--output PUBLIC_PROFILE]`; Founder-only non-Founder recovery with fresh keypairs/generation, not task-run recovery |
 | `agent-cli agent identity` | Current connection's public identity/device/account/key-generation/owner state; no private material |
 | `agent-cli device list` | Founder only; original computer and all additional device bindings, including revoked devices; no leaf flags |
@@ -288,6 +290,46 @@ Self-revocation through that device and revoking the last active computer are
 prerequisite errors. Root-local whole-Founder recovery and restore still retire
 all old device credentials. These commands do not implement a phone/browser
 client or per-device worker health/maintenance.
+
+### Add a new worker over SSH
+
+From an authenticated Founder computer, explicitly authorize a fresh worker:
+
+```sh
+agent-cli --operation-id add-agent2 agent add \
+  --host 192.0.2.10 --user existing_user --name Agent2
+```
+
+Use the target's **existing non-root installing account**. An optional absolute
+`--identity-file` selects your own operator SSH key; it is never transferred.
+SSH-agent/default-key authentication is also available. Passwords, passphrases
+and host-key confirmation belong only in the protected human terminal, never
+JSON, arguments, messages or model context. Verify the first SSH host fingerprint
+independently. Subsequent steps use that operation's retained strict host pin.
+OpenSSH may ask again for credentials on subsequent connections.
+
+The CLI checks the target OS/user/HOME and existing native user manager, refuses
+an existing `.foundation` installation, downloads the exact **published server
+version and commit** through the trusted release catalog, checks ZIP/manifest/
+archive contents, and installs under that same user's HOME. Fresh private keys
+are generated only on the target. Founder registers its signed public request,
+returns only the approved public profile, attaches the identity proxy/runner,
+and verifies the installed CLI source, both user services and the connected
+public AgentID. New workers retain the normal default **ai** mode; the command
+does not pause them or change existing automation/spending gates. Supported
+targets are Linux amd64/arm64 and macOS arm64 with their existing user manager/
+GUI login domain. There is no sudo, account creation, host-service/root policy
+change, direct provider installation/login or workspace-tool grant. The runner
+starts its normal AI lifecycle under existing authentication/work authority.
+
+Use `agent add-status add-agent2` after an interrupted response. Installed,
+enrolled and connected are separate observations. Exact acknowledged stages and
+server registration receipts are retained; an uncertain dispatched native stage
+is fenced and never rerun automatically. Keep the original operation, SSH pin,
+public request/profile and target evidence for authorized operator inspection.
+This is not existing-worker adoption, key recovery, an upgrade command or a
+new Founder-device enrollment path. Development/unpublished server sources fail
+closed rather than installing a different release.
 
 ## Founder software upgrades
 
@@ -785,6 +827,7 @@ non-Founder target require a matching persistent assistance grant.
 | `agent-cli assistance show` | `GRANT`; immutable scope, active state, revision and issuance attribution |
 | `agent-cli assistance revoke` | `GRANT --input FILE`: reason/current revision; Founder-only, closes live access on recheck |
 | `agent-cli assistance open` | `GRANT [--provider NAME --ttl 60..900]`; explicit requester launch in a protected terminal under retained authorization |
+| `agent-cli assistance status` | `OPEN_OPERATION_ID`; read-only current session for a retained local assistance-open operation; never opens/retries login or creates a replacement session |
 
 Grants have no timed expiry and survive process restarts/disconnects until
 revoked; closing/expiring a live session does not consume the grant. Global
@@ -795,6 +838,12 @@ covers supported authentication providers; it is not arbitrary terminal access.
 Only Founder issues/revokes grants; assistance never grants mode/task/spending
 authority. The target daemon prepares the bounded connection unattended after
 explicit requester open. A reconnect uses the same grant without reapproval.
+The macOS app can host that human terminal in a real PTY and the loopback browser
+VNC viewer in an ephemeral embedded browser. Protected commands still reject
+`--json`/`--non-interactive`; transcripts, credential inputs and one-use viewer
+URLs never pass through the app's ordinary captured CLI transport or proposal
+store. `assistance status` resolves the original saved session reference only;
+if creation has no acknowledged reference, its outcome stays unknown.
 Delegates can coordinate with typed APIs. Provider sign-in screens and public
 verification links may be displayed to the authorized human; public generic URLs
 and non-secret instructions may be relayed. Password/token/cookie inputs, one-time

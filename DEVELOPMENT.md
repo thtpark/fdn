@@ -164,6 +164,17 @@ Git-host fixtures rather than add task-title, provider or repository branches
 to production policy. All providers must prove non-prompting local
 approval behavior before enabling coding; text calls must remain tool-disabled.
 
+### Founder desktop onboarding
+
+Founder desktop onboarding is implemented by `internal/cli/agent_add.go`,
+reusing the published release catalog, signed registration and paired existing-
+user services. Keep operator SSH/passwords in a protected human PTY; no new API,
+native payload, identity owner or SQL migration is implied. Test uncertain
+native-stage fences and actual native service status, not merely downloaded
+files or accepted registration. The macOS wrapper's protected terminal/browser
+must remain separate from captured JSON processes and durable non-secret
+proposals. Do not start a live installation or login during local development.
+
 ### Saved diagnostics and bounded Founder controls
 
 Worker health piggybacks version 1 on the existing heartbeat; it does not grant

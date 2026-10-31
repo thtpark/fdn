@@ -48,6 +48,16 @@ discovered; explicit current-format configuration paths remain valid.
 External tool directories/environment settings and platform discovery/service
 locations retain their own contracts.
 
+Founder `agent add` is a client-side, current-user SSH installation saga, not
+a new authority or schema. It uses existing transactional signed registration.
+Its private local journal binds the original Founder/operation, exact target,
+server instance/release, signed public request/profile and acknowledged native
+stages. Unknown native effects retain a fence; receipt replay never installs a
+different source or rotates keys. `agent add-status` reads only that local
+evidence. `assistance status` reads the exact session retained by an assistance
+open operation, with ordinary current party authorization; it never creates,
+opens or retries a session. Neither command changes SQL/API/native versions.
+
 Screens require explicit current profiles with verified geometry and a matching
 local backend. Per-worker `vnc_address`/`vnc_verified` are unsupported; only their
 empty/false serialized slots are accepted when reading current baseline

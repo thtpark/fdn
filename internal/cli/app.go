@@ -37,6 +37,7 @@ var AgentCommands = []string{
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
 	"agent list", "agent status", "agent diagnose", "agent reset", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"device list", "device register", "device revoke",
+	"agent add", "agent add-status",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "discussion show", "mention list", "mention acknowledge", "watch", "observe",
 	"message send", "message show", "message read", "message diagnose", "message inbox", "message list", "message receipt", "message thread", "message thread-page", "message request-report", "session request", "session list", "session show", "session change", "session open",
@@ -52,7 +53,7 @@ var AgentCommands = []string{
 var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install", "upgrade-helper", "request-worker"}
 var ServiceCommands = []string{"serve", "status", "upgrade-helper", "request-worker"}
 var GuideCommands = []string{"guide list", "guide show", "guide install"}
-var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance request", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open"}
+var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance request", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open", "assistance status"}
 
 func RunAgent(ctx context.Context, args []string, in io.Reader, out, diagnostic io.Writer) int {
 	return run(ctx, "agent", args, in, out, diagnostic)
@@ -120,6 +121,10 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			}
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
+			case "agent add":
+				usage = "agent add --host IP --user SSH_USER --name AGENT [--port 22 --identity-file ABS]; Founder-only explicit new-worker installation/enrollment under the existing non-root SSH user; protected human terminal required for host-key/password prompts; exact published server release and normal AI-mode worker startup, no sudo, existing-state adoption or direct provider login; preserve operation-id after uncertainty"
+			case "agent add-status":
+				usage = "agent add-status OPERATION_ID; read-only original Founder's local installation/enrollment journal, including uncertain native stages; never retries SSH or installation"
 			case "observe":
 				usage = "observe; long-lived read-only protocol-1 JSON lines over stdin/stdout; get/subscribe/cancel, at most32 queries; uses existing identity and scoped feeds; no mutation, inference, controller or new owner; see COMMANDS.md"
 			case "message list":

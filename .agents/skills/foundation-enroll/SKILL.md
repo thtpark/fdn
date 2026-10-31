@@ -5,6 +5,21 @@ description: "Use when preparing signed public identity requests, enrolling or r
 
 # Register and recover the correct identity
 
+For an explicitly authorized **fresh worker**, Founder may use `agent-cli
+--operation-id OP agent add --host IP --user EXISTING_USER --name NAME` in a
+protected human terminal (or the macOS app's Founder-only Add agent form).
+Optional `--port`/absolute `--identity-file` select operator SSH, not the
+worker's application identity. Independently confirm the host key; passwords
+and passphrases stay in that human terminal, never model input. The command
+checks the existing non-root user/native manager, refuses existing Foundation
+state, verifies the exact published server release, prepares keys on the target
+and uses the signed registration/profile steps below. New workers retain the
+normal ai default; this flow does not pause them or grant new spending/task
+authority. No sudo, direct provider login or workspace-tool permission is
+implied. Inspect `agent add-status OP`
+after uncertainty and preserve native-stage fences; never restart the wizard,
+adopt partial state or rotate keys to bypass an unknown installation.
+
 Read `agent-cli guide show DEPLOYMENT.md`, `guide show COMMANDS.md` and
 `guide show SCHEMA.md` offline. `agent-identity --help` separately describes its
 protected-account commands; it has no `guide` or `config init` leaf.

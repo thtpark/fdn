@@ -13,6 +13,7 @@ func TestEmbeddedCLIFailsClosedBeforeDesktopOrFileInputDispatch(t *testing.T) {
 	for _, args := range [][]string{
 		{"work", "run"}, {"provider", "exec"}, {"service", "install"}, {"agent", "register"},
 		{"device", "register"}, {"session", "open"}, {"upgrade", "apply"},
+		{"agent", "add"}, {"agent", "request-sign-in"}, {"assistance", "grant"}, {"assistance", "open"},
 		{"message", "send", "--input", "/private/must-not-read"},
 		{"comment", "add", "task_fixture", "--input", "-",
 			"--config", "/private/must-not-read"},

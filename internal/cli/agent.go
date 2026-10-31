@@ -32,6 +32,7 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.nativeService(ctx, tail, "agent")
 	}
 	localOnly := slices.Contains([]string{"config", "knowledge", "inventory", "workspace", "provider", "preferences", "service", "screen"}, group) ||
+		(group == "agent" && len(tail) > 0 && tail[0] == "add-status") ||
 		(group == "upgrade" && len(tail) > 0 && tail[0] == "status") ||
 		(group == "mode" && len(tail) > 0 && tail[0] == "show") ||
 		(group == "work" && len(tail) > 0 && tail[0] == "status")
@@ -118,7 +119,10 @@ func requireArgs(args []string, count int) error {
 
 func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, reset, repair, operation, register, recover, identity, revoke, mode or request-sign-in")
+		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, reset, repair, operation, add, add-status, register, recover, identity, revoke, mode or request-sign-in")
+	}
+	if args[0] == "add" || args[0] == "add-status" {
+		return a.agentAddition(ctx, r, args)
 	}
 	if args[0] == "register" || args[0] == "recover" || args[0] == "identity" {
 		return a.identityCommand(ctx, r, args)
