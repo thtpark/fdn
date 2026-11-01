@@ -6,6 +6,12 @@ import (
 )
 
 func (s *Server) upgradeRoutes() {
+	body(s, "POST /v1/upgrades/maintenance", false, func(r *operationRequest, a domain.Agent, req domain.UpgradeMaintenanceRequest) (domain.UpgradeMaintenance, error) {
+		if r.URL.RawQuery != "" {
+			return domain.UpgradeMaintenance{}, domain.Fail(domain.Invalid, "temporary upgrade maintenance does not accept query parameters")
+		}
+		return s.Store.PauseUpgradeMaintenance(r.Context(), a.ID, req)
+	})
 	read(s, "GET /v1/message-requests", func(r *operationRequest, a domain.Agent) ([]domain.Message, error) {
 		return s.Store.NativeMessageRequests(r.Context(), a.ID)
 	})

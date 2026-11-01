@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/upgrade"
 )
 
 func (s *Store) prepareMessageAction(ctx context.Context, tx *sql.Tx, sender domain.Agent, req domain.MessageRequest) (*domain.MessageActionState, bool, error) {
@@ -249,6 +250,14 @@ func (s *Store) reportMessageAction(ctx context.Context, tx *sql.Tx, actor, id s
 	if !slices.Contains(allowed[m.Request.State], req.State) {
 		return m, domain.Fail(domain.Conflict, "request decision/result is not a valid next state; a follow-up is not a force/retry")
 	}
+	if req.UpgradeResult != nil {
+		if req.State != "completed" || m.Request.State != "executing" || m.Request.Action.Kind != "upgrade" || m.Request.Action.Upgrade == nil {
+			return m, domain.Fail(domain.Invalid, "verified native results belong only to an executing exact upgrade request's completion")
+		}
+		if err := upgrade.ValidateResult(*m.Request.Action.Upgrade, *req.UpgradeResult); err != nil {
+			return m, err
+		}
+	}
 	if req.State == "accepted" || req.State == "executing" || req.State == "completed" {
 		if err := s.messageActionCurrent(ctx, tx, m, req.State); err != nil {
 			return m, err
@@ -277,6 +286,7 @@ func (s *Store) reportMessageAction(ctx context.Context, tx *sql.Tx, actor, id s
 		}
 	}
 	m.Request.State, m.Request.Reason, m.Request.UpdatedAt = req.State, req.Reason, s.timestamp()
+	m.Request.UpgradeResult = req.UpgradeResult
 	m.Revision++
 	if slices.Contains([]string{"deferred", "declined", "completed", "failed"}, req.State) {
 		m.State = "handled"
@@ -290,11 +300,12 @@ func (s *Store) reportMessageAction(ctx context.Context, tx *sql.Tx, actor, id s
 	}
 	reply := domain.Message{ID: domain.NewID("message"), SenderID: actor, RecipientID: m.SenderID,
 		Body: req.Reason, Origin: "service", Kind: "request-update", State: "pending", CreatedAt: s.timestamp(), Revision: 1,
-		ThreadID: m.ThreadID, ReplyToID: m.ID, RequestUpdate: &domain.MessageActionUpdate{RequestID: m.ID, State: req.State, Reason: req.Reason}}
+		ThreadID: m.ThreadID, ReplyToID: m.ID, RequestUpdate: &domain.MessageActionUpdate{
+			RequestID: m.ID, State: req.State, Reason: req.Reason, UpgradeResult: req.UpgradeResult}}
 	if _, err := insertMessage(ctx, tx, reply); err != nil {
 		return m, err
 	}
-	return m, nil
+	return m, s.completeMaintenance(ctx, tx, m)
 }
 
 func (s *Store) MessageThread(ctx context.Context, actor, id string) ([]domain.Message, error) {

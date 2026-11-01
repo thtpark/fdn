@@ -90,6 +90,15 @@ func (c *Client) UploadFile(ctx context.Context, req domain.FileUploadRequest, s
 // DownloadFile verifies all bytes without acknowledging or deleting server content.
 // The caller must durably finalize its local destination before sending a receipt.
 func (c *Client) DownloadFile(ctx context.Context, id string, destination io.Writer) (domain.SharedFile, error) {
+	return c.DownloadFileGuarded(ctx, id, destination, nil)
+}
+
+func (c *Client) DownloadFileGuarded(ctx context.Context, id string, destination io.Writer, guard func(context.Context) error) (domain.SharedFile, error) {
+	if guard != nil {
+		if err := guard(ctx); err != nil {
+			return domain.SharedFile{}, err
+		}
+	}
 	file, err := Call[domain.SharedFile](ctx, c, "GET", Path("files", id), nil)
 	if err != nil {
 		return file, err
@@ -101,6 +110,11 @@ func (c *Client) DownloadFile(ctx context.Context, id string, destination io.Wri
 	for offset := int64(0); offset < file.Size; {
 		if err := ctx.Err(); err != nil {
 			return file, err
+		}
+		if guard != nil {
+			if err := guard(ctx); err != nil {
+				return file, err
+			}
 		}
 		query := url.Values{"offset": {strconv.FormatInt(offset, 10)}}
 		chunk, err := Call[domain.FileChunk](ctx, c, "GET", Path("files", id, "chunks")+"?"+query.Encode(), nil)

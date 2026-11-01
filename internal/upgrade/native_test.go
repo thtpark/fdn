@@ -25,6 +25,7 @@ type nativeRecorder struct {
 	newSource  bool
 	failApply  bool
 	busy       bool
+	clearFence bool
 	generation int64
 	release    domain.UpgradeRelease
 }
@@ -49,7 +50,7 @@ func (r *nativeRecorder) Run(_ context.Context, spec process.Spec) error {
 			pending = []string{"uncertain-fixture"}
 		}
 		return json.NewEncoder(spec.Stdout).Encode(map[string]any{"ok": true, "data": map[string]any{
-			"pending_invocations": pending, "session_fence": map[string]any{"active": true, "session_id": "session_retained"},
+			"pending_invocations": pending, "session_fence": map[string]any{"active": !r.clearFence, "session_id": "session_retained"},
 			"work": map[string]any{"mode": "manual", "pending_reports": 0}}})
 	case strings.HasSuffix(joined, "doctor"):
 		return json.NewEncoder(spec.Stdout).Encode(map[string]any{"ok": true, "data": map[string]string{"tls_and_authentication": "verified"}})

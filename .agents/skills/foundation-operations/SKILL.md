@@ -149,6 +149,11 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
      install/verify and reply with actual results; Foundation completes before
      dependent agents. Inspect message show/thread for queued/accepted/refused/
      completed/failed states; delivery/acceptance never means installation.
+     From 0.3.19, only an unchanged recorded temporary pause restores prior AI
+     after all exact native source/backup results are verified. Preexisting
+     manual intent, newer Founder decisions and independent fences are preserved.
+     Blocked restoration retains completed install history and privately notifies
+     Founder; legacy/operator cutovers need explicit Founder reconciliation.
      Native phases and evidence remain private. An interrupted mutation projects
      operator-required with its original phase code; inspect the same plan with
      `upgrade status --input PLAN`, even while Foundation is offline, without

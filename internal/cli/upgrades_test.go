@@ -73,20 +73,36 @@ func (f *upgradeOperatorFixture) Run(_ context.Context, spec process.Spec) error
 func upgradeCLIFixture(t *testing.T) (*app, *resources, upgrade.Catalog, string) {
 	t.Helper()
 	var founder string
+	var maintenance domain.UpgradeMaintenanceRequest
 	_, file, _ := operationCLIFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/v1/upgrades/context":
 			diagnosticsEnvelope(t, w, domain.UpgradeContext{InstanceID: "instance_fixture", Version: "0.3.2", Commit: strings.Repeat("a", 40),
 				Agents: []domain.Agent{{ID: founder, Founder: true, Active: true, Mode: "manual", Revision: 1},
 					{ID: "agent_target", Active: true, Mode: "ai", Revision: 1}}}, nil)
+		case r.URL.Path == "/v1/upgrades/maintenance" && r.Method == "POST":
+			if err := json.NewDecoder(r.Body).Decode(&maintenance); err != nil {
+				t.Error(err)
+			}
+			if maintenance.OperationID != maintenance.ID+".maintenance" || len(maintenance.Proposals) != 2 ||
+				maintenance.Proposals[0].Challenge.Role != "foundation" || maintenance.Proposals[1].Challenge.Role != "agent" {
+				t.Error("upgrade did not record one exact server-first temporary mode baseline")
+			}
+			diagnosticsEnvelope(t, w, domain.UpgradeMaintenance{ID: maintenance.ID, State: "paused",
+				FounderID: founder, FounderGeneration: 1, Proposals: maintenance.Proposals,
+				PausedModes: []domain.UpgradePausedMode{{AgentID: "agent_target", PriorMode: "ai", Revision: 2, Generation: 1}}}, nil)
 		case r.URL.Path == "/v1/upgrades/authorize":
 			var request domain.UpgradeAuthorizationRequest
 			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 				t.Error(err)
 			}
+			if request.MaintenanceID == "" || request.MaintenanceID != maintenance.ID {
+				t.Error("native authorization lost its temporary mode baseline")
+			}
 			diagnosticsEnvelope(t, w, domain.UpgradePermit{Proposal: request.Proposal, ActorID: founder,
 				ActorGeneration: 1, IssuedAt: time.Now().Unix(), ExpiresAt: time.Now().Unix() + 900, Signature: "fixture"}, nil)
 		case strings.HasSuffix(r.URL.Path, "/mode"):
+			t.Error("upgrade apply used a permanent unscoped mode change")
 			diagnosticsEnvelope(t, w, domain.Agent{ID: "agent_target", Mode: "manual"}, nil)
 		case r.URL.Path == "/v1/messages" && r.Method == "POST":
 			var request domain.MessageRequest

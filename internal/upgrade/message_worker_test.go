@@ -32,6 +32,7 @@ func TestNativeMessageRequestIsDecidedExecutedAndReportedByTarget(t *testing.T) 
 			t.Fatal("native result omitted exact request/revision/reason", req)
 		}
 		source.Request.State = req.Report.State
+		source.Request.UpgradeResult = req.Report.UpgradeResult
 		source.Revision++
 		states = append(states, req.Report.State)
 		updated := source
@@ -41,10 +42,38 @@ func TestNativeMessageRequestIsDecidedExecutedAndReportedByTarget(t *testing.T) 
 	if err != nil || !handled || !reflect.DeepEqual(states, []string{"accepted", "executing", "completed"}) {
 		t.Fatal("target did not own its request lifecycle", states, err)
 	}
+	if source.Request.UpgradeResult == nil || ValidateResult(permit, *source.Request.UpgradeResult) != nil || source.Request.UpgradeResult.ResumeSafe {
+		t.Fatal("native completion omitted exact verified source/backup provenance or ignored its retained session fence", source.Request.UpgradeResult)
+	}
 	count := len(recorder.calls)
 	handled, err = native.MessageStep(context.Background())
 	if err != nil || handled || len(recorder.calls) != count {
 		t.Fatal("completed request repeated native effects", handled, err)
+	}
+
+}
+
+func TestNativeVerifiedUpgradeReportsWhetherIndependentFencePermitsResume(t *testing.T) {
+	for _, clear := range []bool{false, true} {
+		t.Run(map[bool]string{false: "fenced", true: "clear"}[clear], func(t *testing.T) {
+			native, recorder, signer, key := nativeFixture(t)
+			recorder.clearFence = clear
+			permit := preparePermit(t, native, recorder, signer, key)
+			source := domain.Message{ID: "message_resume_safe", RecipientID: native.Policy.TargetID, Revision: 1,
+				Request: &domain.MessageActionState{State: "queued", Action: domain.MessageAction{Kind: "upgrade", Upgrade: &permit}}}
+			native.Mailbox = func(_ context.Context, req domain.MessageWorkerCommand) (domain.MessageWorkerReply, error) {
+				if req.Report == nil {
+					return domain.MessageWorkerReply{Messages: []domain.Message{source}}, nil
+				}
+				source.Request.State, source.Request.UpgradeResult = req.Report.State, req.Report.UpgradeResult
+				source.Revision++
+				return domain.MessageWorkerReply{Message: &source}, nil
+			}
+			if handled, err := native.MessageStep(context.Background()); err != nil || !handled ||
+				source.Request.UpgradeResult == nil || source.Request.UpgradeResult.ResumeSafe != clear {
+				t.Fatal("native verification manufactured/lost the independent fence observation", source.Request.UpgradeResult, err)
+			}
+		})
 	}
 }
 
@@ -109,6 +138,7 @@ func TestNativeMessageLostDecisionAndResultAcknowledgementsReplayWithoutEffects(
 					t.Fatal("native result omitted the exact original revision", req)
 				}
 				source.Request.State = req.Report.State
+				source.Request.UpgradeResult = req.Report.UpgradeResult
 				source.Revision++
 				saved := source
 				state := *source.Request

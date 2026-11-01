@@ -354,6 +354,24 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		status.TaskID = owned[0].ID
 		return status, errors.Join(domain.Fail(domain.Prerequisite, "an active server claim has no reconciled local invocation; confirm original processes stopped and obtain an explicit fenced release"), e.blockHealth(ctx, "unreconciled-claim"))
 	}
+	sessions, err := api.Call[[]domain.Session](ctx, e.Client, http.MethodGet, "/v1/sessions", nil)
+	if err != nil {
+		return status, err
+	}
+	for _, session := range sessions {
+		if session.TargetID == me.ID && (session.State == "active" || (session.OpenRequested && session.State == "consented")) {
+			status.State = "session-pending"
+			return status, nil
+		}
+	}
+	handled, transferBlockers, err := e.receiveFileTransfers(ctx, c, me)
+	status.Blockers = append(status.Blockers, transferBlockers...)
+	if err != nil {
+		return status, err
+	} else if handled {
+		status.State = "file-received"
+		return status, nil
+	}
 	inventory, err := e.State.Inventory(ctx)
 	if err != nil {
 		if domain.AsFault(err).Code != domain.Prerequisite {
@@ -395,16 +413,6 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	}
 	status.InitialReviewDone = true
-	sessions, err := api.Call[[]domain.Session](ctx, e.Client, http.MethodGet, "/v1/sessions", nil)
-	if err != nil {
-		return status, err
-	}
-	for _, session := range sessions {
-		if session.TargetID == me.ID && session.OpenRequested && session.State == "consented" {
-			status.State = "session-pending"
-			return status, nil
-		}
-	}
 	if acted, err := e.continueConversationActions(ctx, c, manual); err != nil {
 		return status, err
 	} else if acted {

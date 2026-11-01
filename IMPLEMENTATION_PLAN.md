@@ -621,6 +621,12 @@ or publication of selected private knowledge. Source/fixture acceptance is not
 a live deployment, physical-device/security/erasure or capacity certification.
 Use COMMANDS.md and TEST_PLAN.md for exact supported procedures/checks.
 
+0.3.19 source adds provider-independent designated transfer reception in AI mode
+and exact temporary-maintenance restoration of prior AI intent after verified
+rollout results. Newer Founder pauses, manual intent and independent fences remain
+enforced; legacy/operator upgrades need explicit reconciliation. Source tests do
+not imply this follow-up is released or deployed.
+
 ## Phase 7: idle-generated recurring children
 
 - A non-executable `repetitive` parent keeps rules in ordinary instructions.

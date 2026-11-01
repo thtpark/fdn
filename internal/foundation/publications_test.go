@@ -164,6 +164,48 @@ func TestPrivateTransferVerifiedReceiptNotificationAndAtomicDeletion(t *testing.
 	assertCode(t, err, domain.Denied)
 }
 
+func TestAutomaticFileReceiptHonorsFounderPauseAtomicallyAndKeepsExactReplay(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	file := readyFile(t, f, f.worker.ID, []byte("automatic receipt authority fixture"), f.other.ID, true)
+	setMode := func(mode string) {
+		t.Helper()
+		target, err := f.s.Agent(ctx, f.founder.ID, f.other.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = f.s.SetMode(ctx, f.founder.ID, f.other.ID, domain.ModeRequest{
+			Command: domain.Command{OperationID: op().OperationID, ExpectedRevision: target.Revision},
+			Mode:    mode, Reason: "Explicit Founder fixture decision"})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	setMode("manual")
+	req := domain.FileDownloadRequest{Command: op(), Size: file.Size, SHA256: file.SHA256, Automatic: true}
+	_, err := f.s.AcknowledgeFileDownload(ctx, f.other.ID, file.ID, req)
+	assertCode(t, err, domain.Denied)
+	current, err := f.s.File(ctx, f.other.ID, file.ID)
+	if err != nil || current.State != "ready" {
+		t.Fatal("automatic receipt bypassed a current pause and deleted live content", current, err)
+	}
+	setMode("ai")
+	receipt, err := f.s.AcknowledgeFileDownload(ctx, f.other.ID, file.ID, req)
+	if err != nil || !receipt.ContentDeleted || receipt.NotificationID == "" {
+		t.Fatal("exact pending receipt could not complete after Founder resumption", receipt, err)
+	}
+	setMode("manual")
+	replay, err := f.s.AcknowledgeFileDownload(ctx, f.other.ID, file.ID, req)
+	if err != nil || replay != receipt {
+		t.Fatal("replay of already completed receipt became new paused work", replay, err)
+	}
+	explicit := readyFile(t, f, f.worker.ID, []byte("explicit manual file access"), f.other.ID, true)
+	if _, err := f.s.AcknowledgeFileDownload(ctx, f.other.ID, explicit.ID, domain.FileDownloadRequest{
+		Command: op(), Size: explicit.Size, SHA256: explicit.SHA256}); err != nil {
+		t.Fatal("automatic receipt fencing removed ordinary explicit manual file access", err)
+	}
+}
+
 func TestFileStagingImmutableChunksHashFinalizationAndSmallBoundary(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()

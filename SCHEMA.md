@@ -182,6 +182,16 @@ replay never repeats deletion/notification; deleted bytes remain unavailable.
 Metadata/versions/history/references and existing task/identity/work fences are
 retained. This is logical content deletion, not physical secure erasure.
 
+The AI controller consumes pending designated private-transfer notices independently
+of `response_requested` and providers. It uses the shared admission lock, current
+identity/mode/grant checks and recipient-owned durable local finalization before
+acknowledgement. `FileDownloadRequest.automatic:true` fences a new receipt against
+a current Founder pause inside the same server transaction; explicit manual
+downloads and exact already-completed receipts retain their existing semantics.
+The local proposal retains this flag, including false for legacy explicit-download
+journals, so replay never changes the original fingerprint. Ordinary attachments
+remain opt-in and unavailable notices cannot imply a successful receipt.
+
 Private message attachment grants are resolved transactionally; existing readers
 cannot grant third-party access. Shared tasks/descriptions/criteria, entries and
 publications require prior explicit team publication. Snapshots pin immutable
@@ -618,6 +628,14 @@ discovery uses the stable versioned `thtpark/fdn` GitHub release channel; option
 native inventory is read-only and requires separately configured operator SSH.
 No missing/unknown observation becomes "up to date".
 
+`POST /v1/upgrades/maintenance` is Founder-only and queryless. Its exact ID and
+1-32 same-source, distinct, server-first proposals record a temporary pause and
+the prior AI modes/key generations/paused revisions in existing `settings`.
+An existing batch ID cannot be replaced by another operation. Exact permit
+authorization binds optional `maintenance_id`, and queued messages bind each
+permit and its preceding exact rollout dependencies. No SQL migration or
+rewriting of existing mode/message/permit records is required.
+
 `POST /v1/upgrades/authorize` checks current active paused Founder/key generation
 inside the authoritative transaction. The exact proposal binds a native nonce/
 ID, target Foundation/agent identity, key generation, current version/commit,
@@ -672,12 +690,25 @@ requests. Installed source, actual services, current identity generation,
 authoritative/local pause, pending work and retained session fence are checked.
 Keys, provider auth, workspaces, knowledge, journals/outbox and unrelated HOME
 instructions are not reset. No automatic task/inference retry, fence clearing,
-provider sign-in, provider update, release publication, cloud action or resumption
-is implied. Native receipts distinguish stopped/prepared/installing/verified;
+provider sign-in, provider update, release publication or cloud action is implied.
+Native receipts distinguish stopped/prepared/installing/verified;
 interrupted mutating phases become operator-required, not success.
 Read-only status can inspect retained original-Founder evidence over the separate
 operator channel while Foundation is offline. Repeating apply or automatically
 rolling back SQL after an uncertain install is forbidden.
+
+Only a recorded temporary batch may restore prior AI intent after all exact
+requests complete with `upgrade_result`: challenge ID, permit fingerprint,
+installed version/commit, encrypted-backup SHA-256 and an explicit native
+`resume_safe` observation. This is authenticated target/native result provenance,
+not hardware attestation or proof against a malicious custom client. Text-only
+completion cannot authorize restoration. Current issuer/target generations,
+original pause revisions/issuer and independent work/session/maintenance fences
+are preflighted transactionally before any mode changes. Newer Founder decisions
+and preexisting manual intent are preserved. Blocked restoration retains completed
+request history and records/notifies its reason; storage errors remain explicit
+and roll back atomically. No task/journal/inference retry or fence reset follows.
+Legacy/operator upgrades still require explicit Founder mode reconciliation.
 
 ### Agent-owned request conversations
 

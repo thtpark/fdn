@@ -15,6 +15,7 @@ func TestUpgradeAPIContextIsFounderOnlyAndStrictlyReadOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	for _, actor := range []domain.Agent{f.target, f.delegate} {
 		envelope, status := f.request(t, actor, http.MethodGet, "/v1/upgrades/context", nil)
 		if status != http.StatusForbidden || envelope.Error.Code != domain.Denied {
@@ -41,5 +42,29 @@ func TestUpgradeAPIContextIsFounderOnlyAndStrictlyReadOnly(t *testing.T) {
 	})
 	if status != http.StatusForbidden || envelope.Error.Code != domain.Denied {
 		t.Fatal("ordinary target reached native upgrade authorization", status, envelope)
+	}
+}
+
+func TestTemporaryUpgradeMaintenanceAPIIsFounderOnlyAndStrictlyScoped(t *testing.T) {
+	f := newAuthenticationAPIFixture(t)
+	request := domain.UpgradeMaintenanceRequest{Command: domain.Command{OperationID: domain.NewID("op")}, ID: domain.NewID("upgrade")}
+	for _, actor := range []domain.Agent{f.target, f.delegate} {
+		envelope, status := f.request(t, actor, http.MethodPost, "/v1/upgrades/maintenance", request)
+		if status != http.StatusForbidden || envelope.Error.Code != domain.Denied {
+			t.Fatal("non-Founder acquired a temporary mode-restoration grant", status, envelope)
+		}
+	}
+	envelope, status := f.request(t, f.founder, http.MethodPost, "/v1/upgrades/maintenance?force=true", request)
+	if status != http.StatusBadRequest || envelope.Error.Code != domain.Invalid {
+		t.Fatal("maintenance accepted a force/query side channel", status, envelope)
+	}
+	envelope, status = f.request(t, f.founder, http.MethodPost, "/v1/upgrades/maintenance", request)
+	if status != http.StatusBadRequest || envelope.Error.Code != domain.Invalid {
+		t.Fatal("maintenance accepted an unbound/empty proposal batch", status, envelope)
+	}
+	client := messageFixtureClient(t, f.server, f.founder.ID)
+	_, err := Call[domain.UpgradeMaintenance](context.Background(), client, http.MethodPost, "/v1/upgrades/maintenance", request)
+	if domain.AsFault(err).Code != domain.Invalid {
+		t.Fatal("native maintenance DTO/route differed from its strict API input", err)
 	}
 }

@@ -39,6 +39,15 @@ func ValidateProposal(p domain.UpgradeProposal) error {
 	return nil
 }
 
+func ValidateResult(permit domain.UpgradePermit, result domain.UpgradeResult) error {
+	if result.ChallengeID != permit.Proposal.Challenge.ID || result.PermitSHA256 != domain.Hash(permit.Signature) ||
+		result.Version != permit.Proposal.Release.Version || result.Commit != permit.Proposal.Release.Commit ||
+		!domain.ValidHash(result.BackupSHA256) {
+		return domain.Fail(domain.Conflict, "native upgrade result must bind the exact challenge, permit, installed source and verified encrypted backup")
+	}
+	return nil
+}
+
 func permitBytes(p domain.UpgradePermit) ([]byte, error) {
 	p.Signature = ""
 	data, err := json.Marshal(p)

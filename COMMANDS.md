@@ -339,7 +339,7 @@ closed rather than installing a different release.
 | --- | --- |
 | `agent-cli upgrade check` | `[--platform linux-amd64\|linux-arm64\|darwin-arm64] [--input TARGETS]`; Founder-only latest published release and optional actual native inventory; no mode/package/service changes |
 | `agent-cli upgrade plan` | `--input TARGETS --output PLAN`; private exact target/source/nonce/hash plan and off-host `PLAN.agekey`; no installation; output must be new |
-| `agent-cli upgrade apply` | `--input PLAN`; authorize exact permits, retain pause and queue private target-owned maintenance requests; returns queued, never installed |
+| `agent-cli upgrade apply` | `--input PLAN`; record a scoped temporary pause, authorize exact permits and queue private target-owned maintenance requests; returns queued, never installed |
 | `agent-cli upgrade status` | `--input PLAN`; original Founder's retained local evidence and native receipts, including when Foundation is offline; no installation/renewed authority |
 | `agent-cli upgrade-lease` | Internal native-helper command, bounded protobuf stdin/stdout only; exact issuer/target requests a fresh server nonce proof; no installer/inference |
 | `agent-service upgrade-helper` | `--policy FILE`; administrator-provisioned worker updater, bounded protobuf stdin/stdout only |
@@ -401,6 +401,18 @@ with its original phase in `code`. Repeating `apply` is rejected; use `status`
 and inspect actual effects. A binary rollback is not a database rollback.
 No automatic inference, provider login/update, key rotation, disk wipe, release
 publication, native policy/sudoers installation or cloud operation follows.
+
+From 0.3.19, `apply` records prior AI intent transactionally in one exact
+maintenance batch. Preexisting manual intent is untouched. Only after **every**
+recorded request supplies a matching typed verified native source/backup result
+may the server restore AI for unchanged temporary pauses. The original Founder
+and target key generations, mode-request issuer and paused revisions must still
+match. Newer Founder mode requests, unrelated maintenance, active work/assistance
+and native session fences are never overridden. Blocked restoration preserves
+actual completed installation reports and sends Founder a private non-inference
+notice with the reason. Failed/declined/deferred or text-only results stay paused
+for explicit Founder reconciliation. Legacy plans and operator cutovers grant no
+automatic-resume authority. `status` remains read-only, not a resumption command.
 
 First install an upgrade-capable Foundation and target service binary through
 an authorized operator, provision each native policy and an independent
@@ -1152,6 +1164,20 @@ replay the **same** download operation and output; a retained verified local cop
 can reconcile a receipt even after the transfer's server content was deleted.
 Replaced/missing local resources or changed hash/size block acknowledgement.
 No transport mutation is automatically retried.
+
+From 0.3.19, an AI controller automatically receives **designated** private
+transfers into recipient-owned `state_dir/transfers/FILE_ID.bin`, using the shared
+work slot and exact `receive-FILE_ID` journal. A pending transfer sent while
+manual remains queued until Founder enables AI. No `response_requested:true`,
+provider sign-in, onboarding review or paid inference is required. Ordinary
+attachments are not automatically fetched. Current identity/mode, grants,
+ownership, maintenance and assistance/session fences are rechecked during the
+bounded download and before receipt. Automatic receipt inputs retain
+`automatic:true`; the server transaction also denies new automatic receipts
+while paused. Explicit manual downloads remain available. Interrupted/lost
+receipts reconcile the original durable proposal without repeating verified
+bytes or notifying/deleting twice. Unreadable/deleted notices surface blockers
+without stranding other eligible transfers. No filename is executed or published.
 
 Owner-issued reader grants are revocable and checked on metadata/chunk/receipt
 access. There is no Founder bypass. Private transfers cannot be broadened into

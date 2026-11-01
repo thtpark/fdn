@@ -9,27 +9,30 @@ type MessageAction struct {
 }
 
 type MessageActionState struct {
-	Action              MessageAction `json:"action"`
-	State               string        `json:"state"`
-	Reason              string        `json:"reason,omitempty"`
-	SenderGeneration    int64         `json:"sender_generation"`
-	RecipientGeneration int64         `json:"recipient_generation"`
-	ProjectEpoch        int64         `json:"project_epoch,omitempty"`
-	SpecGeneration      int64         `json:"spec_generation,omitempty"`
-	ResultGeneration    int64         `json:"result_generation,omitempty"`
-	UpdatedAt           int64         `json:"updated_at"`
+	Action              MessageAction  `json:"action"`
+	State               string         `json:"state"`
+	Reason              string         `json:"reason,omitempty"`
+	SenderGeneration    int64          `json:"sender_generation"`
+	RecipientGeneration int64          `json:"recipient_generation"`
+	ProjectEpoch        int64          `json:"project_epoch,omitempty"`
+	SpecGeneration      int64          `json:"spec_generation,omitempty"`
+	ResultGeneration    int64          `json:"result_generation,omitempty"`
+	UpdatedAt           int64          `json:"updated_at"`
+	UpgradeResult       *UpgradeResult `json:"upgrade_result,omitempty"`
 }
 
 type MessageActionReport struct {
 	Command
-	State  string `json:"state"`
-	Reason string `json:"reason"`
+	State         string         `json:"state"`
+	Reason        string         `json:"reason"`
+	UpgradeResult *UpgradeResult `json:"upgrade_result,omitempty"`
 }
 
 type MessageActionUpdate struct {
-	RequestID string `json:"request_id"`
-	State     string `json:"state"`
-	Reason    string `json:"reason"`
+	RequestID     string         `json:"request_id"`
+	State         string         `json:"state"`
+	Reason        string         `json:"reason"`
+	UpgradeResult *UpgradeResult `json:"upgrade_result,omitempty"`
 }
 
 type MessageWorkerCommand struct {

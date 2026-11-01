@@ -76,7 +76,12 @@ commands.
    agents. Provision those receivers outside the units they stop. Queued or
    accepted messages are not installation success; plain body text is not authority.
    Keep PLAN and its off-host age key private; native backups can include CA/
-   identity/provider keys. Retain all original work fences and leave manual.
+   identity/provider keys. Retain all original work fences. From 0.3.19, only
+   the unchanged recorded temporary pause may restore prior AI after every
+   exact native source/backup result is verified. Newer Founder decisions,
+   preexisting manual intent and independent fences remain intact; blocked
+   restoration preserves installation history and privately notifies Founder.
+   Legacy/operator cutovers need explicit Founder mode reconciliation.
    A lost/failed install needs exact `upgrade status`, including when Foundation
    is offline; never rerun apply, renew its permit or auto-roll back SQL.
    Non-Founder targets are unattended. Only Founder may explicitly request a

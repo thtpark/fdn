@@ -215,8 +215,8 @@ live Founder. Software upgrades use explicit Founder check/plan/apply/status,
 the exact published release and separately administrator-provisioned native
 policy/operator access. Ordinary messages are not upgrade authority. Preserve
 private plans, off-host recovery keys, native receipts/backups and all work
-fences; uncertain installation is inspected, never blindly retried or rolled
-back into a potentially newer SQL schema. Successful installation stays paused.
+fences; inspect uncertain installs, never retry or roll back SQL. Only unchanged
+verified temporary pauses restore prior AI; preserve newer/manual intent and fences.
 
 Do not present future work in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
 as available commands. Do not certify live providers, full-host recovery,
