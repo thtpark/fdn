@@ -1165,6 +1165,12 @@ can reconcile a receipt even after the transfer's server content was deleted.
 Replaced/missing local resources or changed hash/size block acknowledgement.
 No transport mutation is automatically retried.
 
+0.3.20 corrects the message input adapter: both raw/native `MessageCommand` and
+CLI `MessageRequest` accept optional `attachment_ids`, including an explicit
+empty list, and preserve exact IDs through reply conversion. Omission/empty
+means no attachments; explicit reader grants, owner-only re-sharing and inline
+reference validation remain unchanged. Unknown/protected fields still fail.
+
 From 0.3.19, an AI controller automatically receives **designated** private
 transfers into recipient-owned `state_dir/transfers/FILE_ID.bin`, using the shared
 work slot and exact `receive-FILE_ID` journal. A pending transfer sent while

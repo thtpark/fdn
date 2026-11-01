@@ -201,6 +201,12 @@ retain body-generation/attention rules. Protected handoffs cannot accept ordinar
 attachments. Announcement fan-out uses exact current recipients/epoch and the
 same grants, without weakening request/native-upgrade/spending authority.
 
+Message input decoding carries `attachment_ids` through both `MessageCommand`
+and `MessageRequest` into the same transaction. The 0.3.20 fix appends the missing
+native command field without changing SQL9/API2/protocol2. Existing clients and
+proxies still require the matching locked payload contract; strict unknown-field,
+response/expiry and exact replay validation are not relaxed.
+
 All diary/skill/idea/file publications and complete immutable versions are
 team-readable. Creator/kind/scope/target are immutable; ordinary updates/archive
 are creator-owned, including against another Founder requester. Optional edits

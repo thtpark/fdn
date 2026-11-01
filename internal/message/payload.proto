@@ -735,6 +735,7 @@ message Go_MessageCommand {
   String reply_to_id = 10;
   Bool insistence = 11;
   Go_MessageAction request = 12;
+  List_String attachment_ids = 13;
 }
 
 message Go_MessageDiagnostics {

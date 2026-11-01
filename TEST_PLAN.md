@@ -38,6 +38,14 @@ CLI/native fixtures verify durable local commit before acknowledgement,
 interruption/lost-response replay, replaced/symlinked resources and no overwrite.
 No inference, host service, production endpoint, credentials or physical erasure.
 
+`MessageAttachment*`, `AttachedReplyCLI*` and `MessageSendDefaultsResponse*`
+exercise the actual desktop message/reply JSON shape through strict command/
+request decoding, omitted/empty/populated attachment lists, conversion/native
+transport, reply/thread linkage, exact lost-response proposals, current private
+reader grants and rejection of third-party re-sharing/protected provenance.
+Shared Swift composer tests verify omission of empty optional attachment lists
+without losing populated attachments, reply IDs or explicit response opt-out.
+
 `PrivateTransfer*`, `UnreadableAndOrdinary*` and `AutomaticFileReceipt*` additionally
 test manual-to-AI pending notices with `response_requested:false`, no onboarding/
 provider calls, owner-only automatic destinations, shared slot/claim/session/

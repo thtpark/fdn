@@ -2122,6 +2122,10 @@
     }
   },
   "MessageCommand": {
+    "AttachmentIDs": {
+      "id": 13,
+      "name": "attachment_ids"
+    },
     "Body": {
       "id": 4,
       "name": "body"

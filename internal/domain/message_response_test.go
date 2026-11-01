@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -36,10 +37,48 @@ func TestMessageResponseDefaultsAndExplicitOptOut(t *testing.T) {
 	}
 }
 
+func TestMessageAttachmentJSONSurvivesCommandAndRequestDecoding(t *testing.T) {
+	for _, attachment := range []struct {
+		name string
+		body string
+		want []string
+	}{
+		{"omitted", "", nil},
+		{"empty", `,"attachment_ids":[]`, []string{}},
+		{"attached", `,"attachment_ids":["file_fixture"]`, []string{"file_fixture"}},
+	} {
+		t.Run(attachment.name, func(t *testing.T) {
+			body := `{"recipient_id":"agent_receiver","body":"Reply with reviewed evidence.","origin":"human","kind":"direct","reply_to_id":"message_parent","response_requested":false` + attachment.body + `}`
+			var command MessageCommand
+			if err := json.Unmarshal([]byte(body), &command); err != nil {
+				t.Fatal("valid desktop message attachment input was rejected", err)
+			}
+			request := command.ToRequest()
+			if !slices.Equal(request.AttachmentIDs, attachment.want) || request.ReplyToID != "message_parent" || request.ResponseRequest {
+				t.Fatal("command conversion dropped attachments, reply linkage or explicit opt-out", request)
+			}
+			var direct MessageRequest
+			if err := json.Unmarshal([]byte(body), &direct); err != nil || !slices.Equal(direct.AttachmentIDs, attachment.want) {
+				t.Fatal("CLI request decoding lost desktop attachment input", direct, err)
+			}
+			encoded, err := json.Marshal(direct)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var replay MessageRequest
+			if err := json.Unmarshal(encoded, &replay); err != nil || !slices.Equal(replay.AttachmentIDs, attachment.want) || replay.ResponseRequest {
+				t.Fatal("retained attached reply could not replay exactly", replay, err)
+			}
+		})
+	}
+}
+
 func TestMessageResponseInputRemainsStrictAndRejectsNull(t *testing.T) {
 	for _, data := range []string{
 		`{"response_requested":null}`, `{"RESPONSE_REQUESTED":null}`, `{"response_requested":"false"}`,
 		`{"response_requested":0}`, `{"unsupported":true}`, `{} {}`,
+		`{"attachment_ids":"file_fixture"}`, `{"attachment_ids":[7]}`,
+		`{"file_download":{"file_id":"file_fixture","content_deleted":true}}`,
 	} {
 		for _, target := range []any{new(MessageCommand), new(MessageRequest)} {
 			if err := json.Unmarshal([]byte(data), target); err == nil {
