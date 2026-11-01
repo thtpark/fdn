@@ -256,27 +256,16 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 		return nil, err
 	}
 	defer lock.Close()
-	pauseIDs := map[string]bool{founder: true}
-	upgradingFoundation := false
+	maintenance := domain.UpgradeMaintenanceRequest{Command: domain.Command{OperationID: plan.ID + ".maintenance"}, ID: plan.ID}
 	for _, item := range plan.Items {
-		if item.Target.Role == "agent" {
-			pauseIDs[item.Target.TargetID] = true
-		} else {
-			upgradingFoundation = true
-		}
+		maintenance.Proposals = append(maintenance.Proposals, item.Proposal)
 	}
-	for _, agent := range authority.Agents {
-		if (pauseIDs[agent.ID] || upgradingFoundation && agent.Active) && agent.Mode != "manual" {
-			request := domain.ModeRequest{Command: domain.Command{OperationID: plan.ID + ".pause." + agent.ID, ExpectedRevision: agent.Revision},
-				Mode: "manual", Reason: "Founder-authorized native software upgrade; retain all work/session fences and require explicit resumption"}
-			if _, err := api.Call[domain.Agent](ctx, r.client, "POST", api.Path("agents", agent.ID, "mode"), request); err != nil {
-				return nil, err
-			}
-		}
+	if _, err := api.Call[domain.UpgradeMaintenance](ctx, r.client, "POST", "/v1/upgrades/maintenance", maintenance); err != nil {
+		return nil, err
 	}
 	for i := range plan.Items {
 		item := &plan.Items[i]
-		req := domain.UpgradeAuthorizationRequest{Command: domain.Command{OperationID: plan.ID + ".authorize." + strconv.Itoa(i)}, Proposal: item.Proposal}
+		req := domain.UpgradeAuthorizationRequest{Command: domain.Command{OperationID: plan.ID + ".authorize." + strconv.Itoa(i)}, Proposal: item.Proposal, MaintenanceID: plan.ID}
 		permit, err := api.Call[domain.UpgradePermit](ctx, r.client, "POST", "/v1/upgrades/authorize", req)
 		if err != nil {
 			return nil, err
@@ -292,7 +281,7 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 		item := &plan.Items[i]
 		request := domain.MessageRequest{Command: domain.Command{OperationID: plan.ID + ".request." + strconv.Itoa(i)},
 			RecipientID: item.Target.TargetID, Body: "Founder requests the exact approved software release " + item.Proposal.Release.Version +
-				". Review the current authority, safety and native policy; accept, defer or decline with a reason, then reply with the actual result. Automation must remain paused.",
+				". Review current authority, safety and native policy; report actual completion/failure. Only this temporary maintenance pause may restore prior AI intent after the entire exact rollout is verified; newer Founder pauses and independent fences remain unchanged.",
 			Origin: "human", Kind: "request", ResponseRequest: true,
 			Request: &domain.MessageAction{Kind: "upgrade", Upgrade: item.Permit, Dependencies: slices.Clone(dependencies)}}
 		queued, err := api.Call[domain.Message](ctx, r.client, "POST", "/v1/messages", request)
@@ -310,7 +299,7 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 	}
 	plan.State = "queued"
 	return map[string]any{"plan": plan, "executed": false,
-		"note": "durable private requests queued; targets decide and report actual completion/failure. Queued is not installed. Inspect each message thread; automation remains paused."}, config.Write(inputPath, plan)
+		"note": "durable private requests queued; targets decide and report actual completion/failure. Queued is not installed. Inspect each message thread; only unchanged temporary pauses may restore prior AI intent after the entire exact rollout is verified."}, config.Write(inputPath, plan)
 }
 
 func (a *app) upgradeHelper(ctx context.Context, args []string) (any, error) {

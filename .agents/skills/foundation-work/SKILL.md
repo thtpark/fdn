@@ -93,13 +93,14 @@ and consolidate over-budget context instead of working without required notes.
 ## Deliberate files and publications
 
 Follow [COMMANDS.md](../../../COMMANDS.md#files-publications-and-attachments):
-`file transfer --path FILE --to AGENT_ID` is private; receiver `file download
-FILE_ID --output FILE` persists/verifies before receipt/notification/deletion.
-Replay exact operations/source/output after uncertainty. Owner `file grant`
-controls readers; shared attachments need owner `file publish`. No Founder
-bypass, reader re-sharing or backup/copy erasure. `publication` is creator-owned,
-team-readable versioned Markdown, never automatic skill/knowledge publication,
-installation, fetching, quota or authority. Protected handoffs cannot attach.
+`file transfer --path FILE --to AGENT_ID`: private. AI auto-receives designated
+transfers under shared slot/mode/fences without onboarding/inference; manual queues.
+Explicit `file download FILE_ID --output FILE` works in manual. Verify/persist
+before receipt/deletion; replay exact journals. Attachments are opt-in. Owner
+`file grant` controls readers; shared files need owner `file publish`. No Founder
+bypass, re-sharing or backup/copy erasure. `publication`: creator-owned team
+Markdown, not installation, knowledge/skill publication or authority. Protected
+handoffs cannot attach.
 
 ## Execution and reporting
 

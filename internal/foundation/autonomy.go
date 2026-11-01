@@ -36,25 +36,29 @@ func (s *Store) SetMode(ctx context.Context, actor, id string, req domain.ModeRe
 		if err := domain.CheckText(req.Reason, "mode request reason", 8192, true); err != nil {
 			return target, err
 		}
-		target.Mode, target.ModeRequestedBy, target.ModeReason, target.ModeChangedAt = req.Mode, a.ID, req.Reason, s.timestamp()
-		target.Revision++
-		data, err := encode(target)
-		if err != nil {
-			return target, err
-		}
-		if _, err := tx.ExecContext(ctx, "UPDATE agents SET data = ? WHERE id = ?", data, target.ID); err != nil {
-			return target, err
-		}
-		if err := s.history(ctx, tx, target.ID, a.ID, "mode", target, req.Reason); err != nil {
-			return target, err
-		}
-		if err := s.observeAgentStatusMode(ctx, tx, target, s.timestamp()); err != nil {
-			return target, err
-		}
-		return target, s.event(ctx, tx, "agent-mode", target.ID, "", "")
+		return s.setAgentMode(ctx, tx, target, a.ID, req.Mode, req.Reason)
 	})
 	if err != nil {
 		return target, err
 	}
 	return s.projectAgentStatus(ctx, s.db, target, s.timestamp())
+}
+
+func (s *Store) setAgentMode(ctx context.Context, tx *sql.Tx, target domain.Agent, founder, mode, reason string) (domain.Agent, error) {
+	target.Mode, target.ModeRequestedBy, target.ModeReason, target.ModeChangedAt = mode, founder, reason, s.timestamp()
+	target.Revision++
+	data, err := encode(target)
+	if err != nil {
+		return target, err
+	}
+	if _, err := tx.ExecContext(ctx, "UPDATE agents SET data=? WHERE id=?", data, target.ID); err != nil {
+		return target, err
+	}
+	if err := s.history(ctx, tx, target.ID, founder, "mode", target, reason); err != nil {
+		return target, err
+	}
+	if err := s.observeAgentStatusMode(ctx, tx, target, s.timestamp()); err != nil {
+		return target, err
+	}
+	return target, s.event(ctx, tx, "agent-mode", target.ID, "", "")
 }

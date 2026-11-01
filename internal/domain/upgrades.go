@@ -31,7 +31,33 @@ type UpgradeProposal struct {
 
 type UpgradeAuthorizationRequest struct {
 	Command
-	Proposal UpgradeProposal `json:"proposal"`
+	Proposal      UpgradeProposal `json:"proposal"`
+	MaintenanceID string          `json:"maintenance_id,omitempty"`
+}
+
+type UpgradeMaintenanceRequest struct {
+	Command
+	ID        string            `json:"id"`
+	Proposals []UpgradeProposal `json:"proposals"`
+}
+
+type UpgradePausedMode struct {
+	AgentID    string `json:"agent_id"`
+	Generation int64  `json:"generation"`
+	Revision   int64  `json:"revision"`
+	PriorMode  string `json:"prior_mode"`
+}
+
+type UpgradeMaintenance struct {
+	ID                string              `json:"id"`
+	FounderID         string              `json:"founder_id"`
+	FounderGeneration int64               `json:"founder_generation"`
+	State             string              `json:"state"`
+	Proposals         []UpgradeProposal   `json:"proposals"`
+	PausedModes       []UpgradePausedMode `json:"paused_modes"`
+	PermitHashes      []string            `json:"permit_hashes"`
+	MessageIDs        []string            `json:"message_ids"`
+	Reason            string              `json:"reason,omitempty"`
 }
 
 type UpgradePermit struct {
@@ -41,6 +67,15 @@ type UpgradePermit struct {
 	IssuedAt        int64           `json:"issued_at"`
 	ExpiresAt       int64           `json:"expires_at"`
 	Signature       string          `json:"signature"`
+}
+
+type UpgradeResult struct {
+	ChallengeID  string `json:"challenge_id"`
+	PermitSHA256 string `json:"permit_sha256"`
+	Version      string `json:"version"`
+	Commit       string `json:"commit"`
+	BackupSHA256 string `json:"backup_sha256"`
+	ResumeSafe   bool   `json:"resume_safe"`
 }
 
 type UpgradeContext struct {
@@ -65,6 +100,7 @@ type UpgradeNativeReply struct {
 	Error        *Fault            `json:"error,omitempty"`
 	Lease        *UpgradeLease     `json:"lease,omitempty"`
 	Code         string            `json:"code,omitempty"`
+	ResumeSafe   bool              `json:"resume_safe"`
 }
 
 type UpgradeLeaseRequest struct {

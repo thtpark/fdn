@@ -395,6 +395,14 @@ Preserve current authority/generation/project epochs, task approval/spending/
 pause/session fences, exact prepared decisions and non-forcing insistence.
 Keep immediate central safety/authority state and narrow auth/diagnostic controls.
 
+Current temporary maintenance batches bind prior AI intent to exact permits,
+rollout messages and typed native source/backup results. Only unchanged pauses
+may restore AI; text-only/failed results and independent fences remain explicit
+blockers without rewriting completed installation history. Automatic private
+transfer receipt handling precedes onboarding/providers under the existing work
+slot and durable shared CLI/worker downloader. Test mode/grant interruption,
+atomic automatic-receipt pause checks and legacy exact journal replay.
+
 Test helper process/filesystem/network effects through existing injected runners,
 temporary homes and synthetic release bytes. No local test registers services,
 uses cloud credentials, changes a production identity or invokes paid inference.

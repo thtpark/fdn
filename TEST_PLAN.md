@@ -38,6 +38,13 @@ CLI/native fixtures verify durable local commit before acknowledgement,
 interruption/lost-response replay, replaced/symlinked resources and no overwrite.
 No inference, host service, production endpoint, credentials or physical erasure.
 
+`PrivateTransfer*`, `UnreadableAndOrdinary*` and `AutomaticFileReceipt*` additionally
+test manual-to-AI pending notices with `response_requested:false`, no onboarding/
+provider calls, owner-only automatic destinations, shared slot/claim/session/
+maintenance admission, mode/grant/feed cancellation, before-receipt pause,
+atomic server pause checks, lost-ack/restart exact replay and replaced staging.
+Unreadable/deleted/ordinary attachments must not strand other eligible transfers.
+
 The shared Swift `AttachmentsTests` exercise exact pending chunk replay after a
 lost acknowledgement, private journal/generation isolation, complete/chunk hash
 failures without receipt, owner-only finalized downloads, retained historical
@@ -415,6 +422,15 @@ Founder CLI tests exercise actual typed local API calls and bounded protobuf
 operator inspection/challenges, Foundation-first queued dependencies, exact plan
 state, private age keys and offline native status. Target receivers, not the
 sender CLI, perform native preparation/install.
+
+`TemporaryMaintenance*`, `VerifiedMaintenance*`, `TemporaryUpgrade*` and
+`NativeVerifiedUpgrade*` cover whole-rollout verified restoration, exact original
+pause/key generations, unchanged preexisting manual intent, newer Founder AI/
+manual decisions, immutable batch-ID/replay, strict native source/permit/backup
+provenance, independent native/session/work/maintenance fences and transactional
+preflight. Blocked restoration must retain completed installation history and
+emit one non-inference Founder reason; storage failures remain explicit/atomic.
+Raw/proxy maintenance method/query/depth and non-Founder denial remain required.
 
 These are source fixtures, not a live privileged Linux/macOS package rollout,
 new provider login, production signing/security certification, full-host restore,

@@ -250,8 +250,15 @@ automatically qualified whole-host restore or safe SQL rollback.
 Upgrade submission queues private request/result conversations. Each recipient
 decides at a safe opportunity, then stops/backs up its own services. Foundation's
 completed result precedes dependent agent requests. Actual version/
-identity/fence/service checks remain target-owned. Automation
-stays manual; sign-in, scope approval and explicit resumption remain separate.
+identity/fence/service checks remain target-owned. From 0.3.19, `upgrade apply`
+records a scoped temporary pause and restores only prior AI intent after the
+entire exact rollout has typed verified source/backup results and no independent
+admission/fence blocker. Current key generations and the exact unchanged pause
+must match; preexisting manual intent and newer Founder decisions remain intact.
+Failed/uncertain/text-only results, native session fences and legacy/operator
+cutovers require explicit Founder reconciliation. A blocked restoration never
+changes a completed installation report into failure: Founder gets a private
+non-inference reason. Sign-in, scope approval and all work/retry fences remain separate.
 Busy/uncertain invocations/reports, changed identities/policy/source, missing
 native services and expired permits fail closed. No task retry, fence clearing,
 provider upgrade, cloud operation, financial permission or release publication
@@ -273,7 +280,8 @@ Do not invoke this receiver as a child of the identity/runner/Foundation/account
 service it must stop. Its private `request-worker.lock` prevents duplicate
 receivers; retained `message-inflight.json` and native receipts preserve uncertain
 effects. The inflight record retains the exact report before sending, including
-its operation/revision/reason. Lost or unavailable acknowledgements remain pending
+its operation/revision/reason and typed verified source/backup/resume-safety
+result when completed. Lost or unavailable acknowledgements remain pending
 delivery, never a new refusal or permission to repeat installation. Replay the
 same report first when the mailbox returns. A restart can report an exact verified
 native receipt; an interrupted admission without one fails with a reason and

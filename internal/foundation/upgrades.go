@@ -90,6 +90,9 @@ func (s *Store) AuthorizeUpgrade(ctx context.Context, actor string, req domain.U
 		if err != nil {
 			return permit, err
 		}
+		if err := s.bindMaintenancePermit(ctx, tx, a, req.MaintenanceID, permit); err != nil {
+			return permit, err
+		}
 		data, err := json.Marshal(permit)
 		if err != nil {
 			return permit, err

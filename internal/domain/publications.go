@@ -89,8 +89,9 @@ type FileGrant struct {
 
 type FileDownloadRequest struct {
 	Command
-	Size   int64  `json:"size"`
-	SHA256 string `json:"sha256"`
+	Size      int64  `json:"size"`
+	SHA256    string `json:"sha256"`
+	Automatic bool   `json:"automatic,omitempty"`
 }
 
 type FileDownloadReceipt struct {

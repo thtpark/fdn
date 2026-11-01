@@ -472,6 +472,9 @@ func (s *Store) AcknowledgeFileDownload(ctx context.Context, actor, id string, r
 		if !errors.Is(err, sql.ErrNoRows) {
 			return receipt, err
 		}
+		if req.Automatic && a.Mode != "ai" {
+			return receipt, domain.Fail(domain.Denied, "Founder pause blocks a new automatic file receipt; retain the verified local copy and exact proposal")
+		}
 		if file.State != "ready" {
 			return receipt, domain.Fail(domain.Prerequisite, "unavailable content cannot acquire a new download receipt")
 		}

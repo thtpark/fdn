@@ -425,8 +425,13 @@ func (n *Native) target(ctx context.Context) (int64, error) {
 }
 
 func (n *Native) idle(ctx context.Context) (string, error) {
+	fence, _, err := n.idleState(ctx)
+	return fence, err
+}
+
+func (n *Native) idleState(ctx context.Context) (string, bool, error) {
 	if n.Policy.Role == "foundation" {
-		return "", nil
+		return "", true, nil
 	}
 	var result struct {
 		Pending []json.RawMessage `json:"pending_invocations"`
@@ -438,18 +443,27 @@ func (n *Native) idle(ctx context.Context) (string, error) {
 	}
 	if err := n.jsonCommand(ctx, filepath.Join(n.Policy.BinaryDir, "agent-cli"),
 		[]string{"--config", n.Policy.ConfigFile, "work", "status"}, true, &result); err != nil {
-		return "", err
+		return "", false, err
 	}
 	if result.Pending == nil || result.Work.PendingReports == nil {
-		return "", domain.Fail(domain.Unavailable, "native work status omitted required pending-invocation/report observations")
+		return "", false, domain.Fail(domain.Unavailable, "native work status omitted required pending-invocation/report observations")
 	}
 	if len(result.Pending) != 0 || *result.Work.PendingReports != 0 {
-		return "", domain.Fail(domain.Prerequisite, "worker must be paused with no pending invocation/report; existing fences are preserved, never cleared")
+		return "", false, domain.Fail(domain.Prerequisite, "worker must be paused with no pending invocation/report; existing fences are preserved, never cleared")
 	}
 	if result.Work.Mode != "manual" {
-		return "", errors.Join(domain.Fail(domain.Prerequisite, "worker has not yet observed the authoritative Founder pause"), pauseObservationPending)
+		return "", false, errors.Join(domain.Fail(domain.Prerequisite, "worker has not yet observed the authoritative Founder pause"), pauseObservationPending)
 	}
-	return domain.Hash(string(result.Fence)), nil
+	var fence struct {
+		Active *bool `json:"active"`
+	}
+	if err := json.Unmarshal(result.Fence, &fence); err != nil {
+		return "", false, err
+	}
+	if fence.Active == nil {
+		return "", false, domain.Fail(domain.Unavailable, "native work status omitted the current session-fence observation")
+	}
+	return domain.Hash(string(result.Fence)), !*fence.Active, nil
 }
 
 var pauseObservationPending = errors.New("waiting for local Founder pause observation")
@@ -640,13 +654,16 @@ func (n *Native) verify(ctx context.Context, job nativeJob) (domain.UpgradeNativ
 		if generation != job.Permit.Proposal.Challenge.Generation {
 			return reply, domain.Fail(domain.Conflict, "upgrade changed the retained identity generation")
 		}
-		fence, err := n.idle(ctx)
+		fence, safe, err := n.idleState(ctx)
 		if err != nil {
 			return reply, err
 		}
 		if fence != job.Fence {
 			return reply, domain.Fail(domain.Conflict, "upgrade changed the retained session fence")
 		}
+		reply.ResumeSafe = safe
+	} else {
+		reply.ResumeSafe = true
 	}
 	binary := "agent-cli"
 	args := []string{"--config", n.Policy.ConfigFile, "doctor"}

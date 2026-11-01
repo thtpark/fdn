@@ -509,6 +509,7 @@ message Go_FileDownloadRequest {
   Signed expected_revision = 2;
   Signed size = 3;
   String sha256 = 4;
+  Bool automatic = 5;
 }
 
 message Go_FileGrant {
@@ -698,6 +699,7 @@ message Go_MessageActionReport {
   Signed expected_revision = 2;
   String state = 3;
   String reason = 4;
+  Go_UpgradeResult upgrade_result = 5;
 }
 
 message Go_MessageActionState {
@@ -710,12 +712,14 @@ message Go_MessageActionState {
   Signed spec_generation = 7;
   Signed result_generation = 8;
   Signed updated_at = 9;
+  Go_UpgradeResult upgrade_result = 10;
 }
 
 message Go_MessageActionUpdate {
   String request_id = 1;
   String state = 2;
   String reason = 3;
+  Go_UpgradeResult upgrade_result = 4;
 }
 
 message Go_MessageCommand {
@@ -1228,6 +1232,7 @@ message Go_UpgradeAuthorizationRequest {
   String operation_id = 1;
   Signed expected_revision = 2;
   Go_UpgradeProposal proposal = 3;
+  String maintenance_id = 4;
 }
 
 message Go_UpgradeChallenge {
@@ -1263,6 +1268,25 @@ message Go_UpgradeLeaseRequest {
   String nonce = 2;
 }
 
+message Go_UpgradeMaintenance {
+  String id = 1;
+  String founder_id = 2;
+  Signed founder_generation = 3;
+  String state = 4;
+  List_Go_UpgradeProposal proposals = 5;
+  List_Go_UpgradePausedMode paused_modes = 6;
+  List_String permit_hashes = 7;
+  List_String message_ids = 8;
+  String reason = 9;
+}
+
+message Go_UpgradeMaintenanceRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String id = 3;
+  List_Go_UpgradeProposal proposals = 4;
+}
+
 message Go_UpgradeNativeReply {
   Go_UpgradeChallenge challenge = 1;
   String state = 2;
@@ -1272,12 +1296,20 @@ message Go_UpgradeNativeReply {
   Go_Fault error = 6;
   Go_UpgradeLease lease = 7;
   String code = 8;
+  Bool resume_safe = 9;
 }
 
 message Go_UpgradeNativeRequest {
   String action = 1;
   String id = 2;
   Go_UpgradePermit permit = 3;
+}
+
+message Go_UpgradePausedMode {
+  String agent_id = 1;
+  Signed generation = 2;
+  Signed revision = 3;
+  String prior_mode = 4;
 }
 
 message Go_UpgradePermit {
@@ -1303,6 +1335,15 @@ message Go_UpgradeRelease {
   String bundle_url = 4;
   String bundle_sha256 = 5;
   Signed bundle_bytes = 6;
+}
+
+message Go_UpgradeResult {
+  String challenge_id = 1;
+  String permit_sha256 = 2;
+  String version = 3;
+  String commit = 4;
+  String backup_sha256 = 5;
+  Bool resume_safe = 6;
 }
 
 message Go_Waiting {
@@ -2004,6 +2045,16 @@ message List_Go_UpgradeLeaseRequest {
   bool present = 2;
 }
 
+message List_Go_UpgradeMaintenance {
+  repeated Go_UpgradeMaintenance items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradeMaintenanceRequest {
+  repeated Go_UpgradeMaintenanceRequest items = 1;
+  bool present = 2;
+}
+
 message List_Go_UpgradeNativeReply {
   repeated Go_UpgradeNativeReply items = 1;
   bool present = 2;
@@ -2011,6 +2062,11 @@ message List_Go_UpgradeNativeReply {
 
 message List_Go_UpgradeNativeRequest {
   repeated Go_UpgradeNativeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradePausedMode {
+  repeated Go_UpgradePausedMode items = 1;
   bool present = 2;
 }
 
@@ -2026,6 +2082,11 @@ message List_Go_UpgradeProposal {
 
 message List_Go_UpgradeRelease {
   repeated Go_UpgradeRelease items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradeResult {
+  repeated Go_UpgradeResult items = 1;
   bool present = 2;
 }
 
@@ -2689,6 +2750,16 @@ message List_Page_Go_UpgradeLeaseRequest {
   bool present = 2;
 }
 
+message List_Page_Go_UpgradeMaintenance {
+  repeated Page_Go_UpgradeMaintenance items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeMaintenanceRequest {
+  repeated Page_Go_UpgradeMaintenanceRequest items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_UpgradeNativeReply {
   repeated Page_Go_UpgradeNativeReply items = 1;
   bool present = 2;
@@ -2696,6 +2767,11 @@ message List_Page_Go_UpgradeNativeReply {
 
 message List_Page_Go_UpgradeNativeRequest {
   repeated Page_Go_UpgradeNativeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradePausedMode {
+  repeated Page_Go_UpgradePausedMode items = 1;
   bool present = 2;
 }
 
@@ -2711,6 +2787,11 @@ message List_Page_Go_UpgradeProposal {
 
 message List_Page_Go_UpgradeRelease {
   repeated Page_Go_UpgradeRelease items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradeResult {
+  repeated Page_Go_UpgradeResult items = 1;
   bool present = 2;
 }
 
@@ -4059,6 +4140,26 @@ message Map_Go_UpgradeLease_Entry {
   Go_UpgradeLease value = 2;
 }
 
+message Map_Go_UpgradeMaintenance {
+  repeated Map_Go_UpgradeMaintenance_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeMaintenanceRequest {
+  repeated Map_Go_UpgradeMaintenanceRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeMaintenanceRequest_Entry {
+  optional string key = 1;
+  Go_UpgradeMaintenanceRequest value = 2;
+}
+
+message Map_Go_UpgradeMaintenance_Entry {
+  optional string key = 1;
+  Go_UpgradeMaintenance value = 2;
+}
+
 message Map_Go_UpgradeNativeReply {
   repeated Map_Go_UpgradeNativeReply_Entry items = 1;
   bool present = 2;
@@ -4077,6 +4178,16 @@ message Map_Go_UpgradeNativeRequest {
 message Map_Go_UpgradeNativeRequest_Entry {
   optional string key = 1;
   Go_UpgradeNativeRequest value = 2;
+}
+
+message Map_Go_UpgradePausedMode {
+  repeated Map_Go_UpgradePausedMode_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradePausedMode_Entry {
+  optional string key = 1;
+  Go_UpgradePausedMode value = 2;
 }
 
 message Map_Go_UpgradePermit {
@@ -4107,6 +4218,16 @@ message Map_Go_UpgradeRelease {
 message Map_Go_UpgradeRelease_Entry {
   optional string key = 1;
   Go_UpgradeRelease value = 2;
+}
+
+message Map_Go_UpgradeResult {
+  repeated Map_Go_UpgradeResult_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradeResult_Entry {
+  optional string key = 1;
+  Go_UpgradeResult value = 2;
 }
 
 message Map_Go_Waiting {
@@ -5429,6 +5550,26 @@ message Map_Page_Go_UpgradeLease_Entry {
   Page_Go_UpgradeLease value = 2;
 }
 
+message Map_Page_Go_UpgradeMaintenance {
+  repeated Map_Page_Go_UpgradeMaintenance_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeMaintenanceRequest {
+  repeated Map_Page_Go_UpgradeMaintenanceRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeMaintenanceRequest_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeMaintenanceRequest value = 2;
+}
+
+message Map_Page_Go_UpgradeMaintenance_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeMaintenance value = 2;
+}
+
 message Map_Page_Go_UpgradeNativeReply {
   repeated Map_Page_Go_UpgradeNativeReply_Entry items = 1;
   bool present = 2;
@@ -5447,6 +5588,16 @@ message Map_Page_Go_UpgradeNativeRequest {
 message Map_Page_Go_UpgradeNativeRequest_Entry {
   optional string key = 1;
   Page_Go_UpgradeNativeRequest value = 2;
+}
+
+message Map_Page_Go_UpgradePausedMode {
+  repeated Map_Page_Go_UpgradePausedMode_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradePausedMode_Entry {
+  optional string key = 1;
+  Page_Go_UpgradePausedMode value = 2;
 }
 
 message Map_Page_Go_UpgradePermit {
@@ -5477,6 +5628,16 @@ message Map_Page_Go_UpgradeRelease {
 message Map_Page_Go_UpgradeRelease_Entry {
   optional string key = 1;
   Page_Go_UpgradeRelease value = 2;
+}
+
+message Map_Page_Go_UpgradeResult {
+  repeated Map_Page_Go_UpgradeResult_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradeResult_Entry {
+  optional string key = 1;
+  Page_Go_UpgradeResult value = 2;
 }
 
 message Map_Page_Go_Waiting {
@@ -6179,6 +6340,16 @@ message Page_Go_UpgradeLeaseRequest {
   String next_cursor = 2;
 }
 
+message Page_Go_UpgradeMaintenance {
+  List_Go_UpgradeMaintenance items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeMaintenanceRequest {
+  List_Go_UpgradeMaintenanceRequest items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_UpgradeNativeReply {
   List_Go_UpgradeNativeReply items = 1;
   String next_cursor = 2;
@@ -6186,6 +6357,11 @@ message Page_Go_UpgradeNativeReply {
 
 message Page_Go_UpgradeNativeRequest {
   List_Go_UpgradeNativeRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradePausedMode {
+  List_Go_UpgradePausedMode items = 1;
   String next_cursor = 2;
 }
 
@@ -6201,6 +6377,11 @@ message Page_Go_UpgradeProposal {
 
 message Page_Go_UpgradeRelease {
   List_Go_UpgradeRelease items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradeResult {
+  List_Go_UpgradeResult items = 1;
   String next_cursor = 2;
 }
 

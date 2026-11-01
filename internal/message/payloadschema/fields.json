@@ -1450,6 +1450,10 @@
     }
   },
   "FileDownloadRequest": {
+    "Automatic": {
+      "id": 5,
+      "name": "automatic"
+    },
     "ExpectedRevision": {
       "id": 2,
       "name": "expected_revision"
@@ -2051,6 +2055,10 @@
     "State": {
       "id": 3,
       "name": "state"
+    },
+    "UpgradeResult": {
+      "id": 5,
+      "name": "upgrade_result"
     }
   },
   "MessageActionState": {
@@ -2089,6 +2097,10 @@
     "UpdatedAt": {
       "id": 9,
       "name": "updated_at"
+    },
+    "UpgradeResult": {
+      "id": 10,
+      "name": "upgrade_result"
     }
   },
   "MessageActionUpdate": {
@@ -2103,6 +2115,10 @@
     "State": {
       "id": 2,
       "name": "state"
+    },
+    "UpgradeResult": {
+      "id": 4,
+      "name": "upgrade_result"
     }
   },
   "MessageCommand": {
@@ -3660,6 +3676,10 @@
       "id": 2,
       "name": "expected_revision"
     },
+    "MaintenanceID": {
+      "id": 4,
+      "name": "maintenance_id"
+    },
     "OperationID": {
       "id": 1,
       "name": "operation_id"
@@ -3761,6 +3781,62 @@
       "name": "permit_sha256"
     }
   },
+  "UpgradeMaintenance": {
+    "FounderGeneration": {
+      "id": 3,
+      "name": "founder_generation"
+    },
+    "FounderID": {
+      "id": 2,
+      "name": "founder_id"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "MessageIDs": {
+      "id": 8,
+      "name": "message_ids"
+    },
+    "PausedModes": {
+      "id": 6,
+      "name": "paused_modes"
+    },
+    "PermitHashes": {
+      "id": 7,
+      "name": "permit_hashes"
+    },
+    "Proposals": {
+      "id": 5,
+      "name": "proposals"
+    },
+    "Reason": {
+      "id": 9,
+      "name": "reason"
+    },
+    "State": {
+      "id": 4,
+      "name": "state"
+    }
+  },
+  "UpgradeMaintenanceRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "ID": {
+      "id": 3,
+      "name": "id"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Proposals": {
+      "id": 4,
+      "name": "proposals"
+    }
+  },
   "UpgradeNativeReply": {
     "BackupSHA256": {
       "id": 5,
@@ -3786,6 +3862,10 @@
       "id": 7,
       "name": "lease"
     },
+    "ResumeSafe": {
+      "id": 9,
+      "name": "resume_safe"
+    },
     "State": {
       "id": 2,
       "name": "state"
@@ -3807,6 +3887,24 @@
     "Permit": {
       "id": 3,
       "name": "permit"
+    }
+  },
+  "UpgradePausedMode": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "Generation": {
+      "id": 2,
+      "name": "generation"
+    },
+    "PriorMode": {
+      "id": 4,
+      "name": "prior_mode"
+    },
+    "Revision": {
+      "id": 3,
+      "name": "revision"
     }
   },
   "UpgradePermit": {
@@ -3876,6 +3974,32 @@
     },
     "Version": {
       "id": 1,
+      "name": "version"
+    }
+  },
+  "UpgradeResult": {
+    "BackupSHA256": {
+      "id": 5,
+      "name": "backup_sha256"
+    },
+    "ChallengeID": {
+      "id": 1,
+      "name": "challenge_id"
+    },
+    "Commit": {
+      "id": 4,
+      "name": "commit"
+    },
+    "PermitSHA256": {
+      "id": 2,
+      "name": "permit_sha256"
+    },
+    "ResumeSafe": {
+      "id": 6,
+      "name": "resume_safe"
+    },
+    "Version": {
+      "id": 3,
       "name": "version"
     }
   },

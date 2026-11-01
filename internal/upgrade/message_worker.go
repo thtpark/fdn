@@ -106,9 +106,10 @@ type nativeMessageProgress struct {
 	PendingReport *domain.MessageActionReport `json:"pending_report,omitempty"`
 }
 
-func (n *Native) reportNativeMessage(ctx context.Context, progress *nativeMessageProgress, state, reason string) error {
+func (n *Native) reportNativeMessage(ctx context.Context, progress *nativeMessageProgress, state, reason string, result *domain.UpgradeResult) error {
 	progress.PendingReport = &domain.MessageActionReport{Command: domain.Command{
-		OperationID: "native-request." + progress.ID + "." + state, ExpectedRevision: progress.Revision}, State: state, Reason: reason}
+		OperationID: "native-request." + progress.ID + "." + state, ExpectedRevision: progress.Revision},
+		State: state, Reason: reason, UpgradeResult: result}
 	if err := config.Write(filepath.Join(n.Policy.StateDir, "message-inflight.json"), progress); err != nil {
 		return err
 	}
@@ -122,19 +123,19 @@ func (n *Native) deliverNativeMessage(ctx context.Context, progress *nativeMessa
 		if report.State == "accepted" {
 			switch domain.AsFault(err).Code {
 			case domain.Denied:
-				return n.reportNativeMessage(ctx, progress, "declined", "The request no longer has current issuer, target, policy or unexpired maintenance authority.")
+				return n.reportNativeMessage(ctx, progress, "declined", "The request no longer has current issuer, target, policy or unexpired maintenance authority.", nil)
 			case domain.Prerequisite:
-				return n.reportNativeMessage(ctx, progress, "deferred", "An earlier rollout request has not completed successfully. This target will not execute; resolve the prerequisite and submit a new exact authorized request.")
+				return n.reportNativeMessage(ctx, progress, "deferred", "An earlier rollout request has not completed successfully. This target will not execute; resolve the prerequisite and submit a new exact authorized request.", nil)
 			}
 		} else if (report.State == "executing" || report.State == "completed") && domain.AsFault(err).Code == domain.Denied {
-			return n.reportNativeMessage(ctx, progress, "failed", "Current request authority changed before this progress/result could be acknowledged. Inspect retained native evidence; no installation or retry is being repeated.")
+			return n.reportNativeMessage(ctx, progress, "failed", "Current request authority changed before this progress/result could be acknowledged. Inspect retained native evidence; no installation or retry is being repeated.", nil)
 		}
 		return err
 	}
 	updated := result.Message
 	if updated == nil || updated.ID != progress.ID || updated.RecipientID != progress.RecipientID ||
 		updated.Revision != report.ExpectedRevision+1 || updated.Request == nil || updated.Request.State != report.State ||
-		!reflect.DeepEqual(updated.Request.Action, progress.Request.Action) {
+		!reflect.DeepEqual(updated.Request.Action, progress.Request.Action) || !reflect.DeepEqual(updated.Request.UpgradeResult, report.UpgradeResult) {
 		return domain.Fail(domain.Unavailable, "native request decision/result acknowledgement is missing or changed; retain and reconcile the exact pending report")
 	}
 	progress.Message, progress.PendingReport = *updated, nil
@@ -188,7 +189,20 @@ func (n *Native) MessageStep(ctx context.Context) (bool, error) {
 			return true, err
 		}
 	}
-	report := func(state, reason string) error { return n.reportNativeMessage(ctx, &progress, state, reason) }
+	report := func(state, reason string) error { return n.reportNativeMessage(ctx, &progress, state, reason, nil) }
+	reportVerified := func(reply domain.UpgradeNativeReply) error {
+		result := domain.UpgradeResult{ChallengeID: permit.Proposal.Challenge.ID, PermitSHA256: domain.Hash(permit.Signature),
+			Version: reply.Version, Commit: reply.Commit, BackupSHA256: reply.BackupSHA256, ResumeSafe: reply.ResumeSafe}
+		if reply.State != "verified" || reply.Error != nil {
+			return domain.Fail(domain.Conflict, "native maintenance has no successful verified result")
+		}
+		if err := ValidateResult(*permit, result); err != nil {
+			return err
+		}
+		return n.reportNativeMessage(ctx, &progress, "completed",
+			"The target verified the exact installed source and encrypted backup. No installation was repeated. Only a current temporary maintenance pause may restore prior AI intent after the whole rollout is verified; independent fences remain enforced.",
+			&result)
+	}
 	switch progress.Request.State {
 	case "queued":
 		if resuming {
@@ -205,7 +219,7 @@ func (n *Native) MessageStep(ctx context.Context) (bool, error) {
 	case "executing":
 		status, err := n.Handle(ctx, domain.UpgradeNativeRequest{Action: "status", ID: permit.Proposal.Challenge.ID})
 		if err == nil && status.State == "verified" {
-			return true, report("completed", "The target reconciled the exact verified native upgrade receipt; no installation was repeated.")
+			return true, reportVerified(status)
 		}
 		failure := report("failed", "Native maintenance was interrupted or has no verifiable native receipt. Inspect retained evidence; no automatic retry or completion is authorized.")
 		return true, errors.Join(err, failure)
@@ -227,5 +241,5 @@ func (n *Native) MessageStep(ctx context.Context) (bool, error) {
 		failure := report("failed", "Native installation did not reach a verified receipt. Inspect retained evidence; do not repeat installation or infer success.")
 		return true, errors.Join(err, failure)
 	}
-	return true, report("completed", "The target completed and verified the exact requested software upgrade. Automation remains paused.")
+	return true, reportVerified(completed)
 }

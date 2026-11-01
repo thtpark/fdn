@@ -81,6 +81,9 @@ func (s *Store) SendMessage(ctx context.Context, actor string, req domain.Messag
 		if _, err := insertMessage(ctx, tx, m); err != nil {
 			return m, err
 		}
+		if err := s.maintenanceMessage(ctx, tx, m); err != nil {
+			return m, err
+		}
 		return m, s.recordReplyLoop(ctx, tx, m)
 	})
 }
