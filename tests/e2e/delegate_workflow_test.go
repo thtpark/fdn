@@ -116,7 +116,11 @@ func TestNativeDelegatedPullRequestWorkflow(t *testing.T) {
 				before := len(scenarioTrace(t, l.worker).Calls)
 				time.Sleep(1100 * time.Millisecond)
 				if after := len(scenarioTrace(t, l.worker).Calls); after != before {
-					t.Fatal("an unanswered question caused repeated inference")
+					phases := []string{}
+					for _, call := range scenarioTrace(t, l.worker).Calls {
+						phases = append(phases, call.Phase+":"+call.Rule)
+					}
+					t.Fatalf("an unanswered question caused repeated inference (%d -> %d): %v", before, after, phases)
 				}
 				assertNoScenarioCoding(t, github, l.worker, delegate)
 				var entry domain.Entry
@@ -179,9 +183,16 @@ func TestNativeDelegatedPullRequestWorkflow(t *testing.T) {
 					if status.Work.State != "idle" || status.Work.PendingReports != 0 {
 						return false
 					}
+					attention, err := api.Call[domain.Page[domain.Attention]](context.Background(), identity.client, "GET", "/v1/attention?limit=200", nil)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if len(attention.Items) != 0 {
+						return false
+					}
 				}
 				return true
-			}, "both native controllers idle with durable reports acknowledged")
+			}, "both native controllers idle with reports acknowledged and assigned/mentioned comments answered")
 			workerTrace, delegateTrace := scenarioTrace(t, l.worker), scenarioTrace(t, delegate)
 			_, eventsBefore := github.Snapshot()
 			time.Sleep(1200 * time.Millisecond)

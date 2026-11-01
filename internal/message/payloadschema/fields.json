@@ -225,6 +225,20 @@
       "name": "status"
     }
   },
+  "AgentEnvironment": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "Computers": {
+      "id": 3,
+      "name": "computers"
+    },
+    "ServerObservedAt": {
+      "id": 2,
+      "name": "server_observed_at"
+    }
+  },
   "AgentIdentity": {
     "AgentID": {
       "id": 1,
@@ -505,6 +519,146 @@
     "UpdatedAt": {
       "id": 4,
       "name": "updated_at"
+    }
+  },
+  "AnnouncementAudience": {
+    "ActorID": {
+      "id": 1,
+      "name": "actor_id"
+    },
+    "ProjectEpoch": {
+      "id": 4,
+      "name": "project_epoch"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "Recipients": {
+      "id": 5,
+      "name": "recipients"
+    },
+    "Scope": {
+      "id": 2,
+      "name": "scope"
+    }
+  },
+  "AnnouncementContext": {
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 5,
+      "name": "kind"
+    },
+    "ProjectEpoch": {
+      "id": 4,
+      "name": "project_epoch"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "RecipientGeneration": {
+      "id": 7,
+      "name": "recipient_generation"
+    },
+    "Scope": {
+      "id": 2,
+      "name": "scope"
+    },
+    "SenderGeneration": {
+      "id": 6,
+      "name": "sender_generation"
+    }
+  },
+  "AnnouncementDelivery": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "MessageID": {
+      "id": 2,
+      "name": "message_id"
+    }
+  },
+  "AnnouncementReceipt": {
+    "CreatedAt": {
+      "id": 5,
+      "name": "created_at"
+    },
+    "Deliveries": {
+      "id": 6,
+      "name": "deliveries"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 4,
+      "name": "kind"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "Scope": {
+      "id": 2,
+      "name": "scope"
+    }
+  },
+  "AnnouncementRecipient": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "Name": {
+      "id": 2,
+      "name": "name"
+    }
+  },
+  "AnnouncementRequest": {
+    "AttachmentIDs": {
+      "id": 10,
+      "name": "attachment_ids"
+    },
+    "Body": {
+      "id": 8,
+      "name": "body"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Kind": {
+      "id": 6,
+      "name": "kind"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectEpoch": {
+      "id": 5,
+      "name": "project_epoch"
+    },
+    "ProjectID": {
+      "id": 4,
+      "name": "project_id"
+    },
+    "RecipientIDs": {
+      "id": 9,
+      "name": "recipient_ids"
+    },
+    "Scope": {
+      "id": 3,
+      "name": "scope"
+    },
+    "Title": {
+      "id": 7,
+      "name": "title"
     }
   },
   "Approval": {
@@ -821,6 +975,20 @@
       "name": "reason"
     }
   },
+  "CPUEnvironment": {
+    "LogicalCores": {
+      "id": 2,
+      "name": "logical_cores"
+    },
+    "Model": {
+      "id": 1,
+      "name": "model"
+    },
+    "PhysicalCores": {
+      "id": 3,
+      "name": "physical_cores"
+    }
+  },
   "CertificateIdentity": {
     "AgentID": {
       "id": 2,
@@ -921,6 +1089,32 @@
       "name": "operation_id"
     }
   },
+  "ComputerEnvironment": {
+    "BindingID": {
+      "id": 1,
+      "name": "binding_id"
+    },
+    "DeviceName": {
+      "id": 2,
+      "name": "device_name"
+    },
+    "Generation": {
+      "id": 3,
+      "name": "generation"
+    },
+    "Observation": {
+      "id": 6,
+      "name": "observation"
+    },
+    "ReceivedAt": {
+      "id": 4,
+      "name": "received_at"
+    },
+    "Stale": {
+      "id": 5,
+      "name": "stale"
+    }
+  },
   "ConnectionProfile": {
     "CA": {
       "id": 3,
@@ -961,6 +1155,16 @@
       "name": "reason"
     }
   },
+  "DiskEnvironment": {
+    "AvailableBytes": {
+      "id": 2,
+      "name": "available_bytes"
+    },
+    "TotalBytes": {
+      "id": 1,
+      "name": "total_bytes"
+    }
+  },
   "EnrollRequest": {
     "CredentialHash": {
       "id": 5,
@@ -984,6 +1188,10 @@
     }
   },
   "Entry": {
+    "Attachments": {
+      "id": 13,
+      "name": "attachments"
+    },
     "AuthorID": {
       "id": 7,
       "name": "author_id"
@@ -1034,6 +1242,10 @@
     }
   },
   "EntryRequest": {
+    "AttachmentIDs": {
+      "id": 6,
+      "name": "attachment_ids"
+    },
     "Body": {
       "id": 4,
       "name": "body"
@@ -1053,6 +1265,64 @@
     "ParentID": {
       "id": 5,
       "name": "parent_id"
+    }
+  },
+  "EnvironmentObservation": {
+    "CPU": {
+      "id": 4,
+      "name": "cpu"
+    },
+    "Disk": {
+      "id": 6,
+      "name": "disk"
+    },
+    "Executables": {
+      "id": 7,
+      "name": "executables"
+    },
+    "Memory": {
+      "id": 5,
+      "name": "memory"
+    },
+    "ObservedAt": {
+      "id": 2,
+      "name": "observed_at"
+    },
+    "Problems": {
+      "id": 8,
+      "name": "problems"
+    },
+    "System": {
+      "id": 3,
+      "name": "system"
+    },
+    "Version": {
+      "id": 1,
+      "name": "version"
+    }
+  },
+  "EnvironmentProblem": {
+    "Code": {
+      "id": 2,
+      "name": "code"
+    },
+    "Component": {
+      "id": 1,
+      "name": "component"
+    }
+  },
+  "EnvironmentRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Observation": {
+      "id": 3,
+      "name": "observation"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
     }
   },
   "Event": {
@@ -1093,6 +1363,248 @@
     "Retryable": {
       "id": 3,
       "name": "retryable"
+    }
+  },
+  "FileChangeRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 3,
+      "name": "reason"
+    }
+  },
+  "FileChunk": {
+    "Data": {
+      "id": 3,
+      "name": "data"
+    },
+    "FileID": {
+      "id": 1,
+      "name": "file_id"
+    },
+    "Offset": {
+      "id": 2,
+      "name": "offset"
+    },
+    "SHA256": {
+      "id": 4,
+      "name": "sha256"
+    }
+  },
+  "FileChunkRequest": {
+    "Data": {
+      "id": 4,
+      "name": "data"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Offset": {
+      "id": 3,
+      "name": "offset"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "SHA256": {
+      "id": 5,
+      "name": "sha256"
+    }
+  },
+  "FileDownloadReceipt": {
+    "ContentDeleted": {
+      "id": 7,
+      "name": "content_deleted"
+    },
+    "FileID": {
+      "id": 1,
+      "name": "file_id"
+    },
+    "NotificationID": {
+      "id": 6,
+      "name": "notification_id"
+    },
+    "ReaderID": {
+      "id": 2,
+      "name": "reader_id"
+    },
+    "ReceivedAt": {
+      "id": 5,
+      "name": "received_at"
+    },
+    "SHA256": {
+      "id": 4,
+      "name": "sha256"
+    },
+    "Size": {
+      "id": 3,
+      "name": "size"
+    }
+  },
+  "FileDownloadRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "SHA256": {
+      "id": 4,
+      "name": "sha256"
+    },
+    "Size": {
+      "id": 3,
+      "name": "size"
+    }
+  },
+  "FileGrant": {
+    "AgentID": {
+      "id": 2,
+      "name": "agent_id"
+    },
+    "FileID": {
+      "id": 1,
+      "name": "file_id"
+    },
+    "GrantedAt": {
+      "id": 4,
+      "name": "granted_at"
+    },
+    "GrantedBy": {
+      "id": 3,
+      "name": "granted_by"
+    }
+  },
+  "FileGrantRequest": {
+    "AgentID": {
+      "id": 3,
+      "name": "agent_id"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 5,
+      "name": "reason"
+    },
+    "Revoke": {
+      "id": 4,
+      "name": "revoke"
+    }
+  },
+  "FileProgress": {
+    "FileID": {
+      "id": 1,
+      "name": "file_id"
+    },
+    "UploadedBytes": {
+      "id": 2,
+      "name": "uploaded_bytes"
+    }
+  },
+  "FileReference": {
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "MediaType": {
+      "id": 3,
+      "name": "media_type"
+    },
+    "Name": {
+      "id": 2,
+      "name": "name"
+    },
+    "SHA256": {
+      "id": 5,
+      "name": "sha256"
+    },
+    "Size": {
+      "id": 4,
+      "name": "size"
+    }
+  },
+  "FileUploadRequest": {
+    "DeleteAfterDownload": {
+      "id": 8,
+      "name": "delete_after_download"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "MediaType": {
+      "id": 4,
+      "name": "media_type"
+    },
+    "Name": {
+      "id": 3,
+      "name": "name"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "SHA256": {
+      "id": 6,
+      "name": "sha256"
+    },
+    "Size": {
+      "id": 5,
+      "name": "size"
+    },
+    "TransferTo": {
+      "id": 7,
+      "name": "transfer_to"
+    }
+  },
+  "FoundationExecutable": {
+    "Commit": {
+      "id": 4,
+      "name": "commit"
+    },
+    "Name": {
+      "id": 1,
+      "name": "name"
+    },
+    "Running": {
+      "id": 6,
+      "name": "running"
+    },
+    "RunningCommit": {
+      "id": 8,
+      "name": "running_commit"
+    },
+    "RunningVersion": {
+      "id": 7,
+      "name": "running_version"
+    },
+    "SHA256": {
+      "id": 5,
+      "name": "sha256"
+    },
+    "State": {
+      "id": 2,
+      "name": "state"
+    },
+    "Version": {
+      "id": 3,
+      "name": "version"
     }
   },
   "GrantRequest": {
@@ -1393,10 +1905,32 @@
       "name": "username"
     }
   },
+  "MemoryEnvironment": {
+    "AvailableBytes": {
+      "id": 2,
+      "name": "available_bytes"
+    },
+    "FreeBytes": {
+      "id": 3,
+      "name": "free_bytes"
+    },
+    "TotalBytes": {
+      "id": 1,
+      "name": "total_bytes"
+    }
+  },
   "Message": {
     "AgentOperation": {
       "id": 15,
       "name": "agent_operation"
+    },
+    "Announcement": {
+      "id": 21,
+      "name": "announcement"
+    },
+    "Attachments": {
+      "id": 22,
+      "name": "attachments"
     },
     "AuthenticationRefresh": {
       "id": 14,
@@ -1413,6 +1947,10 @@
     "ExpiresAt": {
       "id": 12,
       "name": "expires_at"
+    },
+    "FileDownload": {
+      "id": 23,
+      "name": "file_download"
     },
     "ID": {
       "id": 1,
@@ -1688,6 +2226,10 @@
     }
   },
   "MessageRequest": {
+    "AttachmentIDs": {
+      "id": 13,
+      "name": "attachment_ids"
+    },
     "Body": {
       "id": 4,
       "name": "body"
@@ -2003,6 +2545,158 @@
     "Version": {
       "id": 1,
       "name": "version"
+    }
+  },
+  "Publication": {
+    "AllowProjectEdits": {
+      "id": 16,
+      "name": "allow_project_edits"
+    },
+    "Archived": {
+      "id": 15,
+      "name": "archived"
+    },
+    "Attachments": {
+      "id": 8,
+      "name": "attachments"
+    },
+    "Body": {
+      "id": 7,
+      "name": "body"
+    },
+    "CreatedAt": {
+      "id": 11,
+      "name": "created_at"
+    },
+    "CreatedBy": {
+      "id": 10,
+      "name": "created_by"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 3,
+      "name": "kind"
+    },
+    "Revision": {
+      "id": 14,
+      "name": "revision"
+    },
+    "SHA256": {
+      "id": 9,
+      "name": "sha256"
+    },
+    "Scope": {
+      "id": 4,
+      "name": "scope"
+    },
+    "TargetID": {
+      "id": 5,
+      "name": "target_id"
+    },
+    "Title": {
+      "id": 6,
+      "name": "title"
+    },
+    "UpdatedAt": {
+      "id": 13,
+      "name": "updated_at"
+    },
+    "UpdatedBy": {
+      "id": 12,
+      "name": "updated_by"
+    },
+    "VersionID": {
+      "id": 2,
+      "name": "version_id"
+    }
+  },
+  "PublicationChange": {
+    "AllowProjectEdits": {
+      "id": 7,
+      "name": "allow_project_edits"
+    },
+    "Archived": {
+      "id": 6,
+      "name": "archived"
+    },
+    "AttachmentIDs": {
+      "id": 5,
+      "name": "attachment_ids"
+    },
+    "Body": {
+      "id": 4,
+      "name": "body"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 8,
+      "name": "reason"
+    },
+    "Title": {
+      "id": 3,
+      "name": "title"
+    }
+  },
+  "PublicationRequest": {
+    "AllowProjectEdits": {
+      "id": 9,
+      "name": "allow_project_edits"
+    },
+    "AttachmentIDs": {
+      "id": 8,
+      "name": "attachment_ids"
+    },
+    "Body": {
+      "id": 7,
+      "name": "body"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Kind": {
+      "id": 3,
+      "name": "kind"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Scope": {
+      "id": 4,
+      "name": "scope"
+    },
+    "TargetID": {
+      "id": 5,
+      "name": "target_id"
+    },
+    "Title": {
+      "id": 6,
+      "name": "title"
+    }
+  },
+  "PublicationVersion": {
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Publication": {
+      "id": 3,
+      "name": "publication"
+    },
+    "PublicationID": {
+      "id": 2,
+      "name": "publication_id"
     }
   },
   "RecoverIdentityRequest": {
@@ -2519,6 +3213,98 @@
       "name": "task_id"
     }
   },
+  "SharedFile": {
+    "CreatedAt": {
+      "id": 13,
+      "name": "created_at"
+    },
+    "DeleteAfterDownload": {
+      "id": 11,
+      "name": "delete_after_download"
+    },
+    "DeletedAt": {
+      "id": 15,
+      "name": "deleted_at"
+    },
+    "FinalizedAt": {
+      "id": 14,
+      "name": "finalized_at"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "MediaType": {
+      "id": 3,
+      "name": "media_type"
+    },
+    "Name": {
+      "id": 2,
+      "name": "name"
+    },
+    "OwnerID": {
+      "id": 6,
+      "name": "owner_id"
+    },
+    "PublishedAt": {
+      "id": 16,
+      "name": "published_at"
+    },
+    "PublishedBy": {
+      "id": 17,
+      "name": "published_by"
+    },
+    "Revision": {
+      "id": 12,
+      "name": "revision"
+    },
+    "SHA256": {
+      "id": 5,
+      "name": "sha256"
+    },
+    "Size": {
+      "id": 4,
+      "name": "size"
+    },
+    "State": {
+      "id": 7,
+      "name": "state"
+    },
+    "TeamReadable": {
+      "id": 9,
+      "name": "team_readable"
+    },
+    "TransferTo": {
+      "id": 10,
+      "name": "transfer_to"
+    },
+    "UploadedBytes": {
+      "id": 8,
+      "name": "uploaded_bytes"
+    }
+  },
+  "SystemEnvironment": {
+    "Architecture": {
+      "id": 4,
+      "name": "architecture"
+    },
+    "GoVersion": {
+      "id": 5,
+      "name": "go_version"
+    },
+    "Kernel": {
+      "id": 3,
+      "name": "kernel"
+    },
+    "OS": {
+      "id": 1,
+      "name": "os"
+    },
+    "OSVersion": {
+      "id": 2,
+      "name": "os_version"
+    }
+  },
   "Task": {
     "AcceptanceCriteria": {
       "id": 5,
@@ -2535,6 +3321,10 @@
     "AssigneeID": {
       "id": 9,
       "name": "assignee_id"
+    },
+    "Attachments": {
+      "id": 37,
+      "name": "attachments"
     },
     "Attempts": {
       "id": 32,
@@ -2678,6 +3468,10 @@
       "id": 23,
       "name": "answer_ids"
     },
+    "AttachmentIDs": {
+      "id": 26,
+      "name": "attachment_ids"
+    },
     "Attempt": {
       "id": 21,
       "name": "attempt"
@@ -2771,6 +3565,10 @@
     "AcceptanceCriteria": {
       "id": 6,
       "name": "acceptance_criteria"
+    },
+    "AttachmentIDs": {
+      "id": 11,
+      "name": "attachment_ids"
     },
     "Description": {
       "id": 5,

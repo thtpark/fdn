@@ -81,6 +81,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 }
 
 func runWithServiceFactory(ctx context.Context, args []string, stdout, stderr io.Writer, factory serviceFactory) int {
+	if len(args) == 1 && args[0] == "--version" {
+		return result(stdout, map[string]any{"version": domain.Version, "commit": domain.Commit,
+			"api_version": domain.APIVersion, "schema_version": domain.SchemaVersion}, nil)
+	}
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "--help" || args[0] == "help" || args[0] == "-h")) {
 		_, _ = io.WriteString(stdout, help)
 		return 0

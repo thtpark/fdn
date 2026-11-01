@@ -179,8 +179,25 @@ func healthActionRelevant(ctx context.Context, q queryer, a domain.Agent, kind, 
 		_, relevant, err := healthTaskRelevant(ctx, q, a, id, current)
 		return relevant, err
 	case "attention":
+		entry, err := get[domain.Entry](ctx, q, "entries", id)
+		if err != nil {
+			if domain.AsFault(err).Code == domain.NotFound {
+				return false, nil
+			}
+			return false, err
+		}
+		task, err := get[domain.Task](ctx, q, "tasks", entry.TaskID)
+		if err != nil {
+			return false, err
+		}
+		if domain.RelevantComment(entry, task, a.ID) {
+			return true, nil
+		}
+		if current {
+			return false, nil
+		}
 		var n int
-		err := q.QueryRowContext(ctx, "SELECT count(*) FROM attention WHERE agent_id=? AND entry_id=?", a.ID, id).Scan(&n)
+		err = q.QueryRowContext(ctx, "SELECT count(*) FROM attention WHERE agent_id=? AND entry_id=?", a.ID, id).Scan(&n)
 		return n != 0, err
 	default:
 		return true, nil

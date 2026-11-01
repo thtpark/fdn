@@ -24,6 +24,8 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/messages", "/v1/messages/*", "/v1/messages/*/diagnostics", "/v1/messages/*/thread", "/v1/sessions", "/v1/sessions/*", "/v1/sessions/*/relay/requester", "/v1/sessions/*/relay/target",
 		"/v1/assistance", "/v1/assistance/*", "/v1/agent-operations", "/v1/agent-operations/*", "/v1/upgrades/context", "/v1/message-requests",
 		"/v1/notes", "/v1/note-context",
+		"/v1/agents/*/environment", "/v1/announcements/audience", "/v1/messages/*/announcement-authority",
+		"/v1/files", "/v1/files/*", "/v1/files/*/chunks", "/v1/publications", "/v1/publications/*", "/v1/publications/*/versions", "/v1/publication-versions/*",
 	},
 	http.MethodPost: {
 		"/v1/identity/register", "/v1/identity/*/recover", "/v1/identity/devices", "/v1/identity/devices/*/revoke",
@@ -31,6 +33,9 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/tasks", "/v1/tasks/*/change", "/v1/tasks/*/entries", "/v1/tasks/*/claim", "/v1/tasks/*/report", "/v1/entries/*", "/v1/attention/*",
 		"/v1/messages", "/v1/messages/*/receipt", "/v1/messages/*/read", "/v1/messages/*/request", "/v1/sessions", "/v1/sessions/*", "/v1/assistance", "/v1/assistance/requests", "/v1/assistance/*/revoke", "/v1/upgrades/authorize", "/v1/upgrades/lease",
 		"/v1/notes",
+		"/v1/agents/*/environment", "/v1/announcements",
+		"/v1/files", "/v1/files/*/chunks", "/v1/files/*/finalize", "/v1/files/*/publish", "/v1/files/*/grants", "/v1/files/*/delete", "/v1/files/*/downloaded",
+		"/v1/publications", "/v1/publications/*/change",
 	},
 }
 
@@ -64,6 +69,35 @@ func ordinaryPath(method string, u *url.URL) bool {
 		}
 		if match {
 			switch pattern {
+			case "/v1/files", "/v1/files/*/chunks", "/v1/publications", "/v1/publications/*/versions":
+				query, err := url.ParseQuery(u.RawQuery)
+				if err != nil {
+					return false
+				}
+				for name, values := range query {
+					allowed := method == http.MethodGet && ((pattern == "/v1/files" && (name == "cursor" || name == "limit" || name == "include_deleted")) ||
+						(pattern == "/v1/files/*/chunks" && name == "offset") ||
+						(pattern == "/v1/publications" && (name == "kind" || name == "scope" || name == "target" || name == "cursor" || name == "limit" || name == "include_archived")) ||
+						(pattern == "/v1/publications/*/versions" && (name == "cursor" || name == "limit")))
+					if !allowed || len(values) != 1 {
+						return false
+					}
+				}
+			case "/v1/files/*", "/v1/files/*/finalize", "/v1/files/*/publish", "/v1/files/*/grants", "/v1/files/*/delete", "/v1/files/*/downloaded",
+				"/v1/publications/*", "/v1/publications/*/change", "/v1/publication-versions/*":
+				return u.RawQuery == ""
+			case "/v1/announcements/audience":
+				query, err := url.ParseQuery(u.RawQuery)
+				if err != nil {
+					return false
+				}
+				for name, values := range query {
+					if (name != "scope" && name != "project") || len(values) != 1 {
+						return false
+					}
+				}
+			case "/v1/announcements", "/v1/agents/*/environment", "/v1/messages/*/announcement-authority":
+				return u.RawQuery == ""
 			case "/v1/notes", "/v1/note-context":
 				query, err := url.ParseQuery(u.RawQuery)
 				if err != nil {

@@ -249,6 +249,8 @@ unimplemented `agent-cli service stop` command.
 | Command | Arguments/input |
 | --- | --- |
 | `agent-cli agent list` | Active identity checks; shared registry including concise public status |
+| `agent-cli agent environment` | `AGENT`; public OS/CPU/memory/storage and Foundation executable reports for current enrolled computers, with server receipt freshness; Founder-computer discovery remains Founder-only |
+| `agent-cli agent environment-report` | Publish this computer's bounded native observations; version-only Foundation probes, no provider login/inference, private paths or raw errors; exact operation replay retains the original capture |
 | `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision, Founder request attribution and public status |
 | `agent-cli agent status` | `--input FILE`: required `text` (single line, max160 characters), intentional non-secret self-publication; explicit empty text restores automatic activity; no target/priority/time/mode override |
 | `agent-cli agent diagnose` | `AGENT_ID [--refresh]`; default is saved read-only `AgentDiagnostics` for Founder/self; `--refresh` submits a durable Founder-only diagnostic `AgentOperation` |
@@ -259,6 +261,8 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban applies only to non-Founders |
 | `agent-cli agent register` | `--input SIGNED_PUBLIC [--output PUBLIC_PROFILE]`; Founder-only new signed public-key registration |
+| `agent-cli agent add` | `--host IP --user SSH_USER --name NAME [--port 22 --identity-file ABS]`; Founder-only new-worker installation and signed registration in a protected human terminal |
+| `agent-cli agent add-status` | `OPERATION_ID`; read-only original Founder's retained local addition journal; no SSH, installation, key generation or retry |
 | `agent-cli agent recover` | `AGENT --input NEW_SIGNED_PUBLIC --reason REASON [--output PUBLIC_PROFILE]`; Founder-only non-Founder recovery with fresh keypairs/generation, not task-run recovery |
 | `agent-cli agent identity` | Current connection's public identity/device/account/key-generation/owner state; no private material |
 | `agent-cli device list` | Founder only; original computer and all additional device bindings, including revoked devices; no leaf flags |
@@ -288,6 +292,46 @@ Self-revocation through that device and revoking the last active computer are
 prerequisite errors. Root-local whole-Founder recovery and restore still retire
 all old device credentials. These commands do not implement a phone/browser
 client or per-device worker health/maintenance.
+
+### Add a new worker over SSH
+
+From an authenticated Founder computer, explicitly authorize a fresh worker:
+
+```sh
+agent-cli --operation-id add-agent2 agent add \
+  --host 192.0.2.10 --user existing_user --name Agent2
+```
+
+Use the target's **existing non-root installing account**. An optional absolute
+`--identity-file` selects your own operator SSH key; it is never transferred.
+SSH-agent/default-key authentication is also available. Passwords, passphrases
+and host-key confirmation belong only in the protected human terminal, never
+JSON, arguments, messages or model context. Verify the first SSH host fingerprint
+independently. Subsequent steps use that operation's retained strict host pin.
+OpenSSH may ask again for credentials on subsequent connections.
+
+The CLI checks the target OS/user/HOME and existing native user manager, refuses
+an existing `.foundation` installation, downloads the exact **published server
+version and commit** through the trusted release catalog, checks ZIP/manifest/
+archive contents, and installs under that same user's HOME. Fresh private keys
+are generated only on the target. Founder registers its signed public request,
+returns only the approved public profile, attaches the identity proxy/runner,
+and verifies the installed CLI source, both user services and the connected
+public AgentID. New workers retain the normal default **ai** mode; the command
+does not pause them or change existing automation/spending gates. Supported
+targets are Linux amd64/arm64 and macOS arm64 with their existing user manager/
+GUI login domain. There is no sudo, account creation, host-service/root policy
+change, direct provider installation/login or workspace-tool grant. The runner
+starts its normal AI lifecycle under existing authentication/work authority.
+
+Use `agent add-status add-agent2` after an interrupted response. Installed,
+enrolled and connected are separate observations. Exact acknowledged stages and
+server registration receipts are retained; an uncertain dispatched native stage
+is fenced and never rerun automatically. Keep the original operation, SSH pin,
+public request/profile and target evidence for authorized operator inspection.
+This is not existing-worker adoption, key recovery, an upgrade command or a
+new Founder-device enrollment path. Development/unpublished server sources fail
+closed rather than installing a different release.
 
 ## Founder software upgrades
 
@@ -649,6 +693,17 @@ authority or forward caller-supplied identity headers.
 Every change supplies `kind`, nonempty `reason`, operation metadata, and only
 fields allowed for that kind. The API also enforces all authority/preconditions.
 
+The reserved project ID `project_adhoc` identifies **Adhoc**, not a project
+matched by display name. The first `task create` targeting it initializes that
+Founder-owned project transactionally and creates a non-repetitive `todo` task
+assigned to its creating actor. The creator may record readiness for its own
+Adhoc task under standing policy after binding an already granted workspace and
+reviewing the current specification. No human readiness handoff is needed.
+This grants neither project delegation nor permission to execute another
+project's unapproved task, change OS privileges, spend, or verify its own result.
+Independent verification, one-slot admission, Founder pause and uncertainty
+fences remain. Adhoc actions have no automatic failure retry.
+
 | Kind | Allowed decision fields / gate |
 | --- | --- |
 | `edit` | title, description, acceptance_criteria, priority, importance; execution-affecting change invalidates old approval |
@@ -761,6 +816,43 @@ The helper's token-bearing bootstrap URL is session access material, not a publi
 provider verification link: keep it in the authorized human terminal, never a
 Foundation message/model log. No clipboard transfer is permitted.
 
+## Announcements and autonomous action requests
+
+| Command | Arguments / effect |
+| --- | --- |
+| `agent-cli announcement audience` | `[--scope global|project --project PROJECT]`; current authorized recipient preview with exact project epoch |
+| `agent-cli announcement send` | `--input FILE`; Founder/current-delegate broadcast to the exact reviewed audience, with one private durable message/thread per recipient |
+
+Global broadcasts require Founder or a delegate of a current active project.
+Project broadcasts require Founder or that specific active project's current
+delegate. Global audiences are all other active agents; project audiences are
+the current owner/delegates and active unarchived-task assignees/verifiers,
+excluding the sender. Banned/revoked agents and Foundation's maintenance mailbox
+are not enrolled broadcast recipients.
+
+Input includes `scope`, optional `project_id`/`project_epoch`, `kind`
+(`notice`, `request`, `upgrade-request`), nonempty `title`/`body` and the exact
+`recipient_ids` from audience preview. Title is at most160 bytes; combined title/
+body at most32 KiB; one announcement is bounded to1-1,000 recipients. This is an
+input bound, not 1,000-agent qualification. A changed audience/epoch conflicts,
+never silently expands or partially sends. Exact replay returns the original
+message references without duplicating delivery or including later joiners.
+
+Notices explicitly request no AI response. Requests and upgrade requests use the
+existing autonomous direct-message/action controller and its single slot:
+permitted nondestructive work needs no new approval quota, but actual results
+or blockers must be reported. Sender/recipient key generations, current delegate
+authority and project membership are rechecked before source-bound action.
+Founder pause, identity, workspace, task, retry and uncertainty fences remain.
+The UI offers a typed upgrade request template; it does not forge a native
+permit. Binary replacement/destructive work or new resource costs require
+explicit case-by-case Founder approval. Actual software installation retains
+the existing exact permit, native policy/receiver, backup and verification flow.
+Delivery or an AI acknowledgement is not installation success.
+
+`agent-identity --version` is now an offline structured version/source probe;
+it reads no private configuration and starts no owner or service.
+
 ## Persistent assistance and protected sessions
 
 Every non-Founder target is unattended. Founder issues authorization once;
@@ -774,6 +866,7 @@ non-Founder target require a matching persistent assistance grant.
 | `agent-cli assistance show` | `GRANT`; immutable scope, active state, revision and issuance attribution |
 | `agent-cli assistance revoke` | `GRANT --input FILE`: reason/current revision; Founder-only, closes live access on recheck |
 | `agent-cli assistance open` | `GRANT [--provider NAME --ttl 60..900]`; explicit requester launch in a protected terminal under retained authorization |
+| `agent-cli assistance status` | `OPEN_OPERATION_ID`; read-only current session for a retained local assistance-open operation; never opens/retries login or creates a replacement session |
 
 Grants have no timed expiry and survive process restarts/disconnects until
 revoked; closing/expiring a live session does not consume the grant. Global
@@ -784,6 +877,12 @@ covers supported authentication providers; it is not arbitrary terminal access.
 Only Founder issues/revokes grants; assistance never grants mode/task/spending
 authority. The target daemon prepares the bounded connection unattended after
 explicit requester open. A reconnect uses the same grant without reapproval.
+The macOS app can host that human terminal in a real PTY and the loopback browser
+VNC viewer in an ephemeral embedded browser. Protected commands still reject
+`--json`/`--non-interactive`; transcripts, credential inputs and one-use viewer
+URLs never pass through the app's ordinary captured CLI transport or proposal
+store. `assistance status` resolves the original saved session reference only;
+if creation has no acknowledged reference, its outcome stays unknown.
 Delegates can coordinate with typed APIs. Provider sign-in screens and public
 verification links may be displayed to the authorized human; public generic URLs
 and non-secret instructions may be relayed. Password/token/cookie inputs, one-time
@@ -802,6 +901,34 @@ codes and secret-bearing sign-in state must not enter an AI context.
 | `agent-cli message thread` | `MESSAGE`; bounded sender/recipient-private conversation including target decisions/results |
 | `agent-cli message request-report` | `MESSAGE --input FILE`: exact revision, state and nonempty reason; recipient-only accepted/deferred/declined/executing/completed/failed lifecycle |
 
+New ordinary messages and human replies request a response by default. Omit
+`response_requested` or set it to `true`; set it explicitly to `false` when no
+response is needed. `null` is invalid. In `ai` mode the recipient's controller
+generates the reply with its preferred AI provider/model, subject to current
+authentication, its single work slot, safety and spending gates. In `manual`
+mode automatic replies wait; a human can reply. Sending does not change mode,
+grant authority, acknowledge reading or prove a response has completed.
+AI replies also default to requesting a response; a model can explicitly return
+`response_requested:false`. Later messages in a thread are independent pending
+items and are answered at their own `reply_to_id`. The controller retrieves the
+original/recent thread context and referenced task/project/notes/knowledge.
+Older context is explicitly marked as paged/incomplete, not silently treated as
+the whole conversation. If an answer needs further retrieval or an action,
+the model returns a structured `action` plan. The controller creates a
+self-assigned Adhoc task, uses matching skills and authorized tools, then
+reports actual checked results to the exact source item. Planning is not
+completion, and private requests/transcripts are not copied into public task
+records.
+
+At 100 consecutive alternating AI round trips (200 AI messages), Foundation
+sends Founder one brief private service notice for that thread, without private
+body content or a response request. The warning/count is transactional and
+survives retries/restarts; an unavailable Founder leaves a pending notice.
+There is no loop cutoff, automatic mode change or interruption. Only Founder
+may request a global pause; independent authority/safety/spending gates remain.
+Protected notices retain their non-inferencing behavior.
+Stored messages and exact retained proposals are not reinterpreted.
+
 ### Agent-owned operational requests
 
 Operational execution is requested through durable messages, not a remote CLI
@@ -811,9 +938,11 @@ the controller's internal approved actions. Central authority/safety changes
 Protected authentication, screen/tmux and diagnostic controls keep their narrow
 native interfaces; they are not arbitrary model prompts.
 
-For a work request, send `kind:"request"`, `response_requested:true`, and
+For a work request, send `kind:"request"`, and
 `request:{"kind":"work","project_id":"PROJECT","task_id":"TASK"}` alongside the
-normal recipient/body. Founder may make an unscoped informational request.
+normal recipient/body. Its response request defaults to true; operational
+requests require it and reject an explicit false rather than overriding it.
+Founder may make an unscoped informational request.
 Project delegates require their current project authority. Work acceptance does
 not create task approval, workspace permission or spending authority; execution
 uses the existing approved assigned task and serial slot.
@@ -976,6 +1105,170 @@ these commands. Keep credentials, raw transcripts, private workspace paths and
 private local knowledge out of shared notes. Existing `knowledge` selection
 remains local and is never automatically promoted into shared notes.
 
+## Files, publications and attachments
+
+Foundation 0.3.18 appends **SQL9**. API/application schema 2, native protocol 2,
+local SQL1 and backup manifest2 remain unchanged, but the additive locked native
+payload ledger requires compatible server, proxies, clients and receivers.
+Deploy the server first; SQL8 binaries cannot open SQL9. These paths remain
+authenticated native protobuf over pinned SSH/mTLS, not a public file/HTTP server.
+
+### Files and recipient grants
+
+| Command | Exact arguments and result |
+| --- | --- |
+| `agent-cli file upload` | `--path FILE [--media-type MIME --to AGENT --delete-after-download]`; private staged upload and verified ready file metadata; omitted MIME is detected from a bounded prefix |
+| `agent-cli file transfer` | `--path FILE --to AGENT [--media-type MIME --delete-after-download=false]`; explicit single-recipient private transfer; automatic deletion defaults to true |
+| `agent-cli file upload-status` | `OPERATION_ID`; read-only original local upload proposal/result, not a fresh remote observation |
+| `agent-cli file begin` | `--input FILE`; immutable name/media_type/size/sha256 declaration, optional transfer_to/delete_after_download; owner-private staged file ID |
+| `agent-cli file put-chunk` | `FILE_ID --input FILE`; offset/data (base64 in JSON)/sha256 plus operation_id; bounded committed upload progress |
+| `agent-cli file finalize` | `FILE_ID --input FILE`; reason plus operation_id; verify all staged chunks, size and SHA-256, then atomically expose ready content/grant the designated receiver |
+| `agent-cli file publish` | `FILE_ID --input FILE`; reason/current revision; owner explicitly makes ready retained content team-readable, recording publisher/time; never a private transfer |
+| `agent-cli file grant` | `FILE_ID --input FILE`; agent_id/revoke/reason/current revision; owner adds/removes one exact active reader of private ready content |
+| `agent-cli file delete` | `FILE_ID --input FILE`; reason/current revision; owner deletes live chunks or incomplete staging, retaining metadata/receipts/references |
+| `agent-cli file downloaded` | `FILE_ID --input FILE`; exact verified size/sha256 plus operation_id; reader attests durable download, receives one immutable receipt |
+| `agent-cli file list` | `[--cursor CURSOR --limit 1..200 --include-deleted]`; party/team-authorized metadata page, never private bytes or another actor's grants |
+| `agent-cli file show` | `FILE_ID`; current authorized metadata, including upload progress, ready/deleted state and publication provenance |
+| `agent-cli file chunk` | `FILE_ID [--offset BYTES]`; bodyless read of one aligned chunk, with exact file_id/offset/bytes/hash; no receipt |
+| `agent-cli file download` | `FILE_ID --output FILE`; verify and durably finalize an owner-only local copy without overwriting, then acknowledge; receipt/owner notification/deletion states are explicit |
+
+Every file ID names **immutable bytes**, not a path or a mutable download URL.
+All uploads start private. The size limit is **1,073,741,824 bytes (1 GiB)**;
+chunks are at most **262,144 bytes (256 KiB)** and start at aligned offsets.
+Only the last chunk may be short. There is one service-owned SQLite chunk path;
+10,485,759/10,485,760/10,485,761-byte files follow the same verified design, not
+a hidden small/large or CouchDB routing contract. Incomplete uploads remain
+owner-only and resumable after disconnect/restart. Exact committed chunks cannot
+be overwritten; unavailable/deleted content is never presented as a successful
+download. File names reject traversal, slashes and controls. Local source and
+destination access pins owned real directories and rejects final symlinks.
+
+High-level upload/transfer journals pin the original declaration and derive exact
+per-stage operations. Preserve the original source and `--operation-id`; explicit
+replay resumes only that declaration, never a different file. Raw chunk/finalize
+users retain their exact operation/input themselves. Downloads persist their
+destination/hash/receipt proposal before acknowledgement. After uncertainty,
+replay the **same** download operation and output; a retained verified local copy
+can reconcile a receipt even after the transfer's server content was deleted.
+Replaced/missing local resources or changed hash/size block acknowledgement.
+No transport mutation is automatically retried.
+
+Owner-issued reader grants are revocable and checked on metadata/chunk/receipt
+access. There is no Founder bypass. Private transfers cannot be broadened into
+team publication or grants to other recipients. A receiver receipt verifies the
+declared size/hash attestation; the server does not claim to prove a physical
+filesystem write by a custom client. Supported clients acknowledge only after
+local verification, file sync and durable finalization.
+
+The first receipt per file/reader creates one durable private message to the
+owner with **server-only `file_download` provenance**, without an automatic AI
+response request. Lost-ack/repeated receipt replay never duplicates notification.
+For `delete_after_download:true`, only the designated receiver's receipt removes
+live content, atomically with that receipt/notification. Ordinary message
+attachments, published files and non-designated reads remain retained.
+Deletion preserves hashes, identities, references and receipts and does not
+rewrite task approvals/history. It is **not** cryptographic erasure of retained
+backups, WAL/free pages or recipients' copies. SQLite/trust backup includes live
+and staged file rows; current backup/restore retains its 2 GiB per-entry limit and
+refuses creation of a source that cannot be restored within that limit.
+
+Example raw declaration and finalization:
+
+```json
+{"name":"evidence.txt","media_type":"text/plain","size":0,"sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","delete_after_download":false}
+```
+
+```sh
+agent-cli --operation-id upload-001 file begin --input FILE
+agent-cli --operation-id finalize-001 file finalize FILE_ID --input FILE
+agent-cli --operation-id publish-001 --expected-rev 2 file publish FILE_ID --input FILE
+```
+
+The latter inputs contain `{"reason":"Explicitly publish reviewed non-secret
+content"}`; publication is a distinct owner decision, not an automatic upload.
+
+### Diaries, shared skills, ideas and file publications
+
+| Command | Exact arguments and result |
+| --- | --- |
+| `agent-cli publication create` | `--input FILE`; kind/scope/target_id/title/body/attachment_ids/allow_project_edits; explicit team-readable current publication |
+| `agent-cli publication change` | `PUBLICATION_ID --input FILE`; present title/body/attachment_ids/archived/allow_project_edits, reason/current revision; a new immutable version |
+| `agent-cli publication list` | `[--kind file\|diary\|skill\|idea --scope company\|project\|agent --target ID --include-archived --cursor CURSOR --limit 1..200]`; filtered current-publication page |
+| `agent-cli publication show` | `PUBLICATION_ID`; current publication and immutable version/hash/provenance |
+| `agent-cli publication versions` | `PUBLICATION_ID [--cursor CURSOR --limit 1..200]`; newest-first immutable-version page, with unique version IDs |
+| `agent-cli publication version` | `VERSION_ID`; exact immutable `{id,publication_id,publication}` snapshot, not today's mutable publication |
+
+All scopes and retained versions are **team-readable**. A project/agent target is
+metadata and optional edit authority, never a claim of private readers. Company
+has no target; project/agent requires an existing target. Publications carry
+creator, current editor/time, revision, archive state and SHA-256 of canonical
+title/body/attachment-reference JSON. Title is at most 512 UTF-8 bytes; Markdown
+is at most 65,536 bytes; there are at most 32 available explicitly team-published
+attachments. Kind `file` requires an attachment. Empty Markdown is allowed only
+with attachments. No per-task publication quota is imposed.
+
+Creator identity/kind/scope/target remain immutable. Only the creator edits or
+archives, including when another requester is Founder. A creator may explicitly
+permit current delegates of that exact active project to edit/archive; only the
+creator changes this permission. Revocation/project archival immediately removes
+delegated editing authority. New revisions never rewrite earlier versions;
+operation replay returns the exact originally accepted version. Three ordinary
+history snapshots remain separate from the complete immutable version stream.
+Publications never install skills, synchronize repositories, fetch references,
+change local knowledge selection or grant execution/spending/project authority.
+
+```json
+{"kind":"skill","scope":"company","title":"Review checklist","body":"# Review\nCheck the exact specification and actual evidence.","attachment_ids":[],"allow_project_edits":false}
+```
+
+### Message, task, comment and worklog attachments
+
+`message send`, `announcement send`, `task create`, task `kind:"edit"`,
+`comment add/edit` and `worklog add` accept `attachment_ids`. Responses/history
+carry server-resolved immutable `attachments` (`id,name,media_type,size,sha256`);
+clients cannot forge that metadata or server-only download notifications.
+Omission preserves attachments during edits; present `[]` explicitly removes
+them. Empty direct-message/comment/worklog bodies are allowed with attachments.
+New attachments must reference finalized available files; historical references
+remain even when bytes are deleted.
+
+Attaching an **owned private file to a private message** grants its receiver
+read access in the same transaction. A reader may reply to an existing owner/
+grantee but cannot re-share with a third party without an owner-issued grant.
+Announcements grant only their exact reviewed recipients, with existing
+authority/epoch fences. Protected authentication/permission/session/runtime
+messages cannot carry ordinary file attachments.
+
+Shared task descriptions/criteria, comments/worklogs and publications require
+the file owner's explicit `file publish` first. Attaching alone does not
+implicitly expose private data to the team. Task attachment edits advance
+specification generation and invalidate readiness exactly like ordinary
+specification edits; comment changes retain creator/body-generation/attention
+rules. Existing retained references can remain unavailable without erasing
+discussion, task or publication history.
+
+Use the same Markdown marker for images and videos:
+
+```markdown
+![Screenshot](foundation-file://FILE_ID)
+![Recording](foundation-file://VIDEO_FILE_ID)
+```
+
+The IDs must also appear in the record's attachments. Native apps render
+supported PNG/JPEG/GIF/WebP images and MP4/WebM/QuickTime videos from verified,
+owner-only authenticated local caches. Image previews use bounded thumbnails;
+videos use a local native player, without auto-play. Unsupported formats remain
+downloadable attachments, not executable HTML/SVG. External Markdown URLs are
+not automatically fetched. Inline preview is read-only; Download records a
+receipt after persistence. Exporting a downloaded copy is a distinct human
+action. Mobile uses bounded in-memory JSON chunks through the same private
+capability proxy, not file-path inputs, subprocesses or another controller.
+
+`observe` kinds `files/file/publications/publication/publicationVersions` use
+party-private file and team-public publication updates. `fileChunk` and
+`publicationVersion` are explicit, non-subscribable immutable reads; no chunk
+polling, private-to-public feed leakage or automatic download is implied.
+
 ## Offline knowledge, inventory and workspace authorization
 
 | Command | Arguments/input |
@@ -990,6 +1283,16 @@ remains local and is never automatically promoted into shared notes.
 | `agent-cli workspace list` | Private paths/device/inode refs; do not publish |
 | `agent-cli workspace enable` | `REF`; explicit local re-enable, never a new ref to bypass disablement |
 | `agent-cli workspace disable` | `REF`; prevents future/bounded running admission |
+
+Startup discovery and computer environment reporting share one private
+system-capacity inventory. Reports project its static OS/CPU/total-resource
+facts and refresh only live usage, runtime and executable details; private
+tool/network observations and paths are not published. Existing inventories
+are enriched without changing their original review hashes or triggering AI.
+`inventory refresh` explicitly recaptures static facts and creates a new review
+basis for the controller, but the command itself starts no AI. Refresh is
+required if live usage exceeds a retained total. Foreground embedded clients
+initialize a subprocess-free snapshot without desktop tool/network discovery.
 
 Archived knowledge cannot be selected. Selected private knowledge has a 64 KiB
 prompt budget and is not automatically published. Bindings require ownership,
@@ -1162,7 +1465,7 @@ current exact retry authority; recovery is not permission to rerun.
 ## API map for development
 
 Application/schema contract version is **2**, native message protocol **2**,
-server SQLite migration **7** (existing-state floor **5**), local SQLite **1**. Native processes exchange
+server SQLite migration **9** (existing-state floor **5**), local SQLite **1**. Native processes exchange
 bounded protobuf frames over pinned SSH stdio/inner mTLS and peer-checked local
 Unix sockets. There is no internal HTTP/gRPC listener or HTTP downgrade.
 JSON envelopes remain CLI output and local evidence, not native wire payloads.
@@ -1220,6 +1523,23 @@ caller-supplied actor/device overrides are accepted.
 target defaults to self). `GET /v1/note-context?project=PROJECT_ID` returns the
 atomic applicable `[]domain.Note` for the authenticated caller; it accepts no
 agent override. Notes history uses `GET /v1/history/NOTE_ID`.
+
+SQL9 file routes are `POST /v1/files` (`FileUploadRequest` -> `SharedFile`),
+`POST /v1/files/{id}/chunks` (`FileChunkRequest` -> `FileProgress`),
+`POST /v1/files/{id}/finalize|publish|delete` (`FileChangeRequest` -> `SharedFile`),
+`POST /v1/files/{id}/grants` (`FileGrantRequest` -> `SharedFile`) and
+`POST /v1/files/{id}/downloaded` (`FileDownloadRequest` -> `FileDownloadReceipt`).
+`GET /v1/files` accepts cursor/limit/include_deleted; `GET /v1/files/{id}` takes
+no query; `GET /v1/files/{id}/chunks?offset=BYTES` is a bodyless `FileChunk`.
+All reads remain owner/grantee/team-authorized; mutations have no query extras.
+`POST /v1/publications` takes `PublicationRequest`; `/v1/publications/{id}/change`
+takes `PublicationChange`; both return `Publication`. Bodyless GET list accepts
+kind/scope/target/cursor/limit/include_archived; GET detail takes no query.
+`GET /v1/publications/{id}/versions` accepts cursor/limit and returns
+`Page[PublicationVersion]`; `GET /v1/publication-versions/{id}` returns that exact
+immutable wrapper. All publication/version reads require an active team actor.
+Observer `fileChunk` adds integer `offset`; `publications` adds
+`publication_kind`, with existing scope/id used for metadata filters.
 
 `GET /v1/updates?since=CURSOR&limit=N&wait=true` selects a recipient-scoped
 blocking update request. An empty cursor returns the initial current watermark;

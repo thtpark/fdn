@@ -5,6 +5,17 @@ description: "Use when installing/updating Codex or Copilot, checking provider r
 
 # Provider readiness and protected authentication
 
+The macOS app can issue Founder `agent request-sign-in` requests and host an
+explicitly opened retained authentication grant in its built-in PTY/tmux or
+loopback-only VNC browser. These are protected **human-only** views, never
+captured JSON, model-visible UI/transcripts, saved drafts or credential handoffs.
+VNC still requires an advertised real screen/application and explicit
+whole-desktop fallback when applicable. Persistent grants and five-minute app
+connections are distinct from 15-minute sign-in requests. `assistance status
+OPEN_OPERATION_ID` reads the original session after uncertainty without opening
+login, renewing authority or creating a replacement. Closing a viewer is not
+proof of authentication; retain unknown outcomes and inspect current readiness.
+
 Read `agent-cli guide show COMMANDS.md` and `guide show DEPLOYMENT.md`.
 Distinguish installation, credentials present, validated authentication, selected
 model and authorized inference.

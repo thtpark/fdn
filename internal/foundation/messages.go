@@ -11,7 +11,7 @@ import (
 
 func (s *Store) SendMessage(ctx context.Context, actor string, req domain.MessageRequest) (domain.Message, error) {
 	return mutate(ctx, s, actor, "message.send", req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.Message, error) {
-		if err := domain.CheckText(req.Body, "message body", 32768, true); err != nil {
+		if err := domain.CheckText(req.Body, "message body", 32768, len(req.AttachmentIDs) == 0); err != nil {
 			return domain.Message{}, err
 		}
 		action, system, err := s.prepareMessageAction(ctx, tx, a, req)
@@ -46,6 +46,18 @@ func (s *Store) SendMessage(ctx context.Context, actor string, req domain.Messag
 		}
 		m := domain.Message{ID: domain.NewID("message"), SenderID: a.ID, RecipientID: req.RecipientID, Body: req.Body,
 			Origin: req.Origin, Kind: req.Kind, Urgent: req.Urgent, ResponseRequest: req.ResponseRequest, State: "pending", CreatedAt: now, ExpiresAt: expiresAt, Revision: 1}
+		if len(req.AttachmentIDs) != 0 {
+			if system || (req.Kind != "direct" && req.Kind != "request") {
+				return m, domain.Fail(domain.Invalid, "attachments are limited to ordinary private agent messages")
+			}
+			m.Attachments, err = s.resolveAttachments(ctx, tx, a.ID, req.RecipientID, req.AttachmentIDs)
+			if err != nil {
+				return m, err
+			}
+		}
+		if err := checkInlineAttachments(m.Body, m.Attachments); err != nil {
+			return m, err
+		}
 		m.ThreadID, m.Request, m.Insistence = m.ID, action, req.Insistence
 		if req.ReplyToID != "" {
 			parent, err := get[domain.Message](ctx, tx, "messages", req.ReplyToID)
@@ -66,7 +78,10 @@ func (s *Store) SendMessage(ctx context.Context, actor string, req domain.Messag
 		} else if req.Insistence {
 			return domain.Message{}, domain.Fail(domain.Invalid, "insistence requires a linked earlier request")
 		}
-		return insertMessage(ctx, tx, m)
+		if _, err := insertMessage(ctx, tx, m); err != nil {
+			return m, err
+		}
+		return m, s.recordReplyLoop(ctx, tx, m)
 	})
 }
 

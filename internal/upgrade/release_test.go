@@ -107,12 +107,40 @@ func TestReleaseDownloadChecksExactDigestAndNeverOverwrites(t *testing.T) {
 	if err := testCatalog(bundle).Download(context.Background(), release, path); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := testCatalog(bundle).Download(context.Background(), release, path); err == nil {
 		t.Fatal("release download overwrote immutable retained bytes")
 	}
 	release.BundleSHA256 = strings.Repeat("0", 64)
 	if err := testCatalog(bundle).Download(context.Background(), release, filepath.Join(t.TempDir(), "bad.zip")); domain.AsFault(err).Code != domain.Denied {
 		t.Fatal("mismatched release digest was accepted", err)
+	}
+}
+
+func TestReleasePublishedSelectsExactServerVersionNotLatest(t *testing.T) {
+	release, _ := fixtureBundle(t, "darwin-arm64", nil)
+	body, err := json.Marshal(map[string]any{
+		"tag_name": "v" + release.Version, "target_commitish": release.Commit,
+		"assets": []map[string]any{{"name": "fdn-" + release.Version + "-darwin-arm64.zip",
+			"browser_download_url": release.BundleURL, "digest": "sha256:" + release.BundleSHA256,
+			"size": release.BundleBytes, "state": "uploaded"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog := testCatalog(body)
+	catalog.HTTP.Transport = roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.Path != "/repos/"+Repository+"/releases/tags/v"+release.Version {
+			t.Error("published selection consulted a different release", request.URL.Path)
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(body)), Header: make(http.Header)}, nil
+	})
+	actual, err := catalog.Published(context.Background(), release.Version, release.Platform)
+	if err != nil || actual != release {
+		t.Fatal("exact published selection failed", actual, err)
+	}
+	if _, err := testCatalog(body).Published(context.Background(), "0.3.5", release.Platform); err == nil {
+		t.Fatal("server-compatible selection accepted a different returned version")
 	}
 }
 

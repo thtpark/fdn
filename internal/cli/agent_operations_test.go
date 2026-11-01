@@ -28,7 +28,7 @@ type operationCLIRequest struct {
 	body         []byte
 }
 
-func operationCLIFixture(t *testing.T, handler http.HandlerFunc) (config.Worker, string, func() []operationCLIRequest) {
+func operationCLIFixture(t *testing.T, handler http.HandlerFunc, founder ...bool) (config.Worker, string, func() []operationCLIRequest) {
 	t.Helper()
 	root, err := os.MkdirTemp(".", ".op-cli-")
 	if err != nil {
@@ -92,7 +92,7 @@ func operationCLIFixture(t *testing.T, handler http.HandlerFunc) (config.Worker,
 			if r.Method != http.MethodGet || len(body) != 0 {
 				t.Error("identity check is not a bodyless GET")
 			}
-			diagnosticsEnvelope(t, w, domain.Agent{ID: actor, Founder: true, Active: true, Mode: "manual"}, nil)
+			diagnosticsEnvelope(t, w, domain.Agent{ID: actor, Founder: len(founder) == 0 || founder[0], Active: true, Mode: "manual"}, nil)
 			return
 		}
 		handler(w, r)

@@ -86,6 +86,12 @@ message Go_AgentDiagnostics {
   Go_AgentTextStatus status = 15;
 }
 
+message Go_AgentEnvironment {
+  String agent_id = 1;
+  Signed server_observed_at = 2;
+  List_Go_ComputerEnvironment computers = 3;
+}
+
 message Go_AgentIdentity {
   String agent_id = 1;
   String instance_id = 2;
@@ -177,6 +183,56 @@ message Go_AgentTextStatus {
   Signed updated_at = 4;
   Signed observed_at = 5;
   Bool stale = 6;
+}
+
+message Go_AnnouncementAudience {
+  String actor_id = 1;
+  String scope = 2;
+  String project_id = 3;
+  Signed project_epoch = 4;
+  List_Go_AnnouncementRecipient recipients = 5;
+}
+
+message Go_AnnouncementContext {
+  String id = 1;
+  String scope = 2;
+  String project_id = 3;
+  Signed project_epoch = 4;
+  String kind = 5;
+  Signed sender_generation = 6;
+  Signed recipient_generation = 7;
+}
+
+message Go_AnnouncementDelivery {
+  String agent_id = 1;
+  String message_id = 2;
+}
+
+message Go_AnnouncementReceipt {
+  String id = 1;
+  String scope = 2;
+  String project_id = 3;
+  String kind = 4;
+  Signed created_at = 5;
+  List_Go_AnnouncementDelivery deliveries = 6;
+}
+
+message Go_AnnouncementRecipient {
+  String agent_id = 1;
+  String name = 2;
+}
+
+message Go_AnnouncementRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String scope = 3;
+  String project_id = 4;
+  Signed project_epoch = 5;
+  String kind = 6;
+  String title = 7;
+  String body = 8;
+  List_String recipient_ids = 9;
+  List_String attachment_ids = 10;
 }
 
 message Go_Approval {
@@ -285,6 +341,12 @@ message Go_AuthenticationRefreshRequest {
   String reason = 5;
 }
 
+message Go_CPUEnvironment {
+  String model = 1;
+  Signed logical_cores = 2;
+  Unsigned physical_cores = 3;
+}
+
 message Go_CertificateIdentity {
   String instance_id = 1;
   String agent_id = 2;
@@ -320,6 +382,15 @@ message Go_Command {
   Signed expected_revision = 2;
 }
 
+message Go_ComputerEnvironment {
+  String binding_id = 1;
+  String device_name = 2;
+  Signed generation = 3;
+  Signed received_at = 4;
+  Bool stale = 5;
+  Go_EnvironmentObservation observation = 6;
+}
+
 message Go_ConnectionProfile {
   Go_AgentIdentity identity = 1;
   String url = 2;
@@ -335,6 +406,11 @@ message Go_DiagnosticRefreshRequest {
   String reason = 3;
 }
 
+message Go_DiskEnvironment {
+  Unsigned total_bytes = 1;
+  Unsigned available_bytes = 2;
+}
+
 message Go_Entry {
   Go_ReviewReference review = 1;
   String id = 2;
@@ -348,6 +424,7 @@ message Go_Entry {
   Signed revision = 10;
   Signed created_at = 11;
   Signed updated_at = 12;
+  List_Go_FileReference attachments = 13;
 }
 
 message Go_EntryRequest {
@@ -356,6 +433,29 @@ message Go_EntryRequest {
   String kind = 3;
   String body = 4;
   String parent_id = 5;
+  List_String attachment_ids = 6;
+}
+
+message Go_EnvironmentObservation {
+  Signed version = 1;
+  Signed observed_at = 2;
+  Go_SystemEnvironment system = 3;
+  Go_CPUEnvironment cpu = 4;
+  Go_MemoryEnvironment memory = 5;
+  Go_DiskEnvironment disk = 6;
+  List_Go_FoundationExecutable executables = 7;
+  List_Go_EnvironmentProblem problems = 8;
+}
+
+message Go_EnvironmentProblem {
+  String component = 1;
+  String code = 2;
+}
+
+message Go_EnvironmentRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  Go_EnvironmentObservation observation = 3;
 }
 
 message Go_Event {
@@ -371,6 +471,94 @@ message Go_Fault {
   String code = 1;
   String message = 2;
   Bool retryable = 3;
+}
+
+message Go_FileChangeRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String reason = 3;
+}
+
+message Go_FileChunk {
+  String file_id = 1;
+  Signed offset = 2;
+  Bytes data = 3;
+  String sha256 = 4;
+}
+
+message Go_FileChunkRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  Signed offset = 3;
+  Bytes data = 4;
+  String sha256 = 5;
+}
+
+message Go_FileDownloadReceipt {
+  String file_id = 1;
+  String reader_id = 2;
+  Signed size = 3;
+  String sha256 = 4;
+  Signed received_at = 5;
+  String notification_id = 6;
+  Bool content_deleted = 7;
+}
+
+message Go_FileDownloadRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  Signed size = 3;
+  String sha256 = 4;
+}
+
+message Go_FileGrant {
+  String file_id = 1;
+  String agent_id = 2;
+  String granted_by = 3;
+  Signed granted_at = 4;
+}
+
+message Go_FileGrantRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String agent_id = 3;
+  Bool revoke = 4;
+  String reason = 5;
+}
+
+message Go_FileProgress {
+  String file_id = 1;
+  Signed uploaded_bytes = 2;
+}
+
+message Go_FileReference {
+  String id = 1;
+  String name = 2;
+  String media_type = 3;
+  Signed size = 4;
+  String sha256 = 5;
+}
+
+message Go_FileUploadRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String name = 3;
+  String media_type = 4;
+  Signed size = 5;
+  String sha256 = 6;
+  String transfer_to = 7;
+  Bool delete_after_download = 8;
+}
+
+message Go_FoundationExecutable {
+  String name = 1;
+  String state = 2;
+  String version = 3;
+  String commit = 4;
+  String sha256 = 5;
+  Bool running = 6;
+  String running_version = 7;
+  String running_commit = 8;
 }
 
 message Go_GrantRequest {
@@ -465,6 +653,12 @@ message Go_ManagedAccount {
   Signed generation = 9;
 }
 
+message Go_MemoryEnvironment {
+  Unsigned total_bytes = 1;
+  Unsigned available_bytes = 2;
+  Unsigned free_bytes = 3;
+}
+
 message Go_Message {
   String id = 1;
   String sender_id = 2;
@@ -486,6 +680,9 @@ message Go_Message {
   Bool insistence = 18;
   Go_MessageActionState request = 19;
   Go_MessageActionUpdate request_update = 20;
+  Go_AnnouncementContext announcement = 21;
+  List_Go_FileReference attachments = 22;
+  Go_FileDownloadReceipt file_download = 23;
 }
 
 message Go_MessageAction {
@@ -574,6 +771,7 @@ message Go_MessageRequest {
   String reply_to_id = 10;
   Bool insistence = 11;
   Go_MessageAction request = 12;
+  List_String attachment_ids = 13;
 }
 
 message Go_MessageWorkerCommand {
@@ -671,6 +869,54 @@ message Go_PublicIdentity {
   String auth_key = 5;
   String ssh_proof = 6;
   String auth_proof = 7;
+}
+
+message Go_Publication {
+  String id = 1;
+  String version_id = 2;
+  String kind = 3;
+  String scope = 4;
+  String target_id = 5;
+  String title = 6;
+  String body = 7;
+  List_Go_FileReference attachments = 8;
+  String sha256 = 9;
+  String created_by = 10;
+  Signed created_at = 11;
+  String updated_by = 12;
+  Signed updated_at = 13;
+  Signed revision = 14;
+  Bool archived = 15;
+  Bool allow_project_edits = 16;
+}
+
+message Go_PublicationChange {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String title = 3;
+  String body = 4;
+  List_String attachment_ids = 5;
+  Bool archived = 6;
+  Bool allow_project_edits = 7;
+  String reason = 8;
+}
+
+message Go_PublicationRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String kind = 3;
+  String scope = 4;
+  String target_id = 5;
+  String title = 6;
+  String body = 7;
+  List_String attachment_ids = 8;
+  Bool allow_project_edits = 9;
+}
+
+message Go_PublicationVersion {
+  String id = 1;
+  String publication_id = 2;
+  Go_Publication publication = 3;
 }
 
 message Go_RecoverIdentityRequest {
@@ -850,6 +1096,34 @@ message Go_SessionRequest {
   Bool desktop_fallback = 14;
 }
 
+message Go_SharedFile {
+  String id = 1;
+  String name = 2;
+  String media_type = 3;
+  Signed size = 4;
+  String sha256 = 5;
+  String owner_id = 6;
+  String state = 7;
+  Signed uploaded_bytes = 8;
+  Bool team_readable = 9;
+  String transfer_to = 10;
+  Bool delete_after_download = 11;
+  Signed revision = 12;
+  Signed created_at = 13;
+  Signed finalized_at = 14;
+  Signed deleted_at = 15;
+  Signed published_at = 16;
+  String published_by = 17;
+}
+
+message Go_SystemEnvironment {
+  String os = 1;
+  String os_version = 2;
+  String kernel = 3;
+  String architecture = 4;
+  String go_version = 5;
+}
+
 message Go_Task {
   String id = 1;
   String project_id = 2;
@@ -887,6 +1161,7 @@ message Go_Task {
   Signed next_attempt_at = 34;
   Bool unsafe_retry = 35;
   Go_Result result = 36;
+  List_Go_FileReference attachments = 37;
 }
 
 message Go_TaskChange {
@@ -915,6 +1190,7 @@ message Go_TaskChange {
   List_String answer_ids = 23;
   Go_Waiting waiting = 24;
   Bool stopped_acknowledged = 25;
+  List_String attachment_ids = 26;
 }
 
 message Go_TaskRequest {
@@ -928,6 +1204,7 @@ message Go_TaskRequest {
   Bool repetitive = 8;
   Signed priority = 9;
   Signed importance = 10;
+  List_String attachment_ids = 11;
 }
 
 message Go_Update {
@@ -1112,6 +1389,11 @@ message List_Go_AgentDiagnostics {
   bool present = 2;
 }
 
+message List_Go_AgentEnvironment {
+  repeated Go_AgentEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Go_AgentIdentity {
   repeated Go_AgentIdentity items = 1;
   bool present = 2;
@@ -1154,6 +1436,36 @@ message List_Go_AgentStatusRequest {
 
 message List_Go_AgentTextStatus {
   repeated Go_AgentTextStatus items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementAudience {
+  repeated Go_AnnouncementAudience items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementContext {
+  repeated Go_AnnouncementContext items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementDelivery {
+  repeated Go_AnnouncementDelivery items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementReceipt {
+  repeated Go_AnnouncementReceipt items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementRecipient {
+  repeated Go_AnnouncementRecipient items = 1;
+  bool present = 2;
+}
+
+message List_Go_AnnouncementRequest {
+  repeated Go_AnnouncementRequest items = 1;
   bool present = 2;
 }
 
@@ -1212,6 +1524,11 @@ message List_Go_AuthenticationRefreshRequest {
   bool present = 2;
 }
 
+message List_Go_CPUEnvironment {
+  repeated Go_CPUEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Go_CertificateIdentity {
   repeated Go_CertificateIdentity items = 1;
   bool present = 2;
@@ -1232,6 +1549,11 @@ message List_Go_Command {
   bool present = 2;
 }
 
+message List_Go_ComputerEnvironment {
+  repeated Go_ComputerEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Go_ConnectionProfile {
   repeated Go_ConnectionProfile items = 1;
   bool present = 2;
@@ -1239,6 +1561,11 @@ message List_Go_ConnectionProfile {
 
 message List_Go_DiagnosticRefreshRequest {
   repeated Go_DiagnosticRefreshRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_DiskEnvironment {
+  repeated Go_DiskEnvironment items = 1;
   bool present = 2;
 }
 
@@ -1252,6 +1579,21 @@ message List_Go_EntryRequest {
   bool present = 2;
 }
 
+message List_Go_EnvironmentObservation {
+  repeated Go_EnvironmentObservation items = 1;
+  bool present = 2;
+}
+
+message List_Go_EnvironmentProblem {
+  repeated Go_EnvironmentProblem items = 1;
+  bool present = 2;
+}
+
+message List_Go_EnvironmentRequest {
+  repeated Go_EnvironmentRequest items = 1;
+  bool present = 2;
+}
+
 message List_Go_Event {
   repeated Go_Event items = 1;
   bool present = 2;
@@ -1259,6 +1601,61 @@ message List_Go_Event {
 
 message List_Go_Fault {
   repeated Go_Fault items = 1;
+  bool present = 2;
+}
+
+message List_Go_FileChangeRequest {
+  repeated Go_FileChangeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_FileChunk {
+  repeated Go_FileChunk items = 1;
+  bool present = 2;
+}
+
+message List_Go_FileChunkRequest {
+  repeated Go_FileChunkRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_FileDownloadReceipt {
+  repeated Go_FileDownloadReceipt items = 1;
+  bool present = 2;
+}
+
+message List_Go_FileDownloadRequest {
+  repeated Go_FileDownloadRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_FileGrant {
+  repeated Go_FileGrant items = 1;
+  bool present = 2;
+}
+
+message List_Go_FileGrantRequest {
+  repeated Go_FileGrantRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_FileProgress {
+  repeated Go_FileProgress items = 1;
+  bool present = 2;
+}
+
+message List_Go_FileReference {
+  repeated Go_FileReference items = 1;
+  bool present = 2;
+}
+
+message List_Go_FileUploadRequest {
+  repeated Go_FileUploadRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_FoundationExecutable {
+  repeated Go_FoundationExecutable items = 1;
   bool present = 2;
 }
 
@@ -1314,6 +1711,11 @@ message List_Go_LocalStatus {
 
 message List_Go_ManagedAccount {
   repeated Go_ManagedAccount items = 1;
+  bool present = 2;
+}
+
+message List_Go_MemoryEnvironment {
+  repeated Go_MemoryEnvironment items = 1;
   bool present = 2;
 }
 
@@ -1427,6 +1829,26 @@ message List_Go_PublicIdentity {
   bool present = 2;
 }
 
+message List_Go_Publication {
+  repeated Go_Publication items = 1;
+  bool present = 2;
+}
+
+message List_Go_PublicationChange {
+  repeated Go_PublicationChange items = 1;
+  bool present = 2;
+}
+
+message List_Go_PublicationRequest {
+  repeated Go_PublicationRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_PublicationVersion {
+  repeated Go_PublicationVersion items = 1;
+  bool present = 2;
+}
+
 message List_Go_RecoverIdentityRequest {
   repeated Go_RecoverIdentityRequest items = 1;
   bool present = 2;
@@ -1519,6 +1941,16 @@ message List_Go_SessionRecoveryRequest {
 
 message List_Go_SessionRequest {
   repeated Go_SessionRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SharedFile {
+  repeated Go_SharedFile items = 1;
+  bool present = 2;
+}
+
+message List_Go_SystemEnvironment {
+  repeated Go_SystemEnvironment items = 1;
   bool present = 2;
 }
 
@@ -1642,6 +2074,11 @@ message List_Page_Go_AgentDiagnostics {
   bool present = 2;
 }
 
+message List_Page_Go_AgentEnvironment {
+  repeated Page_Go_AgentEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_AgentIdentity {
   repeated Page_Go_AgentIdentity items = 1;
   bool present = 2;
@@ -1684,6 +2121,36 @@ message List_Page_Go_AgentStatusRequest {
 
 message List_Page_Go_AgentTextStatus {
   repeated Page_Go_AgentTextStatus items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementAudience {
+  repeated Page_Go_AnnouncementAudience items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementContext {
+  repeated Page_Go_AnnouncementContext items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementDelivery {
+  repeated Page_Go_AnnouncementDelivery items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementReceipt {
+  repeated Page_Go_AnnouncementReceipt items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementRecipient {
+  repeated Page_Go_AnnouncementRecipient items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AnnouncementRequest {
+  repeated Page_Go_AnnouncementRequest items = 1;
   bool present = 2;
 }
 
@@ -1742,6 +2209,11 @@ message List_Page_Go_AuthenticationRefreshRequest {
   bool present = 2;
 }
 
+message List_Page_Go_CPUEnvironment {
+  repeated Page_Go_CPUEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_CertificateIdentity {
   repeated Page_Go_CertificateIdentity items = 1;
   bool present = 2;
@@ -1762,6 +2234,11 @@ message List_Page_Go_Command {
   bool present = 2;
 }
 
+message List_Page_Go_ComputerEnvironment {
+  repeated Page_Go_ComputerEnvironment items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_ConnectionProfile {
   repeated Page_Go_ConnectionProfile items = 1;
   bool present = 2;
@@ -1769,6 +2246,11 @@ message List_Page_Go_ConnectionProfile {
 
 message List_Page_Go_DiagnosticRefreshRequest {
   repeated Page_Go_DiagnosticRefreshRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_DiskEnvironment {
+  repeated Page_Go_DiskEnvironment items = 1;
   bool present = 2;
 }
 
@@ -1782,6 +2264,21 @@ message List_Page_Go_EntryRequest {
   bool present = 2;
 }
 
+message List_Page_Go_EnvironmentObservation {
+  repeated Page_Go_EnvironmentObservation items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_EnvironmentProblem {
+  repeated Page_Go_EnvironmentProblem items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_EnvironmentRequest {
+  repeated Page_Go_EnvironmentRequest items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_Event {
   repeated Page_Go_Event items = 1;
   bool present = 2;
@@ -1789,6 +2286,61 @@ message List_Page_Go_Event {
 
 message List_Page_Go_Fault {
   repeated Page_Go_Fault items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FileChangeRequest {
+  repeated Page_Go_FileChangeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FileChunk {
+  repeated Page_Go_FileChunk items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FileChunkRequest {
+  repeated Page_Go_FileChunkRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FileDownloadReceipt {
+  repeated Page_Go_FileDownloadReceipt items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FileDownloadRequest {
+  repeated Page_Go_FileDownloadRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FileGrant {
+  repeated Page_Go_FileGrant items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FileGrantRequest {
+  repeated Page_Go_FileGrantRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FileProgress {
+  repeated Page_Go_FileProgress items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FileReference {
+  repeated Page_Go_FileReference items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FileUploadRequest {
+  repeated Page_Go_FileUploadRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_FoundationExecutable {
+  repeated Page_Go_FoundationExecutable items = 1;
   bool present = 2;
 }
 
@@ -1844,6 +2396,11 @@ message List_Page_Go_LocalStatus {
 
 message List_Page_Go_ManagedAccount {
   repeated Page_Go_ManagedAccount items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_MemoryEnvironment {
+  repeated Page_Go_MemoryEnvironment items = 1;
   bool present = 2;
 }
 
@@ -1957,6 +2514,26 @@ message List_Page_Go_PublicIdentity {
   bool present = 2;
 }
 
+message List_Page_Go_Publication {
+  repeated Page_Go_Publication items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_PublicationChange {
+  repeated Page_Go_PublicationChange items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_PublicationRequest {
+  repeated Page_Go_PublicationRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_PublicationVersion {
+  repeated Page_Go_PublicationVersion items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_RecoverIdentityRequest {
   repeated Page_Go_RecoverIdentityRequest items = 1;
   bool present = 2;
@@ -2049,6 +2626,16 @@ message List_Page_Go_SessionRecoveryRequest {
 
 message List_Page_Go_SessionRequest {
   repeated Page_Go_SessionRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SharedFile {
+  repeated Page_Go_SharedFile items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SystemEnvironment {
+  repeated Page_Go_SystemEnvironment items = 1;
   bool present = 2;
 }
 
@@ -2237,6 +2824,16 @@ message Map_Go_AgentDiagnostics_Entry {
   Go_AgentDiagnostics value = 2;
 }
 
+message Map_Go_AgentEnvironment {
+  repeated Map_Go_AgentEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AgentEnvironment_Entry {
+  optional string key = 1;
+  Go_AgentEnvironment value = 2;
+}
+
 message Map_Go_AgentIdentity {
   repeated Map_Go_AgentIdentity_Entry items = 1;
   bool present = 2;
@@ -2330,6 +2927,66 @@ message Map_Go_AgentTextStatus_Entry {
 message Map_Go_Agent_Entry {
   optional string key = 1;
   Go_Agent value = 2;
+}
+
+message Map_Go_AnnouncementAudience {
+  repeated Map_Go_AnnouncementAudience_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementAudience_Entry {
+  optional string key = 1;
+  Go_AnnouncementAudience value = 2;
+}
+
+message Map_Go_AnnouncementContext {
+  repeated Map_Go_AnnouncementContext_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementContext_Entry {
+  optional string key = 1;
+  Go_AnnouncementContext value = 2;
+}
+
+message Map_Go_AnnouncementDelivery {
+  repeated Map_Go_AnnouncementDelivery_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementDelivery_Entry {
+  optional string key = 1;
+  Go_AnnouncementDelivery value = 2;
+}
+
+message Map_Go_AnnouncementReceipt {
+  repeated Map_Go_AnnouncementReceipt_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementReceipt_Entry {
+  optional string key = 1;
+  Go_AnnouncementReceipt value = 2;
+}
+
+message Map_Go_AnnouncementRecipient {
+  repeated Map_Go_AnnouncementRecipient_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementRecipient_Entry {
+  optional string key = 1;
+  Go_AnnouncementRecipient value = 2;
+}
+
+message Map_Go_AnnouncementRequest {
+  repeated Map_Go_AnnouncementRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AnnouncementRequest_Entry {
+  optional string key = 1;
+  Go_AnnouncementRequest value = 2;
 }
 
 message Map_Go_Approval {
@@ -2442,6 +3099,16 @@ message Map_Go_AuthenticationRefresh_Entry {
   Go_AuthenticationRefresh value = 2;
 }
 
+message Map_Go_CPUEnvironment {
+  repeated Map_Go_CPUEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_CPUEnvironment_Entry {
+  optional string key = 1;
+  Go_CPUEnvironment value = 2;
+}
+
 message Map_Go_CertificateIdentity {
   repeated Map_Go_CertificateIdentity_Entry items = 1;
   bool present = 2;
@@ -2482,6 +3149,16 @@ message Map_Go_Command_Entry {
   Go_Command value = 2;
 }
 
+message Map_Go_ComputerEnvironment {
+  repeated Map_Go_ComputerEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ComputerEnvironment_Entry {
+  optional string key = 1;
+  Go_ComputerEnvironment value = 2;
+}
+
 message Map_Go_ConnectionProfile {
   repeated Map_Go_ConnectionProfile_Entry items = 1;
   bool present = 2;
@@ -2500,6 +3177,16 @@ message Map_Go_DiagnosticRefreshRequest {
 message Map_Go_DiagnosticRefreshRequest_Entry {
   optional string key = 1;
   Go_DiagnosticRefreshRequest value = 2;
+}
+
+message Map_Go_DiskEnvironment {
+  repeated Map_Go_DiskEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_DiskEnvironment_Entry {
+  optional string key = 1;
+  Go_DiskEnvironment value = 2;
 }
 
 message Map_Go_Entry {
@@ -2522,6 +3209,36 @@ message Map_Go_Entry_Entry {
   Go_Entry value = 2;
 }
 
+message Map_Go_EnvironmentObservation {
+  repeated Map_Go_EnvironmentObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_EnvironmentObservation_Entry {
+  optional string key = 1;
+  Go_EnvironmentObservation value = 2;
+}
+
+message Map_Go_EnvironmentProblem {
+  repeated Map_Go_EnvironmentProblem_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_EnvironmentProblem_Entry {
+  optional string key = 1;
+  Go_EnvironmentProblem value = 2;
+}
+
+message Map_Go_EnvironmentRequest {
+  repeated Map_Go_EnvironmentRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_EnvironmentRequest_Entry {
+  optional string key = 1;
+  Go_EnvironmentRequest value = 2;
+}
+
 message Map_Go_Event {
   repeated Map_Go_Event_Entry items = 1;
   bool present = 2;
@@ -2540,6 +3257,116 @@ message Map_Go_Fault {
 message Map_Go_Fault_Entry {
   optional string key = 1;
   Go_Fault value = 2;
+}
+
+message Map_Go_FileChangeRequest {
+  repeated Map_Go_FileChangeRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FileChangeRequest_Entry {
+  optional string key = 1;
+  Go_FileChangeRequest value = 2;
+}
+
+message Map_Go_FileChunk {
+  repeated Map_Go_FileChunk_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FileChunkRequest {
+  repeated Map_Go_FileChunkRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FileChunkRequest_Entry {
+  optional string key = 1;
+  Go_FileChunkRequest value = 2;
+}
+
+message Map_Go_FileChunk_Entry {
+  optional string key = 1;
+  Go_FileChunk value = 2;
+}
+
+message Map_Go_FileDownloadReceipt {
+  repeated Map_Go_FileDownloadReceipt_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FileDownloadReceipt_Entry {
+  optional string key = 1;
+  Go_FileDownloadReceipt value = 2;
+}
+
+message Map_Go_FileDownloadRequest {
+  repeated Map_Go_FileDownloadRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FileDownloadRequest_Entry {
+  optional string key = 1;
+  Go_FileDownloadRequest value = 2;
+}
+
+message Map_Go_FileGrant {
+  repeated Map_Go_FileGrant_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FileGrantRequest {
+  repeated Map_Go_FileGrantRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FileGrantRequest_Entry {
+  optional string key = 1;
+  Go_FileGrantRequest value = 2;
+}
+
+message Map_Go_FileGrant_Entry {
+  optional string key = 1;
+  Go_FileGrant value = 2;
+}
+
+message Map_Go_FileProgress {
+  repeated Map_Go_FileProgress_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FileProgress_Entry {
+  optional string key = 1;
+  Go_FileProgress value = 2;
+}
+
+message Map_Go_FileReference {
+  repeated Map_Go_FileReference_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FileReference_Entry {
+  optional string key = 1;
+  Go_FileReference value = 2;
+}
+
+message Map_Go_FileUploadRequest {
+  repeated Map_Go_FileUploadRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FileUploadRequest_Entry {
+  optional string key = 1;
+  Go_FileUploadRequest value = 2;
+}
+
+message Map_Go_FoundationExecutable {
+  repeated Map_Go_FoundationExecutable_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_FoundationExecutable_Entry {
+  optional string key = 1;
+  Go_FoundationExecutable value = 2;
 }
 
 message Map_Go_GrantRequest {
@@ -2650,6 +3477,16 @@ message Map_Go_ManagedAccount {
 message Map_Go_ManagedAccount_Entry {
   optional string key = 1;
   Go_ManagedAccount value = 2;
+}
+
+message Map_Go_MemoryEnvironment {
+  repeated Map_Go_MemoryEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_MemoryEnvironment_Entry {
+  optional string key = 1;
+  Go_MemoryEnvironment value = 2;
 }
 
 message Map_Go_Message {
@@ -2872,6 +3709,46 @@ message Map_Go_PublicIdentity_Entry {
   Go_PublicIdentity value = 2;
 }
 
+message Map_Go_Publication {
+  repeated Map_Go_Publication_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_PublicationChange {
+  repeated Map_Go_PublicationChange_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_PublicationChange_Entry {
+  optional string key = 1;
+  Go_PublicationChange value = 2;
+}
+
+message Map_Go_PublicationRequest {
+  repeated Map_Go_PublicationRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_PublicationRequest_Entry {
+  optional string key = 1;
+  Go_PublicationRequest value = 2;
+}
+
+message Map_Go_PublicationVersion {
+  repeated Map_Go_PublicationVersion_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_PublicationVersion_Entry {
+  optional string key = 1;
+  Go_PublicationVersion value = 2;
+}
+
+message Map_Go_Publication_Entry {
+  optional string key = 1;
+  Go_Publication value = 2;
+}
+
 message Map_Go_RecoverIdentityRequest {
   repeated Map_Go_RecoverIdentityRequest_Entry items = 1;
   bool present = 2;
@@ -3060,6 +3937,26 @@ message Map_Go_SessionRequest_Entry {
 message Map_Go_Session_Entry {
   optional string key = 1;
   Go_Session value = 2;
+}
+
+message Map_Go_SharedFile {
+  repeated Map_Go_SharedFile_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SharedFile_Entry {
+  optional string key = 1;
+  Go_SharedFile value = 2;
+}
+
+message Map_Go_SystemEnvironment {
+  repeated Map_Go_SystemEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SystemEnvironment_Entry {
+  optional string key = 1;
+  Go_SystemEnvironment value = 2;
 }
 
 message Map_Go_Task {
@@ -3297,6 +4194,16 @@ message Map_Page_Go_AgentDiagnostics_Entry {
   Page_Go_AgentDiagnostics value = 2;
 }
 
+message Map_Page_Go_AgentEnvironment {
+  repeated Map_Page_Go_AgentEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AgentEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_AgentEnvironment value = 2;
+}
+
 message Map_Page_Go_AgentIdentity {
   repeated Map_Page_Go_AgentIdentity_Entry items = 1;
   bool present = 2;
@@ -3390,6 +4297,66 @@ message Map_Page_Go_AgentTextStatus_Entry {
 message Map_Page_Go_Agent_Entry {
   optional string key = 1;
   Page_Go_Agent value = 2;
+}
+
+message Map_Page_Go_AnnouncementAudience {
+  repeated Map_Page_Go_AnnouncementAudience_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementAudience_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementAudience value = 2;
+}
+
+message Map_Page_Go_AnnouncementContext {
+  repeated Map_Page_Go_AnnouncementContext_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementContext_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementContext value = 2;
+}
+
+message Map_Page_Go_AnnouncementDelivery {
+  repeated Map_Page_Go_AnnouncementDelivery_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementDelivery_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementDelivery value = 2;
+}
+
+message Map_Page_Go_AnnouncementReceipt {
+  repeated Map_Page_Go_AnnouncementReceipt_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementReceipt_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementReceipt value = 2;
+}
+
+message Map_Page_Go_AnnouncementRecipient {
+  repeated Map_Page_Go_AnnouncementRecipient_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementRecipient_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementRecipient value = 2;
+}
+
+message Map_Page_Go_AnnouncementRequest {
+  repeated Map_Page_Go_AnnouncementRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AnnouncementRequest_Entry {
+  optional string key = 1;
+  Page_Go_AnnouncementRequest value = 2;
 }
 
 message Map_Page_Go_Approval {
@@ -3502,6 +4469,16 @@ message Map_Page_Go_AuthenticationRefresh_Entry {
   Page_Go_AuthenticationRefresh value = 2;
 }
 
+message Map_Page_Go_CPUEnvironment {
+  repeated Map_Page_Go_CPUEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_CPUEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_CPUEnvironment value = 2;
+}
+
 message Map_Page_Go_CertificateIdentity {
   repeated Map_Page_Go_CertificateIdentity_Entry items = 1;
   bool present = 2;
@@ -3542,6 +4519,16 @@ message Map_Page_Go_Command_Entry {
   Page_Go_Command value = 2;
 }
 
+message Map_Page_Go_ComputerEnvironment {
+  repeated Map_Page_Go_ComputerEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ComputerEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_ComputerEnvironment value = 2;
+}
+
 message Map_Page_Go_ConnectionProfile {
   repeated Map_Page_Go_ConnectionProfile_Entry items = 1;
   bool present = 2;
@@ -3560,6 +4547,16 @@ message Map_Page_Go_DiagnosticRefreshRequest {
 message Map_Page_Go_DiagnosticRefreshRequest_Entry {
   optional string key = 1;
   Page_Go_DiagnosticRefreshRequest value = 2;
+}
+
+message Map_Page_Go_DiskEnvironment {
+  repeated Map_Page_Go_DiskEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_DiskEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_DiskEnvironment value = 2;
 }
 
 message Map_Page_Go_Entry {
@@ -3582,6 +4579,36 @@ message Map_Page_Go_Entry_Entry {
   Page_Go_Entry value = 2;
 }
 
+message Map_Page_Go_EnvironmentObservation {
+  repeated Map_Page_Go_EnvironmentObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_EnvironmentObservation_Entry {
+  optional string key = 1;
+  Page_Go_EnvironmentObservation value = 2;
+}
+
+message Map_Page_Go_EnvironmentProblem {
+  repeated Map_Page_Go_EnvironmentProblem_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_EnvironmentProblem_Entry {
+  optional string key = 1;
+  Page_Go_EnvironmentProblem value = 2;
+}
+
+message Map_Page_Go_EnvironmentRequest {
+  repeated Map_Page_Go_EnvironmentRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_EnvironmentRequest_Entry {
+  optional string key = 1;
+  Page_Go_EnvironmentRequest value = 2;
+}
+
 message Map_Page_Go_Event {
   repeated Map_Page_Go_Event_Entry items = 1;
   bool present = 2;
@@ -3600,6 +4627,116 @@ message Map_Page_Go_Fault {
 message Map_Page_Go_Fault_Entry {
   optional string key = 1;
   Page_Go_Fault value = 2;
+}
+
+message Map_Page_Go_FileChangeRequest {
+  repeated Map_Page_Go_FileChangeRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FileChangeRequest_Entry {
+  optional string key = 1;
+  Page_Go_FileChangeRequest value = 2;
+}
+
+message Map_Page_Go_FileChunk {
+  repeated Map_Page_Go_FileChunk_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FileChunkRequest {
+  repeated Map_Page_Go_FileChunkRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FileChunkRequest_Entry {
+  optional string key = 1;
+  Page_Go_FileChunkRequest value = 2;
+}
+
+message Map_Page_Go_FileChunk_Entry {
+  optional string key = 1;
+  Page_Go_FileChunk value = 2;
+}
+
+message Map_Page_Go_FileDownloadReceipt {
+  repeated Map_Page_Go_FileDownloadReceipt_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FileDownloadReceipt_Entry {
+  optional string key = 1;
+  Page_Go_FileDownloadReceipt value = 2;
+}
+
+message Map_Page_Go_FileDownloadRequest {
+  repeated Map_Page_Go_FileDownloadRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FileDownloadRequest_Entry {
+  optional string key = 1;
+  Page_Go_FileDownloadRequest value = 2;
+}
+
+message Map_Page_Go_FileGrant {
+  repeated Map_Page_Go_FileGrant_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FileGrantRequest {
+  repeated Map_Page_Go_FileGrantRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FileGrantRequest_Entry {
+  optional string key = 1;
+  Page_Go_FileGrantRequest value = 2;
+}
+
+message Map_Page_Go_FileGrant_Entry {
+  optional string key = 1;
+  Page_Go_FileGrant value = 2;
+}
+
+message Map_Page_Go_FileProgress {
+  repeated Map_Page_Go_FileProgress_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FileProgress_Entry {
+  optional string key = 1;
+  Page_Go_FileProgress value = 2;
+}
+
+message Map_Page_Go_FileReference {
+  repeated Map_Page_Go_FileReference_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FileReference_Entry {
+  optional string key = 1;
+  Page_Go_FileReference value = 2;
+}
+
+message Map_Page_Go_FileUploadRequest {
+  repeated Map_Page_Go_FileUploadRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FileUploadRequest_Entry {
+  optional string key = 1;
+  Page_Go_FileUploadRequest value = 2;
+}
+
+message Map_Page_Go_FoundationExecutable {
+  repeated Map_Page_Go_FoundationExecutable_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_FoundationExecutable_Entry {
+  optional string key = 1;
+  Page_Go_FoundationExecutable value = 2;
 }
 
 message Map_Page_Go_GrantRequest {
@@ -3710,6 +4847,16 @@ message Map_Page_Go_ManagedAccount {
 message Map_Page_Go_ManagedAccount_Entry {
   optional string key = 1;
   Page_Go_ManagedAccount value = 2;
+}
+
+message Map_Page_Go_MemoryEnvironment {
+  repeated Map_Page_Go_MemoryEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_MemoryEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_MemoryEnvironment value = 2;
 }
 
 message Map_Page_Go_Message {
@@ -3932,6 +5079,46 @@ message Map_Page_Go_PublicIdentity_Entry {
   Page_Go_PublicIdentity value = 2;
 }
 
+message Map_Page_Go_Publication {
+  repeated Map_Page_Go_Publication_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_PublicationChange {
+  repeated Map_Page_Go_PublicationChange_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_PublicationChange_Entry {
+  optional string key = 1;
+  Page_Go_PublicationChange value = 2;
+}
+
+message Map_Page_Go_PublicationRequest {
+  repeated Map_Page_Go_PublicationRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_PublicationRequest_Entry {
+  optional string key = 1;
+  Page_Go_PublicationRequest value = 2;
+}
+
+message Map_Page_Go_PublicationVersion {
+  repeated Map_Page_Go_PublicationVersion_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_PublicationVersion_Entry {
+  optional string key = 1;
+  Page_Go_PublicationVersion value = 2;
+}
+
+message Map_Page_Go_Publication_Entry {
+  optional string key = 1;
+  Page_Go_Publication value = 2;
+}
+
 message Map_Page_Go_RecoverIdentityRequest {
   repeated Map_Page_Go_RecoverIdentityRequest_Entry items = 1;
   bool present = 2;
@@ -4120,6 +5307,26 @@ message Map_Page_Go_SessionRequest_Entry {
 message Map_Page_Go_Session_Entry {
   optional string key = 1;
   Page_Go_Session value = 2;
+}
+
+message Map_Page_Go_SharedFile {
+  repeated Map_Page_Go_SharedFile_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SharedFile_Entry {
+  optional string key = 1;
+  Page_Go_SharedFile value = 2;
+}
+
+message Map_Page_Go_SystemEnvironment {
+  repeated Map_Page_Go_SystemEnvironment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SystemEnvironment_Entry {
+  optional string key = 1;
+  Page_Go_SystemEnvironment value = 2;
 }
 
 message Map_Page_Go_Task {
@@ -4357,6 +5564,11 @@ message Page_Go_AgentDiagnostics {
   String next_cursor = 2;
 }
 
+message Page_Go_AgentEnvironment {
+  List_Go_AgentEnvironment items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_AgentIdentity {
   List_Go_AgentIdentity items = 1;
   String next_cursor = 2;
@@ -4399,6 +5611,36 @@ message Page_Go_AgentStatusRequest {
 
 message Page_Go_AgentTextStatus {
   List_Go_AgentTextStatus items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementAudience {
+  List_Go_AnnouncementAudience items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementContext {
+  List_Go_AnnouncementContext items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementDelivery {
+  List_Go_AnnouncementDelivery items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementReceipt {
+  List_Go_AnnouncementReceipt items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementRecipient {
+  List_Go_AnnouncementRecipient items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AnnouncementRequest {
+  List_Go_AnnouncementRequest items = 1;
   String next_cursor = 2;
 }
 
@@ -4457,6 +5699,11 @@ message Page_Go_AuthenticationRefreshRequest {
   String next_cursor = 2;
 }
 
+message Page_Go_CPUEnvironment {
+  List_Go_CPUEnvironment items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_CertificateIdentity {
   List_Go_CertificateIdentity items = 1;
   String next_cursor = 2;
@@ -4477,6 +5724,11 @@ message Page_Go_Command {
   String next_cursor = 2;
 }
 
+message Page_Go_ComputerEnvironment {
+  List_Go_ComputerEnvironment items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_ConnectionProfile {
   List_Go_ConnectionProfile items = 1;
   String next_cursor = 2;
@@ -4484,6 +5736,11 @@ message Page_Go_ConnectionProfile {
 
 message Page_Go_DiagnosticRefreshRequest {
   List_Go_DiagnosticRefreshRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_DiskEnvironment {
+  List_Go_DiskEnvironment items = 1;
   String next_cursor = 2;
 }
 
@@ -4497,6 +5754,21 @@ message Page_Go_EntryRequest {
   String next_cursor = 2;
 }
 
+message Page_Go_EnvironmentObservation {
+  List_Go_EnvironmentObservation items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_EnvironmentProblem {
+  List_Go_EnvironmentProblem items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_EnvironmentRequest {
+  List_Go_EnvironmentRequest items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_Event {
   List_Go_Event items = 1;
   String next_cursor = 2;
@@ -4504,6 +5776,61 @@ message Page_Go_Event {
 
 message Page_Go_Fault {
   List_Go_Fault items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FileChangeRequest {
+  List_Go_FileChangeRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FileChunk {
+  List_Go_FileChunk items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FileChunkRequest {
+  List_Go_FileChunkRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FileDownloadReceipt {
+  List_Go_FileDownloadReceipt items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FileDownloadRequest {
+  List_Go_FileDownloadRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FileGrant {
+  List_Go_FileGrant items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FileGrantRequest {
+  List_Go_FileGrantRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FileProgress {
+  List_Go_FileProgress items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FileReference {
+  List_Go_FileReference items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FileUploadRequest {
+  List_Go_FileUploadRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_FoundationExecutable {
+  List_Go_FoundationExecutable items = 1;
   String next_cursor = 2;
 }
 
@@ -4559,6 +5886,11 @@ message Page_Go_LocalStatus {
 
 message Page_Go_ManagedAccount {
   List_Go_ManagedAccount items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_MemoryEnvironment {
+  List_Go_MemoryEnvironment items = 1;
   String next_cursor = 2;
 }
 
@@ -4672,6 +6004,26 @@ message Page_Go_PublicIdentity {
   String next_cursor = 2;
 }
 
+message Page_Go_Publication {
+  List_Go_Publication items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_PublicationChange {
+  List_Go_PublicationChange items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_PublicationRequest {
+  List_Go_PublicationRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_PublicationVersion {
+  List_Go_PublicationVersion items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_RecoverIdentityRequest {
   List_Go_RecoverIdentityRequest items = 1;
   String next_cursor = 2;
@@ -4764,6 +6116,16 @@ message Page_Go_SessionRecoveryRequest {
 
 message Page_Go_SessionRequest {
   List_Go_SessionRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SharedFile {
+  List_Go_SharedFile items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SystemEnvironment {
+  List_Go_SystemEnvironment items = 1;
   String next_cursor = 2;
 }
 

@@ -43,17 +43,18 @@ type Runtime struct {
 }
 
 type foreground struct {
-	context    context.Context
-	cancel     context.CancelFunc
-	done       chan struct{}
-	err        error
-	service    *identityservice.Service
-	attachment *identityservice.EmbeddedAttachment
-	client     *api.Client
-	state      *local.State
-	cli        *cli.Embedded
-	observer   *observation
-	observerMu sync.Mutex
+	context         context.Context
+	cancel          context.CancelFunc
+	done            chan struct{}
+	err             error
+	service         *identityservice.Service
+	attachment      *identityservice.EmbeddedAttachment
+	client          *api.Client
+	state           *local.State
+	cli             *cli.Embedded
+	observer        *observation
+	observerMu      sync.Mutex
+	environmentDone chan struct{}
 }
 
 type Request struct {
@@ -260,6 +261,27 @@ func (r *Runtime) start(ctx context.Context) error {
 	r.mu.Lock()
 	f.cli = embedded
 	r.mu.Unlock()
+	f.environmentDone = make(chan struct{})
+	go func() {
+		defer close(f.environmentDone)
+		timer := time.NewTimer(0)
+		defer timer.Stop()
+		for {
+			select {
+			case <-runCtx.Done():
+				return
+			case <-timer.C:
+			}
+			if err := embedded.PublishEnvironment(runCtx); err != nil && runCtx.Err() == nil {
+				r.mu.Lock()
+				if r.run == f {
+					r.lastError = domain.AsFault(domain.Fail(domain.Unavailable, "foreground computer environment report is unavailable"))
+				}
+				r.mu.Unlock()
+			}
+			timer.Reset(60 * time.Second)
+		}
+	}()
 	succeeded = true
 	return nil
 }
@@ -275,6 +297,9 @@ func (r *Runtime) closeRun(f *foreground) error {
 	f.observerMu.Unlock()
 	if observer != nil {
 		observer.close()
+	}
+	if f.environmentDone != nil {
+		<-f.environmentDone
 	}
 	<-f.done
 	var closeErr error

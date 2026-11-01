@@ -37,11 +37,15 @@ var AgentCommands = []string{
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
 	"agent list", "agent status", "agent diagnose", "agent reset", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"device list", "device register", "device revoke",
+	"agent add", "agent add-status",
+	"agent environment", "agent environment-report", "announcement audience", "announcement send",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "discussion show", "mention list", "mention acknowledge", "watch", "observe",
 	"message send", "message show", "message read", "message diagnose", "message inbox", "message list", "message receipt", "message thread", "message thread-page", "message request-report", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
 	"note set", "note show", "note history", "note context",
+	"file upload", "file transfer", "file upload-status", "file begin", "file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded", "file list", "file show", "file chunk", "file download",
+	"publication create", "publication change", "publication list", "publication show", "publication versions", "publication version",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
 	"work prompt", "work status", "work run", "work recover", "service plan", "service install", "service status",
@@ -52,7 +56,7 @@ var AgentCommands = []string{
 var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install", "upgrade-helper", "request-worker"}
 var ServiceCommands = []string{"serve", "status", "upgrade-helper", "request-worker"}
 var GuideCommands = []string{"guide list", "guide show", "guide install"}
-var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance request", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open"}
+var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance request", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open", "assistance status"}
 
 func RunAgent(ctx context.Context, args []string, in io.Reader, out, diagnostic io.Writer) int {
 	return run(ctx, "agent", args, in, out, diagnostic)
@@ -120,6 +124,30 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			}
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
+			case "file transfer", "file upload":
+				usage = "file upload --path FILE [--media-type MIME --to AGENT --delete-after-download]; file transfer requires --to and defaults to automatic deletion after verified receipt. Private, staged, immutable, 1 GiB maximum, 256 KiB chunks. Retain operation-id and original source for explicit resumable replay; never auto-publish."
+			case "file download":
+				usage = "file download FILE_ID --output FILE; verify all sizes/SHA-256, fsync and finalize owner-only local content without overwriting, then send one durable receipt/owner notification. Designated transfers delete server bytes atomically. Replay the same operation/output after an uncertain receipt."
+			case "file publish":
+				usage = "file publish FILE_ID --input FILE; explicit owner-only team publication of ready retained content, with reason/current revision; required before attaching to shared records. Transfers cannot be broadened."
+			case "file grant":
+				usage = "file grant FILE_ID --input FILE; owner grants/revokes an exact active agent_id with reason/current revision. No Founder read bypass; private transfers remain single-recipient."
+			case "file delete":
+				usage = "file delete FILE_ID --input FILE; owner-only content/staging deletion with reason/current revision; retain immutable references/receipts."
+			case "publication create", "publication change":
+				usage = "publication create --input FILE; kind file|diary|skill|idea, scope company|project|agent and exact target_id, title/body/attachment_ids. Team-readable intentional publication. publication change ID --input FILE uses current revision/reason; creator-owned, optionally exact current project delegates; immutable versions, no auto-fetch or shared-skill installation."
+			case "agent environment":
+				usage = "agent environment AGENT; reported OS/CPU/memory/storage and Foundation executable versions/source/hashes per current computer/key generation; safe public facts with server receipt freshness, no provider probe or private paths"
+			case "agent environment-report":
+				usage = "agent environment-report; explicitly collect and publish this computer's safe native system facts and version-only Foundation binary observations; original operation retains its exact capture after uncertainty"
+			case "announcement audience":
+				usage = "announcement audience [--scope global|project --project PROJECT]; Founder/current active-project delegate only; exact recipient IDs and project epoch, no message sending"
+			case "announcement send":
+				usage = "announcement send --input FILE; exact reviewed scope/project epoch/recipient_ids, title/body and kind notice|request|upgrade-request; private durable fan-out and normal autonomous action gates; no native installation permit or destructive/spending approval is inferred"
+			case "agent add":
+				usage = "agent add --host IP --user SSH_USER --name AGENT [--port 22 --identity-file ABS]; Founder-only explicit new-worker installation/enrollment under the existing non-root SSH user; protected human terminal required for host-key/password prompts; exact published server release and normal AI-mode worker startup, no sudo, existing-state adoption or direct provider login; preserve operation-id after uncertainty"
+			case "agent add-status":
+				usage = "agent add-status OPERATION_ID; read-only original Founder's local installation/enrollment journal, including uncertain native stages; never retries SSH or installation"
 			case "observe":
 				usage = "observe; long-lived read-only protocol-1 JSON lines over stdin/stdout; get/subscribe/cancel, at most32 queries; uses existing identity and scoped feeds; no mutation, inference, controller or new owner; see COMMANDS.md"
 			case "message list":

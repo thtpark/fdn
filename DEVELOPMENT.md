@@ -115,6 +115,7 @@ registration. Native managers continue to bind the actual OS user's HOME.
 | Entrypoints/commands | `cmd/`, `internal/cli/` | Flags, bounded input, envelopes, private write proposals, native operations |
 | Contracts | `internal/domain/` | IDs, DTOs, generations, errors and limits |
 | Server authority | `internal/foundation/` | Transactional policy, enrollment, projects, tasks, reports, discussions, messages/sessions |
+| Shared files/publications | `internal/foundation/shared_files.go`, `publications.go`, `attachments.go` | Private immutable chunks/grants/receipts, explicit team publication, versioned diaries/skills/ideas and attachment audience checks |
 | Persistence | `internal/database/` | Private SQLite, WAL/full sync, migrations and integrity |
 | Transport and identity | `internal/api/`, `internal/pki/`, `internal/transport/`, `internal/ingress/`, `internal/device/`, `internal/identityservice/`, `cmd/agent-identity/` | Signed public registration, pinned SSH stdio, peer-UID/mTLS binding, protected identity proxy and owner control |
 | Binary message contract | `internal/message/`, `tools/protocol/` | Locked protobuf schema, bounded framing, duplex commands/queries/updates, priority ping/cancel and reproducible generation |
@@ -131,6 +132,26 @@ queue, broker, configuration framework or second database merely in anticipation
 of a future need.
 
 ## Making a behavior change
+
+Native capacity discovery uses `internal/local/system_capabilities.go` and the
+existing private inventory. Onboarding receives that snapshot and its original
+observations; computer reporting projects the same static OS/CPU/total-resource
+facts through `internal/local/environment*.go`,
+`internal/foundation/environments.go`, the worker heartbeat loop and the
+foreground mobile lifecycle. Refresh only live memory/storage usage, runtime
+version and version-only executable observations during publication. Embedded
+initialization skips desktop tool/network discovery and all subprocesses.
+Legacy enrichment re-reads inventory transactionally and preserves its ID,
+timestamp, observations, unknown counts and exact historical initial-review
+hash. Metadata is outside that hash; explicit `inventory refresh` recaptures the
+capacity and creates a new review basis. Live usage exceeding retained totals
+requires an explicit refresh, never a silent clamp or automatic review reset.
+Keep private observations/paths out of the safe projection. Source/installed
+and running binary versions must not be conflated.
+`internal/foundation/announcements.go` reuses the existing private message table
+and exact receipts; announcement requests use existing autonomous Adhoc action
+admission. Test raw Founder/delegate scope, recipient/epoch changes, revocation,
+lost acknowledgements, and the destructive/spending/native-upgrade boundaries.
 
 1. State the exact contract and failure/recovery cases. Find the existing helper
    and tests before adding logic.
@@ -163,6 +184,17 @@ New scenarios should extend deterministic test-provider plans and isolated Git/
 Git-host fixtures rather than add task-title, provider or repository branches
 to production policy. All providers must prove non-prompting local
 approval behavior before enabling coding; text calls must remain tool-disabled.
+
+### Founder desktop onboarding
+
+Founder desktop onboarding is implemented by `internal/cli/agent_add.go`,
+reusing the published release catalog, signed registration and paired existing-
+user services. Keep operator SSH/passwords in a protected human PTY; no new API,
+native payload, identity owner or SQL migration is implied. Test uncertain
+native-stage fences and actual native service status, not merely downloaded
+files or accepted registration. The macOS wrapper's protected terminal/browser
+must remain separate from captured JSON processes and durable non-secret
+proposals. Do not start a live installation or login during local development.
 
 ### Saved diagnostics and bounded Founder controls
 
@@ -228,12 +260,25 @@ resources untouched. An `operator-required` result is not a successful reset.
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
 version is **2**; native message protocol is **2**, server SQLite migration is
-**8**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
+**9**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
 SQL6 adds notes, SQL7 adds Founder device bindings and SQL8 adds observer/history
-indexes while preserving all business records and shipped SQL1-SQL7.
+indexes; SQL9 appends shared publications/private files while preserving all
+business records and shipped SQL1-SQL8.
 Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
+- File content/version identities and aligned chunks are immutable. Keep staged
+  recovery, exact size/hash finalization, private grants and unique verified
+  receipt/notification/deletion atomic. Test raw private access without Founder
+  bypass, explicit publication before shared attachments, revocation, corrupted/
+  interrupted downloads, local path safety and both sides of 10,485,760 bytes
+  on the single storage path. Private source/cache/proposals stay local.
+  Native app uploads retain exact pending chunk operations and bounded receipt
+  journals; file/version IDs must stay distinct for generic UI paging.
+  Inline media uses local verified thumbnails/native players, not HTTP viewers,
+  executable HTML or automatic third-party fetching. Keep local knowledge and
+  note invocation snapshots independent. SQLite backups include file rows;
+  refuse unrestorable sources rather than bypass the current entry limit.
 - Scoped Markdown notes live in SQL6, separate from private local knowledge.
   Keep company/project/self snapshots atomic, editing authority transactional
   and project-assignment-bounded, and every new text/coding invocation wired to

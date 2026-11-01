@@ -248,6 +248,7 @@ func (e *Engine) heartbeatLoop(ctx context.Context) {
 	transition.Stop()
 	defer transition.Stop()
 	var pending <-chan time.Time
+	var nextEnvironment time.Time
 	for {
 		select {
 		case <-ctx.Done():
@@ -278,6 +279,16 @@ func (e *Engine) heartbeatLoop(ctx context.Context) {
 			}
 		} else if healthErr == nil {
 			e.clearProblem(ctx, "heartbeat-problem")
+		}
+		if err == nil && !e.Now().Before(nextEnvironment) {
+			nextEnvironment = e.Now().Add(60 * time.Second)
+			if reportErr := e.publishEnvironment(ctx); reportErr != nil {
+				if ctx.Err() == nil {
+					e.recordProblem(ctx, "environment-problem", reportErr)
+				}
+			} else {
+				e.clearProblem(ctx, "environment-problem")
+			}
 		}
 		timer.Reset(30 * time.Second)
 	}

@@ -70,6 +70,12 @@ func main() {
 	case "message", "attention":
 		reply.Outcome = "responded"
 		reply.Summary = "fixture scoped reply"
+		if launch.Message != nil && strings.HasPrefix(launch.Message.Body, "fixture-conversation-action ") {
+			reply.Action = &provider.ConversationAction{
+				Instructions: "Read the matching fixture skill and relevant thread context, perform the local action, and report actual checks.",
+				WorkspaceRef: strings.TrimPrefix(launch.Message.Body, "fixture-conversation-action "),
+			}
+		}
 	case "research":
 		reply.Outcome = "researched"
 	case "scope", "acceptance", "preflight":
@@ -114,6 +120,22 @@ func main() {
 		reply.Outcome = "completed"
 		reply.Summary = "fixture file written and locally checked"
 		reply.Evidence = []string{"result.txt content matched the fixture"}
+		if launch.ConversationID != "" {
+			if launch.Task.ProjectID != "project_adhoc" || launch.ActionInstructions == "" || len(launch.Thread) == 0 {
+				panic("conversation execution omitted its real record or context")
+			}
+			skill, err := os.ReadFile(filepath.Join(".agents", "skills", "fixture-action", "SKILL.md"))
+			check(err)
+			if !strings.Contains(string(skill), "Verify result.txt") {
+				panic("applicable conversation skill was not retrieved")
+			}
+			result, err := os.ReadFile("result.txt")
+			check(err)
+			if string(result) != "verified fixture result\n" {
+				panic("conversation action did not verify its actual effect")
+			}
+			reply.Evidence = append(reply.Evidence, "fixture-action skill read", "source message: "+launch.Message.ID)
+		}
 		if launch.Task.Title == "pause" {
 			reply.Questions = []provider.Question{{Body: "Confirm the remaining scope before continuing.", RespondentIDs: []string{launch.Project.OwnerID}}}
 			reply.Checkpoint = "fixture-partial"

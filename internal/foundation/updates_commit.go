@@ -338,6 +338,39 @@ func (r *updateRouter) route(change updateChange) error {
 	parties := make(updateParties)
 	u := domain.Update{SourceID: change.id}
 	switch change.table {
+	case "files":
+		values, err := changeValues[domain.SharedFile](change)
+		if err != nil {
+			return err
+		}
+		u.Topic = "file"
+		for _, file := range values {
+			parties.add(file.OwnerID)
+		}
+		rows, err := r.tx.QueryContext(r.ctx, "SELECT agent_id FROM file_grants WHERE file_id=?", change.id)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var reader string
+			if err := rows.Scan(&reader); err != nil {
+				return err
+			}
+			parties.add(reader)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+	case "file-grants":
+		values, err := changeValues[domain.FileGrant](change)
+		if err != nil {
+			return err
+		}
+		u.Topic = "file"
+		for _, grant := range values {
+			parties.add(grant.AgentID, grant.GrantedBy)
+		}
 	case "tasks":
 		values, err := changeValues[domain.Task](change)
 		if err != nil {

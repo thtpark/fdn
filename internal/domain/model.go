@@ -123,8 +123,12 @@ type ApprovalPolicy struct {
 	IndependentVerification bool     `json:"independent_verification"`
 }
 
+const AdhocProjectID = "project_adhoc"
+
 func EligibleApprover(a Agent, p Project, t Task, verification bool) bool {
-	if !a.Active || p.Archived || (!a.Founder && !slices.Contains(p.Delegates, a.ID)) {
+	ownAdhoc := !verification && p.ID == AdhocProjectID && t.ProjectID == p.ID &&
+		t.CreatedBy == a.ID && t.AssigneeID == a.ID
+	if !a.Active || a.Banned || p.Archived || (!a.Founder && !slices.Contains(p.Delegates, a.ID) && !ownAdhoc) {
 		return false
 	}
 	if len(t.Policy.RequiredActors) != 0 && !slices.Contains(t.Policy.RequiredActors, a.ID) {
@@ -198,42 +202,43 @@ type Result struct {
 }
 
 type Task struct {
-	ID                   string         `json:"id"`
-	ProjectID            string         `json:"project_id"`
-	Title                string         `json:"title"`
-	Description          string         `json:"description"`
-	AcceptanceCriteria   string         `json:"acceptance_criteria"`
-	Status               Status         `json:"status"`
-	Priority             int            `json:"priority"`
-	Importance           int            `json:"importance"`
-	AssigneeID           string         `json:"assignee_id,omitempty"`
-	Provider             string         `json:"provider,omitempty"`
-	Model                string         `json:"model,omitempty"`
-	WorkspaceRef         string         `json:"workspace_ref,omitempty"`
-	ParentID             string         `json:"parent_id,omitempty"`
-	Repetitive           bool           `json:"repetitive"`
-	Revision             int64          `json:"revision"`
-	SpecGeneration       int64          `json:"spec_generation"`
-	DiscussionGeneration int64          `json:"discussion_generation"`
-	ResultGeneration     int64          `json:"result_generation"`
-	CreatedBy            string         `json:"created_by"`
-	CreatedAt            int64          `json:"created_at"`
-	UpdatedAt            int64          `json:"updated_at"`
-	ArchivedAt           int64          `json:"archived_at,omitempty"`
-	Policy               ApprovalPolicy `json:"policy"`
-	RetryPolicy          RetryPolicy    `json:"retry_policy"`
-	Readiness            *Approval      `json:"readiness,omitempty"`
-	Verification         *Approval      `json:"verification,omitempty"`
-	RetryApproval        *Approval      `json:"retry_approval,omitempty"`
-	Clarity              *Clarity       `json:"clarity,omitempty"`
-	Waiting              *Waiting       `json:"waiting,omitempty"`
-	ActiveRun            *ActiveRun     `json:"active_run,omitempty"`
-	LastRunID            string         `json:"last_run_id,omitempty"`
-	Attempts             int            `json:"attempts"`
-	Failures             int            `json:"failures"`
-	NextAttemptAt        int64          `json:"next_attempt_at,omitempty"`
-	UnsafeRetry          bool           `json:"unsafe_retry"`
-	Result               *Result        `json:"result,omitempty"`
+	Attachments          []FileReference `json:"attachments,omitempty"`
+	ID                   string          `json:"id"`
+	ProjectID            string          `json:"project_id"`
+	Title                string          `json:"title"`
+	Description          string          `json:"description"`
+	AcceptanceCriteria   string          `json:"acceptance_criteria"`
+	Status               Status          `json:"status"`
+	Priority             int             `json:"priority"`
+	Importance           int             `json:"importance"`
+	AssigneeID           string          `json:"assignee_id,omitempty"`
+	Provider             string          `json:"provider,omitempty"`
+	Model                string          `json:"model,omitempty"`
+	WorkspaceRef         string          `json:"workspace_ref,omitempty"`
+	ParentID             string          `json:"parent_id,omitempty"`
+	Repetitive           bool            `json:"repetitive"`
+	Revision             int64           `json:"revision"`
+	SpecGeneration       int64           `json:"spec_generation"`
+	DiscussionGeneration int64           `json:"discussion_generation"`
+	ResultGeneration     int64           `json:"result_generation"`
+	CreatedBy            string          `json:"created_by"`
+	CreatedAt            int64           `json:"created_at"`
+	UpdatedAt            int64           `json:"updated_at"`
+	ArchivedAt           int64           `json:"archived_at,omitempty"`
+	Policy               ApprovalPolicy  `json:"policy"`
+	RetryPolicy          RetryPolicy     `json:"retry_policy"`
+	Readiness            *Approval       `json:"readiness,omitempty"`
+	Verification         *Approval       `json:"verification,omitempty"`
+	RetryApproval        *Approval       `json:"retry_approval,omitempty"`
+	Clarity              *Clarity        `json:"clarity,omitempty"`
+	Waiting              *Waiting        `json:"waiting,omitempty"`
+	ActiveRun            *ActiveRun      `json:"active_run,omitempty"`
+	LastRunID            string          `json:"last_run_id,omitempty"`
+	Attempts             int             `json:"attempts"`
+	Failures             int             `json:"failures"`
+	NextAttemptAt        int64           `json:"next_attempt_at,omitempty"`
+	UnsafeRetry          bool            `json:"unsafe_retry"`
+	Result               *Result         `json:"result,omitempty"`
 }
 
 type Run struct {
@@ -266,18 +271,19 @@ type ReviewReference struct {
 }
 
 type Entry struct {
-	Review     *ReviewReference `json:"review,omitempty"`
-	ID         string           `json:"id"`
-	TaskID     string           `json:"task_id"`
-	Kind       string           `json:"kind"`
-	Body       string           `json:"body"`
-	ParentID   string           `json:"parent_id,omitempty"`
-	AuthorID   string           `json:"author_id"`
-	Mentions   []string         `json:"mentions"`
-	Generation int64            `json:"generation"`
-	Revision   int64            `json:"revision"`
-	CreatedAt  int64            `json:"created_at"`
-	UpdatedAt  int64            `json:"updated_at"`
+	Attachments []FileReference  `json:"attachments,omitempty"`
+	Review      *ReviewReference `json:"review,omitempty"`
+	ID          string           `json:"id"`
+	TaskID      string           `json:"task_id"`
+	Kind        string           `json:"kind"`
+	Body        string           `json:"body"`
+	ParentID    string           `json:"parent_id,omitempty"`
+	AuthorID    string           `json:"author_id"`
+	Mentions    []string         `json:"mentions"`
+	Generation  int64            `json:"generation"`
+	Revision    int64            `json:"revision"`
+	CreatedAt   int64            `json:"created_at"`
+	UpdatedAt   int64            `json:"updated_at"`
 }
 
 type Attention struct {
@@ -294,6 +300,9 @@ type AuthenticationRefresh struct {
 }
 
 type Message struct {
+	FileDownload          *FileDownloadReceipt   `json:"file_download,omitempty"`
+	Attachments           []FileReference        `json:"attachments,omitempty"`
+	Announcement          *AnnouncementContext   `json:"announcement,omitempty"`
 	ID                    string                 `json:"id"`
 	SenderID              string                 `json:"sender_id"`
 	RecipientID           string                 `json:"recipient_id"`

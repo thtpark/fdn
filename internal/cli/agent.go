@@ -32,6 +32,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.nativeService(ctx, tail, "agent")
 	}
 	localOnly := slices.Contains([]string{"config", "knowledge", "inventory", "workspace", "provider", "preferences", "service", "screen"}, group) ||
+		(group == "file" && len(tail) > 0 && tail[0] == "upload-status") ||
+		(group == "agent" && len(tail) > 0 && tail[0] == "add-status") ||
 		(group == "upgrade" && len(tail) > 0 && tail[0] == "status") ||
 		(group == "mode" && len(tail) > 0 && tail[0] == "show") ||
 		(group == "work" && len(tail) > 0 && tail[0] == "status")
@@ -78,12 +80,18 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return nil, domain.Fail(domain.Prerequisite, "bearer invitations are retired; Founder must register the target's public identity")
 	case "agent":
 		return a.agentCommand(ctx, r, tail)
+	case "announcement":
+		return a.announcementCommand(ctx, r, tail)
 	case "device":
 		return a.deviceCommand(ctx, r, tail)
 	case "project":
 		return a.projectCommand(ctx, r, tail)
 	case "note":
 		return a.noteCommand(ctx, r, tail)
+	case "file":
+		return a.fileCommand(ctx, r, tail)
+	case "publication":
+		return a.publicationCommand(ctx, r, tail)
 	case "task":
 		return a.taskCommand(ctx, r, tail)
 	case "comment", "worklog", "discussion":
@@ -118,7 +126,22 @@ func requireArgs(args []string, count int) error {
 
 func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, reset, repair, operation, register, recover, identity, revoke, mode or request-sign-in")
+		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, reset, repair, operation, environment, environment-report, add, add-status, register, recover, identity, revoke, mode or request-sign-in")
+	}
+	if args[0] == "add" || args[0] == "add-status" {
+		return a.agentAddition(ctx, r, args)
+	}
+	if args[0] == "environment" {
+		if err := requireArgs(args, 2); err != nil {
+			return nil, err
+		}
+		return api.Call[domain.AgentEnvironment](ctx, r.client, "GET", api.Path("agents", args[1], "environment"), nil)
+	}
+	if args[0] == "environment-report" {
+		if err := requireArgs(args, 1); err != nil {
+			return nil, err
+		}
+		return a.reportEnvironment(ctx, r)
 	}
 	if args[0] == "register" || args[0] == "recover" || args[0] == "identity" {
 		return a.identityCommand(ctx, r, args)
@@ -570,7 +593,7 @@ func (a *app) messageCommand(ctx context.Context, r *resources, args []string) (
 		}
 		if req.Kind == "" {
 			if req.Request != nil {
-				req.Kind, req.ResponseRequest = "request", true
+				req.Kind = "request"
 			} else {
 				req.Kind = "direct"
 			}

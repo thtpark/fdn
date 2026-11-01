@@ -5,6 +5,19 @@ description: "Use when installing Foundation or a worker under the existing inst
 
 # Install or upgrade Foundation
 
+Fresh worker setup may be explicitly launched by Founder with `agent-cli agent
+add --host IP --user EXISTING_USER --name NAME` and a stable global
+`--operation-id`. It installs only under that existing non-root user's HOME,
+requires an already available user manager/GUI login domain, and selects the
+exact published running-server version/source. Existing state, unpublished
+sources and missing native prerequisites fail closed. Use protected human SSH
+host-key/password input; never collect those credentials through model/chat
+or structured output. `agent add-status OP` inspects retained installed,
+enrolled and connected stages without remote effects. An uncertain native step
+needs operator inspection, not an automatic retry, upgrade, recovery or a new
+operation. The macOS app hosts this same Founder CLI flow; it does not provision
+root/server services or providers.
+
 Read the version-matched guide with `fdn-service guide show DEPLOYMENT.md`
 (or `agent-cli guide show DEPLOYMENT.md`). In a source checkout the guide is at
 the repository root. Use the installed binary's help, not remembered legacy
@@ -77,13 +90,15 @@ commands.
    Separately authorized `agent reset` verifies native cleanup of recognized
    terminal legacy tmux endpoints and preserves their proof/socket evidence;
    it is not installation, identity/data erasure or an upgrade-fence bypass.
-   Current server SQL8 retains SQL7's independently keyed Founder devices and concurrent
+   Current server SQL9 adds deliberate publications/private files and retains
+   SQL8 indexes, SQL7's independently keyed Founder devices and concurrent
    owner records after SQL6 shared company/project/agent notes from the SQL5
    floor, preserving retained state. Note-aware workers require the new
    note-context query before inference; never substitute empty guidance when an
    old/offline server cannot provide it. SQL5 binaries cannot read SQL6, and
    SQL6 binaries cannot read SQL7; SQL7 binaries cannot read SQL8's additive
-   observer/history indexes. Upgrade the account helper/server before new
+   observer/history indexes; SQL8 binaries cannot read SQL9 file/publication
+   tables. Upgrade the account helper/server before new
    device enrollments; do not copy existing Founder keys to another computer.
    A restored snapshot quarantines every identity/owner/key epoch; root-private
    fresh Founder recovery retains its ID/history, then Founder reapproves regulars

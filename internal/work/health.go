@@ -25,6 +25,7 @@ var healthComponents = []struct{ key, name string }{
 	{"connection-problem", "connection"},
 	{"session-problem", "session"},
 	{"agent-control-problem", "control"},
+	{"environment-problem", "environment"},
 }
 
 var healthVersionPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.+_-]{0,127}$`)

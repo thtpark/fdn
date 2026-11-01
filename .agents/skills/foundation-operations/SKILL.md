@@ -1,9 +1,22 @@
 ---
 name: foundation-operations
-description: "Use when checking Foundation or identity-proxy health, inspecting automatic session recovery, resetting runtime or legacy tmux sessions as Founder, requesting fresh diagnostics, recovering proven fences or enrolled identity keys, diagnosing blocked workers/replies, pausing automation, reconciling runs/sessions, managing knowledge/backups/TLS, or inspecting Founder-authorized upgrades and native receipts."
+description: "Use when inspecting agent OS/CPU/memory/storage and Foundation executable environment reports; checking Foundation or identity-proxy health, inspecting automatic session recovery, resetting runtime or legacy tmux sessions as Founder, requesting fresh diagnostics, recovering proven fences or enrolled identity keys, diagnosing blocked workers/replies, pausing automation, reconciling runs/sessions, managing knowledge/backups/TLS, or inspecting Founder-authorized upgrades and native receipts."
 ---
 
 # Operate and recover without hiding uncertainty
+
+Use `agent environment AGENT` for safe reported OS/resources and Foundation
+binary versions/source/hashes. Reports identify the actual enrolled computer
+and key generation; Founder can see each independently keyed device. Missing
+counts/versions are unknown, not zero or ready. Server receipt age determines
+staleness; a target clock cannot renew it. Worker reports refresh once per minute;
+mobile reports are foreground-only and do not overwrite desktop work health.
+For this computer only, `agent environment-report` explicitly collects/publishes
+native facts using version-only Foundation probes, no provider login/inference
+or private paths/transcripts. Preserve the operation after uncertainty.
+Announcements may request preparation/action, but do not replace case-by-case
+Founder approval for destructive work/new costs or signed native upgrade
+permits and independently provisioned policy/receivers.
 
 Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 `guide show COMMANDS.md` through the installed local binary.

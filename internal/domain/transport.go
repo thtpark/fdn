@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 )
 
 type LocalStatus struct {
@@ -63,7 +64,42 @@ func (command *MessageCommand) UnmarshalJSON(data []byte) error {
 	if expiry, exists := fields["expires_at"]; exists && bytes.Equal(bytes.TrimSpace(expiry), []byte("null")) {
 		return Fail(Invalid, "message expiry must be an explicit future Unix timestamp, not null")
 	}
+	responseProvided := false
+	for name, response := range fields {
+		if !strings.EqualFold(name, "response_requested") {
+			continue
+		}
+		responseProvided = true
+		if bytes.Equal(bytes.TrimSpace(response), []byte("null")) {
+			return Fail(Invalid, "response_requested must be true or false, not null")
+		}
+	}
+	if !responseProvided {
+		value.ResponseRequest = value.Kind == "" || value.Kind == "direct" || value.Kind == "request"
+	}
 	*command = MessageCommand(value)
+	return nil
+}
+
+func (command MessageCommand) ToRequest() MessageRequest {
+	request := MessageRequest{
+		Command: command.Command, RecipientID: command.RecipientID, Body: command.Body,
+		Origin: command.Origin, Kind: command.Kind, Urgent: command.Urgent,
+		ResponseRequest: command.ResponseRequest, ReplyToID: command.ReplyToID,
+		Insistence: command.Insistence, Request: command.Request,
+	}
+	if command.ExpiresAt != nil {
+		request.ExpiresAt = *command.ExpiresAt
+	}
+	return request
+}
+
+func (request *MessageRequest) UnmarshalJSON(data []byte) error {
+	var command MessageCommand
+	if err := json.Unmarshal(data, &command); err != nil {
+		return err
+	}
+	*request = command.ToRequest()
 	return nil
 }
 

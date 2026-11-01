@@ -41,6 +41,10 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "projects", ID: v.ID}
 	case domain.Note:
 		ref = storedResult{Kind: "notes", ID: v.ID}
+	case domain.SharedFile:
+		ref = storedResult{Kind: "files", ID: v.ID}
+	case domain.Publication:
+		ref = storedResult{Kind: "publication-version", ID: v.VersionID}
 	case domain.Task:
 		ref = storedResult{Kind: "tasks", ID: v.ID}
 	case domain.Run:
@@ -69,7 +73,7 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "assistance-help", ID: v.ID, Value: data}
 	case domain.ReportOutcome:
 		ref = storedResult{Kind: "report", ID: v.Run.ID, TaskID: v.Task.ID, Accepted: v.Accepted, Stale: v.Stale}
-	case domain.Attention, map[string]bool, []domain.Screen:
+	case domain.Attention, map[string]bool, []domain.Screen, domain.ComputerEnvironment, domain.AnnouncementReceipt, domain.FileProgress, domain.FileDownloadReceipt:
 		data, err := json.Marshal(v)
 		if err != nil {
 			return nil, err
@@ -105,6 +109,15 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, actor string, data []b
 		value, err = get[domain.Project](ctx, tx, ref.Kind, ref.ID)
 	case "notes":
 		value, err = get[domain.Note](ctx, tx, ref.Kind, ref.ID)
+	case "files":
+		var file domain.SharedFile
+		file, err = readFile(ctx, tx, ref.ID)
+		if err == nil {
+			err = requireFileReader(ctx, tx, actor, file)
+		}
+		value = file
+	case "publication-version":
+		value, err = get[domain.Publication](ctx, tx, "publication_versions", ref.ID)
 	case "tasks":
 		value, err = get[domain.Task](ctx, tx, ref.Kind, ref.ID)
 	case "runs":

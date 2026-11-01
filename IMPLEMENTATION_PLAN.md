@@ -6,6 +6,74 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Shared capacity and environment source work (0.3.17)
+
+Startup capacity discovery and environment reporting use one native collector
+and the existing private inventory. Onboarding receives detailed stable system
+facts alongside its original observations/hash. Native and embedded reports
+project that snapshot and refresh only live memory/storage usage, runtime and
+Foundation executable details; embedded initialization performs no desktop
+tool/network discovery or subprocesses. Legacy inventories are enriched
+transactionally without changing historical review hashes, unknown counts,
+identity, knowledge, journals or exact-operation evidence. Explicit inventory
+refresh creates a new review basis; periodic telemetry does not invoke AI or
+rewrite it. Live usage exceeding a retained total blocks reporting pending an
+explicit refresh. Public environment DTOs, the locked native payload contract,
+API/native versions and SQL8/localSQL1 remain unchanged. This is local source/
+fixture work, not a live deployment or provider/fleet qualification.
+
+### Monitoring and scoped announcements source work (0.3.16)
+
+Both apps display current reported computer OS/CPU/memory/storage and Foundation
+executable details with independent device/key binding, installed versus running
+source and server-timed stale/missing states. Native workers and foreground
+mobile hosts publish safe observations without private paths, provider probes
+or new slots/controllers.
+Founder/current delegates preview exact global/project broadcast audiences and
+send notices, autonomous action requests or upgrade intents. Each recipient has
+an ordinary private durable thread and exact replay; authority changes fence
+source-bound actions. Existing nondestructive permissions remain usable without
+per-message signoff. Destructive changes/new costs require case-by-case Founder
+approval; software replacement retains exact signed native upgrade authority.
+API/native versions and SQL8/localSQL1 remain; additive DTO ledger/fingerprint
+changes require compatible binaries. Publication/live rollout are separate.
+
+### Founder desktop onboarding source work (0.3.15)
+
+The macOS app adds a Founder-only Add agent form and fresh sign-in requests,
+plus a protected native PTY/tmux terminal and an embedded ephemeral VNC browser.
+`agent add` performs explicit fresh-worker SSH bootstrap using the existing OS
+account, independently confirmed host pin and exact published server release.
+Only signed public enrollment material crosses machines; installation,
+registration, connected native services and provider authentication stay
+distinct. `agent add-status` and `assistance status` inspect retained outcomes
+without retrying uncertain native work, creating sessions or starting login.
+There is no server/root installer, live-state adoption, Founder-device
+enrollment, new controller, inference authority or schema/protocol change.
+Local fixtures and a development bundle do not qualify live SSH, provider,
+desktop/VNC, native reboot or distribution behavior.
+
+### Response-by-default source work (0.3.14)
+
+Fresh ordinary CLI/API messages and desktop/mobile human replies request a
+response unless explicitly disabled. Existing AI-mode text replies use the
+recipient's provider/model and serial controller; manual mode and independent
+authentication/safety/spending gates remain unchanged. AI replies can request
+subsequent replies; at 100 round trips Founder receives one informational
+warning, not an interruption or cutoff. The controller loads relevant original/
+recent thread and task context and handles later messages independently.
+Assigned/mentioned task comments use exact generation-bound attention.
+
+Further retrieval/actions use durable source-bound plans and self-assigned
+Adhoc records under narrow standing readiness, then the existing tool-enabled
+claimed execution path. Applicable skills/context and actual checks are
+referenced in the source reply only after the real report is acknowledged.
+Private requests/results are not copied into shared task records. There is no
+new controller/slot, blind inference/action retry, SQL migration or native
+payload field/type. Existing stored messages, drafts, proposals, mode, OS,
+spending, verification and uncertainty fences remain. Publication/deployment
+are separate from source/fixture acceptance.
+
 ### Foreground mobile source work (0.3.13)
 
 The `mobile` facade/C bridge embeds bounded CLI reads/manual dispatch and the
@@ -91,6 +159,7 @@ separate gates.
 | 3 | Projects/tasks, approval/verification, histories/revert, discussions with agent-name/ID mentions and watch, shared company/project/agent Markdown notes, local knowledge/inventory/workspaces | Raw API policy/races, pinned per-call note context and offline persistence |
 | 4 | Codex/Copilot adapters/install/update, protected authentication, private messages, consented tmux/VNC relays | Synthetic inference; real local streams; no implicit live-provider/desktop certification |
 | 5 | Onboarding, separate scope/acceptance review, actual-answer refinement, signoff, serial execution and independent delegated verification/rework, pause/retry/recovery/outbox, idle research | Native binary and isolated Git/PR fixtures, exact-result authority, crash/lost-ack/restart fences; completed != accepted; no live vendor/GitHub qualification |
+| 6 | Explicit versioned file/diary/skill/idea publications, private staged file uploads/grants, verified download receipts/automatic designated-transfer cleanup, message/task/discussion attachments and native inline media | Raw API, storage/hash/privacy/migration/replay/path tests plus native shared-client fixtures; no deployment, physical-device or erasure/capacity qualification |
 | Operational continuity | Six portable skills, full development/operating guide, offline binary access, package/home discovery and explicit prompt context | Current-source guide/catalog/install/prompt checks; preserve user data and modes |
 
 The first usable vertical slice is installation, fresh Founder and worker
@@ -521,27 +590,36 @@ lost response/reconnect without duplicate inference or authority bypass.
 
 ## Phase 6: deliberate shared files, diaries, skills and ideas
 
-Shared scoped Markdown notes are implemented separately through `note
-set/show/history/context`, with current editing authority and per-invocation
-company/project/own-agent context. They can carry skill text and resource links,
-but do not implement uploaded attachments, repository synchronization or shared
-skill installation. The remaining publication/storage work below is still planned.
+Implemented 0.3.18 source: SQL9 appends private file metadata/chunks/grants/
+receipts plus deliberate current/immutable publication records, preserving
+SQL1-SQL8 and localSQL1. New `file` and `publication` API/native/CLI paths use
+the existing authenticated identity, exact receipts and scoped observation.
 
-Implement new API/schema/CLI paths rather than borrowing nonexistent commands.
+- Uploads start private; one SQLite chunk path supports files up to 1 GiB in
+  256 KiB chunks. There are not two storage paths; exact 10 MiB-adjacent cases
+  use the same tested finalization/hash/size contract.
+- Immutable declarations/chunks/file IDs and publication version IDs, safe
+  staged finalization, explicit resumable replay, local symlink/traversal/
+  overwrite protections and full download verification precede receipt.
+- Owner-issued exact reader grants have no Founder bypass. Explicit publication
+  is required before team task/comment/worklog/diary/skill/idea attachments.
+  Private messages/announcements grant only their exact authorized receivers.
+- Designated one-recipient transfers notify the owner and delete live content
+  atomically after verified receiver receipt; ordinary attachments stay retained.
+  Receipt replay does not repeat notification/deletion. Logical deletion is not
+  erasure of retained backups, free pages or downloaded copies.
+- Creator-owned diary/idea/skill/file publication updates/archive retain complete
+  immutable versions; optional edits are only by current delegates of the exact
+  active project. Scope never promises private readership. No task quota.
+- macOS/iOS share attachment selection, private transfer journals and local
+  verified inline image/video rendering. External references are not fetched;
+  HTML/SVG is not executed; preview remains read-only.
 
-- Explicit publication with creator/provenance, current metadata and hashes.
-- Team-readable contents; credentials/transcripts/workspaces remain private by
-  default. No automatic per-task publication quota.
-- Preserve the product's exact 10 MiB (10,485,760-byte) small/large routing
-  boundary if two storage paths are implemented. Small content uses an explicit
-  Go service storage design, not a dormant CouchDB attachment contract.
-- Immutable content/version identities, safe staged finalization, interruption
-  recovery, download hash/size verification, symlink/traversal protection.
-- Creator-owned updates/archival for diaries/ideas/skills; scope delegated
-  modification rights without promising private readers.
-
-Exit: explicit consent/publication and all raw API/storage/privacy/failure paths
-tested, CLI/catalog/guidance updated, existing local knowledge remains independent.
+Scoped notes remain a separate per-invocation context feature. Shared skills are
+published text/resources, not automatic installation, repository synchronization
+or publication of selected private knowledge. Source/fixture acceptance is not
+a live deployment, physical-device/security/erasure or capacity certification.
+Use COMMANDS.md and TEST_PLAN.md for exact supported procedures/checks.
 
 ## Phase 7: idle-generated recurring children
 

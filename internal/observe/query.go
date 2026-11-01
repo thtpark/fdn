@@ -10,25 +10,27 @@ import (
 )
 
 type Query struct {
-	Kind     string `json:"kind"`
-	ID       string `json:"id,omitempty"`
-	Scope    string `json:"scope,omitempty"`
-	Project  string `json:"project,omitempty"`
-	Assignee string `json:"assignee,omitempty"`
-	Status   string `json:"status,omitempty"`
-	Cursor   string `json:"cursor,omitempty"`
-	Archived bool   `json:"archived,omitempty"`
-	Urgent   bool   `json:"urgent,omitempty"`
-	Folder   string `json:"folder,omitempty"`
-	State    string `json:"state,omitempty"`
-	Peer     string `json:"peer,omitempty"`
-	Limit    int    `json:"limit,omitempty"`
+	Kind            string `json:"kind"`
+	ID              string `json:"id,omitempty"`
+	Scope           string `json:"scope,omitempty"`
+	Project         string `json:"project,omitempty"`
+	Assignee        string `json:"assignee,omitempty"`
+	Status          string `json:"status,omitempty"`
+	Cursor          string `json:"cursor,omitempty"`
+	Archived        bool   `json:"archived,omitempty"`
+	Urgent          bool   `json:"urgent,omitempty"`
+	Folder          string `json:"folder,omitempty"`
+	State           string `json:"state,omitempty"`
+	Peer            string `json:"peer,omitempty"`
+	Limit           int    `json:"limit,omitempty"`
+	Offset          int64  `json:"offset,omitempty"`
+	PublicationKind string `json:"publication_kind,omitempty"`
 }
 
-var kinds = strings.Fields("version help status identity work agents agent projects project tasks task taskHistory runs discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens devices diagnostics operation upgrade configuration guides guide doctor events")
+var kinds = strings.Fields("version help status identity work agents agent environment announcementAudience projects project tasks task taskHistory runs discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens devices diagnostics operation upgrade configuration guides guide doctor events")
 
 func (q Query) Validate() error {
-	if !slices.Contains(kinds, q.Kind) || q.Limit < 0 || q.Limit > 200 || len(q.Cursor) > 512 {
+	if !slices.Contains(kinds, q.Kind) || q.Limit < 0 || q.Limit > 200 || len(q.Cursor) > 512 || q.Offset < 0 || q.Offset > domain.MaxFileSize {
 		return domain.Fail(domain.Invalid, "unsupported observer query or page budget")
 	}
 	for _, value := range []string{q.ID, q.Project, q.Assignee, q.Peer} {
@@ -45,14 +47,14 @@ func (q Query) Key() string {
 }
 
 func (q Query) Subscribable() bool {
-	return q.Kind != "provider" && q.Kind != "inventoryRefresh" && q.Kind != "doctor"
+	return q.Kind != "provider" && q.Kind != "inventoryRefresh" && q.Kind != "doctor" && q.Kind != "announcementAudience" && q.Kind != "fileChunk" && q.Kind != "publicationVersion"
 }
 
 func (q Query) SampleInterval() time.Duration {
 	switch q.Kind {
 	case "work", "knowledge", "knowledgeItem", "knowledgeHistory", "workspaces", "inventory", "preferences", "configuration", "screens", "upgrade", "diagnostics", "messageDiagnostics":
 		return 5 * time.Second
-	case "agents", "agent":
+	case "agents", "agent", "environment":
 		return 30 * time.Second
 	default:
 		return 0
@@ -61,6 +63,14 @@ func (q Query) SampleInterval() time.Duration {
 
 func (q Query) Matches(u domain.Update, actor string) bool {
 	switch q.Kind {
+	case "files":
+		return u.Topic == "file"
+	case "file":
+		return u.Topic == "file" && u.SourceID == q.ID
+	case "publications":
+		return u.Topic == "publication" && (q.Project == "" || q.Project == u.ProjectID)
+	case "publication", "publicationVersions":
+		return u.Topic == "publication" && u.SourceID == q.ID
 	case "status", "identity":
 		return u.SourceID == actor && (u.Topic == "agent" || u.Topic == "agent-mode" || u.Topic == "agent-status")
 	case "agents":
@@ -111,6 +121,18 @@ func Filters(queries []Query, actor string) (domain.UpdateFilter, domain.UpdateF
 	allPublic := false
 	for _, q := range queries {
 		switch q.Kind {
+		case "files", "file":
+			if q.ID == "" {
+				private.Topics = append(private.Topics, "file")
+				public.Topics = append(public.Topics, "file")
+			} else {
+				private.Sources = append(private.Sources, q.ID)
+				public.Sources = append(public.Sources, q.ID)
+			}
+		case "publications":
+			public.Topics = append(public.Topics, "publication")
+		case "publication", "publicationVersions":
+			public.Sources = append(public.Sources, q.ID)
 		case "status", "identity", "work":
 		case "inbox", "messageHistory", "thread", "threadPage":
 			private.Topics = append(private.Topics, "message")

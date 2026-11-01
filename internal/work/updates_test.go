@@ -230,6 +230,12 @@ func (f *pushFixture) RoundTrip(request *http.Request) (*http.Response, error) {
 		case api.Path("tasks", f.task.ID, "entries"):
 			return f.response(domain.Page[domain.Entry]{Items: []domain.Entry{}}, nil)
 		}
+		if strings.HasSuffix(path, "/thread-page") {
+			id := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/messages/"), "/thread-page")
+			if source, found := f.messages[id]; found {
+				return f.response(domain.Page[domain.Message]{Items: []domain.Message{source}}, nil)
+			}
+		}
 		if message, found := f.messages[strings.TrimPrefix(path, "/v1/messages/")]; found {
 			return f.response(message, nil)
 		}
@@ -244,6 +250,17 @@ func (f *pushFixture) RoundTrip(request *http.Request) (*http.Response, error) {
 		default:
 		}
 		return f.response(f.me, nil)
+	}
+	if request.Method == http.MethodPost && path == "/v1/agents/"+f.me.ID+"/environment" {
+		var body domain.EnvironmentRequest
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			return nil, err
+		}
+		if err := domain.ValidateEnvironment(body.Observation); err != nil {
+			return nil, err
+		}
+		return f.response(domain.ComputerEnvironment{BindingID: f.me.ID, DeviceName: f.me.Name,
+			Generation: 1, ReceivedAt: time.Now().Unix(), Observation: body.Observation}, nil)
 	}
 	if request.Method == http.MethodPost && strings.HasPrefix(path, "/v1/messages") {
 		body, err := io.ReadAll(request.Body)

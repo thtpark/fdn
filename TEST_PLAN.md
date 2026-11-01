@@ -24,6 +24,92 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Phase 6 files, publications and native attachments
+
+`go test -race -count=1 ./internal/domain ./internal/foundation ./internal/api ./internal/cli ./internal/observe ./internal/identityservice ./internal/work ./internal/backup -run 'File|Attachment|Publication|SQL9'`
+checks exact 1 GiB/256 KiB input limits, the same storage path immediately below/
+at/above 10,485,760 bytes, immutable staged chunks/finalization/hash verification,
+SQL8-to-SQL9 preservation/rollback refusal, owner/grantee privacy without Founder
+bypass, explicit publication before shared attachments, generation invalidation,
+unique receipts/notification/atomic designated cleanup and logical tombstones.
+Raw/proxy tests must reject unknown fields, unsupported methods/query metadata,
+scope escalation, third-party re-sharing and forged receipt provenance.
+CLI/native fixtures verify durable local commit before acknowledgement,
+interruption/lost-response replay, replaced/symlinked resources and no overwrite.
+No inference, host service, production endpoint, credentials or physical erasure.
+
+The shared Swift `AttachmentsTests` exercise exact pending chunk replay after a
+lost acknowledgement, private journal/generation isolation, complete/chunk hash
+failures without receipt, owner-only finalized downloads, retained historical
+draft references, distinct immutable version paging and bounded safe Markdown
+image/video markers. Native views share FoundationMedia; previews use only local
+verified content and do not acknowledge downloads or fetch external URLs.
+Run related/full macOS Swift suites, rebuild iOS device/simulator/macOS-test
+runtime slices, build the unsigned simulator app and run dedicated local UI
+fixtures. Then run protocol reproducibility and every independent Go suite.
+
+File rows are included in the existing SQLite/trust archive; oversized sources
+must fail before an unrestorable archive is created. Backups/free pages and
+previously downloaded copies are not secure-erasure evidence. These checks do
+not certify live fleet transfers, physical-phone network/lock/kill behavior,
+deployment, vendor/provider, large-database backup drills or capacity/SLOs.
+
+## Computer environments and announcements
+
+`go test -race -count=1 ./internal/local ./internal/work ./internal/cli ./mobile -run 'Environment|Inventory|SystemCapabilities|PrivateKnowledge'`
+checks the shared capacity collector and private inventory projection: exact
+historical JSON hashes, transactional legacy enrichment/concurrent refresh,
+unchanged identity/knowledge/review/journals/outbox, provider path overrides,
+no repeated initial AI review, detailed onboarding context and subprocess-free
+embedded initialization. Repeated telemetry must retain the complete private
+snapshot while refreshing live usage/runtime/executable versions. Projection
+must not alias private resource pointers; changed totals require an explicit
+inventory refresh instead of clamping counts or manufacturing a review.
+
+`go test -race ./internal/foundation ./internal/api ./internal/local ./internal/work ./mobile ./cmd/agent-identity -run 'Environment|Announcements|Monitoring|WorkerHealth|Push|Mobile|IdentityVersion'`
+checks measurable native/embedded resources, bounded version-only probes,
+explicit missing observations, private-field rejection, computer/device/key
+binding, server-timed staleness and non-renewing replay. Broadcast tests check
+global/current-project Founder/delegate authority, exact audiences, independent
+private threads, no implicit reads, no duplicate replay, stale delegate fences
+and upgrade intent without forged permits. Existing deterministic conversation
+action tests remain the execution/authority boundary.
+
+Swift `MonitoringTests` cover typed views, missing-versus-zero values, private
+draft restore, audience/exact-output shapes and delivery references. Native
+renderer tests include system details and request forms. Rebuild iOS device,
+simulator and macOS-test runtime slices; the foreground host publishes safe
+computer facts but no worker health/controller/provider output. Run protocol
+reproducibility and all independent Foundation suites. Local fixtures and
+development builds are not live fleet, desktop/provider, upgrade or
+1,000-agent qualification.
+
+## Founder desktop onboarding and protected clients
+
+`go test -race -count=1 ./internal/cli ./internal/upgrade -run 'AgentAddition|AssistanceStatus|ReleasePublished'`
+checks worker denial before SSH/terminal access, strict host pins and literal
+inputs, current-user native options, signed-public-only registration, separate
+installed/enrolled/connected observations, exact target replay, no reinstall
+after uncertain acknowledgements or stopped services, exclusive literal JSON
+writes, safe archive shape and exact server-version release selection.
+Assistance status must be bodyless/read-only, preserve unknown session creation
+and never open login/inference. Existing server registration/grant/relay tests
+remain authoritative for server-side policy.
+
+The sibling macOS package's `swift test --filter Administration` covers fresh
+Founder authority, absent non-Founder Add agent UI, sign-in request shape/expiry,
+exact grant requester/provider scope, screen/application/desktop-fallback
+requirements, bounded private VNC bootstrap parsing, exact-origin browser policy
+and a real PTY running an isolated fake CLI without transcript files.
+The app build includes pinned SwiftTerm/noVNC dependencies and license notices.
+With an explicitly built app, `FOUNDATION_NOVNC_ASSETS=/ABSOLUTE/APP/Contents/Resources/noVNC
+go test ./internal/remote -run BrowserInstalledNoVNC` verifies the actual bundled
+ES-module closure against the protected CLI asset loader, without a session,
+desktop, provider or external connection.
+These are local recording/process/native-render fixtures, not a live SSH
+installation, provider sign-in, real desktop/VNC or native reboot qualification.
+Then run the protocol check and all independent Foundation suites.
+
 ## Foreground mobile embedding
 
 `go test -race -count=1 ./mobile ./internal/transport ./internal/identityservice ./internal/cli -run 'Embedded|Mobile'`
@@ -45,6 +131,31 @@ network changes, suspension/kill/lost-ack reconciliation and signed installation
 remain explicit physical-device acceptance, not inferred from fixture tests.
 
 ## Desktop history and read-only observation
+
+`go test -race -count=1 ./internal/domain ./internal/api ./internal/cli -run 'MessageResponse|MessageSendDefaults|ExplicitAIOptOut|NativeMessageResponse'`
+and `go test -race -count=1 -tags=integration ./tests/integration -run 'DefaultRequestedMessage|ControllerMarksRead|ExplicitReadLostAck'`
+cover omitted response defaults, explicit opt-out/null/type rejection, native
+replay, CLI-inferred operational requests, AI/manual behavior, optional AI reply
+opt-out and unchanged voluntary read receipts. Shared Swift editor tests
+cover fresh message/reply defaults and preserved restored false drafts.
+
+`go test -race -count=1 ./internal/foundation ./internal/provider ./internal/work ./internal/local -run 'ReplyLoop|Adhoc|AssignedComments|Conversation|AIResponse'`
+and `go test -race -count=1 -tags=integration ./tests/integration -run 'LaterThreadAction|AssignedUnmentionedCommentAction|AdhocActionLostReceipt|QueuedAdhocAction'`
+cover the exact 199/200-message warning boundary, continued replies, real store
+restart and replay deduplication, private warning content, creator-only Adhoc
+readiness, generation-bound assigned attention, later-thread context, actual
+fixture skill/file effects, report-before-response, lost receipt restart,
+explicit model opt-out and Founder pause/resume. These use local deterministic
+providers and temporary state, not paid/live inference.
+`TestClarityConsumesOnlyExplicitlyReviewedCommentGenerations` preserves the
+existing productive clarification loop: incorporated answers are handled
+atomically, unrelated comments and later edits remain pending.
+
+`go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeConversationAction'`
+also drives the actual compiled CLI, identity proxy, daemon and both scripted
+provider executables through a later-thread action: omitted response default,
+applicable workspace skill read, file effect/check, self-assigned Adhoc claim,
+actual report and exact-source result. It is not live-provider qualification.
 
 `go test -race -count=1 ./internal/observe ./internal/foundation ./internal/api ./internal/cli`
 covers private received/sent/thread pages, insertion-ceiling/keyset stability,

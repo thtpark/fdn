@@ -52,18 +52,20 @@ type GrantRequest struct {
 
 type TaskRequest struct {
 	Command
-	ProjectID          string `json:"project_id"`
-	Title              string `json:"title"`
-	Description        string `json:"description"`
-	AcceptanceCriteria string `json:"acceptance_criteria"`
-	ParentID           string `json:"parent_id,omitempty"`
-	Repetitive         bool   `json:"repetitive"`
-	Priority           int    `json:"priority"`
-	Importance         int    `json:"importance"`
+	AttachmentIDs      []string `json:"attachment_ids,omitempty"`
+	ProjectID          string   `json:"project_id"`
+	Title              string   `json:"title"`
+	Description        string   `json:"description"`
+	AcceptanceCriteria string   `json:"acceptance_criteria"`
+	ParentID           string   `json:"parent_id,omitempty"`
+	Repetitive         bool     `json:"repetitive"`
+	Priority           int      `json:"priority"`
+	Importance         int      `json:"importance"`
 }
 
 type TaskChange struct {
 	Command
+	AttachmentIDs       *[]string       `json:"attachment_ids,omitempty"`
 	Kind                string          `json:"kind"`
 	Reason              string          `json:"reason"`
 	Title               *string         `json:"title,omitempty"`
@@ -91,9 +93,10 @@ type TaskChange struct {
 
 type EntryRequest struct {
 	Command
-	Kind     string `json:"kind"`
-	Body     string `json:"body"`
-	ParentID string `json:"parent_id,omitempty"`
+	AttachmentIDs *[]string `json:"attachment_ids,omitempty"`
+	Kind          string    `json:"kind"`
+	Body          string    `json:"body"`
+	ParentID      string    `json:"parent_id,omitempty"`
 }
 
 type AttentionRequest struct {
@@ -111,6 +114,7 @@ type AuthenticationRefreshRequest struct {
 
 type MessageRequest struct {
 	Command
+	AttachmentIDs   []string       `json:"attachment_ids,omitempty"`
 	RecipientID     string         `json:"recipient_id"`
 	Body            string         `json:"body"`
 	Origin          string         `json:"origin"`

@@ -39,6 +39,27 @@ manifest2 remain unchanged. A SQL6 binary cannot open SQL7; preserve a compatibl
 recovery point rather than rolling back the database. Root-local whole-Founder
 recovery retires every old device, and restore quarantines all device bindings.
 
+SQL8 appends history/scoped-observer indexes without changing payload bytes,
+insertion order, receipts or business state. SQL9 appends file metadata/chunks/
+grants/download receipts and current/immutable publication records. SQL1-SQL8
+remain shipped, immutable history. Existing SQL5-SQL8 upgrade transactionally;
+local SQL1, API/schema2, native protocol2 and backup manifest2 remain unchanged.
+Deploy compatible server/proxies/clients/receivers in server-first order: the
+additive native DTO ledger changes its fingerprint, and SQL8 binaries cannot
+open SQL9. No identity, mode, note, selected knowledge, workspace, approval,
+journal or outbox migration/reset is implied.
+
+All uploads start private. Explicit owner publication is required before
+team-readable record attachments; a private message grants only its receiver.
+Designated one-recipient transfers optionally delete live content after a
+verified receipt, atomically retaining owner notification and immutable
+references. This does not erase backups/free pages or recipients' copies.
+Publication versions retain all accepted content independently of three-history
+retention. Shared skill/diary/idea scope is metadata/edit authority, not private
+readership or installation. Existing private knowledge remains local.
+Backups cover the same SQLite file rows; creation fails explicitly when a
+source exceeds the current 2 GiB per-entry restore limit.
+
 Removing compatibility does not authorize deleting installations, credentials,
 backups, journals, identity/account reservations or operation evidence.
 

@@ -77,6 +77,14 @@ func operationQueries(pattern string) map[string]bool {
 	allowed := map[string]bool{}
 	var names []string
 	switch pattern {
+	case "GET /v1/files":
+		names = []string{"cursor", "limit", "include_deleted"}
+	case "GET /v1/files/{id}/chunks":
+		names = []string{"offset"}
+	case "GET /v1/publications":
+		names = []string{"kind", "scope", "target", "cursor", "limit", "include_archived"}
+	case "GET /v1/publications/{id}/versions":
+		names = []string{"cursor", "limit"}
 	case "GET /v1/notes":
 		names = []string{"scope", "target"}
 	case "GET /v1/note-context":
@@ -207,6 +215,7 @@ func messageCatalog() map[string]*messageOperation {
 	catalogOnce.Do(func() {
 		s := &Server{mux: http.NewServeMux()}
 		s.routes()
+		s.publicationRoutes()
 		s.identityRoutes()
 		s.healthRoutes()
 		s.agentOperationRoutes()

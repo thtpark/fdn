@@ -80,6 +80,13 @@ func Create(ctx context.Context, store *foundation.Store, c config.Server, outpu
 		if err != nil {
 			return err
 		}
+		info, statErr := file.Stat()
+		if statErr != nil {
+			return errors.Join(statErr, file.Close())
+		}
+		if info.Size() > 2<<30 {
+			return errors.Join(domain.Fail(domain.Prerequisite, "backup source exceeds the supported 2 GiB per-entry restore limit; no unrestorable archive was created"), file.Close())
+		}
 		hash := sha256.New()
 		size, copyErr := io.Copy(hash, file)
 		closeErr := file.Close()

@@ -78,6 +78,14 @@ func (s observationSource) snapshot(ctx context.Context, q observe.Query) (any, 
 	case "agent", "diagnostics", "operation":
 		leaf := map[string]string{"agent": "show", "diagnostics": "diagnose", "operation": "operation"}[q.Kind]
 		return a.agentCommand(ctx, r, []string{leaf, q.ID})
+	case "environment":
+		return a.agentCommand(ctx, r, []string{"environment", q.ID})
+	case "announcementAudience":
+		args := []string{"audience", "--scope", q.Scope}
+		if q.Project != "" {
+			args = append(args, "--project", q.Project)
+		}
+		return a.announcementCommand(ctx, r, args)
 	case "agents":
 		return a.agentCommand(ctx, r, []string{"list"})
 	case "project":
@@ -138,6 +146,29 @@ func (s observationSource) snapshot(ctx context.Context, q observe.Query) (any, 
 			args = append(args, "--project", q.Project)
 		}
 		return a.noteCommand(ctx, r, args)
+	case "files":
+		args := append([]string{"list"}, page...)
+		if q.Archived {
+			args = append(args, "--include-deleted")
+		}
+		return a.fileCommand(ctx, r, args)
+	case "file":
+		return a.fileCommand(ctx, r, []string{"show", q.ID})
+	case "fileChunk":
+		return a.fileCommand(ctx, r, []string{"chunk", q.ID, "--offset", strconv.FormatInt(q.Offset, 10)})
+	case "publications":
+		args := append([]string{"list", "--kind", q.PublicationKind, "--scope", q.Scope, "--target", q.ID}, page...)
+		if q.Archived {
+			args = append(args, "--include-archived")
+		}
+		return a.publicationCommand(ctx, r, args)
+	case "publication", "publicationVersion", "publicationVersions":
+		leaf := map[string]string{"publication": "show", "publicationVersion": "version", "publicationVersions": "versions"}[q.Kind]
+		args := []string{leaf, q.ID}
+		if q.Kind == "publicationVersions" {
+			args = append(args, page...)
+		}
+		return a.publicationCommand(ctx, r, args)
 	case "knowledge", "knowledgeItem", "knowledgeHistory":
 		args := []string{"list"}
 		if q.Kind != "knowledge" {

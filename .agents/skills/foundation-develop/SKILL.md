@@ -48,7 +48,7 @@ The checkout's root documents are canonical; no old source tree is required.
    adapters must prove non-prompting coding approval and tool-disabled text calls.
 5. Add ordered compatibility-tested migrations, never rewrite shipped schemas
    or reset state. Application/schema contract is 2, native message protocol 2,
-   server SQL migration 8, local SQL 1. SQL5 preserves private message bytes,
+   server SQL migration 9, local SQL 1. SQL5 preserves private message bytes,
    insertion order, receipts and scoped updates while admitting the exact
    Foundation maintenance mailbox, never an enrolled synthetic agent.
    SQL5 is the existing server-state floor; older and future unsupported
@@ -72,6 +72,14 @@ The checkout's root documents are canonical; no old source tree is required.
    private/public feeds distinct, selectors/cursors bounded and generation-bound,
    snapshots watermarked before catch-up, and writes on exact proposal/replay.
    Never observe by repeatedly spawning CLI reads or changing daemon checkpoints.
+   SQL9 appends file metadata/chunks/grants/receipts and immutable publication
+   versions, preserving SQL1-SQL8. Keep uploads private, 1 GiB/256 KiB limits,
+   staged recovery, exact hash/size verification, owner-only grants/publication,
+   shared attachment audience checks and atomic designated-receipt cleanup.
+   Version-page IDs must identify versions, not repeat the mutable source ID.
+   Test lost responses, private/public feeds, native/mobile in-memory chunks,
+   path/overwrite safety and unchanged task/identity/work fences. Logical content
+   deletion is not physical erasure or automatic backup removal.
 6. Update command/reference/skill behavior together. Skills need matching names,
    meaningful trigger descriptions and complete current procedures. Documentation
    must distinguish implemented capability, planned work and evidence limits.

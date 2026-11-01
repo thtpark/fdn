@@ -24,22 +24,44 @@ type Question struct {
 	RespondentIDs []string `json:"respondent_ids"`
 }
 
+type ConversationAction struct {
+	Instructions string `json:"instructions"`
+	WorkspaceRef string `json:"workspace_ref,omitempty"`
+}
+
 type Reply struct {
-	Outcome            string     `json:"outcome"`
-	Decision           string     `json:"decision,omitempty"`
-	Summary            string     `json:"summary"`
-	Evidence           []string   `json:"evidence"`
-	Questions          []Question `json:"questions"`
-	Description        *string    `json:"description,omitempty"`
-	AcceptanceCriteria *string    `json:"acceptance_criteria,omitempty"`
-	AnswerIDs          []string   `json:"answer_ids"`
-	SafeToRetry        bool       `json:"safe_to_retry"`
-	Checkpoint         string     `json:"checkpoint,omitempty"`
-	MessageRead        bool       `json:"message_read,omitempty"`
-	RequestDecision    string     `json:"request_decision,omitempty"`
+	Outcome            string              `json:"outcome"`
+	Decision           string              `json:"decision,omitempty"`
+	Summary            string              `json:"summary"`
+	Evidence           []string            `json:"evidence"`
+	Questions          []Question          `json:"questions"`
+	Description        *string             `json:"description,omitempty"`
+	AcceptanceCriteria *string             `json:"acceptance_criteria,omitempty"`
+	AnswerIDs          []string            `json:"answer_ids"`
+	SafeToRetry        bool                `json:"safe_to_retry"`
+	Checkpoint         string              `json:"checkpoint,omitempty"`
+	MessageRead        bool                `json:"message_read,omitempty"`
+	RequestDecision    string              `json:"request_decision,omitempty"`
+	ResponseRequested  *bool               `json:"response_requested,omitempty"`
+	Action             *ConversationAction `json:"action,omitempty"`
+}
+
+func (r Reply) RequestsResponse() bool {
+	return r.ResponseRequested == nil || *r.ResponseRequested
 }
 
 func (r Reply) Validate() error {
+	if r.Action != nil {
+		if r.Outcome != "responded" {
+			return domain.Fail(domain.Provider, "a conversation action requires a responded planning reply")
+		}
+		if err := domain.CheckText(r.Action.Instructions, "conversation action instructions", 32768, true); err != nil {
+			return err
+		}
+		if r.Action.WorkspaceRef != "" && !domain.ValidOperation(r.Action.WorkspaceRef) {
+			return domain.Fail(domain.Provider, "conversation action workspace must be an existing opaque reference")
+		}
+	}
 	if r.RequestDecision != "" && (r.Outcome != "responded" || !slices.Contains([]string{"accept", "defer", "decline", "answer"}, r.RequestDecision)) {
 		return domain.Fail(domain.Provider, "request_decision requires responded and accept/defer/decline/answer")
 	}

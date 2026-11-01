@@ -507,6 +507,34 @@ Registration acceptance is not final health or native qualification.
 
 ## Register signed worker keys and attach the runner
 
+### Founder-operated IP/SSH onboarding
+
+Foundation 0.3.15 adds `agent-cli agent add --host IP --user EXISTING_USER
+--name NAME [--port PORT --identity-file ABS]`. Run it in an explicitly opened
+human terminal as authenticated Founder, preserving `--operation-id` for
+inspection. The macOS app's Add agent form hosts that same command in its
+protected terminal; non-Founder clients expose no Add agent control and the
+CLI/server independently deny enrollment.
+
+The target must have no existing `.foundation` state and must already provide
+its current user's Linux user manager or macOS GUI login domain. This is native
+**user** installation, never root/server provisioning or OS-account creation.
+Independently verify the first SSH host key; passwords/passphrases stay in the
+human PTY. The exact published server version/source is downloaded and verified,
+not rebuilt on the worker or replaced with latest/Actions artifacts. Keys remain
+on the target and only signed public requests/profiles cross SSH.
+
+`agent add-status OPERATION_ID` distinguishes installed, enrolled and connected.
+An uncertain native stage requires retained-evidence/operator inspection, not
+restarting the wizard, adopting partial state or generating replacement keys.
+Provider readiness, sign-in, screen/desktop prerequisites, workspace permissions
+and approved work remain separate. New workers start in normal ai mode without
+an implicit pause; native startup retains the existing controller gates.
+Existing workers use the manual registration/
+recovery/upgrade procedures below instead of this fresh-install path.
+
+### Explicit public-request registration
+
 For Founder, use the operator-assembled public profile. For a subsequent
 computer, its existing installing user first runs `prepare --name Agent1
 --output PUBLIC_REQUEST` using its own private service configuration. Founder

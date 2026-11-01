@@ -11,11 +11,51 @@ import (
 	"github.com/thtpark/fdn/internal/remote"
 )
 
+type assistanceOpenProposal struct {
+	GrantID   string                `json:"grant_id"`
+	Request   domain.SessionRequest `json:"request"`
+	SessionID string                `json:"session_id,omitempty"`
+}
+
 func (a *app) assistanceCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "assistance requires request, grant, list, show, revoke, or open")
+		return nil, domain.Fail(domain.Invalid, "assistance requires request, grant, list, show, revoke, open, or status")
 	}
 	switch args[0] {
+	case "status":
+		if err := requireArgs(args, 2); err != nil {
+			return nil, err
+		}
+		if !domain.ValidOperation(args[1]) {
+			return nil, domain.Fail(domain.Invalid, "invalid assistance operation ID")
+		}
+		var proposal assistanceOpenProposal
+		found, err := r.state.Get(ctx, "assistance-open:"+args[1], &proposal)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			return nil, domain.Fail(domain.NotFound, "no retained assistance launch exists for this operation")
+		}
+		if proposal.SessionID == "" {
+			var receipt cliProposal
+			found, err := r.state.Get(ctx, "cli-proposal:"+proposal.Request.OperationID, &receipt)
+			if err != nil {
+				return nil, err
+			}
+			if !found || len(receipt.Result) == 0 {
+				return nil, domain.Fail(domain.Prerequisite, "session creation outcome is unknown; preserve the exact launch operation, never create a replacement automatically")
+			}
+			var session domain.Session
+			if err := json.Unmarshal(receipt.Result, &session); err != nil {
+				return nil, err
+			}
+			proposal.SessionID = session.ID
+		}
+		if proposal.SessionID == "" {
+			return nil, domain.Fail(domain.Prerequisite, "retained assistance receipt has no acknowledged session reference")
+		}
+		return api.Call[domain.Session](ctx, r.client, "GET", api.Path("sessions", proposal.SessionID), nil)
 	case "request":
 		var req domain.AssistanceHelpRequest
 		if err := a.input(args[1:], &req); err != nil {
@@ -109,10 +149,7 @@ func (a *app) assistanceCommand(ctx context.Context, r *resources, args []string
 			return nil, domain.Fail(domain.Denied, "provider is outside the grant")
 		}
 		key := "assistance-open:" + a.operation
-		var proposal struct {
-			GrantID string                `json:"grant_id"`
-			Request domain.SessionRequest `json:"request"`
-		}
+		var proposal assistanceOpenProposal
 		found, err := r.state.Get(ctx, key, &proposal)
 		if err != nil {
 			return nil, err
@@ -135,6 +172,10 @@ func (a *app) assistanceCommand(ctx context.Context, r *resources, args []string
 		}
 		var session domain.Session
 		if err := json.Unmarshal(data, &session); err != nil {
+			return nil, err
+		}
+		proposal.SessionID = session.ID
+		if err := r.state.Put(ctx, key, proposal); err != nil {
 			return nil, err
 		}
 		return a.openSessionViewer(ctx, r, session.ID, *viewer, remote.BrowserOptions{Address: *listen, AssetsDir: *assets})
