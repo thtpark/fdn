@@ -93,6 +93,56 @@ func Digest(file *os.File) (int64, string, error) {
 	return size, hex.EncodeToString(hash.Sum(nil)), err
 }
 
+// VerifySaved is also required by chunk-based native/mobile clients. Metadata
+// alone must not trigger the receipt that permits Foundation content deletion.
+func VerifySaved(ctx context.Context, path string, size int64, digest string) (err error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !filepath.IsAbs(path) || size < 0 || size > domain.MaxFileSize || !domain.ValidHash(digest) {
+		return domain.Fail(domain.Invalid, "receipt requires an absolute local path and exact bounded size/SHA-256")
+	}
+	root, name, err := Root(path)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, root.Close()) }()
+	file, err := OpenSource(root, name, true)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, file.Close()) }()
+	pinned, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	actualSize, actualDigest, err := Digest(file)
+	if err != nil {
+		return err
+	}
+	if actualSize != size || actualDigest != digest {
+		return domain.Fail(domain.Conflict, "local copy does not match the exact file; no receipt was sent")
+	}
+	if err := file.Sync(); err != nil {
+		return err
+	}
+	current, err := root.Lstat(name)
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(pinned, current) || !current.Mode().IsRegular() || current.Mode().Perm()&0077 != 0 {
+		return domain.Fail(domain.Denied, "verified local copy changed before acknowledgement")
+	}
+	directory, err := root.Open(".")
+	if err != nil {
+		return err
+	}
+	if err := errors.Join(directory.Sync(), directory.Close()); err != nil {
+		return err
+	}
+	return ctx.Err()
+}
+
 func removeStage(root *os.Root, proposal Proposal) error {
 	if proposal.Stage == "" {
 		return nil

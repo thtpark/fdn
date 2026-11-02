@@ -32,7 +32,7 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.nativeService(ctx, tail, "agent")
 	}
 	localOnly := slices.Contains([]string{"config", "knowledge", "inventory", "workspace", "provider", "preferences", "service", "screen"}, group) ||
-		(group == "file" && len(tail) > 0 && tail[0] == "upload-status") ||
+		(group == "file" && len(tail) > 0 && slices.Contains([]string{"upload-status", "download-status"}, tail[0])) ||
 		(group == "agent" && len(tail) > 0 && tail[0] == "add-status") ||
 		(group == "upgrade" && len(tail) > 0 && tail[0] == "status") ||
 		(group == "mode" && len(tail) > 0 && tail[0] == "show") ||

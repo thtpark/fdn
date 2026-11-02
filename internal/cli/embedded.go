@@ -111,6 +111,12 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 	if targeted {
 		expected++
 	}
+	if args[0] == "file" && args[1] == "downloaded" {
+		expected += 2
+		if len(args) < expected || args[3] != "--path" || !strings.HasPrefix(args[4], "/") {
+			return nil, domain.Fail(domain.Invalid, "mobile file receipt requires its verified app-local copy")
+		}
+	}
 	if args[0] == "message" && args[1] == "read" {
 		expected = 3
 	} else if len(args) < 2 || args[len(args)-2] != "--input" || args[len(args)-1] != "-" {

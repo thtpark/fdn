@@ -141,6 +141,7 @@ preexisting paths; the CA file contains no private key):
   "home": "/var/lib/fdn",
   "config_file": "/var/lib/fdn/server.json",
   "backup_paths": [
+    "/var/lib/fdn-files",
     "/var/lib/fdn-accounts",
     "/etc/fdn",
     "/etc/systemd/system/fdn-accounts.service",
@@ -157,6 +158,9 @@ provider credential paths and old role binaries to `backup_paths`. The helper
 also includes the configured application/identity state and private configs in
 its cold snapshot. Additional paths must exist; do not list the filesystem root
 or include updater evidence inside a snapshot of itself.
+From SQL10 the exact configured `file_dir` must be pinned in Foundation's
+`backup_paths`; a database-only cold backup is unsafe. Provision the directory
+and policy before cutover, preserving existing content/ACL/recovery evidence.
 
 For a managed native archive, `method:"archive"` requires `prefix` and
 `binary_dir: PREFIX/bin`, using the existing immutable archive installer and
@@ -489,6 +493,20 @@ assembles an integrity-protected public `config.ConnectionProfile` with that
 identity, CA PEM from `ca_file`, `url`, independently pinned `ssh_host`,
 `ssh_port` and `known_hosts`. Never establish a host pin by accepting an unknown
 key. The URL is the inner TLS origin, not a public TCP/bootstrap endpoint.
+
+From 0.3.21, the separate `file_dir` defaults to `STATE-files`, normally
+`/var/lib/fdn-files`. Debian provisioning creates it owned by `fdn`, mode 0711;
+custom native layouts require administrator preparation. Ancestors must allow
+reader traversal without relaxing private state/HOME. Only exact enrolled
+Foundation-host UIDs receive read ACLs on content; no world/group read or write.
+Use `init --file-dir ABS` for an explicit new installation path and the same
+`file_dir` in service options. `ReadWritePaths` includes only state, this content
+directory and configured ingress parents. Existing databases pin their live
+content root; a configuration edit cannot adopt another store.
+SQL10 startup verifies/materializes SQL9 content and reconciles exact readers
+before serving. Back up first and stop old writers for a separately authorized
+cutover. Native ACL/materialization failures are blockers, not successful
+upgrades. Do not retry blindly, delete old chunks/evidence or downgrade SQL10.
 
 If provisioning is unavailable, initialization retains its config, PKI, receipt
 and pending identity and reports a prerequisite failure. Retry the exact

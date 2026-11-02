@@ -7,12 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/thtpark/fdn/internal/database"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/filestore"
+	"github.com/thtpark/fdn/internal/secure"
 )
 
 const schema = `
@@ -68,14 +71,48 @@ type Store struct {
 	updates         updateHub
 	updateFeedID    string
 	updateCursorKey []byte
+	files           *filestore.Store
+	fileMu          sync.RWMutex
+	writerLock      string
 }
 
 func Open(ctx context.Context, path string) (*Store, error) {
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, devicesSchema, observationSchema, publicationsSchema}, 5)
+	return OpenWithFiles(ctx, path, FileStoreOptions{})
+}
+
+type FileStoreOptions struct {
+	Directory   string
+	Permissions filestore.Permissions
+}
+
+func serverSchemas() []string {
+	return []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, devicesSchema, observationSchema, publicationsSchema, fileStoreSchema}
+}
+
+func OpenWithFiles(ctx context.Context, path string, options FileStoreOptions) (*Store, error) {
+	store, err := openDatabase(ctx, path)
 	if err != nil {
 		return nil, err
 	}
-	store := &Store{db: db, now: time.Now, writer: make(chan struct{}, 1), closed: make(chan struct{})}
+	if err := store.openFileStore(ctx, path, options); err != nil {
+		return nil, errors.Join(err, store.Close())
+	}
+	return store, nil
+}
+
+// OpenForRestore is database-only: restored identities are quarantined before
+// any file ACL is materialized by the normal server startup.
+func OpenForRestore(ctx context.Context, path string) (*Store, error) {
+	return openDatabase(ctx, path)
+}
+
+func openDatabase(ctx context.Context, path string) (*Store, error) {
+	db, err := database.Open(ctx, path, serverSchemas(), 5)
+	if err != nil {
+		return nil, err
+	}
+	store := &Store{db: db, now: time.Now, writer: make(chan struct{}, 1), closed: make(chan struct{}),
+		writerLock: filepath.Join(filepath.Dir(path), "file-store.lock")}
 	if err := store.loadUpdateFeed(ctx); err != nil {
 		db.Close()
 		return nil, err
@@ -92,30 +129,13 @@ func (s *Store) timestamp() int64                { return s.now().UTC().Unix() }
 // competing IMMEDIATE transactions cannot occupy the entire WAL reader pool.
 // Callers always defer finish, including on replay, denial and storage failure.
 func (s *Store) beginWrite(ctx context.Context) (*sql.Tx, func(), error) {
-	if err := ctx.Err(); err != nil {
+	release, err := s.acquireWriter(ctx)
+	if err != nil {
 		return nil, nil, err
 	}
-	s.writerWaiters.Add(1)
-	select {
-	case <-ctx.Done():
-		s.writerWaiters.Add(-1)
-		return nil, nil, ctx.Err()
-	case <-s.closed:
-		s.writerWaiters.Add(-1)
-		return nil, nil, domain.Fail(domain.Unavailable, "update store is closed")
-	case s.writer <- struct{}{}:
-		s.writerWaiters.Add(-1)
-	}
-	release := func() { <-s.writer }
-	if err := ctx.Err(); err != nil {
+	if err := s.reconcileFilePermissions(ctx); err != nil {
 		release()
 		return nil, nil, err
-	}
-	select {
-	case <-s.closed:
-		release()
-		return nil, nil, domain.Fail(domain.Unavailable, "update store is closed")
-	default:
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -135,6 +155,62 @@ func (s *Store) beginWrite(ctx context.Context) (*sql.Tx, func(), error) {
 		})
 	}
 	return tx, finish, nil
+}
+
+func (s *Store) acquireWriter(ctx context.Context) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.writerWaiters.Add(1)
+	select {
+	case <-ctx.Done():
+		s.writerWaiters.Add(-1)
+		return nil, ctx.Err()
+	case <-s.closed:
+		s.writerWaiters.Add(-1)
+		return nil, domain.Fail(domain.Unavailable, "update store is closed")
+	case s.writer <- struct{}{}:
+		s.writerWaiters.Add(-1)
+	}
+	var lock *secure.Lock
+	wait, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	for {
+		var err error
+		lock, err = secure.Acquire(s.writerLock)
+		if err == nil {
+			break
+		}
+		var fault *domain.Fault
+		if !errors.As(err, &fault) || fault.Code != domain.Conflict {
+			<-s.writer
+			return nil, err
+		}
+		select {
+		case <-wait.Done():
+			<-s.writer
+			return nil, wait.Err()
+		case <-s.closed:
+			<-s.writer
+			return nil, domain.Fail(domain.Unavailable, "update store is closed")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	release := func() {
+		lock.Close()
+		<-s.writer
+	}
+	if err := ctx.Err(); err != nil {
+		release()
+		return nil, err
+	}
+	select {
+	case <-s.closed:
+		release()
+		return nil, domain.Fail(domain.Unavailable, "update store is closed")
+	default:
+	}
+	return release, nil
 }
 
 type queryer interface {
@@ -159,6 +235,9 @@ func get[T any](ctx context.Context, q queryer, table, id string) (T, error) {
 func encode(value any) ([]byte, error) { return json.Marshal(value) }
 
 func (s *Store) actor(ctx context.Context, q queryer, id string) (domain.Agent, error) {
+	if s.files == nil {
+		return domain.Agent{}, domain.Fail(domain.Unavailable, "offline restore database cannot serve agent operations")
+	}
 	agent, err := activeIdentitySubject(ctx, q, id)
 	if err != nil {
 		return agent, err

@@ -138,13 +138,14 @@ FROM agents a LEFT JOIN agent_identities i ON i.id=a.id WHERE a.id=?`, actor).Sc
 			return err
 		}
 	}
-	if err := tx.Commit(); err != nil {
+	committed, err := s.commitFileEffects(ctx, tx)
+	if !committed {
 		return err
 	}
 	s.notifyUpdates(affected)
 	s.notifyEvents(publicScopes)
 	s.notifyObservations(privateUpdates, publicUpdates)
-	return nil
+	return err
 }
 
 func changeValues[T any](change updateChange) ([]T, error) {

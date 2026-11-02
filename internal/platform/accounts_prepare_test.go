@@ -37,7 +37,7 @@ func TestManagedFoundationServiceIngressGroupAndWritableDirectories(t *testing.T
 	root := accountTestRoot(t)
 	options := Options{OS: "linux", Role: "foundation", Binary: "/opt/fdn/fdn-service", ConfigFile: "/var/lib/fdn/server.json", StateDir: "/var/lib/fdn", Home: "/var/lib/fdn", User: "fdn", IngressGroup: "fdn_ingress", IngressDirs: []string{"/run/fdn-ingress"}, Definition: filepath.Join(root, "foundation.service")}
 	definition, err := Render(options)
-	if err != nil || !strings.Contains(definition.Content, "SupplementaryGroups=fdn_ingress\n") || !strings.Contains(definition.Content, `ReadWritePaths="/var/lib/fdn" "/run/fdn-ingress"`) {
+	if err != nil || !strings.Contains(definition.Content, "SupplementaryGroups=fdn_ingress\n") || !strings.Contains(definition.Content, `ReadWritePaths="/var/lib/fdn" "/var/lib/fdn-files" "/run/fdn-ingress"`) {
 		t.Fatal("service cannot traverse/write its configured ingress", definition, err)
 	}
 	for _, group := range []string{"fdn", "root", "fdn\nUser=root"} {

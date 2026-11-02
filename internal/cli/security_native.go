@@ -49,6 +49,9 @@ type nativeInitReceipt struct {
 }
 
 func validateNativeServer(c config.Server) error {
+	if err := c.Validate(); err != nil {
+		return err
+	}
 	for _, path := range []string{c.StateDir, c.CertFile, c.KeyFile, c.IngressSocket, c.JoinSocket, c.AccountSocket} {
 		if !filepath.IsAbs(path) || filepath.Clean(path) != path || path == "/" || strings.ContainsAny(path, "\x00\r\n") {
 			return domain.Fail(domain.Invalid, "native server paths must be absolute and canonical")
@@ -234,6 +237,7 @@ func readNativePublic(path string) (domain.PublicIdentity, error) {
 func (a *app) initNativeFoundation(ctx context.Context, args []string, supplied nativeAccountClient) (any, error) {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	state := fs.String("state", "", "private Foundation directory")
+	files := fs.String("file-dir", "", "Foundation-owned ACL content directory outside private state; defaults to STATE-files")
 	request := fs.String("founder-request", "", "protected Founder public identity file")
 	apiSocket := fs.String("ingress-socket", "", "protected API Unix socket")
 	joinSocket := fs.String("join-socket", "", "protected admission Unix socket")
@@ -256,7 +260,7 @@ func (a *app) initNativeFoundation(ctx context.Context, args []string, supplied 
 	if err != nil {
 		return nil, err
 	}
-	c := config.Server{StateDir: root, CertFile: filepath.Join(root, "server.pem"), KeyFile: filepath.Join(root, "server-key.pem"), IngressSocket: *apiSocket, JoinSocket: *joinSocket, IngressGroup: *group, AccountSocket: *accountSocket}
+	c := config.Server{StateDir: root, FileDir: *files, CertFile: filepath.Join(root, "server.pem"), KeyFile: filepath.Join(root, "server-key.pem"), IngressSocket: *apiSocket, JoinSocket: *joinSocket, IngressGroup: *group, AccountSocket: *accountSocket}
 	if err := validateNativeServer(c); err != nil {
 		return nil, err
 	}
@@ -295,7 +299,7 @@ func (a *app) initNativeFoundation(ctx context.Context, args []string, supplied 
 			return nil, domain.Fail(domain.Conflict, "native initialization requires its exact original public identity and operation")
 		}
 		a.operation = receipt.OperationID
-		store, err := foundation.Open(ctx, filepath.Join(root, "foundation.sqlite"))
+		store, err := foundation.OpenWithFiles(ctx, filepath.Join(root, "foundation.sqlite"), foundation.FileStoreOptions{Directory: c.FileDirectory()})
 		if err != nil {
 			return nil, err
 		}
@@ -363,7 +367,7 @@ func (a *app) initNativeFoundation(ctx context.Context, args []string, supplied 
 			}
 		}
 	}
-	store, err := foundation.Open(ctx, filepath.Join(root, "foundation.sqlite"))
+	store, err := foundation.OpenWithFiles(ctx, filepath.Join(root, "foundation.sqlite"), foundation.FileStoreOptions{Directory: c.FileDirectory()})
 	if err != nil {
 		return nil, err
 	}
@@ -423,7 +427,7 @@ func (a *app) serveNativeFoundation(ctx context.Context, args []string, supplied
 		return nil, err
 	}
 	defer lock.Close()
-	store, err := foundation.Open(ctx, filepath.Join(c.StateDir, "foundation.sqlite"))
+	store, err := foundation.OpenWithFiles(ctx, filepath.Join(c.StateDir, "foundation.sqlite"), foundation.FileStoreOptions{Directory: c.FileDirectory()})
 	if err != nil {
 		return nil, err
 	}

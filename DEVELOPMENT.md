@@ -260,10 +260,14 @@ resources untouched. An `operator-required` result is not a successful reset.
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
 version is **2**; native message protocol is **2**, server SQLite migration is
-**9**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
+**10**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
 SQL6 adds notes, SQL7 adds Founder device bindings and SQL8 adds observer/history
 indexes; SQL9 appends shared publications/private files while preserving all
-business records and shipped SQL1-SQL8.
+business records and shipped SQL1-SQL8. SQL10 adds a pinned filesystem content
+store and durable exact-UID ACL reconciliation; shipped SQL1-SQL9 stay unchanged.
+SQL9 migration/backup rehydration must verify durable bytes before BLOB retirement.
+Snapshots hold the process-shared writer lock and re-embed verified file bytes
+only in an isolated archive DB, preserving manifest2 recovery/quarantine.
 Read [SCHEMA.md](SCHEMA.md) before changing either database.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
@@ -402,6 +406,10 @@ blockers without rewriting completed installation history. Automatic private
 transfer receipt handling precedes onboarding/providers under the existing work
 slot and durable shared CLI/worker downloader. Test mode/grant interruption,
 atomic automatic-receipt pause checks and legacy exact journal replay.
+New automatic receives finalize readable original filenames in private workspace
+downloads before receipt. Sender grouping is only organization, never authority.
+Keep pinned/recipient-chosen and legacy destinations unchanged on replay; local
+download-status exposes private journal paths without a transport or tool grant.
 
 Test helper process/filesystem/network effects through existing injected runners,
 temporary homes and synthetic release bytes. No local test registers services,

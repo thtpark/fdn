@@ -24,6 +24,7 @@ type Options struct {
 	Binary       string   `json:"binary"`
 	ConfigFile   string   `json:"config_file"`
 	StateDir     string   `json:"state_dir"`
+	FileDir      string   `json:"file_dir,omitempty"`
 	Home         string   `json:"home"`
 	User         string   `json:"user"`
 	IngressGroup string   `json:"ingress_group,omitempty"`
@@ -59,6 +60,10 @@ func renderService(o Options, lookup serviceUIDLookup) (Definition, error) {
 		if o.User == "root" {
 			return Definition{}, domain.Fail(domain.Denied, "Foundation API must use a dedicated unprivileged service account")
 		}
+		if o.FileDir != "" && (o.Role != "foundation" || !filepath.IsAbs(o.FileDir) ||
+			filepath.Clean(o.FileDir) != o.FileDir || strings.ContainsAny(o.FileDir, "\x00\r\n%") || o.FileDir == "/") {
+			return Definition{}, domain.Fail(domain.Invalid, "file_dir must be an explicit canonical Foundation-only content directory")
+		}
 		uid, found, err := lookup(o.User)
 		if err != nil {
 			return Definition{}, err
@@ -87,7 +92,11 @@ func renderService(o Options, lookup serviceUIDLookup) (Definition, error) {
 			if o.IngressGroup != "" {
 				content += "SupplementaryGroups=" + o.IngressGroup + "\n"
 			}
-			content += "ProtectSystem=strict\nProtectHome=true\nReadWritePaths=" + strconv.Quote(o.StateDir)
+			files := o.FileDir
+			if files == "" {
+				files = filepath.Clean(o.StateDir) + "-files"
+			}
+			content += "ProtectSystem=strict\nProtectHome=true\nReadWritePaths=" + strconv.Quote(o.StateDir) + " " + strconv.Quote(files)
 			for _, directory := range o.IngressDirs {
 				content += " " + strconv.Quote(directory)
 			}

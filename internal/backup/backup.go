@@ -169,6 +169,11 @@ func Restore(ctx context.Context, input, identityFile, destination string) (err 
 	} else if !os.IsNotExist(err) {
 		return err
 	}
+	if _, err := os.Lstat(filepath.Clean(destination) + "-files"); err == nil {
+		return domain.Fail(domain.Conflict, "restore requires a new content-store destination; existing files and ACL evidence are never adopted or overwritten")
+	} else if !os.IsNotExist(err) {
+		return err
+	}
 	if err := secure.Dir(filepath.Dir(destination)); err != nil {
 		return err
 	}
@@ -249,7 +254,7 @@ func Restore(ctx context.Context, input, identityFile, destination string) (err 
 	if _, err := pki.Server(filepath.Join(stage, "server.pem"), filepath.Join(stage, "server-key.pem")); err != nil {
 		return err
 	}
-	store, err := foundation.Open(ctx, filepath.Join(stage, "foundation.sqlite"))
+	store, err := foundation.OpenForRestore(ctx, filepath.Join(stage, "foundation.sqlite"))
 	if err != nil {
 		return err
 	}

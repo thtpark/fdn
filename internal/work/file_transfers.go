@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -14,6 +15,58 @@ import (
 	"github.com/thtpark/fdn/internal/filetransfer"
 	"github.com/thtpark/fdn/internal/secure"
 )
+
+func (e *Engine) transferDestination(ctx context.Context, c config.Worker, file domain.SharedFile, retained filetransfer.Proposal, found bool) (string, error) {
+	if found {
+		if !filepath.IsAbs(retained.Destination) || retained.File.FileReference != file.FileReference || retained.File.OwnerID != file.OwnerID {
+			return "", domain.Fail(domain.Conflict, "retained private transfer destination or immutable source changed; preserve its original journal")
+		}
+		return retained.Destination, nil
+	}
+	if !domain.ValidOperation(file.ID) || !domain.ValidOperation(file.OwnerID) {
+		return "", domain.Fail(domain.Invalid, "private transfer file and sender require safe stable IDs")
+	}
+	declaration := domain.FileUploadRequest{Name: file.Name, MediaType: file.MediaType, Size: file.Size, SHA256: file.SHA256}
+	if err := declaration.Validate(); err != nil {
+		return "", err
+	}
+	sender, err := api.Call[domain.Agent](ctx, e.Client, http.MethodGet, api.Path("agents", file.OwnerID), nil)
+	if err != nil {
+		return "", err
+	}
+	if sender.ID != file.OwnerID {
+		return "", domain.Fail(domain.Internal, "private transfer sender observation belongs to another identity")
+	}
+	folder := sender.ID
+	if label, err := domain.AgentUsername(sender.Name); err == nil {
+		folder = label + "-" + sender.ID
+	}
+	if err := os.MkdirAll(c.WorkspaceRoot, 0700); err != nil {
+		return "", err
+	}
+	root, _, err := filetransfer.Root(filepath.Join(c.WorkspaceRoot, "downloads"))
+	if err != nil {
+		return "", err
+	}
+	if err := root.Close(); err != nil {
+		return "", err
+	}
+	if err := secure.SyncDir(filepath.Dir(c.WorkspaceRoot)); err != nil {
+		return "", err
+	}
+	directory := c.WorkspaceRoot
+	for _, name := range []string{"downloads", folder, file.ID} {
+		parent := directory
+		directory = filepath.Join(parent, name)
+		if err := secure.Dir(directory); err != nil {
+			return "", err
+		}
+		if err := secure.SyncDir(parent); err != nil {
+			return "", err
+		}
+	}
+	return filepath.Join(directory, file.Name), nil
+}
 
 func (e *Engine) transferAdmission(ctx context.Context, me domain.Agent) error {
 	current, err := api.Call[domain.Agent](ctx, e.Client, http.MethodGet, "/v1/me", nil)
@@ -96,8 +149,8 @@ func (e *Engine) receiveFileTransfers(ctx context.Context, c config.Worker, me d
 				blockers = append(blockers, Blocker{Code: domain.Conflict, Reason: "A private transfer no longer matches its exact sender, recipient or available immutable content; no file receipt was sent."})
 				continue
 			}
-			directory := filepath.Join(c.StateDir, "transfers")
-			if err := secure.Dir(directory); err != nil {
+			destination, err := e.transferDestination(ctx, c, file, retained, found)
+			if err != nil {
 				return false, blockers, err
 			}
 			if err := e.phaseHealth(ctx, "checking", nil, "", 300, false); err != nil {
@@ -124,7 +177,7 @@ func (e *Engine) receiveFileTransfers(ctx context.Context, c config.Worker, me d
 				return false, blockers, err
 			}
 			receipt, err := filetransfer.Download(deadline, e.Client, e.State, operation, reference.ID,
-				filepath.Join(directory, reference.ID+".bin"), validate)
+				destination, validate)
 			err = errors.Join(context.Cause(deadline), err)
 			stop()
 			cancel(err)

@@ -57,8 +57,26 @@ references. This does not erase backups/free pages or recipients' copies.
 Publication versions retain all accepted content independently of three-history
 retention. Shared skill/diary/idea scope is metadata/edit authority, not private
 readership or installation. Existing private knowledge remains local.
-Backups cover the same SQLite file rows; creation fails explicitly when a
-source exceeds the current 2 GiB per-entry restore limit.
+SQL10 appends pinned file-store state and durable ACL reconciliation without
+rewriting SQL1-SQL9. Live bytes are materialized and verified into one
+Foundation-owned filesystem store outside private database/key state; only
+then are live SQL9 BLOB payloads retired. IDs, grants, receipts, pending uploads
+and recovery evidence remain. Exact active Foundation-host UID ACLs follow
+grants, publication, identity recovery/bans and Founder-device changes.
+Reader ACLs are withdrawn before authority commits; only committed readers are installed.
+Native failures remain explicit/fenced and reconcile on startup/exact replay.
+The directory must be preprovisioned, traversable without weakening private
+HOME/state, writable in the service sandbox and pinned in native cold-backup
+policy. SQL9 binaries cannot open SQL10. This source change is not live
+migration/deployment authority.
+Manifest2 encrypted snapshots embed verified content into an isolated SQLite
+image under the shared writer lock; there is no second live BLOB route.
+Restore quarantines old identities before ACL materialization. Creation fails
+explicitly when an archive entry exceeds the retained 2 GiB restore limit.
+Supported chunk-client receipts additionally require verified/synced private
+receiver-local bytes, keeping their path local; metadata alone cannot use the
+supported CLI to acknowledge and permit deletion. Custom remote physical
+persistence is not cryptographically attested by a size/hash claim.
 
 Removing compatibility does not authorize deleting installations, credentials,
 backups, journals, identity/account reservations or operation evidence.

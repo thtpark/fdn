@@ -85,7 +85,7 @@ func (a *app) foundation(ctx context.Context, args []string) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		store, err := foundation.Open(ctx, filepath.Join(c.StateDir, "foundation.sqlite"))
+		store, err := foundation.OpenWithFiles(ctx, filepath.Join(c.StateDir, "foundation.sqlite"), foundation.FileStoreOptions{Directory: c.FileDirectory()})
 		if err != nil {
 			return nil, err
 		}

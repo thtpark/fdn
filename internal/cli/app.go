@@ -44,7 +44,7 @@ var AgentCommands = []string{
 	"message send", "message show", "message read", "message diagnose", "message inbox", "message list", "message receipt", "message thread", "message thread-page", "message request-report", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
 	"note set", "note show", "note history", "note context",
-	"file upload", "file transfer", "file upload-status", "file begin", "file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded", "file list", "file show", "file chunk", "file download",
+	"file upload", "file transfer", "file upload-status", "file download-status", "file begin", "file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded", "file list", "file show", "file chunk", "file download",
 	"publication create", "publication change", "publication list", "publication show", "publication versions", "publication version",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
@@ -128,6 +128,8 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 				usage = "file upload --path FILE [--media-type MIME --to AGENT --delete-after-download]; file transfer requires --to and defaults to automatic deletion after verified receipt. Private, staged, immutable, 1 GiB maximum, 256 KiB chunks. Retain operation-id and original source for explicit resumable replay; never auto-publish."
 			case "file download":
 				usage = "file download FILE_ID --output FILE; verify all sizes/SHA-256, fsync and finalize owner-only local content without overwriting, then send one durable receipt/owner notification. Designated transfers delete server bytes atomically. Replay the same operation/output after an uncertain receipt."
+			case "file download-status":
+				usage = "file download-status OPERATION_ID; read the original local destination, immutable declaration, completion and receipt journal without network access or side effects. Automatic receive operation IDs are receive-FILE_ID. Paths stay private to this computer."
 			case "file publish":
 				usage = "file publish FILE_ID --input FILE; explicit owner-only team publication of ready retained content, with reason/current revision; required before attaching to shared records. Transfers cannot be broadened."
 			case "file grant":

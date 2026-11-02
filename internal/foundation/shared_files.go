@@ -83,6 +83,12 @@ func (s *Store) BeginFile(ctx context.Context, actor string, req domain.FileUplo
 			MediaType: req.MediaType, Size: req.Size, SHA256: req.SHA256}, OwnerID: a.ID,
 			State: "uploading", Revision: 1, CreatedAt: s.timestamp(), TransferTo: req.TransferTo,
 			DeleteAfterDownload: req.DeleteAfterDownload}
+		if s.files == nil {
+			return file, domain.Fail(domain.Unavailable, "Foundation filesystem storage is not initialized")
+		}
+		if err := s.files.Create(file.ID, file.Name); err != nil {
+			return file, err
+		}
 		if err := saveFile(ctx, tx, file); err != nil {
 			return file, err
 		}
@@ -112,11 +118,15 @@ func (s *Store) PutFileChunk(ctx context.Context, actor, id string, req domain.F
 			return progress, domain.Fail(domain.Invalid, "chunk must fit the declared file and only the last chunk may be short")
 		}
 		if req.Offset < file.UploadedBytes {
-			var existing []byte
-			if err := tx.QueryRowContext(ctx, "SELECT data FROM file_chunks WHERE file_id=? AND offset=?", id, req.Offset).Scan(&existing); err != nil {
+			var digest string
+			if err := tx.QueryRowContext(ctx, "SELECT sha256 FROM file_chunks WHERE file_id=? AND offset=?", id, req.Offset).Scan(&digest); err != nil {
 				return progress, err
 			}
-			if !bytes.Equal(existing, req.Data) {
+			existing, err := s.files.ReadChunk(ctx, id, file.Name, req.Offset, len(req.Data))
+			if err != nil {
+				return progress, err
+			}
+			if digest != req.SHA256 || !bytes.Equal(existing, req.Data) {
 				return progress, domain.Fail(domain.Conflict, "committed chunk bytes are immutable")
 			}
 			progress.UploadedBytes = file.UploadedBytes
@@ -125,7 +135,10 @@ func (s *Store) PutFileChunk(ctx context.Context, actor, id string, req domain.F
 		if req.Offset != file.UploadedBytes {
 			return progress, domain.Fail(domain.Conflict, "upload offset changed; inspect the staged file before resuming")
 		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO file_chunks(file_id,offset,data,sha256) VALUES(?,?,?,?)", id, req.Offset, req.Data, req.SHA256); err != nil {
+		if err := s.files.WriteChunk(ctx, id, file.Name, req.Offset, req.Data, file.UploadedBytes); err != nil {
+			return progress, err
+		}
+		if _, err := tx.ExecContext(ctx, "INSERT INTO file_chunks(file_id,offset,data,sha256) VALUES(?,?,X'',?)", id, req.Offset, req.SHA256); err != nil {
 			return progress, err
 		}
 		progress.UploadedBytes = req.Offset + int64(len(req.Data))
@@ -134,11 +147,22 @@ func (s *Store) PutFileChunk(ctx context.Context, actor, id string, req domain.F
 	})
 }
 
-func verifyStagedFile(ctx context.Context, tx *sql.Tx, file domain.SharedFile) error {
+func (s *Store) verifyStagedFile(ctx context.Context, tx *sql.Tx, file domain.SharedFile) error {
 	if file.UploadedBytes != file.Size {
 		return domain.Fail(domain.Prerequisite, "upload is incomplete")
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT offset,data,sha256 FROM file_chunks WHERE file_id=? ORDER BY offset", file.ID)
+	source, err := s.files.OpenFile(file.ID, file.Name)
+	if err != nil {
+		return err
+	}
+	info, statErr := source.Stat()
+	if err := errors.Join(statErr, source.Close()); err != nil {
+		return err
+	}
+	if info.Size() != file.Size {
+		return domain.Fail(domain.Invalid, "uploaded file size differs from its immutable declaration")
+	}
+	rows, err := tx.QueryContext(ctx, "SELECT offset,sha256 FROM file_chunks WHERE file_id=? ORDER BY offset", file.ID)
 	if err != nil {
 		return err
 	}
@@ -148,9 +172,12 @@ func verifyStagedFile(ctx context.Context, tx *sql.Tx, file domain.SharedFile) e
 	var prefix []byte
 	for rows.Next() {
 		var offset int64
-		var data []byte
 		var digest string
-		if err := rows.Scan(&offset, &data, &digest); err != nil {
+		if err := rows.Scan(&offset, &digest); err != nil {
+			return err
+		}
+		data, err := s.files.ReadChunk(ctx, file.ID, file.Name, offset, int(min(int64(domain.FileChunkSize), file.Size-offset)))
+		if err != nil {
 			return err
 		}
 		if offset != size || domain.Hash(string(data)) != digest {
@@ -194,7 +221,7 @@ func (s *Store) FinalizeFile(ctx context.Context, actor, id string, req domain.F
 		if file.State != "uploading" {
 			return file, domain.Fail(domain.Prerequisite, "only an active staged upload can be finalized")
 		}
-		if err := verifyStagedFile(ctx, tx, file); err != nil {
+		if err := s.verifyStagedFile(ctx, tx, file); err != nil {
 			return file, err
 		}
 		file.State, file.FinalizedAt, file.Revision = "ready", s.timestamp(), file.Revision+1
@@ -421,6 +448,8 @@ ORDER BY f.id LIMIT ?`, last, includeDeleted, actor, actor, limit+1)
 }
 
 func (s *Store) FileChunk(ctx context.Context, actor, id string, offset int64) (chunk domain.FileChunk, err error) {
+	s.fileMu.RLock()
+	defer s.fileMu.RUnlock()
 	snapshot, err := s.readSnapshot(ctx)
 	if err != nil {
 		return chunk, err
@@ -439,13 +468,25 @@ func (s *Store) FileChunk(ctx context.Context, actor, id string, offset int64) (
 	if file.State != "ready" {
 		return chunk, domain.Fail(domain.Prerequisite, "file content is not available")
 	}
+	if err := requireFileContentReady(ctx, snapshot, id); err != nil {
+		return chunk, err
+	}
 	if offset < 0 || offset%domain.FileChunkSize != 0 || offset >= file.Size {
 		return chunk, domain.Fail(domain.Invalid, "download offset must select an existing aligned chunk")
 	}
 	chunk.FileID, chunk.Offset = id, offset
-	err = snapshot.QueryRowContext(ctx, "SELECT data,sha256 FROM file_chunks WHERE file_id=? AND offset=?", id, offset).Scan(&chunk.Data, &chunk.SHA256)
+	err = snapshot.QueryRowContext(ctx, "SELECT sha256 FROM file_chunks WHERE file_id=? AND offset=?", id, offset).Scan(&chunk.SHA256)
 	if errors.Is(err, sql.ErrNoRows) {
 		err = domain.Fail(domain.Internal, "finalized file is missing a committed chunk")
+	}
+	if err == nil {
+		if s.files == nil {
+			return chunk, domain.Fail(domain.Unavailable, "Foundation filesystem storage is not initialized")
+		}
+		chunk.Data, err = s.files.ReadChunk(ctx, id, file.Name, offset, int(min(int64(domain.FileChunkSize), file.Size-offset)))
+		if err == nil && domain.Hash(string(chunk.Data)) != chunk.SHA256 {
+			err = domain.Fail(domain.Internal, "Foundation filesystem chunk integrity failed")
+		}
 	}
 	return chunk, err
 }
@@ -477,6 +518,9 @@ func (s *Store) AcknowledgeFileDownload(ctx context.Context, actor, id string, r
 		}
 		if file.State != "ready" {
 			return receipt, domain.Fail(domain.Prerequisite, "unavailable content cannot acquire a new download receipt")
+		}
+		if err := requireFileContentReady(ctx, tx, id); err != nil {
+			return receipt, err
 		}
 		receipt = domain.FileDownloadReceipt{FileID: id, ReaderID: a.ID, Size: file.Size, SHA256: file.SHA256, ReceivedAt: s.timestamp()}
 		if a.ID != file.OwnerID {

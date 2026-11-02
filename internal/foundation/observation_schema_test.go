@@ -37,7 +37,7 @@ func TestSQL8ObservationIndexesPreserveSQL7MessageBytesAndOrder(t *testing.T) {
 	if err := store.db.QueryRow("SELECT rowid,data FROM messages WHERE id='message_retained'").Scan(&row, &retained); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 9 || row != 91 || retained != payload {
+	if err := store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 10 || row != 91 || retained != payload {
 		t.Fatal("index migration changed data or insertion order", row, version, err)
 	}
 	if err := store.Check(ctx); err != nil {
