@@ -952,6 +952,14 @@ reports actual checked results to the exact source item. Planning is not
 completion, and private requests/transcripts are not copied into public task
 records.
 
+Consecutive human replies retain the other private party as recipient, including
+when replying to the sender's own previous message. Each new reply independently
+defaults to requesting a response; a parent's opt-out is not inherited.
+The desktop and foreground iOS apps submit `message read` for displayed incoming
+message bodies, separately from fetching, replying or handling them. This
+non-publishing acknowledgement needs no manual-mode switch or provider sign-in;
+uncertain proposals require explicit exact reconciliation, not automatic replay.
+
 At 100 consecutive alternating AI round trips (200 AI messages), Foundation
 sends Founder one brief private service notice for that thread, without private
 body content or a response request. The warning/count is transactional and

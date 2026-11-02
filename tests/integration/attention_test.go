@@ -11,6 +11,7 @@ import (
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/provider"
+	"github.com/thtpark/fdn/internal/work"
 )
 
 type attentionExecutor struct {
@@ -133,6 +134,7 @@ func TestMentionAuthenticationBeforeOnboardingUsesRecipientProvider(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	var requestID string
 	for range 2 {
 		status, err := engine.Step(ctx, false)
@@ -157,5 +159,74 @@ func TestMentionAuthenticationBeforeOnboardingUsesRecipientProvider(t *testing.T
 	}
 	if len(authenticationInbox(t, h.founder)) != 1 || len(authenticationInbox(t, h.other)) != 1 {
 		t.Fatal("mention help was not delivered exactly once to Founder and the project delegate")
+	}
+}
+
+func TestNestedCommentRepliesRequireEveryMentionedAgentToRespond(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	task := h.ready(t)
+	task = h.change(t, h.founder, task.ID, "assign", func(change *domain.TaskChange) {
+		change.AgentID, change.Provider, change.Model = h.founderAgent.ID, "codex", "execution-model"
+	})
+	root, err := api.Call[domain.Entry](ctx, h.founder, "POST", api.Path("tasks", task.ID, "entries"),
+		domain.EntryRequest{Command: command(), Kind: "comment", Body: "A retained comment thread."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	executors := []*attentionExecutor{{preferred: "codex"}, {preferred: "copilot"}}
+	engines := make([]*work.Engine, len(executors))
+	for index, x := range executors {
+		engine := newEngine(t, h, &x.base)
+		if index == 1 {
+			engine.Client = h.other
+		}
+		engine.Executor = x
+		engine.Config.Provider, engine.Config.Model = x.preferred, "reply-model"
+		skipHealthOnboarding(t, engine)
+		engines[index] = engine
+	}
+	parent := root.ID
+	for round := range 2 {
+		source, err := api.Call[domain.Entry](ctx, h.founder, "POST", api.Path("tasks", task.ID, "entries"),
+			domain.EntryRequest{Command: command(), Kind: "comment", ParentID: parent,
+				Body: "Both @{" + h.workerAgent.Name + "} and @{" + h.otherAgent.Name + "} must respond. @{" + h.workerAgent.ID + "} @{" + h.founderAgent.Name + "}"})
+		if err != nil || len(source.Mentions) != 2 || !slices.Contains(source.Mentions, h.workerAgent.ID) ||
+			!slices.Contains(source.Mentions, h.otherAgent.ID) {
+			t.Fatal("nested reply did not target both distinct agents exactly once", source, err)
+		}
+		for index, engine := range engines {
+			status, err := engine.Step(ctx, false)
+			if err != nil || status.State != "attention" || len(status.AuthenticationRequests) != 0 ||
+				executors[index].base.count("attention") != round+1 {
+				t.Fatal("a mentioned recipient did not respond using its ready provider", status, err)
+			}
+			pending, err := api.Call[domain.Page[domain.Attention]](ctx, engine.Client, "GET", "/v1/attention", nil)
+			if err != nil || len(pending.Items) != 0 {
+				t.Fatal("a reply did not acknowledge its recipient's exact attention", pending, err)
+			}
+			engines[index] = restartAuthenticationEngine(t, engine)
+		}
+		entries, err := api.Call[domain.Page[domain.Entry]](ctx, h.founder, "GET", api.Path("tasks", task.ID, "entries"), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		authors := []string{}
+		for _, entry := range entries.Items {
+			if entry.ParentID == source.ID {
+				authors = append(authors, entry.AuthorID)
+			}
+		}
+		slices.Sort(authors)
+		if !slices.Equal(authors, source.Mentions) {
+			t.Fatal("nested comment did not receive exactly one response from every mentioned agent", authors, source.Mentions)
+		}
+		parent = source.ID
+	}
+	for index, engine := range engines {
+		if status, err := engine.Step(ctx, false); err != nil || status.State != "idle" ||
+			executors[index].base.count("attention") != 2 {
+			t.Fatal("polling or restart duplicated a nested comment reply", status, err)
+		}
 	}
 }

@@ -409,6 +409,31 @@ already-running daemon through scoped updates and verify its actual reply,
 receipt and provider/model journal attribution. These fixtures do not certify
 live provider sign-in, deployment or model quality.
 
+### Private-file requests and successive threaded replies
+
+```sh
+go test -race -count=1 -tags=integration ./tests/integration -run 'Test(PrivateFileRequestsUseReadyRecipientProviderWithoutSignIn|NestedCommentRepliesRequireEveryMentionedAgentToRespond|ConsecutiveThreadRepliesKeepRecipientAndRequireIndependentResponses)$'
+```
+
+Private-file cases cover ordinary message attachments and separately delivered
+transfers, with retained or automatically deleted server content. Both Codex
+credentials-present-unverified and authenticated Copilot recipients complete
+actual fixture analysis of verified bytes through source-bound Adhoc execution,
+including restart between planning/execution, without checking the signed-out
+other provider or issuing sign-in help. File delivery/receipt itself invokes no
+provider. Results stay in the private source thread; another actor cannot read
+the file. Completed work is not repeated on polling/restart.
+
+Nested comment replies mention two independently registered recipients, including
+duplicate/self mentions, and require exactly one parent-linked response and
+generation-bound receipt from each across two successive turns/restarts.
+Consecutive direct replies retain their original other party and each receive
+their own response; explicit opt-out remains unanswered. Shared Swift composer
+tests submit successive replies to the sender's own previous message without
+reversing the recipient or inheriting a previous response opt-out.
+These are deterministic provider/business-policy fixtures, not a diagnosis of
+Agent1's deployed authentication or native multi-UID qualification.
+
 ## Existing-user worker ownership
 
 ```sh
@@ -678,6 +703,16 @@ CLI peeks producing only GETs, strict explicit command input, actual Unix-proxy
 method/depth/query/header forwarding, and explicit model choice versus omitted/
 false. Lost read acknowledgements retain the prepared response and replay without
 another inference; no legacy backfill or live-provider qualification is claimed.
+
+Shared Swift app-model tests additionally exercise deliberate acknowledgement
+when an incoming body is displayed, serial queued receipts, hidden/sent/read/
+protected exclusions, unchanged disposition/revision/response requirement, no
+provider checks, AI-mode acknowledgement without publishing authority, and
+lost-ack/reconnection without automatic replay. Native rendering tests verify
+viewport-visible bodies rather than merely mounted offscreen records, including
+reusing a view for another message. Foreground mobile fixtures use the same
+model and successive reply composer. CLI/observer/background reads remain
+read-only; displaying a message is the app's separate acknowledgement action.
 
 ## Tool-disabled response-contract regressions
 
