@@ -256,7 +256,7 @@ func (a *app) initWorker(args []string) (any, error) {
 	identitySocket := fs.String("identity-socket", "", "protected socket of this agent's separate identity service")
 	providerName := fs.String("provider", "codex", "preferred provider")
 	workspace := fs.String("workspace-root", "", "owned workspace parent")
-	allow := fs.Bool("allow-workspace-tools", false, "explicitly authorize tools in generated owned workspaces")
+	allow := fs.Bool("allow-workspace-tools", true, "legacy configuration slot; normal local OS-user access is already available")
 	if err := parse(fs, args); err != nil {
 		return nil, err
 	}

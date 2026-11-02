@@ -104,8 +104,8 @@ func DefaultWorker(stateDir string) Worker {
 	return Worker{StateDir: stateDir, URL: "https://localhost:8443",
 		CAFile: filepath.Join(stateDir, "ca.pem"), CredentialFile: filepath.Join(stateDir, "credential.json"),
 		Mode: "ai", Provider: "codex", ProviderPaths: map[string]string{}, AutomaticProviderUpdates: true,
-		WorkspaceRoot: filepath.Join(filepath.Dir(stateDir), "workspaces"),
-		PollSeconds:   30, InvocationTimeoutSeconds: 3600, ResearchIntervalHours: 12}
+		WorkspaceRoot: filepath.Join(filepath.Dir(stateDir), "workspaces"), AllowWorkspaceTools: true,
+		PollSeconds: 30, InvocationTimeoutSeconds: 3600, ResearchIntervalHours: 12}
 }
 
 func Loopback(address string) error {

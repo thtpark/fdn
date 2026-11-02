@@ -3,6 +3,7 @@ package remote
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"syscall"
 	"time"
@@ -45,6 +46,10 @@ func (p ownedProcess) stopped() (bool, error) {
 }
 
 func (p ownedProcess) stop(ctx context.Context) error {
+	return p.stopWithSignal(ctx, syscall.Kill)
+}
+
+func (p ownedProcess) stopWithSignal(ctx context.Context, signal func(int, syscall.Signal) error) error {
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 	for {
@@ -66,7 +71,7 @@ func (p ownedProcess) stop(ctx context.Context) error {
 	}
 	current, err := inspectProcess(p.PID)
 	if err != nil {
-		return err
+		return fmt.Errorf("recheck owned session process identity before signalling: %w", err)
 	}
 	if current == nil {
 		return p.waitStopped(ctx)
@@ -77,10 +82,15 @@ func (p ownedProcess) stop(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := syscall.Kill(-p.Group, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
-		return err
+	signalErr := signal(-p.Group, syscall.SIGKILL)
+	if signalErr != nil && !errors.Is(signalErr, syscall.ESRCH) && !errors.Is(signalErr, syscall.EPERM) {
+		return fmt.Errorf("signal owned session process group: %w", signalErr)
 	}
-	return p.waitStopped(ctx)
+	// A racing Darwin shutdown can return EPERM; only disappearance proves cleanup.
+	if err := p.waitStopped(ctx); err != nil {
+		return errors.Join(signalErr, err)
+	}
+	return nil
 }
 
 func (p ownedProcess) waitStopped(ctx context.Context) error {

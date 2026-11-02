@@ -6,6 +6,23 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Human help and normal local access source work (0.3.22)
+
+Typed protected help-message actions open an exact unexpired scope from desktop
+and foreground iOS. Existing active grants are reused; a missing grant requires
+explicit Founder review/authorization before opening. Server-side session
+creation rejects expired/resolved notices and changed parties/provider/project/
+task/screen scope. Phone terminal bytes use a binary-only app-private bridge;
+VNC uses trusted bundled assets, ephemeral loopback browser state and existing
+pinned SSH/mTLS relay. No credential UI enters JSON, transcripts or clipboard.
+Foreground teardown closes owned sessions without changing automation mode.
+Current task status stays at the top level across tabs/scrolling in both apps.
+Approved coding calls use normal installing-user filesystem/command/component
+access without a redundant workspace opt-in; explicit disabled bindings,
+task/mode/uncertainty/OS/financial authority remain. Text-only controller calls
+remain tool-disabled. Source/build fixtures are not a live rollout or physical
+phone/provider sign-in/privacy qualification.
+
 ### Shared capacity and environment source work (0.3.17)
 
 Startup capacity discovery and environment reporting use one native collector

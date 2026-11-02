@@ -40,6 +40,8 @@ type Runtime struct {
 	writers              chan struct{}
 	lastError            *domain.Fault
 	closed               bool
+	human                *humanSession
+	nextHuman            uint64
 }
 
 type foreground struct {
@@ -68,6 +70,7 @@ type Request struct {
 	Body        json.RawMessage `json:"body,omitempty"`
 	OperationID string          `json:"operation_id,omitempty"`
 	Revision    int64           `json:"revision,omitempty"`
+	HumanID     uint64          `json:"human_id,omitempty"`
 }
 
 func New(root string) (*Runtime, error) {
@@ -315,6 +318,7 @@ func (r *Runtime) closeRun(f *foreground) error {
 }
 
 func (r *Runtime) Stop() error {
+	humanErr := r.stopHuman()
 	r.mu.RLock()
 	for _, cancel := range r.calls {
 		cancel()
@@ -334,9 +338,9 @@ func (r *Runtime) Stop() error {
 		r.canceled = make(map[string]time.Time)
 		r.cancellationOverflow = false
 		r.mu.Unlock()
-		return nil
+		return humanErr
 	}
-	err := r.closeRun(f)
+	err := errors.Join(humanErr, r.closeRun(f))
 	r.mu.Lock()
 	r.canceled = make(map[string]time.Time)
 	r.cancellationOverflow = false
@@ -411,7 +415,11 @@ func (r *Runtime) Call(data []byte) []byte {
 	if request.ID == "" || len(request.ID) > 128 || strings.ContainsAny(request.ID, "\x00\r\n") {
 		return envelope(nil, request.OperationID, domain.Fail(domain.Invalid, "mobile call requires a bounded unique ID"))
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeout := 30 * time.Second
+	if request.Op == "human.wait" {
+		timeout = 15 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	r.mu.Lock()
 	if expiry, found := r.canceled[request.ID]; found && time.Now().Before(expiry) {
 		delete(r.canceled, request.ID)
@@ -448,6 +456,10 @@ func (r *Runtime) Call(data []byte) []byte {
 
 func (r *Runtime) execute(ctx context.Context, q Request) (any, error) {
 	switch q.Op {
+	case "human.open":
+		return r.openHuman(ctx, q)
+	case "human.wait":
+		return r.waitHuman(ctx, q.HumanID)
 	case "runtime.status":
 		return r.status(), nil
 	case "runtime.prepare":

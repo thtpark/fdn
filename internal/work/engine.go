@@ -829,9 +829,6 @@ func (e *Engine) workspace(ctx context.Context, c config.Worker, task domain.Tas
 }
 
 func (e *Engine) projectWorkspace(ctx context.Context, c config.Worker, projectID string) (local.Binding, error) {
-	if !c.AllowWorkspaceTools {
-		return local.Binding{}, domain.Fail(domain.Prerequisite, "automatic project workspaces require explicit allow_workspace_tools permission")
-	}
 	path := filepath.Join(c.WorkspaceRoot, projectID)
 	if err := secure.Dir(path); err != nil {
 		return local.Binding{}, err

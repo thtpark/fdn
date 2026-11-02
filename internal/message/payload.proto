@@ -684,6 +684,8 @@ message Go_Message {
   Go_AnnouncementContext announcement = 21;
   List_Go_FileReference attachments = 22;
   Go_FileDownloadReceipt file_download = 23;
+  Go_AssistanceHelpRequest help = 24;
+  Signed server_observed_at = 25;
 }
 
 message Go_MessageAction {
@@ -736,6 +738,7 @@ message Go_MessageCommand {
   Bool insistence = 11;
   Go_MessageAction request = 12;
   List_String attachment_ids = 13;
+  Go_AssistanceHelpRequest help = 14;
 }
 
 message Go_MessageDiagnostics {
@@ -777,6 +780,7 @@ message Go_MessageRequest {
   Bool insistence = 11;
   Go_MessageAction request = 12;
   List_String attachment_ids = 13;
+  Go_AssistanceHelpRequest help = 14;
 }
 
 message Go_MessageWorkerCommand {
@@ -1099,6 +1103,7 @@ message Go_SessionRequest {
   String screen_id = 12;
   String application_id = 13;
   Bool desktop_fallback = 14;
+  String help_message_id = 15;
 }
 
 message Go_SharedFile {

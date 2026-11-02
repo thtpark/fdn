@@ -1207,7 +1207,7 @@ after its assigned work. Named/independent policy, current project authority,
 Founder mode control, owned local tools and the same serial slot all still apply.
 A verifier never uses the assignee's private workspace reference or required
 execution provider/model: it uses its own preferred provider/model and its own
-reusable `workspace_root/PROJECT` binding under explicit `allow_workspace_tools`.
+reusable `workspace_root/PROJECT` binding under normal installing-user OS access.
 A disabled binding is not replaced. Preparation, messages and mentions remain tool-disabled.
 
 `POST /v1/tasks/TASK/claim` accepts optional `kind` (`execution` by default,
