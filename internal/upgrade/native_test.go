@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -157,6 +159,59 @@ func preparePermit(t *testing.T, native *Native, recorder *nativeRecorder, signe
 		t.Fatal(err)
 	}
 	return permit
+}
+
+func TestNativeFoundationColdBackupRequiresPinnedFilesystemContent(t *testing.T) {
+	native, _, _, _ := nativeFixture(t)
+	native.Policy.Role = "foundation"
+	state := filepath.Join(filepath.Dir(native.Policy.ConfigFile), "server")
+	if err := os.Mkdir(state, 0700); err != nil {
+		t.Fatal(err)
+	}
+	server := config.Server{StateDir: state, CertFile: filepath.Join(state, "server.pem"),
+		KeyFile: filepath.Join(state, "server-key.pem"), IngressSocket: "/run/fdn/api.sock",
+		JoinSocket: "/run/fdn/join.sock"}
+	if err := config.Write(native.Policy.ConfigFile, server); err != nil {
+		t.Fatal(err)
+	}
+	var header [100]byte
+	copy(header[:], "SQLite format 3\x00")
+	binary.BigEndian.PutUint32(header[60:64], 10)
+	databasePath := filepath.Join(state, "foundation.sqlite")
+	if err := os.WriteFile(databasePath, header[:], 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := native.backupPaths(); err == nil {
+		t.Fatal("SQL10 content was silently omitted from a cold backup")
+	}
+	if err := os.Mkdir(server.FileDirectory(), 0711); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := native.backupPaths(); err == nil {
+		t.Fatal("unpinned mutable file_dir was accepted as administrator backup authority")
+	}
+	native.Policy.BackupPaths = append(native.Policy.BackupPaths, server.FileDirectory())
+	paths, err := native.backupPaths()
+	if err != nil || !slices.Contains(paths, server.FileDirectory()) {
+		t.Fatal("pinned content store was not included in the cold backup", paths, err)
+	}
+	if err := os.Remove(server.FileDirectory()); err != nil {
+		t.Fatal(err)
+	}
+	binary.BigEndian.PutUint32(header[60:64], 9)
+	if err := os.WriteFile(databasePath, header[:], 0600); err != nil {
+		t.Fatal(err)
+	}
+	native.Policy.BackupPaths = native.Policy.BackupPaths[:len(native.Policy.BackupPaths)-1]
+	if _, err := native.backupPaths(); err != nil {
+		t.Fatal("retained SQL9 database-only backup was unnecessarily rejected", err)
+	}
+	if err := os.WriteFile(databasePath+"-wal", []byte("uncheckpointed schema evidence"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := native.backupPaths(); err == nil {
+		t.Fatal("stale legacy header was treated as proof that no external files exist")
+	}
 }
 
 func TestNativeUpgradeColdBackupApplyReceiptAndExactReplay(t *testing.T) {

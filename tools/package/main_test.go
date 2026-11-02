@@ -38,7 +38,7 @@ func TestFoundationPackageUnitUsesSeparateWritableIngress(t *testing.T) {
 	}
 	for _, required := range []string{
 		"User=fdn\nGroup=fdn\n", "SupplementaryGroups=fdn_ingress\n", "ProtectSystem=strict\n",
-		"ReadWritePaths=\"/var/lib/fdn\" \"/run/fdn-ingress\"\n",
+		"ReadWritePaths=\"/var/lib/fdn\" \"/var/lib/fdn-files\" \"/run/fdn-ingress\"\n",
 		"ExecStart=\"/usr/bin/fdn-service\" --config \"/var/lib/fdn/server.json\" serve\n",
 	} {
 		if !strings.Contains(unit.Content, required) {

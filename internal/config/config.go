@@ -22,12 +22,20 @@ import (
 
 type Server struct {
 	StateDir      string `json:"state_dir"`
+	FileDir       string `json:"file_dir,omitempty"`
 	CertFile      string `json:"cert_file"`
 	KeyFile       string `json:"key_file"`
 	IngressSocket string `json:"ingress_socket,omitempty"`
 	JoinSocket    string `json:"join_socket,omitempty"`
 	IngressGroup  int    `json:"ingress_group,omitempty"`
 	AccountSocket string `json:"account_socket,omitempty"`
+}
+
+func (c Server) FileDirectory() string {
+	if c.FileDir != "" {
+		return c.FileDir
+	}
+	return filepath.Clean(c.StateDir) + "-files"
 }
 
 type SSH struct {
@@ -140,7 +148,17 @@ func (c Server) Validate() error {
 	if !filepath.IsAbs(c.IngressSocket) || !filepath.IsAbs(c.JoinSocket) || c.IngressSocket == c.JoinSocket || c.IngressGroup < -1 || (c.AccountSocket != "" && !filepath.IsAbs(c.AccountSocket)) {
 		return domain.Fail(domain.Invalid, "Foundation requires distinct absolute Unix ingress sockets")
 	}
+	files := c.FileDirectory()
+	if !filepath.IsAbs(files) || filepath.Clean(files) != files || strings.ContainsAny(files, "\x00\r\n%") ||
+		files == "/" || pathWithin(c.StateDir, files) || pathWithin(files, c.StateDir) {
+		return domain.Fail(domain.Invalid, "file_dir must be a canonical absolute directory outside the private server state ancestry")
+	}
 	return nil
+}
+
+func pathWithin(parent, child string) bool {
+	relative, err := filepath.Rel(parent, child)
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 func (c Worker) Validate() error {

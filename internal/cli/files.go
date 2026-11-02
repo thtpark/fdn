@@ -104,9 +104,48 @@ func (a *app) downloadFile(ctx context.Context, r *resources, id string, args []
 	return filetransfer.Download(ctx, r.client, r.state, a.operation, id, *path, nil)
 }
 
+func (a *app) acknowledgeSavedFile(ctx context.Context, r *resources, id string, args []string) (any, error) {
+	fs := flag.NewFlagSet("file downloaded", flag.ContinueOnError)
+	path := fs.String("path", "", "existing private receiver-local copy; verified and synced before receipt")
+	input := fs.String("input", "", "exact download receipt JSON file or -")
+	if err := parse(fs, args); err != nil {
+		return nil, err
+	}
+	if *path == "" || *input == "" {
+		return nil, domain.Fail(domain.Invalid, "file downloaded requires --path LOCAL_FILE and --input FILE; metadata alone cannot acknowledge a download")
+	}
+	var req domain.FileDownloadRequest
+	if err := inputFile(*input, a.in, &req); err != nil {
+		return nil, err
+	}
+	if err := a.metadata(&req.Command); err != nil {
+		return nil, err
+	}
+	witness := struct {
+		FileID  string                     `json:"file_id"`
+		Path    string                     `json:"path"`
+		Request domain.FileDownloadRequest `json:"request"`
+	}{FileID: id, Path: *path, Request: req}
+	previous := witness
+	found, err := r.state.Get(ctx, "file-receipt:"+req.OperationID, &previous)
+	if err != nil {
+		return nil, err
+	}
+	if found && previous != witness {
+		return nil, domain.Fail(domain.Conflict, "receipt operation belongs to a different retained local copy or exact proposal")
+	}
+	if err := filetransfer.VerifySaved(ctx, *path, req.Size, req.SHA256); err != nil {
+		return nil, err
+	}
+	if err := r.state.Put(ctx, "file-receipt:"+req.OperationID, witness); err != nil {
+		return nil, err
+	}
+	return a.write(ctx, r, api.Path("files", id, "downloaded"), req, "")
+}
+
 func (a *app) fileCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "file requires upload, transfer, upload-status, begin, put-chunk, finalize, publish, grant, delete, downloaded, list, show, chunk or download")
+		return nil, domain.Fail(domain.Invalid, "file requires upload, transfer, upload-status, download-status, begin, put-chunk, finalize, publish, grant, delete, downloaded, list, show, chunk or download")
 	}
 	switch args[0] {
 	case "upload", "transfer":
@@ -122,6 +161,22 @@ func (a *app) fileCommand(ctx context.Context, r *resources, args []string) (any
 		}
 		if !found {
 			return nil, domain.Fail(domain.NotFound, "no retained local upload proposal")
+		}
+		return proposal, nil
+	case "download-status":
+		if err := requireArgs(args, 2); err != nil {
+			return nil, err
+		}
+		if !domain.ValidOperation(args[1]) {
+			return nil, domain.Fail(domain.Invalid, "download status requires the exact original operation ID")
+		}
+		var proposal filetransfer.Proposal
+		found, err := r.state.Get(ctx, "file-download:"+args[1], &proposal)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			return nil, domain.Fail(domain.NotFound, "no retained local download proposal")
 		}
 		return proposal, nil
 	case "show":
@@ -183,14 +238,7 @@ func (a *app) fileCommand(ctx context.Context, r *resources, args []string) (any
 		}
 		return a.write(ctx, r, api.Path("files", id, "grants"), req, api.Path("files", id))
 	case "downloaded":
-		var req domain.FileDownloadRequest
-		if err := a.input(tail, &req); err != nil {
-			return nil, err
-		}
-		if err := a.metadata(&req.Command); err != nil {
-			return nil, err
-		}
-		return a.write(ctx, r, api.Path("files", id, "downloaded"), req, "")
+		return a.acknowledgeSavedFile(ctx, r, id, tail)
 	case "finalize", "publish", "delete":
 		var req domain.FileChangeRequest
 		if err := a.input(tail, &req); err != nil {

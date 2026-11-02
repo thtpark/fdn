@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/device"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/filestore"
 	"github.com/thtpark/fdn/internal/foundation"
 	"github.com/thtpark/fdn/internal/pki"
 	"github.com/thtpark/fdn/internal/secure"
@@ -20,12 +22,32 @@ func TestEncryptedSnapshotRestoreAndTamper(t *testing.T) {
 	ctx := context.Background()
 	root := filepath.Join(t.TempDir(), "private")
 	serverRoot := filepath.Join(root, "server")
-	store, err := foundation.Open(ctx, filepath.Join(serverRoot, "foundation.sqlite"))
+	store, err := foundation.OpenWithFiles(ctx, filepath.Join(serverRoot, "foundation.sqlite"),
+		foundation.FileStoreOptions{Permissions: filestore.PermissionFunc(func(context.Context, string, []uint32) error { return nil })})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer store.Close()
 	agent, err := testidentity.Register(ctx, store, "", "founder", 4100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := []byte("encrypted backup must retain the actual external filesystem bytes")
+	file, err := store.BeginFile(ctx, agent.ID, domain.FileUploadRequest{
+		Command: domain.Command{OperationID: "backup-file-begin"}, Name: "retained.txt",
+		MediaType: "text/plain", Size: int64(len(content)), SHA256: domain.Hash(string(content)),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.PutFileChunk(ctx, agent.ID, file.ID, domain.FileChunkRequest{
+		Command: domain.Command{OperationID: "backup-file-chunk"}, Data: content, SHA256: file.SHA256,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	file, err = store.FinalizeFile(ctx, agent.ID, file.ID, domain.FileChangeRequest{
+		Command: domain.Command{OperationID: "backup-file-finalize"}, Reason: "explicit backup fixture upload",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,11 +72,21 @@ func TestEncryptedSnapshotRestoreAndTamper(t *testing.T) {
 	if err := Restore(ctx, output, keyFile, recovered); err != nil {
 		t.Fatal(err)
 	}
-	restored, err := foundation.Open(ctx, filepath.Join(recovered, "foundation.sqlite"))
+	restored, err := foundation.OpenWithFiles(ctx, filepath.Join(recovered, "foundation.sqlite"),
+		foundation.FileStoreOptions{Permissions: filestore.PermissionFunc(func(_ context.Context, _ string, readers []uint32) error {
+			if len(readers) != 0 {
+				t.Error("restore reactivated old Foundation-host file access", readers)
+			}
+			return nil
+		})})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer restored.Close()
+	saved, err := os.ReadFile(filepath.Join(recovered+"-files", file.ID, file.Name))
+	if err != nil || !bytes.Equal(saved, content) {
+		t.Fatal("encrypted database snapshot omitted external content", err)
+	}
 	if _, err := restored.Me(ctx, agent.ID); err == nil {
 		t.Fatal("restored snapshot resurrected the old identity")
 	}

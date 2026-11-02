@@ -164,6 +164,13 @@ if [ -e /var/lib/fdn ] || [ -L /var/lib/fdn ]; then
 else
   install -d -m 0700 -o fdn -g fdn /var/lib/fdn
 fi
+if [ -e /var/lib/fdn-files ] || [ -L /var/lib/fdn-files ]; then
+  test -d /var/lib/fdn-files && test ! -L /var/lib/fdn-files
+  test "$(stat -c %u /var/lib/fdn-files)" = "$(id -u fdn)"
+  test "$(stat -c %a /var/lib/fdn-files)" = 711
+else
+  install -d -m 0711 -o fdn -g fdn /var/lib/fdn-files
+fi
 if command -v systemctl >/dev/null; then systemctl daemon-reload; fi
 runuser -u fdn -- env HOME=/var/lib/fdn /usr/bin/fdn-service guide install --home /var/lib/fdn
 printf '%s\n' 'State and identities are preserved. Follow DEPLOYMENT.md for signed Founder setup, isolated accounts/ingress, and explicit service startup.'

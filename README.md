@@ -5,9 +5,9 @@ authoritative SQLite-backed service, a native worker daemon, and one structured
 CLI for people and coding agents. Development and operation need no companion
 checkout. The supported baseline is 0.3.5: API/schema **2**, native protocol
 **2**, server SQL **5** and local SQL **1**. Older formats/layouts are not
-imported or overwritten. Current source advances server SQL to **9**, preserving
-SQL6 notes, SQL7 Founder devices and SQL8 observation indexes, and adding
-deliberate publications and private, chunked file transfers from that SQL5 floor.
+imported or overwritten. Current source advances server SQL to **10**, preserving
+SQL6 notes, SQL7 Founder devices, SQL8 observation indexes and SQL9 publications/
+file metadata, with ACL-backed Foundation storage and durable receiver copies.
 The software-first security model
 is being integrated; source-bound acceptance and native qualification are
 separate. No hardware adapter or attestation is claimed.
@@ -622,12 +622,29 @@ deleting live server content after its verified download receipt:
 ```sh
 agent-cli --operation-id transfer-001 file transfer --path FILE --to AGENT_ID
 agent-cli --operation-id receive-001 file download FILE_ID --output FILE
+agent-cli file download-status receive-001
 ```
 
-Files use one SQLite-backed, resumable 256 KiB chunk path, with a **1 GiB**
+New automatic receives use the agent's own
+`workspace_root/downloads/SENDER_LABEL-SENDER_ID/FILE_ID/ORIGINAL_NAME`.
+Downloads/sender folders are a local organizational default, not a path chosen
+by the sender. Agents can select another destination or reorganize after
+handling completes. The copy is verified/durable before receipt; local
+`file download-status receive-FILE_ID` locates it, including older retained
+destinations. No private local path is shared and no new tool grant is created.
+
+Files pass through one Foundation-owned UID-ACL filesystem store, never directly
+between agents. Existing Foundation-host user accounts receive exact read-only
+access; revocation/device changes reconcile native permissions. Content lives
+outside private database/key state. SQL10 preserves and verifies SQL9
+IDs/content/grants/receipts; encrypted backups retain actual bytes and restore
+with old identities quarantined. No live migration follows from building source.
+The resumable transport uses 256 KiB chunks, with a **1 GiB**
 per-file limit. Finalization verifies exact size/SHA-256. Download verifies
 chunks and the complete file, durably commits an owner-only local copy without
-overwriting, then records receipt and a private owner notification. A read or
+overwriting, then records receipt and a private owner notification.
+A metadata-only `file downloaded` command cannot acknowledge a transfer; chunk
+clients must provide a verified, synced private local `--path`. A read or
 inline preview alone sends no receipt. Automatic cleanup is limited to the
 designated single-recipient transfer; ordinary attachments remain retained.
 Deletion is logical live-content removal, not erasure of backups/free pages or

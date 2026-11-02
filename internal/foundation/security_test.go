@@ -61,7 +61,7 @@ func securityEmptyStore(t *testing.T) *securityFixture {
 	f := &securityFixture{path: filepath.Join(securityDirectory(t), "private", "foundation.sqlite"),
 		now: time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)}
 	var err error
-	f.s, err = Open(context.Background(), f.path)
+	f.s, err = OpenWithFiles(context.Background(), f.path, FileStoreOptions{Permissions: &recordingFilePermissions{readers: make(map[string][]uint32)}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -587,7 +587,7 @@ func TestSecurityOfflineRecoveryOfEnrolledFounderAndFutureSchema(t *testing.T) {
 		t.Fatal("legacy Founder recovery lost provenance", agent, err)
 	}
 	path := filepath.Join(securityDirectory(t), "private", "future.sqlite")
-	db, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, devicesSchema, observationSchema, publicationsSchema, "SELECT 1;"}, 5)
+	db, err := database.Open(ctx, path, append(serverSchemas(), "SELECT 1;"), 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,13 +600,13 @@ func TestSecurityOfflineRecoveryOfEnrolledFounderAndFutureSchema(t *testing.T) {
 		t.Fatal("future schema was opened")
 	}
 	assertCode(t, err, domain.Prerequisite)
-	probe, err := database.Open(ctx, path, []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, devicesSchema, observationSchema, publicationsSchema, "SELECT 1;"}, 5)
+	probe, err := database.Open(ctx, path, append(serverSchemas(), "SELECT 1;"), 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer probe.Close()
 	var version int
-	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 10 {
+	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 11 {
 		t.Fatal("future schema refusal modified retained database", version, err)
 	}
 }

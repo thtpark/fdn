@@ -193,13 +193,12 @@ The source baseline is 0.3.5: current signed identities, server SQL5, local SQL1
 and backup manifest2. Older formats/layouts are unsupported, not automatically
 adopted. Preserve current state and explicit configuration paths; compatibility
 removal is not authorization to delete installations or recovery evidence.
-Current source appends SQL6 for shared notes, SQL7 for Founder devices, SQL8 for
-observation indexes and SQL9 for deliberate publications/private files;
-upgrade the server/account helper before device-aware clients. Preserve SQL5/SQL6
-records and never assume older binaries can read the upgraded database.
-Files start private; shared attachments need owner publication. Transfer
-receipt/notification/deletion is atomic, not backup/copy erasure. Shared
-publications never auto-fetch/install skills, upload knowledge or grant authority.
+SQL6 adds notes, SQL7 Founder devices, SQL8 indexes, SQL9 publications/files and
+SQL10 Foundation-host UID ACL storage. Upgrade server/account helper first;
+preserve SQL5+ records. Older binaries cannot read the upgraded database.
+Files go through Foundation, never peers. Persist receiver-local bytes before
+receipt/cleanup. Shared attachments need owner publication; deletion is not
+backup/copy erasure. Published skills never auto-install or grant authority.
 
 Read [DEVELOPMENT.md](DEVELOPMENT.md), [SCHEMA.md](SCHEMA.md), and
 [TEST_PLAN.md](TEST_PLAN.md). Make surgical changes; preserve identity, mode,

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/filestore"
 	"github.com/thtpark/fdn/internal/foundation"
 	"github.com/thtpark/fdn/internal/testidentity"
 )
@@ -30,7 +31,8 @@ type authenticationAPIFixture struct {
 func newAuthenticationAPIFixture(t *testing.T) *authenticationAPIFixture {
 	t.Helper()
 	ctx := context.Background()
-	store, err := foundation.Open(ctx, filepath.Join(t.TempDir(), "private", "foundation.sqlite"))
+	store, err := foundation.OpenWithFiles(ctx, filepath.Join(t.TempDir(), "private", "foundation.sqlite"),
+		foundation.FileStoreOptions{Permissions: filestore.PermissionFunc(func(context.Context, string, []uint32) error { return nil })})
 	if err != nil {
 		t.Fatal(err)
 	}

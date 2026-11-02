@@ -116,7 +116,7 @@ over another user's files. It never enrolls/authenticates or enables work.
 
 | Command | Required leaf arguments / effect |
 | --- | --- |
-| `fdn-service init` | `--state ABS --founder-request PUBLIC --ingress-socket ABS --join-socket ABS --ingress-group GID --account-socket ABS`; signed Founder preparation, private recoverable initialization, no TCP/bearer bootstrap |
+| `fdn-service init` | `--state ABS [--file-dir ABS] --founder-request PUBLIC --ingress-socket ABS --join-socket ABS --ingress-group GID --account-socket ABS`; signed Founder preparation, private recoverable initialization; default content store is STATE-files, never TCP/bearer bootstrap |
 | `fdn-service serve` | Unprivileged inner-TLS API/join Unix listeners plus private root-local maintenance; one server lock |
 | `fdn-service doctor` | Read-only SQLite integrity/TLS pair/configuration checks |
 | `fdn-service accounts serve` | `--input ROOT_CONFIG`; narrow root Linux Unix account provisioner, only the pinned server UID may call |
@@ -1119,10 +1119,11 @@ remains local and is never automatically promoted into shared notes.
 
 ## Files, publications and attachments
 
-Foundation 0.3.18 appends **SQL9**. API/application schema 2, native protocol 2,
+Foundation 0.3.18 added SQL9; **0.3.21 appends SQL10** for UID-ACL filesystem
+storage and restart-safe materialization. API/application schema 2, native protocol 2,
 local SQL1 and backup manifest2 remain unchanged, but the additive locked native
 payload ledger requires compatible server, proxies, clients and receivers.
-Deploy the server first; SQL8 binaries cannot open SQL9. These paths remain
+Deploy the server first; SQL9 binaries cannot open SQL10. These paths remain
 authenticated native protobuf over pinned SSH/mTLS, not a public file/HTTP server.
 
 ### Files and recipient grants
@@ -1132,13 +1133,14 @@ authenticated native protobuf over pinned SSH/mTLS, not a public file/HTTP serve
 | `agent-cli file upload` | `--path FILE [--media-type MIME --to AGENT --delete-after-download]`; private staged upload and verified ready file metadata; omitted MIME is detected from a bounded prefix |
 | `agent-cli file transfer` | `--path FILE --to AGENT [--media-type MIME --delete-after-download=false]`; explicit single-recipient private transfer; automatic deletion defaults to true |
 | `agent-cli file upload-status` | `OPERATION_ID`; read-only original local upload proposal/result, not a fresh remote observation |
+| `agent-cli file download-status` | `OPERATION_ID`; local-only original destination, file declaration, completion and receipt journal, including `receive-FILE_ID` automatic operations; no network, file move or acknowledgement |
 | `agent-cli file begin` | `--input FILE`; immutable name/media_type/size/sha256 declaration, optional transfer_to/delete_after_download; owner-private staged file ID |
 | `agent-cli file put-chunk` | `FILE_ID --input FILE`; offset/data (base64 in JSON)/sha256 plus operation_id; bounded committed upload progress |
 | `agent-cli file finalize` | `FILE_ID --input FILE`; reason plus operation_id; verify all staged chunks, size and SHA-256, then atomically expose ready content/grant the designated receiver |
 | `agent-cli file publish` | `FILE_ID --input FILE`; reason/current revision; owner explicitly makes ready retained content team-readable, recording publisher/time; never a private transfer |
 | `agent-cli file grant` | `FILE_ID --input FILE`; agent_id/revoke/reason/current revision; owner adds/removes one exact active reader of private ready content |
 | `agent-cli file delete` | `FILE_ID --input FILE`; reason/current revision; owner deletes live chunks or incomplete staging, retaining metadata/receipts/references |
-| `agent-cli file downloaded` | `FILE_ID --input FILE`; exact verified size/sha256 plus operation_id; reader attests durable download, receives one immutable receipt |
+| `agent-cli file downloaded` | `FILE_ID --path LOCAL_FILE --input FILE`; exact size/sha256 plus operation_id; verify/sync the actual private receiver-local copy before receipt; local path is never sent to Foundation |
 | `agent-cli file list` | `[--cursor CURSOR --limit 1..200 --include-deleted]`; party/team-authorized metadata page, never private bytes or another actor's grants |
 | `agent-cli file show` | `FILE_ID`; current authorized metadata, including upload progress, ready/deleted state and publication provenance |
 | `agent-cli file chunk` | `FILE_ID [--offset BYTES]`; bodyless read of one aligned chunk, with exact file_id/offset/bytes/hash; no receipt |
@@ -1147,13 +1149,29 @@ authenticated native protobuf over pinned SSH/mTLS, not a public file/HTTP serve
 Every file ID names **immutable bytes**, not a path or a mutable download URL.
 All uploads start private. The size limit is **1,073,741,824 bytes (1 GiB)**;
 chunks are at most **262,144 bytes (256 KiB)** and start at aligned offsets.
-Only the last chunk may be short. There is one service-owned SQLite chunk path;
+Only the last chunk may be short. There is one Foundation-owned filesystem store;
 10,485,759/10,485,760/10,485,761-byte files follow the same verified design, not
 a hidden small/large or CouchDB routing contract. Incomplete uploads remain
 owner-only and resumable after disconnect/restart. Exact committed chunks cannot
 be overwritten; unavailable/deleted content is never presented as a successful
 download. File names reject traversal, slashes and controls. Local source and
 destination access pins owned real directories and rejects final symlinks.
+
+All bytes pass through Foundation, never directly between agents. `file_dir`
+defaults to `STATE-files` (normally `/var/lib/fdn-files`), outside private
+SQLite/TLS state. Files have exact read-only ACLs for existing active
+Foundation-host owner/reader/device UIDs, not remote usernames. Known-file
+traversal uses 0711 directories; group/others cannot list or modify content.
+Owner-only private state stays 0700. Unsupported ACLs or non-traversable
+ancestors fail explicitly, without weakening HOME permissions.
+Grant/revoke/publication and identity/device changes use fail-closed native
+reconciliation around committed authority. Pending errors retain journal/operation
+evidence and fence downloads/receipts; exact replay/startup can reconcile.
+Changing the pinned live `file_dir` is not migration authority.
+Verified SQL9 bytes are materialized before BLOB retirement. Encrypted manifest2
+snapshots embed verified content only in their isolated archive image under the
+shared writer lock; restore quarantines identities before live ACL creation.
+Existing backups remain recoverable, subject to the 2 GiB archive-entry limit.
 
 High-level upload/transfer journals pin the original declaration and derive exact
 per-stage operations. Preserve the original source and `--operation-id`; explicit
@@ -1165,9 +1183,34 @@ can reconcile a receipt even after the transfer's server content was deleted.
 Replaced/missing local resources or changed hash/size block acknowledgement.
 No transport mutation is automatically retried.
 
-From 0.3.19, an AI controller automatically receives **designated** private
-transfers into recipient-owned `state_dir/transfers/FILE_ID.bin`, using the shared
-work slot and exact `receive-FILE_ID` journal. A pending transfer sent while
+0.3.20 corrects the message input adapter: both raw/native `MessageCommand` and
+CLI `MessageRequest` accept optional `attachment_ids`, including an explicit
+empty list, and preserve exact IDs through reply conversion. Omission/empty
+means no attachments; explicit reader grants, owner-only re-sharing and inline
+reference validation remain unchanged. Unknown/protected fields still fail.
+
+From 0.3.21, new automatic **designated** private transfers are saved directly
+into the recipient's local workspace at
+`workspace_root/downloads/SENDER_LABEL-SENDER_ID/FILE_ID/ORIGINAL_NAME`.
+The original filename stays readable; file IDs prevent same-name overwrites.
+The optional sender label uses the existing safe agent-name normalization,
+falling back to the stable sender ID alone for an unusable legacy label.
+Download folders/files stay owner-only (0700/0600), not team-published or
+automatically added to a task repository, extracted or executed. The verified
+workspace copy is durably finalized **before** its receipt/server cleanup.
+
+The recipient chooses its own local organization: explicit `file download
+FILE_ID --output FILE` retains its chosen destination, and completed handled
+downloads can be reorganized locally. Downloads folders and sender subfolders
+are recommendations/defaults, not sender-selected paths or new tool permission.
+Use `file download-status receive-FILE_ID` to discover the exact private path.
+Existing in-flight/legacy journals keep their original destinations, even after
+sender renames, workspace-root changes or a restart; never move them before
+handling completes or rewrite their exact receipt proposals. 0.3.19/0.3.20
+journals under `state_dir/transfers/FILE_ID.bin` are retained, not migrated.
+
+Automatic reception uses the shared work slot and exact `receive-FILE_ID`
+journal. A pending transfer sent while
 manual remains queued until Founder enables AI. No `response_requested:true`,
 provider sign-in, onboarding review or paid inference is required. Ordinary
 attachments are not automatically fetched. Current identity/mode, grants,

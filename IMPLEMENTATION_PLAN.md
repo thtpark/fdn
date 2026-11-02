@@ -595,7 +595,7 @@ receipts plus deliberate current/immutable publication records, preserving
 SQL1-SQL8 and localSQL1. New `file` and `publication` API/native/CLI paths use
 the existing authenticated identity, exact receipts and scoped observation.
 
-- Uploads start private; one SQLite chunk path supports files up to 1 GiB in
+- Uploads start private; one filesystem content store supports files up to 1 GiB in
   256 KiB chunks. There are not two storage paths; exact 10 MiB-adjacent cases
   use the same tested finalization/hash/size contract.
 - Immutable declarations/chunks/file IDs and publication version IDs, safe
@@ -626,6 +626,25 @@ and exact temporary-maintenance restoration of prior AI intent after verified
 rollout results. Newer Founder pauses, manual intent and independent fences remain
 enforced; legacy/operator upgrades need explicit reconciliation. Source tests do
 not imply this follow-up is released or deployed.
+
+0.3.21 source puts new automatic received files in the agent's local workspace
+downloads tree with safe sender grouping and original filenames. Local
+download-status exposes pinned destinations; recipient-chosen paths and legacy
+receipt journals remain unchanged. No inference, execution grant, private path
+publication, implicit live-data migration or deployment is implied.
+
+0.3.21 also appends SQL10 and replaces live SQLite payloads with actual
+Foundation-owned files, exact read-only ACLs for enrolled Foundation-host UIDs
+and durable fail-closed reconciliation around authority commits. SQL9 bytes are
+verified into the pinned store before BLOB retirement; metadata/grants/receipts
+and interrupted recovery evidence remain. Identity/device revocation and team
+publication update native readership. A separate traversable content directory,
+narrow service sandbox and pinned native cold-backup path are required.
+Manifest2 encrypted snapshots retain actual bytes in an isolated archive DB;
+restore quarantines old identities before ACL materialization. Supported
+CLI/native/mobile receipts require a verified/synced receiver-local file, not
+metadata alone. Custom remote filesystem persistence is not attested by a hash.
+Source tests are not live migration/deployment or native Linux multi-UID qualification.
 
 ## Phase 7: idle-generated recurring children
 

@@ -38,12 +38,42 @@ CLI/native fixtures verify durable local commit before acknowledgement,
 interruption/lost-response replay, replaced/symlinked resources and no overwrite.
 No inference, host service, production endpoint, credentials or physical erasure.
 
+`FileStore*`, `SQL10File*`, `NativeFoundationColdBackup*` and
+`ServerFileDirectory*` additionally verify actual filesystem bytes with no live
+BLOB route, exact Foundation-host UID projections, grants/revocation/publication,
+Founder-device activation/revocation, denied ACL installation and exact replay,
+SQL9 materialization preserving IDs/grants/receipts, interrupted uncommitted
+tails, archive-only committed bytes, root pinning and restore quarantine.
+Native ACL adapters test real current-user resources plus deterministic ACL
+plans/permission failures; synthetic business UIDs do not certify another OS
+user's access. Linux cross-builds are not native Linux/multi-UID execution.
+`FileDownloadedCLI*` and shared Swift receipt tests reject metadata-only,
+missing/mismatched/shared/symlinked local copies, keep paths local, and verify
+lost-ack replay still requires actual durable bytes.
+
+`MessageAttachment*`, `AttachedReplyCLI*` and `MessageSendDefaultsResponse*`
+exercise the actual desktop message/reply JSON shape through strict command/
+request decoding, omitted/empty/populated attachment lists, conversion/native
+transport, reply/thread linkage, exact lost-response proposals, current private
+reader grants and rejection of third-party re-sharing/protected provenance.
+Shared Swift composer tests verify omission of empty optional attachment lists
+without losing populated attachments, reply IDs or explicit response opt-out.
+
 `PrivateTransfer*`, `UnreadableAndOrdinary*` and `AutomaticFileReceipt*` additionally
 test manual-to-AI pending notices with `response_requested:false`, no onboarding/
 provider calls, owner-only automatic destinations, shared slot/claim/session/
 maintenance admission, mode/grant/feed cancellation, before-receipt pause,
 atomic server pause checks, lost-ack/restart exact replay and replaced staging.
 Unreadable/deleted/ordinary attachments must not strand other eligible transfers.
+
+Workspace-reception tests assert the actual file bytes/readable original names
+under `workspace_root/downloads`, same-name file/sender isolation, owner-only
+permissions, stable-ID fallback for unusable labels, recipient-chosen paths,
+legacy state-path replay and unchanged destinations after sender/root changes.
+Symlinked, writable/shared directories and traversal names must fail before
+download/receipt; receiving bytes must not create workspace tool bindings.
+Local download-status tests remove credentials and verify the original path/
+completion/receipt is available offline with zero transport or acknowledgement.
 
 The shared Swift `AttachmentsTests` exercise exact pending chunk replay after a
 lost acknowledgement, private journal/generation isolation, complete/chunk hash
@@ -55,7 +85,9 @@ Run related/full macOS Swift suites, rebuild iOS device/simulator/macOS-test
 runtime slices, build the unsigned simulator app and run dedicated local UI
 fixtures. Then run protocol reproducibility and every independent Go suite.
 
-File rows are included in the existing SQLite/trust archive; oversized sources
+Verified filesystem bytes are embedded only into the isolated SQLite/trust
+archive image while the shared writer lock excludes mutations. Live BLOBs
+remain empty; old manifest2 archives stay recoverable. Oversized sources
 must fail before an unrestorable archive is created. Backups/free pages and
 previously downloaded copies are not secure-erasure evidence. These checks do
 not certify live fleet transfers, physical-phone network/lock/kill behavior,

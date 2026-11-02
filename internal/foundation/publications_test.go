@@ -451,7 +451,7 @@ func TestFileStagingReopenAndAnnouncementGrantsStayDurableAndPrivate(t *testing.
 	if err := f.s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	reopened, err := Open(ctx, path)
+	reopened, err := OpenWithFiles(ctx, path, FileStoreOptions{Permissions: f.fileACL})
 	if err != nil {
 		t.Fatal(err)
 	}

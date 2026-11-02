@@ -35,8 +35,8 @@ func TestSQL9PublicationMigrationPreservesSQL8AndRejectsRollback(t *testing.T) {
 	}
 	var version, row int
 	var retained string
-	if err := store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 9 {
-		t.Fatal("ordered migration did not advance to SQL9", version, err)
+	if err := store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 10 {
+		t.Fatal("ordered migration did not advance to SQL10", version, err)
 	}
 	if err := store.db.QueryRow("SELECT rowid,data FROM messages WHERE id='message_retained'").Scan(&row, &retained); err != nil || row != 91 || retained != payload {
 		t.Fatal("SQL9 rewrote retained message order/bytes/receipts", row, retained, err)

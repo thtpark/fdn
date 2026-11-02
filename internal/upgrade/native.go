@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -580,6 +582,35 @@ func (n *Native) backupPaths() ([]string, error) {
 	}
 	paths := append([]string{}, n.Policy.BackupPaths...)
 	paths = append(paths, state, n.Policy.ConfigFile, n.Policy.CAFile)
+	if n.Policy.Role == "foundation" {
+		var server config.Server
+		if err := n.readConfig(n.Policy.ConfigFile, &server); err != nil {
+			return nil, err
+		}
+		content := server.FileDirectory()
+		if !filepath.IsAbs(content) || filepath.Clean(content) != content || content == "/" {
+			return nil, domain.Fail(domain.Denied, "Foundation file_dir is not an explicit canonical backup path")
+		}
+		_, contentErr := os.Lstat(content)
+		if contentErr == nil {
+			if !slices.Contains(n.Policy.BackupPaths, content) {
+				return nil, domain.Fail(domain.Prerequisite, "Foundation file_dir must be explicitly pinned in native backup_paths before an upgrade")
+			}
+			if !slices.Contains(paths, content) {
+				paths = append(paths, content)
+			}
+		} else if errors.Is(contentErr, os.ErrNotExist) {
+			modern, err := n.hasFilesystemFileStore(state)
+			if err != nil {
+				return nil, err
+			}
+			if modern {
+				return nil, domain.Fail(domain.Prerequisite, "Foundation SQL10 content store is missing; a database-only cold backup is unsafe")
+			}
+		} else {
+			return nil, contentErr
+		}
+	}
 	if n.Policy.Role == "agent" {
 		var identity config.IdentityService
 		if err := n.readConfig(n.Policy.IdentityConfig, &identity); err != nil {
@@ -597,6 +628,47 @@ func (n *Native) backupPaths() ([]string, error) {
 		}
 	}
 	return paths, nil
+}
+
+func (n *Native) hasFilesystemFileStore(state string) (bool, error) {
+	file, err := os.OpenFile(filepath.Join(state, "foundation.sqlite"), os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return false, err
+	}
+	uid, _, err := n.Policy.account()
+	if err != nil {
+		return false, err
+	}
+	owner, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || owner.Uid != uint32(uid) || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 {
+		return false, domain.Fail(domain.Denied, "Foundation database is not private or owned by its pinned native service user")
+	}
+	var header [64]byte
+	if _, err := io.ReadFull(file, header[:]); err != nil {
+		return false, err
+	}
+	if string(header[:16]) != "SQLite format 3\x00" {
+		return false, domain.Fail(domain.Prerequisite, "Foundation database header is not a supported SQLite file")
+	}
+	if binary.BigEndian.Uint32(header[60:64]) >= 10 {
+		return true, nil
+	}
+	wal, err := os.Lstat(filepath.Join(state, "foundation.sqlite-wal"))
+	if err == nil && wal.Size() > 0 {
+		return false, domain.Fail(domain.Prerequisite, "cannot prove a database-only file backup from an uncheckpointed legacy header; provision and pin file_dir or inspect stopped state")
+	}
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return false, err
+	}
+	return false, nil
 }
 
 func (n *Native) backup(ctx context.Context, directory, recipient string) (string, error) {

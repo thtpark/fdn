@@ -117,6 +117,71 @@ func TestFilesNativePublicationAttachmentsAndStrictRawInputs(t *testing.T) {
 	}
 }
 
+func TestMessageAttachmentsRawAndNativePreserveReplyAndPrivateAudience(t *testing.T) {
+	for _, native := range []bool{false, true} {
+		t.Run(map[bool]string{false: "raw", true: "native"}[native], func(t *testing.T) {
+			f := newAuthenticationAPIFixture(t)
+			f.server.health.close()
+			ctx := context.Background()
+			owner := messageFixtureClient(t, f.server, f.target.ID)
+			data := []byte("reviewed private reply attachment")
+			file, err := owner.UploadFile(ctx, domain.FileUploadRequest{
+				Command: domain.Command{OperationID: "reply-upload"}, Name: "reply.txt", MediaType: "text/plain",
+				Size: int64(len(data)), SHA256: domain.Hash(string(data))}, bytes.NewReader(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			parent, err := f.store.SendMessage(ctx, f.delegate.ID, domain.MessageRequest{
+				Command: domain.Command{OperationID: "reply-parent"}, RecipientID: f.target.ID,
+				Origin: "human", Kind: "direct", Body: "Please provide the reviewed evidence."})
+			if err != nil {
+				t.Fatal(err)
+			}
+			input := map[string]any{
+				"operation_id": "reply-with-file", "recipient_id": f.delegate.ID, "body": "Reviewed evidence attached.",
+				"origin": "human", "kind": "direct", "urgent": false, "response_requested": false,
+				"reply_to_id": parent.ID, "attachment_ids": []string{file.ID},
+			}
+			var reply domain.Message
+			if native {
+				encoded, err := json.Marshal(input)
+				if err != nil {
+					t.Fatal(err)
+				}
+				reply, err = Call[domain.Message](ctx, owner, "POST", "/v1/messages", json.RawMessage(encoded))
+				if err != nil {
+					t.Fatal("native CLI-shaped attached reply was rejected", err)
+				}
+			} else {
+				response, status := f.request(t, f.target, http.MethodPost, "/v1/messages", input)
+				if !response.OK || status != http.StatusOK {
+					t.Fatal("raw desktop-shaped attached reply was rejected", response, status)
+				}
+				if err := json.Unmarshal(response.Data, &reply); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if len(reply.Attachments) != 1 || reply.Attachments[0] != file.FileReference ||
+				reply.ThreadID != parent.ThreadID || reply.ReplyToID != parent.ID || reply.ResponseRequest {
+				t.Fatal("attached reply lost its exact file, thread or explicit response choice", reply)
+			}
+			receiver := messageFixtureClient(t, f.server, f.delegate.ID)
+			if _, err := Call[domain.FileChunk](ctx, receiver, "GET", Path("files", file.ID, "chunks")+"?offset=0", nil); err != nil {
+				t.Fatal("exact reply recipient did not receive private read access", err)
+			}
+			founder := messageFixtureClient(t, f.server, f.founder.ID)
+			if _, err := Call[domain.SharedFile](ctx, founder, "GET", Path("files", file.ID), nil); domain.AsFault(err).Code != domain.Denied {
+				t.Fatal("attached reply granted an unrelated Founder read bypass", err)
+			}
+			rerequest := domain.MessageRequest{Command: domain.Command{OperationID: "no-reshare"}, RecipientID: f.founder.ID,
+				Body: "Do not re-share another owner's file.", Origin: "human", Kind: "direct", AttachmentIDs: []string{file.ID}}
+			if _, err := Call[domain.Message](ctx, receiver, "POST", "/v1/messages", rerequest); domain.AsFault(err).Code != domain.Denied {
+				t.Fatal("reply recipient acquired attachment re-sharing authority", err)
+			}
+		})
+	}
+}
+
 func stringPointer(value string) *string { return &value }
 
 type fileResponseTransport struct {

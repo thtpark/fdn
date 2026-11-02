@@ -12,6 +12,7 @@ import (
 
 type fixture struct {
 	s           *Store
+	fileACL     *recordingFilePermissions
 	now         time.Time
 	founder     domain.Agent
 	worker      domain.Agent
@@ -25,7 +26,8 @@ func op() domain.Command { return domain.Command{OperationID: domain.NewID("op")
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	ctx := context.Background()
-	s, err := Open(ctx, filepath.Join(t.TempDir(), "private", "foundation.sqlite"))
+	permissions := &recordingFilePermissions{readers: make(map[string][]uint32)}
+	s, err := OpenWithFiles(ctx, filepath.Join(t.TempDir(), "private", "foundation.sqlite"), FileStoreOptions{Permissions: permissions})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +36,7 @@ func newFixture(t *testing.T) *fixture {
 			t.Error(err)
 		}
 	})
-	f := &fixture{s: s, now: time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC),
+	f := &fixture{s: s, fileACL: permissions, now: time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC),
 		keys: map[string]securityKeys{}, activations: map[string]domain.ActivateIdentityRequest{}}
 	s.now = func() time.Time { return f.now }
 	keys := securityPublic(t, "founder")

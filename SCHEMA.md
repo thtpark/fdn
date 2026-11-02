@@ -5,8 +5,8 @@ Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
 Native message protocol version is **2**; server SQLite migration version is
-**9**; local-worker SQLite remains **1**. Existing SQL5-SQL8 databases migrate
-transactionally through SQL9; earlier server-state formats remain unsupported.
+**10**; local-worker SQLite remains **1**. Existing SQL5-SQL9 databases advance
+through ordered SQL10 plus verified filesystem materialization; earlier server-state formats remain unsupported.
 Deploy the server first. Version 2 requires account-bound public-key admission
 and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
 create new runtime identities. Native multi-UID qualification is separate from
@@ -39,7 +39,10 @@ SQL8 adds only history/observer indexes; shipped SQL1-SQL7 and private message
 bytes, insertion order, receipts, identity/work records and history retention
 remain unchanged. SQL9 appends deliberate publications/immutable versions and
 private file metadata, chunks, grants and receipts without rewriting SQL1-SQL8.
-Older binaries cannot open SQL9. Logical content deletion does not certify
+SQL10 appends pinned file-store state and a durable ACL reconciliation journal.
+Live payloads move from SQL9 chunks to one Foundation-owned filesystem store;
+chunk hashes/progress, IDs, grants, receipts and recovery evidence remain.
+Older binaries cannot open SQL10. Logical content deletion does not certify
 physical erasure from backups/WAL/free pages or previously downloaded copies.
 
 New user defaults are grouped under `$HOME/.foundation`: private `config`,
@@ -84,7 +87,9 @@ creates a whole-desktop profile or screen authorization.
 | `project_creators` | Specific Founder-issued one-use project-creation authorization |
 | `notes` | One revisioned team-readable Markdown document per company/project/agent scope, explicit author/time provenance; latest three snapshots in `histories` |
 | `files` | Immutable file ID/name/MIME/size/SHA-256, private owner/staging progress, ready/deleted state, explicit team publisher/time and optional single-recipient automatic-cleanup transfer |
-| `file_chunks` | Immutable aligned bounded upload bytes and hashes, hidden until verified finalization; deleted only by owner or designated verified-receipt cleanup |
+| `file_chunks` | Immutable aligned chunk hashes/progress; live payload slots are empty after verified materialization; legacy/archive bytes are not a second live route |
+| `file_store_state` | One canonical live content directory pinned to this database; changed configuration fails closed rather than adopting a second store |
+| `file_acl_pending` | Durable pending exact native permissions/deletion, including identity/device changes; content stays fenced until reconciliation |
 | `file_grants` | Owner-issued revocable exact-agent read access; no Founder bypass or reader re-sharing authority |
 | `file_downloads` | Unique file/reader immutable size/hash attestation and private notification/deletion receipt |
 | `publications` | Team-readable current file/diary/skill/idea, scope/target metadata, creator/editor, hash/version/revision/archive and optional exact-project delegate edits |
@@ -156,7 +161,23 @@ distinct deliberate actions, not an extension of note context loading.
 
 ### Deliberate files, publications and attachment authority
 
-Files use one SQLite-backed 256 KiB chunk path, with an exact 1 GiB limit;
+Files use one Foundation-owned filesystem store with a 256 KiB transport chunk
+path and an exact 1 GiB limit. Existing enrolled Foundation-host UID accounts,
+not remote installing usernames, receive explicit read-only native ACL entries.
+Private files include only their active owner/devices and exact granted readers;
+team publication includes current active identities. Revocation, bans, recovery
+and Founder-device changes reconcile those entries. Root/service-owner access
+is an OS administrative boundary, not a Founder application read bypass.
+The content directory is outside private SQLite/key state; traversable 0711
+directories permit known-file access without listing or writing. Unsafe
+ancestors/unsupported ACLs fail explicitly; private HOME/state is never relaxed.
+Reader ACLs are withdrawn before authority commit and installed only from
+committed state. Pending native failures fence content/receipts and return an
+error, retaining exact operation/recovery evidence. Startup and exact replay
+reconcile. A process-shared writer lock covers filesystem/SQL/snapshot effects.
+SQL9 materialization verifies complete committed bytes before retiring live
+BLOBs; partial/conflicting copies are retained, never silently replaced.
+There is no peer-to-peer transfer and
 there is no two-path small/large storage boundary. Upload declarations, committed
 chunks and finalized bytes are immutable. Finalization streams and checks all
 offsets/chunk hashes, complete size/SHA-256 and supported inline media signatures
@@ -174,6 +195,10 @@ reads do not imply download, read receipt, task approval or inference.
 Supported downloads verify each chunk and the complete size/hash, fsync and
 atomically finalize an owner-only local copy without overwriting, then attest
 that exact content. Receipt/notification uniqueness is file/reader-bound.
+Chunk-based CLI/native/mobile receipts require `--path` to the actual verified,
+synced private local copy. That path remains local, pinned to its operation;
+missing/replaced bytes cannot be acknowledged or replayed. A custom remote
+client's physical persistence is not cryptographically attested by its hash claim.
 Server-only message `file_download` provenance distinguishes actual accepted
 receipts from ordinary body claims. Designated automatic deletion, receipt and
 private owner notification commit atomically. Owner reads, previews, retained
@@ -192,6 +217,16 @@ The local proposal retains this flag, including false for legacy explicit-downlo
 journals, so replay never changes the original fingerprint. Ordinary attachments
 remain opt-in and unavailable notices cannot imply a successful receipt.
 
+New automatic receives use recipient-owned workspace `downloads` storage with
+safe sender-label/stable-ID grouping, a separate file-ID directory and the
+original filename. The durable local proposal pins that destination before
+bytes/receipt; no source-supplied path, overwrite, execution grant or private
+path publication follows. Local `file download-status OPERATION_ID` exposes the
+retained destination/verification/receipt without contacting Foundation.
+Explicit recipient-chosen paths and legacy `state_dir/transfers` proposals stay
+unchanged through renames/restarts/configuration changes. Existing local/server
+SQL and wire contracts are unchanged by this storage-default change.
+
 Private message attachment grants are resolved transactionally; existing readers
 cannot grant third-party access. Shared tasks/descriptions/criteria, entries and
 publications require prior explicit team publication. Snapshots pin immutable
@@ -200,6 +235,12 @@ edits retain specification/approval invalidation; creator-only entry updates
 retain body-generation/attention rules. Protected handoffs cannot accept ordinary
 attachments. Announcement fan-out uses exact current recipients/epoch and the
 same grants, without weakening request/native-upgrade/spending authority.
+
+Message input decoding carries `attachment_ids` through both `MessageCommand`
+and `MessageRequest` into the same transaction. The 0.3.20 fix appends the missing
+native command field without changing SQL9/API2/protocol2. Existing clients and
+proxies still require the matching locked payload contract; strict unknown-field,
+response/expiry and exact replay validation are not relaxed.
 
 All diary/skill/idea/file publications and complete immutable versions are
 team-readable. Creator/kind/scope/target are immutable; ordinary updates/archive
@@ -1275,7 +1316,7 @@ non-inferencing, body-free warning is sent privately to Founder once per thread.
 Missing Founder delivery remains explicitly pending. Neither threshold nor
 warning changes mode, stops a loop, resets budgets or interrupts work.
 This response-default feature added no native fields or SQL migration.
-Current source uses SQL9/local SQL1. Protected notices remain non-inferencing, and typed operational
+Current source uses SQL10/local SQL1. Protected notices remain non-inferencing, and typed operational
 requests still require a response request.
 
 Non-Founder agents operate autonomously in ai unless an explicit authenticated

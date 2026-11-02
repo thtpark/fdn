@@ -34,6 +34,7 @@ type Health struct {
 
 type MessageCommand struct {
 	Command
+	AttachmentIDs   []string       `json:"attachment_ids,omitempty"`
 	RecipientID     string         `json:"recipient_id"`
 	Body            string         `json:"body"`
 	Origin          string         `json:"origin"`
@@ -84,7 +85,8 @@ func (command *MessageCommand) UnmarshalJSON(data []byte) error {
 func (command MessageCommand) ToRequest() MessageRequest {
 	request := MessageRequest{
 		Command: command.Command, RecipientID: command.RecipientID, Body: command.Body,
-		Origin: command.Origin, Kind: command.Kind, Urgent: command.Urgent,
+		AttachmentIDs: command.AttachmentIDs,
+		Origin:        command.Origin, Kind: command.Kind, Urgent: command.Urgent,
 		ResponseRequest: command.ResponseRequest, ReplyToID: command.ReplyToID,
 		Insistence: command.Insistence, Request: command.Request,
 	}

@@ -33,13 +33,15 @@ type transferFixture struct {
 	beforeChunk   func(*http.Request)
 	owned         []domain.Task
 	sessions      []domain.Session
+	senderName    string
+	senderLookups int
 }
 
 func newTransferFixture(t *testing.T) *transferFixture {
 	t.Helper()
 	f := &transferFixture{base: newPushFixture(t), files: map[string]domain.SharedFile{},
 		content: map[string][]byte{}, revoked: map[string]bool{}, receipts: map[string]domain.FileDownloadReceipt{},
-		receiptBodies: map[string][]byte{}, owned: []domain.Task{}, sessions: []domain.Session{}}
+		receiptBodies: map[string][]byte{}, owned: []domain.Task{}, sessions: []domain.Session{}, senderName: "Sender"}
 	f.base.engine.Client.HTTP.Transport = f
 	return f
 }
@@ -57,6 +59,14 @@ func (f *transferFixture) addFile(id string, content []byte) domain.Message {
 func (f *transferFixture) RoundTrip(r *http.Request) (*http.Response, error) {
 	f.base.mu.Lock()
 	if r.Method == http.MethodGet {
+		for _, file := range f.files {
+			if r.URL.Path == "/v1/agents/"+file.OwnerID {
+				f.senderLookups++
+				sender := domain.Agent{ID: file.OwnerID, Name: f.senderName, Active: true}
+				f.base.mu.Unlock()
+				return f.base.response(sender, nil)
+			}
+		}
 		switch r.URL.Path {
 		case "/v1/messages":
 			items := []domain.Message{}
@@ -121,7 +131,12 @@ func (f *transferFixture) RoundTrip(r *http.Request) (*http.Response, error) {
 			f.base.mu.Unlock()
 			return nil, err
 		}
-		destination := filepath.Join(f.base.engine.Config.StateDir, "transfers", id+".bin")
+		var proposal filetransfer.Proposal
+		found, readErr := f.base.engine.State.Get(r.Context(), "file-download:"+req.OperationID, &proposal)
+		if readErr != nil || !found || !proposal.Complete {
+			f.base.t.Error("receipt preceded durable local verification", found, readErr)
+		}
+		destination := proposal.Destination
 		saved, readErr := os.ReadFile(destination)
 		info, statErr := os.Lstat(destination)
 		if readErr != nil || statErr != nil || info.Mode().Perm() != 0600 || int64(len(saved)) != file.Size ||
@@ -181,7 +196,7 @@ func TestPrivateTransferWaitsForAIThenReceivesWithoutOnboardingOrInference(t *te
 	if handled := f.base.messages[notice.ID]; handled.State != "handled" || handled.ReadAt != 0 || handled.ResponseRequest {
 		t.Fatal("download conflated a receipt with an AI reply or explicit message read", handled)
 	}
-	directory := filepath.Join(f.base.engine.Config.StateDir, "transfers")
+	directory := filepath.Join(f.base.engine.Config.WorkspaceRoot, "downloads", "sender-agent_sender", notice.Attachments[0].ID)
 	if info, err := os.Lstat(directory); err != nil || info.Mode().Perm() != 0700 {
 		t.Fatal("automatic destination directory is not recipient-owned/private", err)
 	}
@@ -189,6 +204,9 @@ func TestPrivateTransferWaitsForAIThenReceivesWithoutOnboardingOrInference(t *te
 	found, err := f.base.engine.State.Get(ctx, "file-download:receive-"+notice.Attachments[0].ID, &proposal)
 	if err != nil || !found || !proposal.Complete || !proposal.Automatic || proposal.Receipt == nil || !proposal.Receipt.ContentDeleted {
 		t.Fatal("verified local receipt was not retained durably", proposal, err)
+	}
+	if proposal.Destination != filepath.Join(directory, "private.bin") {
+		t.Fatal("automatic receipt did not preserve the readable file in the local workspace", proposal.Destination)
 	}
 }
 
@@ -211,12 +229,21 @@ func TestPrivateTransferLostReceiptSurvivesRestartWithoutRedownloadOrDuplicateNo
 		t.Fatal(err)
 	}
 	f.base.engine = New(c, "", client, state, f.base.executor)
+	f.base.engine.Config.WorkspaceRoot = filepath.Join(t.TempDir(), "changed-workspace")
+	f.senderName = "Renamed sender"
 	chunks := f.chunks
 	status, err = f.base.engine.Step(ctx, false)
 	if err != nil || status.State != "file-received" || f.notifications != 1 || f.chunks != chunks || f.base.messages[notice.ID].State != "handled" {
 		t.Fatal("exact receipt replay repeated a download/deletion/notification or lost notice completion", status, err)
 	}
-	files, err := os.ReadDir(filepath.Join(c.StateDir, "transfers"))
+	var proposal filetransfer.Proposal
+	if found, err := state.Get(ctx, "file-download:receive-"+notice.Attachments[0].ID, &proposal); err != nil || !found {
+		t.Fatal("completed receive lost its pinned workspace destination", err)
+	}
+	if f.senderLookups != 1 || !strings.HasPrefix(proposal.Destination, c.WorkspaceRoot+string(filepath.Separator)) {
+		t.Fatal("replay chose a new destination after workspace/sender changes", proposal.Destination, f.senderLookups)
+	}
+	files, err := os.ReadDir(filepath.Dir(proposal.Destination))
 	if err != nil || len(files) != 1 || strings.HasPrefix(files[0].Name(), ".fdn-download-") {
 		t.Fatal("known staging files survived completed receipt replay", files, err)
 	}
@@ -247,6 +274,176 @@ func TestPrivateTransferPreservesLegacyExplicitDownloadJournalOnReceiptReplay(t 
 	var req domain.FileDownloadRequest
 	if err := json.Unmarshal(f.receiptBodies["receive-"+id], &req); err != nil || req.Automatic {
 		t.Fatal("legacy explicit proposal acquired a new automatic receipt fingerprint", req, err)
+	}
+	if f.senderLookups != 0 {
+		t.Fatal("legacy replay chose a new sender-named workspace destination")
+	}
+}
+
+func TestPrivateTransferWorkspaceDownloadsKeepReadableNamesAndSeparateSenders(t *testing.T) {
+	f := newTransferFixture(t)
+	ctx := context.Background()
+	f.senderName = "Alice Smith"
+	type incoming struct {
+		id, sender, content string
+	}
+	transfers := []incoming{
+		{domain.NewID("file"), "agent_sender", "first reviewed report"},
+		{domain.NewID("file"), "agent_sender", "second report with the same filename"},
+		{domain.NewID("file"), "agent_another_sender", "same display name on another sender"},
+	}
+	name := "reviewed report.txt"
+	for _, transfer := range transfers {
+		notice := f.addFile(transfer.id, []byte(transfer.content))
+		file := f.files[transfer.id]
+		file.Name, file.OwnerID = name, transfer.sender
+		f.files[file.ID] = file
+		notice.SenderID, notice.Attachments = file.OwnerID, []domain.FileReference{file.FileReference}
+		f.base.messages[notice.ID] = notice
+	}
+	for range transfers {
+		if status, err := f.base.engine.Step(ctx, false); err != nil || status.State != "file-received" {
+			t.Fatal("workspace receipt failed", status, err)
+		}
+	}
+	for _, transfer := range transfers {
+		want := filepath.Join(f.base.engine.Config.WorkspaceRoot, "downloads", "alice-smith-"+transfer.sender, transfer.id, name)
+		var proposal filetransfer.Proposal
+		if found, err := f.base.engine.State.Get(ctx, "file-download:receive-"+transfer.id, &proposal); err != nil || !found ||
+			proposal.Destination != want || proposal.Receipt == nil {
+			t.Fatal("workspace destination lost the original filename, sender or file identity", proposal, err)
+		}
+		bytes, err := os.ReadFile(want)
+		if err != nil || string(bytes) != transfer.content {
+			t.Fatal("received file was not actually persisted in the local workspace", err)
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(f.base.engine.Config.StateDir, "transfers")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("new downloads were duplicated into opaque private-state staging", err)
+	}
+	bindings, err := f.base.engine.State.Bindings(ctx)
+	if err != nil || len(bindings) != 0 || f.base.executor.invocations.Load() != 0 {
+		t.Fatal("receiving local bytes implicitly granted workspace tool execution", bindings, err)
+	}
+}
+
+func TestPrivateTransferHonorsRecipientChosenPendingDestination(t *testing.T) {
+	f := newTransferFixture(t)
+	ctx := context.Background()
+	notice := f.addFile(domain.NewID("file"), []byte("recipient chose this project-local file"))
+	id := notice.Attachments[0].ID
+	directory := filepath.Join(t.TempDir(), "my-project", "incoming")
+	if err := secure.Dir(directory); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(directory, "my-reviewed-copy.txt")
+	proposal := filetransfer.Proposal{Destination: destination, File: f.files[id]}
+	if err := f.base.engine.State.Put(ctx, "file-download:receive-"+id, proposal); err != nil {
+		t.Fatal(err)
+	}
+	status, err := f.base.engine.Step(ctx, false)
+	if err != nil || status.State != "file-received" || f.senderLookups != 0 {
+		t.Fatal("receiver replaced the agent's chosen download destination", status, err)
+	}
+	data, err := os.ReadFile(destination)
+	if err != nil || string(data) != "recipient chose this project-local file" {
+		t.Fatal("chosen local destination did not contain the verified bytes", err)
+	}
+}
+
+func TestPrivateTransferWorkspaceKeepsOwnedRootPermissionsAndPrivateDownloadFolders(t *testing.T) {
+	f := newTransferFixture(t)
+	ctx := context.Background()
+	workspace := f.base.engine.Config.WorkspaceRoot
+	if err := os.Mkdir(workspace, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(workspace, 0755); err != nil {
+		t.Fatal(err)
+	}
+	notice := f.addFile(domain.NewID("file"), []byte("private file in an owned workspace"))
+	status, err := f.base.engine.Step(ctx, false)
+	if err != nil || status.State != "file-received" {
+		t.Fatal("an existing owned workspace root was incorrectly refused", status, err)
+	}
+	if info, err := os.Stat(workspace); err != nil || info.Mode().Perm() != 0755 {
+		t.Fatal("receiving a file changed the preexisting workspace permissions", err)
+	}
+	path := workspace
+	for _, name := range []string{"downloads", "sender-agent_sender", notice.Attachments[0].ID} {
+		path = filepath.Join(path, name)
+		if info, err := os.Lstat(path); err != nil || !info.IsDir() || info.Mode().Perm() != 0700 {
+			t.Fatal("received file has a nonprivate download-directory ancestor", name, err)
+		}
+	}
+}
+
+func TestPrivateTransferWorkspaceRejectsUnsafeDirectoriesAndNames(t *testing.T) {
+	for _, unsafe := range []string{"workspace-link", "workspace-writable", "downloads-link", "downloads-readable",
+		"sender-link", "file-directory-link", "final-file-link", "filename-traversal"} {
+		t.Run(unsafe, func(t *testing.T) {
+			f := newTransferFixture(t)
+			ctx := context.Background()
+			notice := f.addFile(domain.NewID("file"), []byte("never escape recipient storage"))
+			id := notice.Attachments[0].ID
+			workspace := f.base.engine.Config.WorkspaceRoot
+			directory := filepath.Join(workspace, "downloads", "sender-agent_sender", id)
+			if unsafe == "filename-traversal" {
+				file := f.files[id]
+				file.Name = "../outside.txt"
+				notice.Attachments = []domain.FileReference{file.FileReference}
+				f.files[id], f.base.messages[notice.ID] = file, notice
+			} else {
+				target := map[string]string{
+					"workspace-link": workspace, "workspace-writable": workspace,
+					"downloads-link": filepath.Join(workspace, "downloads"), "downloads-readable": filepath.Join(workspace, "downloads"),
+					"sender-link": filepath.Dir(directory), "file-directory-link": directory, "final-file-link": filepath.Join(directory, "private.bin"),
+				}[unsafe]
+				if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
+					t.Fatal(err)
+				}
+				if strings.HasSuffix(unsafe, "-link") {
+					outside := t.TempDir()
+					if unsafe == "final-file-link" {
+						outside = filepath.Join(outside, "existing.txt")
+						if err := os.WriteFile(outside, []byte("retain recipient evidence"), 0600); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if err := os.Symlink(outside, target); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					if err := os.Mkdir(target, 0700); err != nil {
+						t.Fatal(err)
+					}
+					mode := os.FileMode(0755)
+					if unsafe == "workspace-writable" {
+						mode = 0777
+					}
+					if err := os.Chmod(target, mode); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			if status, err := f.base.engine.Step(ctx, false); err == nil || status.State == "file-received" || f.notifications != 0 || f.chunks != 0 {
+				t.Fatal("unsafe workspace resource was adopted, downloaded or acknowledged", status, err)
+			}
+		})
+	}
+}
+
+func TestPrivateTransferUnsafeSenderLabelFallsBackToStableID(t *testing.T) {
+	f := newTransferFixture(t)
+	f.senderName = "../../sender\n"
+	notice := f.addFile(domain.NewID("file"), []byte("an organizational hint is not a path"))
+	status, err := f.base.engine.Step(context.Background(), false)
+	if err != nil || status.State != "file-received" {
+		t.Fatal("legacy unsafe display label prevented a stable-ID-organized receipt", status, err)
+	}
+	path := filepath.Join(f.base.engine.Config.WorkspaceRoot, "downloads", "agent_sender", notice.Attachments[0].ID, "private.bin")
+	if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
+		t.Fatal("untrusted sender label escaped the local download directory", err)
 	}
 }
 
@@ -403,11 +600,11 @@ func TestPrivateTransferDoesNotOverwriteOrAdoptReplacedStaging(t *testing.T) {
 			ctx := context.Background()
 			notice := f.addFile(domain.NewID("file"), []byte("never overwrite recipient resources"))
 			id := notice.Attachments[0].ID
-			directory := filepath.Join(f.base.engine.Config.StateDir, "transfers")
+			directory := filepath.Join(f.base.engine.Config.WorkspaceRoot, "downloads", "sender-agent_sender", id)
 			if err := secure.Dir(directory); err != nil {
 				t.Fatal(err)
 			}
-			destination := filepath.Join(directory, id+".bin")
+			destination := filepath.Join(directory, "private.bin")
 			if replaceStage {
 				f.beforeChunk = func(*http.Request) {
 					stage := filepath.Join(directory, ".fdn-download-"+domain.Hash("receive-"+id))
