@@ -68,9 +68,11 @@ func TestAutomaticSessionCleanupResumesExistingAIWorkWithoutHumanRecoveryOrInfer
 		}
 	}()
 	grant := grantFor(t, h, h.founderAgent.ID, h.workerAgent.ID, "tmux", "terminal", "")
+	// Model a request crossing a Unix-second boundary before server validation.
+	requestedAt := time.Now().Add(-time.Second)
 	session, err := api.Call[domain.Session](ctx, h.founder, "POST", "/v1/sessions", domain.SessionRequest{
 		Command: command(), GrantID: grant.ID, TargetID: h.workerAgent.ID, Mode: "tmux", Purpose: "terminal",
-		Reason: "Isolated automatic-cleanup fixture", ExpiresAt: time.Now().Unix() + 60,
+		Reason: "Isolated automatic-cleanup fixture", ExpiresAt: requestedAt.Add(2 * time.Minute).Unix(),
 	})
 	if err != nil {
 		t.Fatal(err)
