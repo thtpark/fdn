@@ -46,6 +46,17 @@ func (s *Store) SendMessage(ctx context.Context, actor string, req domain.Messag
 		}
 		m := domain.Message{ID: domain.NewID("message"), SenderID: a.ID, RecipientID: req.RecipientID, Body: req.Body,
 			Origin: req.Origin, Kind: req.Kind, Urgent: req.Urgent, ResponseRequest: req.ResponseRequest, State: "pending", CreatedAt: now, ExpiresAt: expiresAt, Revision: 1}
+		if req.Help != nil {
+			if req.Origin != "service" || (req.Kind != "authentication" && req.Kind != "permission") ||
+				req.Help.Mode != "tmux" || req.Help.ScreenID != "" || req.Help.ApplicationID != "" || req.Help.DesktopFallback ||
+				(req.Help.Purpose != "authentication" && req.Help.Purpose != "terminal") ||
+				(req.Help.Purpose == "authentication" && !domain.ValidProvider(req.Help.Provider)) ||
+				(req.Help.Purpose == "terminal" && req.Help.Provider != "") {
+				return m, domain.Fail(domain.Invalid, "protected local help requires an exact terminal/provider scope; screen help uses assistance request")
+			}
+			m.Help = req.Help
+			m.ServerObservedAt = now
+		}
 		if len(req.AttachmentIDs) != 0 {
 			if system || (req.Kind != "direct" && req.Kind != "request") {
 				return m, domain.Fail(domain.Invalid, "attachments are limited to ordinary private agent messages")
@@ -103,6 +114,9 @@ func assistanceHelpMessage(m domain.Message) bool {
 }
 
 func messageAt(m domain.Message, now int64) domain.Message {
+	if m.Help != nil {
+		m.ServerObservedAt = now
+	}
 	if m.Kind == "authentication" || m.Kind == "authentication-refresh" || m.Kind == "permission" || assistanceHelpMessage(m) {
 		if m.ExpiresAt == 0 {
 			m.ExpiresAt = m.CreatedAt + domain.AuthenticationRequestTTL

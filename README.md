@@ -421,10 +421,13 @@ agent-cli workspace bind --path /OWNED/PROJECT --allow-tools --timeout 3600
 ```
 
 Set its returned opaque reference through a task's `workspace` change.
-Alternatively, `config init --workspace-root /OWNED/PARENT
---allow-workspace-tools` authorizes the controller to prepare reusable private
-project directories there. Neither assignment nor `mode ai` grants this local
-tool permission. Bindings cannot contain Foundation state/configuration, and
+Alternatively, `config init --workspace-root /OWNED/PARENT` lets the controller
+prepare reusable private project directories without a separate human opt-in.
+Approved coding calls already have the installing OS user's normal local
+file/command/component access; the working directory is not a filesystem sandbox.
+Legacy `allow_workspace_tools:false` no longer requests redundant local approval.
+Explicit disabled bindings, task/mode/uncertainty fences, root and OS privacy
+boundaries remain enforced. Bindings cannot contain Foundation state/configuration, and
 ownership, write permissions, inode/device identity, disablement, and time limits
 are checked again before/during execution.
 

@@ -154,6 +154,26 @@ Configuration patches accept only `poll_seconds` (1-3600),
 `automatic_provider_updates`, `allow_workspace_tools`, `provider_paths`,
 `screens`, and `ssh`. Provider paths are absolute and only
 name codex/copilot. Transport/provider-path changes require service restart.
+From 0.3.22, `allow_workspace_tools` is a retained legacy configuration slot,
+not an extra local permission gate. Fresh defaults are true; old false values
+do not block automatic owned project directories. Explicit binding disables,
+inode/ownership checks and task/mode/uncertainty/OS/financial authority remain.
+
+Protected authentication, local-OS permission and `assistance request` messages
+carry typed `help` scope and a server observation time. Desktop/iOS message
+actions show Open terminal session or Open screen session only for that scope,
+never commands parsed from Markdown. The apps re-read current message/grant
+authority before action; expired/resolved notices cannot open. No matching
+grant means a prefilled Founder scope review before explicit authorization;
+an existing exact active grant is reused. Whole-desktop capture requires
+explicit review. Headless workers offer terminal only.
+`assistance open GRANT [--help-message MESSAGE]` pins that help identity into
+session creation; the server transaction rejects expiry, wrong parties,
+provider/purpose/project/task/screen changes and resolved messages. New
+connections remain bounded and separate from persistent grant/notice lifetimes.
+Phone viewers use foreground-only pinned SSH/mTLS, binary-only protected
+terminal I/O and an ephemeral loopback VNC browser; no captured JSON, clipboard,
+transcript logging, public listener or automatic login is implied.
 
 Runner transport comes from `identity_socket`, not editable bearer credentials
 or copied SSH keys. URL/CA/SSH configuration cannot replace that identity boundary.

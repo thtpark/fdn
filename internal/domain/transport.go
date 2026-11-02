@@ -34,17 +34,18 @@ type Health struct {
 
 type MessageCommand struct {
 	Command
-	AttachmentIDs   []string       `json:"attachment_ids,omitempty"`
-	RecipientID     string         `json:"recipient_id"`
-	Body            string         `json:"body"`
-	Origin          string         `json:"origin"`
-	Kind            string         `json:"kind"`
-	Urgent          bool           `json:"urgent"`
-	ResponseRequest bool           `json:"response_requested"`
-	ExpiresAt       *int64         `json:"expires_at,omitempty"`
-	ReplyToID       string         `json:"reply_to_id,omitempty"`
-	Insistence      bool           `json:"insistence,omitempty"`
-	Request         *MessageAction `json:"request,omitempty"`
+	Help            *AssistanceHelpRequest `json:"help,omitempty"`
+	AttachmentIDs   []string               `json:"attachment_ids,omitempty"`
+	RecipientID     string                 `json:"recipient_id"`
+	Body            string                 `json:"body"`
+	Origin          string                 `json:"origin"`
+	Kind            string                 `json:"kind"`
+	Urgent          bool                   `json:"urgent"`
+	ResponseRequest bool                   `json:"response_requested"`
+	ExpiresAt       *int64                 `json:"expires_at,omitempty"`
+	ReplyToID       string                 `json:"reply_to_id,omitempty"`
+	Insistence      bool                   `json:"insistence,omitempty"`
+	Request         *MessageAction         `json:"request,omitempty"`
 }
 
 func (command *MessageCommand) UnmarshalJSON(data []byte) error {
@@ -85,8 +86,8 @@ func (command *MessageCommand) UnmarshalJSON(data []byte) error {
 func (command MessageCommand) ToRequest() MessageRequest {
 	request := MessageRequest{
 		Command: command.Command, RecipientID: command.RecipientID, Body: command.Body,
-		AttachmentIDs: command.AttachmentIDs,
-		Origin:        command.Origin, Kind: command.Kind, Urgent: command.Urgent,
+		AttachmentIDs: command.AttachmentIDs, Help: command.Help,
+		Origin: command.Origin, Kind: command.Kind, Urgent: command.Urgent,
 		ResponseRequest: command.ResponseRequest, ReplyToID: command.ReplyToID,
 		Insistence: command.Insistence, Request: command.Request,
 	}

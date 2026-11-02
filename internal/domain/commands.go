@@ -114,17 +114,18 @@ type AuthenticationRefreshRequest struct {
 
 type MessageRequest struct {
 	Command
-	AttachmentIDs   []string       `json:"attachment_ids,omitempty"`
-	RecipientID     string         `json:"recipient_id"`
-	Body            string         `json:"body"`
-	Origin          string         `json:"origin"`
-	Kind            string         `json:"kind"`
-	Urgent          bool           `json:"urgent"`
-	ResponseRequest bool           `json:"response_requested"`
-	ExpiresAt       int64          `json:"expires_at,omitempty"`
-	ReplyToID       string         `json:"reply_to_id,omitempty"`
-	Insistence      bool           `json:"insistence,omitempty"`
-	Request         *MessageAction `json:"request,omitempty"`
+	Help            *AssistanceHelpRequest `json:"help,omitempty"`
+	AttachmentIDs   []string               `json:"attachment_ids,omitempty"`
+	RecipientID     string                 `json:"recipient_id"`
+	Body            string                 `json:"body"`
+	Origin          string                 `json:"origin"`
+	Kind            string                 `json:"kind"`
+	Urgent          bool                   `json:"urgent"`
+	ResponseRequest bool                   `json:"response_requested"`
+	ExpiresAt       int64                  `json:"expires_at,omitempty"`
+	ReplyToID       string                 `json:"reply_to_id,omitempty"`
+	Insistence      bool                   `json:"insistence,omitempty"`
+	Request         *MessageAction         `json:"request,omitempty"`
 }
 
 type MessageReceipt struct {
@@ -138,6 +139,7 @@ type MessageReadRequest struct {
 
 type SessionRequest struct {
 	Command
+	HelpMessageID   string `json:"help_message_id,omitempty"`
 	TargetID        string `json:"target_id"`
 	ProjectID       string `json:"project_id"`
 	TaskID          string `json:"task_id,omitempty"`

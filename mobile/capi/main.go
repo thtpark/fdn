@@ -10,6 +10,8 @@ import "C"
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"sync"
 	"unsafe"
 
@@ -137,5 +139,60 @@ func FDNMobileClose(id C.ulonglong) *C.char {
 
 //export FDNMobileFree
 func FDNMobileFree(data *C.char) { C.free(unsafe.Pointer(data)) }
+
+//export FDNMobileHumanRead
+func FDNMobileHumanRead(id C.ulonglong, human C.ulonglong, data *C.char, length C.longlong) C.longlong {
+	runtime, err := host(id)
+	if err != nil || data == nil || length < 1 || length > 64<<10 {
+		return -1
+	}
+	buffer := unsafe.Slice((*byte)(unsafe.Pointer(data)), int(length))
+	n, err := runtime.HumanRead(uint64(human), buffer)
+	if n > 0 {
+		return C.longlong(n)
+	}
+	if errors.Is(err, io.EOF) {
+		return 0
+	}
+	return -1
+}
+
+//export FDNMobileHumanWrite
+func FDNMobileHumanWrite(id C.ulonglong, human C.ulonglong, data *C.char, length C.longlong) C.longlong {
+	runtime, err := host(id)
+	if err != nil || data == nil || length < 1 || length > 64<<10 {
+		return -1
+	}
+	n, err := runtime.HumanWrite(uint64(human), C.GoBytes(unsafe.Pointer(data), C.int(length)))
+	if err != nil {
+		return -1
+	}
+	return C.longlong(n)
+}
+
+//export FDNMobileHumanURL
+func FDNMobileHumanURL(id C.ulonglong, human C.ulonglong) *C.char {
+	runtime, err := host(id)
+	if err != nil {
+		return nil
+	}
+	value, err := runtime.HumanURL(uint64(human))
+	if err != nil {
+		return nil
+	}
+	return C.CString(value)
+}
+
+//export FDNMobileHumanClose
+func FDNMobileHumanClose(id C.ulonglong, human C.ulonglong) C.int {
+	runtime, err := host(id)
+	if err != nil {
+		return -1
+	}
+	if err := runtime.CloseHuman(uint64(human)); err != nil {
+		return -1
+	}
+	return 0
+}
 
 func main() {}

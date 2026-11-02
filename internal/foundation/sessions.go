@@ -90,6 +90,22 @@ func (s *Store) RequestSession(ctx context.Context, actor string, req domain.Ses
 		if req.ExpiresAt < s.timestamp()+60 || req.ExpiresAt > s.timestamp()+900 {
 			return session, domain.Fail(domain.Invalid, "session expiry must be 60-900 seconds from now")
 		}
+		if req.HelpMessageID != "" {
+			help, err := get[domain.Message](ctx, tx, "messages", req.HelpMessageID)
+			if err != nil {
+				return session, err
+			}
+			help = messageAt(help, s.timestamp())
+			scope := help.Help
+			if scope == nil || help.RecipientID != a.ID || help.SenderID != req.TargetID ||
+				help.Origin != "service" || !slices.Contains([]string{"authentication", "permission", "session"}, help.Kind) ||
+				help.ExpiresAt <= s.timestamp() || !slices.Contains([]string{"pending", "deferred"}, help.State) ||
+				scope.Mode != req.Mode || scope.Purpose != req.Purpose || scope.Provider != req.Provider ||
+				scope.ProjectID != req.ProjectID || scope.TaskID != req.TaskID || scope.ScreenID != req.ScreenID ||
+				scope.ApplicationID != req.ApplicationID || scope.DesktopFallback != req.DesktopFallback {
+				return session, domain.Fail(domain.Denied, "help message expired, resolved or no longer matches this exact assistance scope")
+			}
+		}
 		if req.TaskID != "" {
 			task, err := get[domain.Task](ctx, tx, "tasks", req.TaskID)
 			if err != nil {

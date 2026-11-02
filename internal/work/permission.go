@@ -259,6 +259,10 @@ func (e *Engine) requestPermission(ctx context.Context, c config.Worker, task *d
 		}
 		input := domain.MessageRequest{Command: domain.Command{OperationID: delivery.OperationID}, RecipientID: delivery.RecipientID,
 			Body: permissionMessage(request), Origin: "service", Kind: "permission", Urgent: true, ExpiresAt: request.ExpiresAt}
+		if request.Requirement == "provider-permission" || request.Requirement == "workspace" {
+			input.Help = &domain.AssistanceHelpRequest{Mode: "tmux", Purpose: "terminal",
+				ProjectID: request.ProjectID, TaskID: request.TaskID, Reason: "Explicit human inspection of a local OS prerequisite"}
+		}
 		var prepared proposal
 		if found, err := e.State.Get(ctx, "proposal:"+delivery.OperationID, &prepared); err != nil {
 			return failed(err)

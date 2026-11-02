@@ -126,7 +126,7 @@ Protected handoffs cannot attach.
 12. Completed means evidence awaiting verification, not done. An independent
     current delegate automatically reviews completed results after assigned work,
     using its own preferred provider/model and reusable `workspace_root/PROJECT`
-    binding under explicit `allow_workspace_tools`, never the assignee's private
+    binding under normal local OS-user access, never the assignee's private
     binding. Review shares the same
     fenced slot and binds exact spec/result/discussion generations and project
     epoch. Return a structured reviewed decision, accept or rework, with actual

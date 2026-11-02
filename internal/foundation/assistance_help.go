@@ -61,12 +61,12 @@ func (s *Store) RequestAssistanceHelp(ctx context.Context, actor string, req dom
 		}
 		for _, recipient := range recipients {
 			message := domain.Message{ID: domain.NewID("message_help"), SenderID: a.ID, RecipientID: recipient,
-				Body: body, Origin: "service", Kind: "session", Urgent: true, State: "pending", CreatedAt: now, ExpiresAt: help.ExpiresAt, Revision: 1}
+				Body: body, Help: &req, ServerObservedAt: now, Origin: "service", Kind: "session", Urgent: true, State: "pending", CreatedAt: now, ExpiresAt: help.ExpiresAt, Revision: 1}
 			message, err = insertMessage(ctx, tx, message)
 			if err != nil {
 				return domain.AssistanceHelp{}, err
 			}
-			help.Messages = append(help.Messages, message)
+			help.Messages = append(help.Messages, messageAt(message, now))
 		}
 		return help, nil
 	})
