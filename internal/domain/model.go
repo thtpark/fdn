@@ -300,6 +300,8 @@ type AuthenticationRefresh struct {
 }
 
 type Message struct {
+	Help                  *AssistanceHelpRequest `json:"help,omitempty"`
+	ServerObservedAt      int64                  `json:"server_observed_at,omitempty"`
 	FileDownload          *FileDownloadReceipt   `json:"file_download,omitempty"`
 	Attachments           []FileReference        `json:"attachments,omitempty"`
 	Announcement          *AnnouncementContext   `json:"announcement,omitempty"`

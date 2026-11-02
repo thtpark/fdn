@@ -42,6 +42,22 @@ runs while preserving unrelated processes and PID-reuse rejection.
 These cases must pass on their first CI attempt, not through blanket retries,
 relaxed production expiry checks or platform skips.
 
+## Human help and normal local access
+
+`HelpSessionOpen*`, `AssistanceHelp*`, `Human*` and `ProjectWorkspaceUses*`
+verify typed help scope, unchanged immutable notices, server-clock expiry,
+exact retained grant binding, denied stale/mismatched opens, default owned
+workspace preparation even with the legacy false opt-in, explicit disabled
+bindings and protected binary terminal I/O outside JSON/status/event paths.
+Foreground teardown joins owned viewers and erases private bootstrap credentials.
+Shared Swift `HumanHelpTests` cover skew-independent snapshot deadlines,
+exact active-grant reuse, terminal-vs-authentication purpose and refusal to
+parse commands from message bodies. Desktop/iOS task status stays in a
+persistent top-level banner across tabs and scrolling. Run native rendering,
+mobile bridge tests and iOS device/simulator/macOS-test slices. Fixture/build
+evidence is not live protected sign-in, physical-phone privacy/network/kill
+qualification or OS administrator/spending authority.
+
 ## Phase 6 files, publications and native attachments
 
 `go test -race -count=1 ./internal/domain ./internal/foundation ./internal/api ./internal/cli ./internal/observe ./internal/identityservice ./internal/work ./internal/backup -run 'File|Attachment|Publication|SQL9'`

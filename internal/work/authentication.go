@@ -224,7 +224,9 @@ func (e *Engine) refreshAuthentication(ctx context.Context, c config.Worker, pro
 			return request, save()
 		}
 		input := domain.MessageRequest{Command: domain.Command{OperationID: delivery.OperationID}, RecipientID: delivery.RecipientID,
-			Body: authenticationMessage(request), Origin: "service", Kind: "authentication", ExpiresAt: request.ExpiresAt}
+			Body: authenticationMessage(request), Origin: "service", Kind: "authentication", ExpiresAt: request.ExpiresAt,
+			Help: &domain.AssistanceHelpRequest{Mode: "tmux", Purpose: "authentication", Provider: request.Provider,
+				ProjectID: request.ProjectID, TaskID: request.TaskID, Reason: "Explicit human provider sign-in assistance"}}
 		var prepared proposal
 		if found, err := e.State.Get(ctx, "proposal:"+delivery.OperationID, &prepared); err != nil {
 			return request, err

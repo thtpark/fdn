@@ -1956,6 +1956,10 @@
       "id": 23,
       "name": "file_download"
     },
+    "Help": {
+      "id": 24,
+      "name": "help"
+    },
     "ID": {
       "id": 1,
       "name": "id"
@@ -2003,6 +2007,10 @@
     "SenderID": {
       "id": 2,
       "name": "sender_id"
+    },
+    "ServerObservedAt": {
+      "id": 25,
+      "name": "server_observed_at"
     },
     "State": {
       "id": 9,
@@ -2138,6 +2146,10 @@
       "id": 9,
       "name": "expires_at"
     },
+    "Help": {
+      "id": 14,
+      "name": "help"
+    },
     "Insistence": {
       "id": 11,
       "name": "insistence"
@@ -2261,6 +2273,10 @@
     "ExpiresAt": {
       "id": 9,
       "name": "expires_at"
+    },
+    "Help": {
+      "id": 14,
+      "name": "help"
     },
     "Insistence": {
       "id": 11,
@@ -3195,6 +3211,10 @@
     "GrantID": {
       "id": 11,
       "name": "grant_id"
+    },
+    "HelpMessageID": {
+      "id": 15,
+      "name": "help_message_id"
     },
     "Mode": {
       "id": 6,

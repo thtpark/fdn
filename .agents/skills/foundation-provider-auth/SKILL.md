@@ -5,6 +5,9 @@ description: "Use when installing/updating Codex or Copilot, checking provider r
 
 # Provider readiness and protected authentication
 
+Desktop/iOS protected help messages offer an unexpired scoped session action;
+review new grants explicitly or reuse an exact active grant. Phone terminal
+bytes stay in the binary-only human bridge, never structured output.
 The macOS app can issue Founder `agent request-sign-in` requests and host an
 explicitly opened retained authentication grant in its built-in PTY/tmux or
 loopback-only VNC browser. These are protected **human-only** views, never
