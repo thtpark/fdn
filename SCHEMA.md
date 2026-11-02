@@ -311,6 +311,16 @@ Expired notices retain their expiry/state. Protected agent operations are not
 ordinary messages for this endpoint. Existing JSON rows decode as no explicit
 receipt; no SQL migration or historical backfill occurs.
 
+The desktop and foreground iOS apps deliberately submit this acknowledgement
+when the authenticated recipient displays a message body. On macOS 15/iOS 18
+and newer the body must enter the scroll viewport; older systems use body
+appearance. Background fetches, mailbox rows, sent messages and protected
+agent operations do not acknowledge reading. This narrow non-publishing action
+works in either mode without changing mode, handling a response request or
+checking a provider. The apps serialize it with other writes and retain exact
+proposals after uncertainty; redisplay/reconnection never automatically retries
+an unresolved acknowledgement.
+
 ### Worker tables
 
 | Table | Local-only contract |

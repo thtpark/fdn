@@ -34,6 +34,7 @@ func TestDefaultRequestedMessageUsesAIOnlyInAIMode(t *testing.T) {
 						Mode: "manual", Reason: "Founder pauses this isolated message fixture"}); err != nil {
 					t.Fatal(err)
 				}
+
 			}
 			input := map[string]any{
 				"operation_id": command().OperationID, "recipient_id": h.workerAgent.ID,
@@ -76,5 +77,60 @@ func TestDefaultRequestedMessageUsesAIOnlyInAIMode(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestConsecutiveThreadRepliesKeepRecipientAndRequireIndependentResponses(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	x := &executor{}
+	engine := newEngine(t, h, x)
+	skipHealthOnboarding(t, engine)
+	root, err := api.Call[domain.Message](ctx, h.founder, "POST", "/v1/messages", domain.MessageRequest{
+		Command: command(), RecipientID: h.workerAgent.ID, Origin: "human", Kind: "direct",
+		Body: "Start a private conversation without requesting a response.", ResponseRequest: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := map[string]bool{}
+	parent := root.ID
+	for _, body := range []string{"First reply needs an answer.", "Second consecutive reply needs its own answer.", "No answer needed."} {
+		input := map[string]any{"operation_id": command().OperationID, "recipient_id": h.workerAgent.ID,
+			"origin": "human", "kind": "direct", "body": body, "reply_to_id": parent}
+		if len(sources) == 2 {
+			input["response_requested"] = false
+		}
+		reply, err := api.Call[domain.Message](ctx, h.founder, "POST", "/v1/messages", input)
+		if err != nil || reply.RecipientID != h.workerAgent.ID || reply.SenderID != h.founderAgent.ID ||
+			reply.ThreadID != root.ID || reply.ReplyToID != parent || reply.ResponseRequest != (len(sources) < 2) {
+			t.Fatal("a consecutive reply reversed its parties, thread or response requirement", reply, err)
+		}
+		if reply.ResponseRequest {
+			sources[reply.ID] = false
+		}
+		parent = reply.ID
+	}
+	for range 4 {
+		if _, err := engine.Step(ctx, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	thread, err := api.Call[[]domain.Message](ctx, h.founder, "GET", api.Path("messages", root.ID, "thread"), nil)
+	if err != nil || len(thread) != 6 || x.count("message") != 2 {
+		t.Fatal("consecutive replies were collapsed, repeated or ignored the explicit opt-out", thread, err)
+	}
+	for _, message := range thread {
+		if message.SenderID == h.workerAgent.ID {
+			if answered, expected := sources[message.ReplyToID]; !expected || answered ||
+				message.RecipientID != h.founderAgent.ID || message.ThreadID != root.ID {
+				t.Fatal("a response targeted itself or the wrong conversational turn", message)
+			}
+			sources[message.ReplyToID] = true
+		}
+	}
+	for id, answered := range sources {
+		if !answered {
+			t.Fatal("a requested consecutive reply received no response", id)
+		}
 	}
 }

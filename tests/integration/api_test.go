@@ -37,9 +37,14 @@ func command() domain.Command { return domain.Command{OperationID: domain.NewID(
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
+	return newHarnessWithFiles(t, foundation.FileStoreOptions{})
+}
+
+func newHarnessWithFiles(t *testing.T, files foundation.FileStoreOptions) *harness {
+	t.Helper()
 	ctx := context.Background()
 	root := filepath.Join(t.TempDir(), "foundation")
-	store, err := foundation.Open(ctx, filepath.Join(root, "foundation.sqlite"))
+	store, err := foundation.OpenWithFiles(ctx, filepath.Join(root, "foundation.sqlite"), files)
 	if err != nil {
 		t.Fatal(err)
 	}
