@@ -204,9 +204,10 @@ Read [DEVELOPMENT.md](DEVELOPMENT.md), [SCHEMA.md](SCHEMA.md), and
 [TEST_PLAN.md](TEST_PLAN.md). Make surgical changes; preserve identity, mode,
 knowledge, workspaces, journals, and user modifications. Tests run locally with
 temporary state and loopback services, without VMs, containers, root, host-service
-registration, or paid inference. Release packages come only from a PR merged
-into `release`; PRs into `main` run separate suites. Update related docs/skills
-and exact contract tests whenever behavior changes.
+registration, or paid inference. Never push directly or force-push to `release`.
+Release packages require a PR merged after required checks pass; `main` PRs run
+separate suites. Update related docs/skills and exact contract tests for behavior
+changes.
 
 Development source wrappers isolate testing HOME/config/identity under ignored
 `.local` and automatically use cached development builds; they never move a

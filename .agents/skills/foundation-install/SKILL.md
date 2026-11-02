@@ -32,6 +32,8 @@ commands.
 3. Obtain the platform's source-bound Actions release and independently trusted
    checksum-manifest digest. Real packages exist only after a PR merges into
    `release`; never build on a target or fabricate a local release event.
+   Never push directly or force-push to `release`; use a PR with passing
+   required checks before merge.
    Durable `vVERSION` GitHub release ZIPs are published only after all native
    jobs and exact-source pre-merge acceptance succeed. Use GitHub's independent
    asset digest and every contained manifest checksum; no arbitrary URL or

@@ -93,7 +93,8 @@ The normal release path is:
 
 1. Fix and test code; send a reviewed PR into `main`.
 2. Increment VERSION for new immutable contents and send the qualified source
-   through a separately tested PR into `release`.
+   through a separately tested PR into `release`. Never push directly or
+   force-push to `release`; merge only after that PR's required checks pass.
 3. Only that actual merge builds packages. After every platform succeeds,
    the guarded publisher checks exact source/checksums and completed pre-merge
    acceptance, uploads all bundles as a draft `vVERSION` GitHub release, then

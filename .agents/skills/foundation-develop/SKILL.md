@@ -139,8 +139,11 @@ The checkout's root documents are canonical; no old source tree is required.
    uses a new empty sub-StateDir in the same user's HOME and retains old keys/
    all runner state; never invent `--rotate` or rotate during normal retries.
 9. PRs into main run separate Linux/macOS suites. Real packaging only follows
-   an authorized PR merge into release on the exact source commit. Never
-   fabricate a local Actions event or build/test on a deployment target.
+   an authorized PR merge into release on the exact source commit. Never push
+   directly or force-push to `release`, including through a `HEAD:release`
+   refspec. Every change must use a PR with passing required checks before
+   merge; administrator access is not a bypass. Never fabricate a local Actions
+   event or build/test on a deployment target.
    The all-platform publisher verifies exact artifacts and pre-merge acceptance,
    creates all versioned GitHub release assets as a draft, then publishes once.
    Never overwrite a release/tag or let updater discovery fall back to Actions

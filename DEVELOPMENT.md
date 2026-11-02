@@ -355,6 +355,11 @@ transcript or user-specific authorization into shipped documentation.
 
 ## Pull requests and release evidence
 
+Never push directly to `release`, including force pushes or refspecs such as
+`HEAD:release`. Every change to that branch must go through an authorized pull
+request, with all required checks passing before merge. Do not bypass this
+workflow through an administrator override.
+
 PRs into `main` or `release` run separate static, unit, integration,
 native-binary end-to-end and stress jobs; Linux/macOS runs qualify their own
 sources. Release PRs must pass this acceptance before merge; packaging is not
