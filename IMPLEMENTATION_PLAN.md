@@ -6,6 +6,17 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Verified native maintenance receipt reconciliation (0.3.27)
+
+The independent request receiver recognizes the exact signed permit's already
+verified native receipt while completing its original queued request. It records
+the normal target decision/result lifecycle without repeating service stops,
+backups, installation or native start admission. A changed permit remains a
+conflict. This supports an explicitly authorized coordinated strict-protocol
+cutover; it does not retry unknown/prepared work, renew expiry, change mode or
+grant new OS authority. Native rollout qualification remains separate from
+source fixtures and must be recorded from actual observed outcomes.
+
 ### Unified selected-resource sharing source work (0.3.26)
 
 SQL11 adds private target-owned terminal inventory/selection. Founder opens

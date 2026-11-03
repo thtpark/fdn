@@ -232,6 +232,9 @@ func (n *Native) MessageStep(ctx context.Context) (bool, error) {
 		return true, err
 	}
 	prepared, err := n.Handle(ctx, domain.UpgradeNativeRequest{Action: "prepare", ID: permit.Proposal.Challenge.ID, Permit: permit})
+	if err == nil && prepared.State == "verified" {
+		return true, reportVerified(prepared)
+	}
 	if err != nil || prepared.State != "prepared" {
 		failure := report("failed", "The target could not safely prepare the exact native upgrade. Inspect native evidence; identity, work and recovery fences were not overridden.")
 		return true, errors.Join(err, failure)

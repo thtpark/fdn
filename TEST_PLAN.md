@@ -616,6 +616,12 @@ operator inspection/challenges, Foundation-first queued dependencies, exact plan
 state, private age keys and offline native status. Target receivers, not the
 sender CLI, perform native preparation/install.
 
+`TestNativeMessageReconcilesExactVerifiedReceiptWithoutRepeatingEffects`
+prepares/applies through the actual native handler before delivering its queued
+request, then requires accepted/executing/completed with the exact source/backup
+receipt and no repeated stop/backup/install/start lease. A different validly
+signed permit must fail without adopting that receipt or performing new effects.
+
 `TemporaryMaintenance*`, `VerifiedMaintenance*`, `TemporaryUpgrade*` and
 `NativeVerifiedUpgrade*` cover whole-rollout verified restoration, exact original
 pause/key generations, unchanged preexisting manual intent, newer Founder AI/
