@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/thtpark/fdn/internal/api"
+	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/secure"
 )
@@ -21,13 +22,6 @@ func (m *Manager) recoverSharingInput(ctx context.Context, backend SharingBacken
 	if err != nil || !found {
 		return err
 	}
-	if lease.Session.ID != snapshot.Fence.ID || lease.Fence.Generation != snapshot.Fence.Generation ||
-		lease.OwnerPID <= 1 || lease.OwnerStart == "" {
-		return domain.Fail(domain.Prerequisite, "sharing input recovery evidence does not match the exact retained fence")
-	}
-	if lease.State == "operator-required" {
-		return domain.Fail(domain.Prerequisite, "interrupted input was cleaned but its effects require Founder inspection and exact repair")
-	}
 	c, err := m.currentConfig()
 	if err != nil {
 		return err
@@ -37,6 +31,29 @@ func (m *Manager) recoverSharingInput(ctx context.Context, backend SharingBacken
 		return err
 	}
 	defer func() { err = errors.Join(err, slot.Close()) }()
+	return m.recoverSharingInputLocked(ctx, backend, c, snapshot)
+}
+
+func (m *Manager) recoverSharingInputLocked(ctx context.Context, backend SharingBackend, c config.Worker, expected SessionFenceSnapshot) error {
+	snapshot, err := ReadSessionFence(ctx, m.State)
+	if err != nil || !snapshot.Fence.Active {
+		return err
+	}
+	if snapshot.Fingerprint != expected.Fingerprint {
+		return domain.Fail(domain.Conflict, "sharing input fence changed before exclusive cleanup ownership")
+	}
+	var lease sharingInputRecord
+	found, err := m.State.Get(ctx, sharingInputKey(snapshot.Fence.ID), &lease)
+	if err != nil {
+		return err
+	}
+	if !found || lease.Session.ID != snapshot.Fence.ID || lease.Fence.Generation != snapshot.Fence.Generation ||
+		lease.OwnerPID <= 1 || lease.OwnerStart == "" {
+		return domain.Fail(domain.Prerequisite, "sharing input recovery evidence does not match the exact retained fence")
+	}
+	if lease.State == "operator-required" {
+		return domain.Fail(domain.Prerequisite, "interrupted input was cleaned but its effects require Founder inspection and exact repair")
+	}
 	owner, err := inspectProcess(lease.OwnerPID)
 	if err != nil {
 		return err
@@ -54,8 +71,10 @@ func (m *Manager) recoverSharingInput(ctx context.Context, backend SharingBacken
 			return err
 		}
 	}
-	if err := backend.EndInput(ctx, c, m.State, lease.Session); err != nil {
-		return err
+	if !snapshot.Fence.CleanupProven {
+		if err := backend.EndInput(ctx, c, m.State, lease.Session); err != nil {
+			return err
+		}
 	}
 	if orphan && lease.State != "closing" {
 		if err := m.State.ProveSessionCleanup(ctx, snapshot.Fence.ID, snapshot.Fingerprint); err != nil {
