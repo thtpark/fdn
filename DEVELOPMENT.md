@@ -194,6 +194,14 @@ Do not treat unproved cleanup, old uncertainty, applied decisions or coding
 execution as safe text retries. Test unrelated file/message catch-up after pause
 and preserve original evidence and exhausted budgets across restart.
 
+Coding invocations retain the exact loaded worker configuration through the
+local `FDN_WORKER_CONFIG` tool environment. Never inherit another binding,
+export it to text-only calls, embed it in model prompts/argv/public DTOs, move
+state to a default layout, or use it as identity/project authority. Worker CLI
+explicit flags take precedence; Foundation server commands ignore the variable.
+The native-child e2e test must execute the real CLI against an explicit-path
+fixture, not substitute a direct in-process API call for that boundary.
+
 ### Founder desktop onboarding
 
 Founder desktop onboarding is implemented by `internal/cli/agent_add.go`,

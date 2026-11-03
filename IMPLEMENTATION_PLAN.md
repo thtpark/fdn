@@ -6,6 +6,17 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Native coding-tool configuration binding (0.3.31)
+
+Coding children receive the already loaded exact worker configuration through
+local `FDN_WORKER_CONFIG`, making bare worker CLI/service tools use their own
+installation even when its configuration is not at the HOME default. Explicit
+flags win; Foundation server commands ignore that worker context. Inherited
+unrelated values are stripped and text-only calls receive none. No paths enter
+provider prompts/argv/public DTOs, and no configuration/identity/state is
+discovered, copied or moved. A real compiled-CLI child regression verifies the
+native boundary rather than a fixture's direct API substitute.
+
 ### Routine renewal and bounded inbox catch-up (0.3.30)
 
 Owner-certificate renewal drains admitted native calls while new requests use

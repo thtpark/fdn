@@ -356,7 +356,11 @@ func (m *Manager) Invoke(ctx context.Context, inv Invocation) (reply Reply, err 
 		_, closeErr := stdout.finish()
 		return reply, errors.Join(err, closeErr)
 	}
-	runErr := m.Runner.Run(ctx, process.Spec{Path: inv.Path, Args: args, Dir: cwd, Env: process.Environment(),
+	environment := process.Environment()
+	if inv.Coding && m.Config.SourcePath() != "" {
+		environment = append(environment, config.WorkerConfigEnvironment+"="+m.Config.SourcePath())
+	}
+	runErr := m.Runner.Run(ctx, process.Spec{Path: inv.Path, Args: args, Dir: cwd, Env: environment,
 		Stdin: strings.NewReader(inv.Prompt), Stdout: stdout, Stderr: stderr, Started: inv.Started})
 	out, outErr := stdout.finish()
 	_, diagErr := stderr.finish()

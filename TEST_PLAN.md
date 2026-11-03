@@ -834,6 +834,13 @@ read-only; displaying a message is the app's separate acknowledgement action.
 
 ## Tool-disabled response-contract regressions
 
+`TestNativeCodingToolsUseExplicitWorkerConfiguration` runs a real compiled
+worker CLI inside a native coding child with a non-default configuration,
+unrelated inherited context, isolated HOME and synthetic provider. It must
+observe the correct enrolled fixture identity without paid inference. Unit
+tests cover explicit flag precedence, missing-context failure without fallback,
+both providers' coding-only export and no prompt/argv disclosure.
+
 `TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch` keeps
 an actual binary authority query active across renewal, then verifies its exact
 reply and retired-client closure. Expiry/revocation/shutdown still terminate
