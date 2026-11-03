@@ -64,12 +64,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_HEAD: ${{ github.event.pull_request.head.sha }}
+          ACCEPTANCE_RUN: "Test PR #${{ github.event.pull_request.number }} into release at ${{ github.event.pull_request.head.sha }}"
           PR_CREATED: ${{ github.event.pull_request.created_at }}
           PR_MERGED: ${{ github.event.pull_request.merged_at }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/actions/workflows/tests.yml/runs?event=pull_request&head_sha=$RELEASE_HEAD&status=success&per_page=20" \
-            | jq -e --arg head "$RELEASE_HEAD" --arg created "$PR_CREATED" --arg merged "$PR_MERGED" \
-              '.workflow_runs | any(.head_sha == $head and .event == "pull_request" and .status == "completed" and .conclusion == "success" and .created_at >= $created and .updated_at <= $merged)'
+            | jq -e --arg head "$RELEASE_HEAD" --arg title "$ACCEPTANCE_RUN" --arg created "$PR_CREATED" --arg merged "$PR_MERGED" \
+              '.workflow_runs | any(.display_title == $title and .head_sha == $head and .event == "pull_request" and .status == "completed" and .conclusion == "success" and .created_at >= $created and .updated_at <= $merged)'
       - name: Verify and bundle without rebuilding
         env:
           RELEASE_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}

@@ -394,7 +394,9 @@ workflow through an administrator override.
 PRs into `main` or `release` run separate static, unit, integration,
 native-binary end-to-end and stress jobs; Linux/macOS runs qualify their own
 sources. Release PRs must pass this acceptance before merge; packaging is not
-a substitute for those checks. Packaging runs only
+a substitute for those checks. Check names distinguish the target branch, and
+the acceptance run identifies the initiating PR, target branch and exact head;
+a successful same-head sibling PR cannot authorize publication. Packaging runs only
 for merged PRs into `release`, on the exact merge commit. Version changes must
 produce new immutable releases.
 

@@ -1,32 +1,108 @@
 package distribution
 
 import (
+	"context"
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 type workflow struct {
-	On map[string]struct {
+	RunName string `yaml:"run-name"`
+	On      map[string]struct {
 		Branches []string `yaml:"branches"`
 		Types    []string `yaml:"types"`
 	} `yaml:"on"`
 	Permissions map[string]string `yaml:"permissions"`
 	Jobs        map[string]struct {
+		Name        string            `yaml:"name"`
 		If          string            `yaml:"if"`
 		Needs       []string          `yaml:"needs"`
 		Permissions map[string]string `yaml:"permissions"`
 		Steps       []struct {
-			Uses string         `yaml:"uses"`
-			Run  string         `yaml:"run"`
-			With map[string]any `yaml:"with"`
+			Uses string            `yaml:"uses"`
+			Run  string            `yaml:"run"`
+			With map[string]any    `yaml:"with"`
+			Env  map[string]string `yaml:"env"`
 		} `yaml:"steps"`
 	} `yaml:"jobs"`
+}
+
+func TestIndependentPRChecksDoNotShareNamesOrPublicationAcceptance(t *testing.T) {
+	tests := loadWorkflow(t, "tests.yml")
+	if tests.RunName != "Test PR #${{ github.event.pull_request.number }} into ${{ github.base_ref }} at ${{ github.event.pull_request.head.sha }}" {
+		t.Fatal("acceptance run is not bound to its initiating pull request, base and exact head")
+	}
+	for id, job := range tests.Jobs {
+		if !strings.Contains(job.Name, "${{ github.base_ref }}") {
+			t.Fatal("main/release checks can overwrite each other's rollup", id)
+		}
+	}
+}
+
+func TestPublicationAcceptanceRejectsSuccessfulSiblingPR(t *testing.T) {
+	release := loadWorkflow(t, "package.yml")
+	var command, expected string
+	for _, step := range release.Jobs["publish"].Steps {
+		if step.Env["ACCEPTANCE_RUN"] != "" {
+			command, expected = step.Run, step.Env["ACCEPTANCE_RUN"]
+		}
+	}
+	if command == "" || expected != "Test PR #${{ github.event.pull_request.number }} into release at ${{ github.event.pull_request.head.sha }}" {
+		t.Fatal("publication does not require the initiating release PR's own acceptance")
+	}
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "gh"), []byte("#!/bin/sh\ncat \"$ACCEPTANCE_FIXTURE\"\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	head := strings.Repeat("a", 40)
+	title := "Test PR #84 into release at " + head
+	for _, tc := range []struct {
+		name, title, source, event, status, conclusion, created, updated string
+		want                                                             bool
+	}{
+		{"own-completed", title, head, "pull_request", "completed", "success", "2026-11-03T10:01:00Z", "2026-11-03T10:05:00Z", true},
+		{"sibling-main", "Test PR #83 into main at " + head, head, "pull_request", "completed", "success", "2026-11-03T10:01:00Z", "2026-11-03T10:05:00Z", false},
+		{"another-release-pr", "Test PR #85 into release at " + head, head, "pull_request", "completed", "success", "2026-11-03T10:01:00Z", "2026-11-03T10:05:00Z", false},
+		{"different-head", title, strings.Repeat("b", 40), "pull_request", "completed", "success", "2026-11-03T10:01:00Z", "2026-11-03T10:05:00Z", false},
+		{"other-event", title, head, "push", "completed", "success", "2026-11-03T10:01:00Z", "2026-11-03T10:05:00Z", false},
+		{"running", title, head, "pull_request", "in_progress", "success", "2026-11-03T10:01:00Z", "2026-11-03T10:05:00Z", false},
+		{"failed", title, head, "pull_request", "completed", "failure", "2026-11-03T10:01:00Z", "2026-11-03T10:05:00Z", false},
+		{"before-pr", title, head, "pull_request", "completed", "success", "2026-11-03T09:59:00Z", "2026-11-03T10:05:00Z", false},
+		{"after-merge", title, head, "pull_request", "completed", "success", "2026-11-03T10:01:00Z", "2026-11-03T10:11:00Z", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := filepath.Join(t.TempDir(), "runs.json")
+			data, err := json.Marshal(map[string]any{"workflow_runs": []map[string]string{{
+				"display_title": tc.title, "head_sha": tc.source, "event": tc.event, "status": tc.status,
+				"conclusion": tc.conclusion, "created_at": tc.created, "updated_at": tc.updated,
+			}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(fixture, data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, "bash", "-euo", "pipefail", "-c", command)
+			cmd.Env = append(os.Environ(), "PATH="+root+string(os.PathListSeparator)+os.Getenv("PATH"),
+				"ACCEPTANCE_FIXTURE="+fixture, "GITHUB_REPOSITORY=fixture/fdn", "RELEASE_HEAD="+head,
+				"ACCEPTANCE_RUN="+title, "PR_CREATED=2026-11-03T10:00:00Z", "PR_MERGED=2026-11-03T10:10:00Z")
+			output, err := cmd.CombinedOutput()
+			if (err == nil) != tc.want {
+				t.Fatalf("acceptance=%v want=%v: %s (%v)", err == nil, tc.want, output, err)
+			}
+		})
+	}
 }
 
 func loadWorkflow(t *testing.T, name string) workflow {

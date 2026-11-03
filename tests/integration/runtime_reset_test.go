@@ -122,7 +122,7 @@ func TestFounderRuntimeResetPreservesIdentityModeAndLegacyEvidence(t *testing.T)
 				t.Fatal("reset did not preserve or retire the exact expected fence", fence, err)
 			}
 			if scope == "legacy-session" {
-				directory := filepath.Join(engine.Config.StateDir, "sessions")
+				directory := filepath.Join(engine.State.Root, "sessions")
 				if _, err := os.Lstat(filepath.Join(directory, original.ID+".sock")); !os.IsNotExist(err) {
 					t.Fatal("reset left the orphan native endpoint in place", err)
 				}

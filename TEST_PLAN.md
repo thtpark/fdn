@@ -854,6 +854,15 @@ Native terminal fixture failures retain a bounded synthetic-output tail and
 the exact attachment process identity/join state. Linux CI repeats long-socket
 attachment startup separately to expose intermittent failures without hiding
 them behind a successful sibling pull-request workflow.
+Workflow contracts require distinct main/release check names and execute the
+publication filter against synthetic API responses. A same-head sibling PR,
+different source/event, unfinished/failed run, or acceptance outside the
+release PR's pre-merge interval must not authorize publication.
+Assistance message comparisons preserve every immutable/private field while
+allowing the server's live observation timestamp to advance. Runtime-reset
+fixtures use immutable state roots when checking retained native evidence while
+the controller reconciles configuration; both regressions repeat under race
+detection on Linux and macOS.
 
 `TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch` keeps
 an actual binary authority query active across renewal, then verifies its exact
