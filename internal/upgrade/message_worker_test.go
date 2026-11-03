@@ -53,6 +53,73 @@ func TestNativeMessageRequestIsDecidedExecutedAndReportedByTarget(t *testing.T) 
 
 }
 
+func TestNativeMessageReconcilesExactVerifiedReceiptWithoutRepeatingEffects(t *testing.T) {
+	for _, changed := range []bool{false, true} {
+		t.Run(map[bool]string{false: "exact", true: "changed-permit"}[changed], func(t *testing.T) {
+			native, recorder, signer, key := nativeFixture(t)
+			permit := preparePermit(t, native, recorder, signer, key)
+			for _, action := range []string{"prepare", "apply"} {
+				reply, err := native.Handle(context.Background(), domain.UpgradeNativeRequest{
+					Action: action, ID: permit.Proposal.Challenge.ID, Permit: &permit})
+				if err != nil || action == "apply" && reply.State != "verified" {
+					t.Fatal("fixture did not retain an actual verified native receipt", reply, err)
+				}
+			}
+			mutations := func() []string {
+				var calls []string
+				for _, spec := range recorder.calls {
+					switch spec.Path {
+					case "/bin/sh", "/usr/bin/tar", "/bin/launchctl", "/usr/bin/systemctl":
+						calls = append(calls, spec.Path+" "+strings.Join(spec.Args, " "))
+					}
+				}
+				return calls
+			}
+			before := mutations()
+			native.Lease = func(context.Context, domain.UpgradeLeaseRequest) (domain.UpgradeLease, error) {
+				t.Fatal("verified receipt reconciliation requested another native start lease")
+				return domain.UpgradeLease{}, nil
+			}
+			if changed {
+				permit.Proposal.Reason = "Different signed proposal must not adopt a verified receipt"
+				var err error
+				permit.Signature, err = SignPermit(permit, signer)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			source := domain.Message{ID: "message_verified_receipt", RecipientID: native.Policy.TargetID, Revision: 1,
+				Request: &domain.MessageActionState{State: "queued", Action: domain.MessageAction{Kind: "upgrade", Upgrade: &permit}}}
+			var states []string
+			native.Mailbox = func(_ context.Context, req domain.MessageWorkerCommand) (domain.MessageWorkerReply, error) {
+				if req.Report == nil {
+					return domain.MessageWorkerReply{Messages: []domain.Message{source}}, nil
+				}
+				if req.MessageID != source.ID || req.Report.ExpectedRevision != source.Revision {
+					t.Fatal("reconciliation lost the exact durable request", req)
+				}
+				source.Request.State, source.Request.UpgradeResult = req.Report.State, req.Report.UpgradeResult
+				source.Revision++
+				states = append(states, req.Report.State)
+				return domain.MessageWorkerReply{Message: &source}, nil
+			}
+			handled, err := native.MessageStep(context.Background())
+			want := []string{"accepted", "executing", "completed"}
+			if changed {
+				want[2] = "failed"
+				if err == nil || domain.AsFault(err).Code != domain.Conflict || source.Request.UpgradeResult != nil {
+					t.Fatal("another permit adopted the verified native receipt", source.Request.UpgradeResult, err)
+				}
+			} else if err != nil || source.Request.UpgradeResult == nil || ValidateResult(permit, *source.Request.UpgradeResult) != nil {
+				t.Fatal("exact verified receipt did not produce its actual completion", source.Request.UpgradeResult, err)
+			}
+			if !handled || !reflect.DeepEqual(states, want) || !reflect.DeepEqual(before, mutations()) {
+				t.Fatal("receipt reconciliation repeated effects or lost actual target decisions", handled, states, err)
+			}
+		})
+	}
+}
+
 func TestNativeVerifiedUpgradeReportsWhetherIndependentFencePermitsResume(t *testing.T) {
 	for _, clear := range []bool{false, true} {
 		t.Run(map[bool]string{false: "fenced", true: "clear"}[clear], func(t *testing.T) {

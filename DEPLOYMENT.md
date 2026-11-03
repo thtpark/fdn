@@ -307,6 +307,16 @@ before native admission; only an explicit newly authorized request can renew
 its proposal. Request/result protocol changes require a compatible coordinated
 software rollout; installing source changes does not deploy receivers.
 
+For an explicitly authorized coordinated protocol cutover, the fixed native
+helpers may prepare paused targets while the old server can still issue their
+fresh start leases, then apply the exact prepared server before dependent
+workers. Preserve every signed permit, queued request, cold backup and native
+receipt. Restart compatible independently supervised receivers afterward.
+From 0.3.27, a receiver can complete its original queued request from the exact
+already-verified native receipt without another stop, backup, install or start
+lease. A different permit cannot adopt it. This is receipt reconciliation, not
+permission to retry an interrupted or merely prepared installation.
+
 After a lost response, use the same private `upgrade status --input PLAN`.
 It works from retained original-Founder evidence plus the separate operator
 channel even while Foundation is offline. `prepared` means stopped and backed up,
