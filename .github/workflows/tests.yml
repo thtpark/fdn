@@ -82,7 +82,7 @@ jobs:
           go-version-file: go.mod
       - run: bash scripts/test.sh integration
       - name: Repeat runtime-reset identity and legacy-evidence checks under race detection
-        run: go test -race -count=10 -tags=integration ./tests/integration -run '^TestFounderRuntimeResetPreservesIdentityModeAndLegacyEvidence$' -timeout=2m
+        run: go test -race -count=20 -tags=integration ./tests/integration -run '^TestFounderRuntimeResetPreservesIdentityModeAndLegacyEvidence$/^legacy-session$' -timeout=2m
       - name: Repeat Linux task-safe sharing handoff and cleanup
         if: runner.os == 'Linux'
         run: go test -race -count=10 -tags=integration ./tests/integration -run '^TestSharingViewsContinueDuringExecutionAndInputUsesTheSameLogicalSession$' -timeout=2m

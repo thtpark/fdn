@@ -288,8 +288,8 @@ func TestNativeCloseRetriesAndPersistsOwnedCleanupWithoutCachingFailure(t *testi
 	session := domain.Session{ID: "session_native_retry", TargetID: "agent_native", Mode: "tmux", State: "closed"}
 	runner := &cleanupRunner{failures: 1}
 	endpoint, err := (Native{Runner: runner}).OpenOwned(context.Background(), session, c, "fence_owned")
-	if err != nil {
-		t.Fatal(err)
+	if endpoint == nil || err == nil || domain.AsFault(err).Code != domain.Prerequisite {
+		t.Fatal("synthetic live client without a tmux server was reported ready", err)
 	}
 	defer endpoint.Close()
 	if err := endpoint.Close(); err == nil {

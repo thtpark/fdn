@@ -863,6 +863,11 @@ allowing the server's live observation timestamp to advance. Runtime-reset
 fixtures use immutable state roots when checking retained native evidence while
 the controller reconciles configuration; both regressions repeat under race
 detection on Linux and macOS.
+Native startup must prove the exact `foundation` session, not merely an owned
+tmux server. A deterministic real-tmux fixture withholds session-admission proof
+after server discovery and fails if startup returns early. Missing sessions are
+queried within the unchanged startup bound; an unready deadline, unexpected
+query/cleanup failure or nonzero client exit remains explicit failure.
 
 `TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch` keeps
 an actual binary authority query active across renewal, then verifies its exact

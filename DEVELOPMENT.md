@@ -300,6 +300,11 @@ credentials local and reject unsupported/encrypted encodings rather than trust
 viewer flags. Execution mirrors stream bounded private stdout/stderr without
 changing provider stdin/non-prompting batch behavior. Do not adopt unmanaged
 terminals or treat skipped real-tmux tests as native qualification.
+Native tmux startup must verify the exact `foundation` session after recording
+its owned server, before another viewer can attach. Server discovery alone is
+not session readiness. The existing startup bound is unchanged; unready
+deadlines, nonzero client exits and unexpected query failures are explicit errors,
+with exact ownership retained for cleanup.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
 - File content/version identities and aligned chunks are immutable. Keep staged
