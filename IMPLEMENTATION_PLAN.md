@@ -6,6 +6,14 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Logical sharing views after owned transport cancellation (0.3.29)
+
+Expected cancellation/deadline errors from an owned byte-stream teardown leave
+the authorized logical viewer reconnectable at its original expiry. They do
+not become a failed session merely because the surrounding supervisor is still
+running. Explicit closure, current authority, revocation, protected surfaces and
+native cleanup/input fences remain independently enforced.
+
 ### Native terminal long state paths (0.3.28)
 
 tmux creation, observation, passive attachment and owned cleanup use a relative
