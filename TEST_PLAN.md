@@ -850,6 +850,10 @@ reproduce human diagnostic overflow rejecting a valid response, and require
 actual stderr overflow to remain failure in machine mode. Native owner
 readiness/ping/revocation uses a real Unix socket rather than an unbuffered
 in-memory pipe; safe fixture status is emitted on failures without credentials.
+Native terminal fixture failures retain a bounded synthetic-output tail and
+the exact attachment process identity/join state. Linux CI repeats long-socket
+attachment startup separately to expose intermittent failures without hiding
+them behind a successful sibling pull-request workflow.
 
 `TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch` keeps
 an actual binary authority query active across renewal, then verifies its exact

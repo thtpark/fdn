@@ -57,6 +57,9 @@ jobs:
         run: |
           tmux -V
           go test -race -count=20 ./internal/remote -run '^(TestSharingNative|TestLinuxProcess|TestSharingInput)' -timeout=3m
+      - name: Diagnose intermittent Linux long-socket attachment startup
+        if: runner.os == 'Linux'
+        run: go test -race -count=200 ./internal/remote -run '^TestSharingNativeLongStatePathPreservesDirectoryAndOwnedCleanup$' -timeout=3m
       - name: Repeat native owner ping and revocation readiness on Unix transport
         run: go test -race -count=20 ./internal/identityservice -run '^TestNativeOwnerReadLoopServicesFreshPingsAndPolicyViolation$' -timeout=2m
 
