@@ -305,7 +305,7 @@ func Arguments(name, workspace, output, model string, coding bool) ([]string, er
 	}
 	args = append(args, "--available-tools")
 	if coding {
-		args = append(args, "bash,list_bash,read_bash,write_bash,stop_bash,view,create,edit,apply_patch,glob,grep")
+		args = append(args, "bash,list_bash,read_bash,write_bash,stop_bash,view,create,edit,apply_patch,glob,grep,web_fetch")
 	}
 	args = append(args, "--disable-builtin-mcps", "--no-custom-instructions", "--no-ask-user", "--no-auto-update", "--silent", "--stream", "off", "--log-level", "none")
 	if model != "" {

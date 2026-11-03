@@ -227,6 +227,26 @@ Explicit recipient-chosen paths and legacy `state_dir/transfers` proposals stay
 unchanged through renames/restarts/configuration changes. Existing local/server
 SQL and wire contracts are unchanged by this storage-default change.
 
+Requested browser downloads and document/image questions use existing claimed
+task execution or source-bound Adhoc conversation actions. Attachment metadata,
+URLs and receipts are references, not inspected content. External downloads and
+derived analysis stay in private local workspaces; they neither create Foundation
+file receipts/publications nor change readership. Text planning remains tool-
+disabled, and browser/parser/image availability is a local prerequisite, not a
+new runtime or authority grant. Follow-up questions retain exact source/thread
+context and may inspect the same verified local copy. No schema, protocol, slot,
+approval, mode, inference-retry or automatic-fetch change is implied.
+
+Web-page investigation can use existing static-fetch/browser tools and an
+already authorized local website session or private credential reference.
+Ordinary website password sign-in requires exact current site/account authority;
+credential values remain inside local non-logging automation, never controller
+prompts/actions/shared records. Verify authenticated account/page access and
+retain rejected/challenged/uncertain results without blind submission retries.
+This adds no credential store, native field, Foundation/provider authentication
+permission or human-consent bypass. Website account access and disclosure
+authority remain separate from project membership and possession of a password.
+
 Private message attachment grants are resolved transactionally; existing readers
 cannot grant third-party access. Shared tasks/descriptions/criteria, entries and
 publications require prior explicit team publication. Snapshots pin immutable

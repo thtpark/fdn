@@ -121,6 +121,43 @@ func TestNativeProviderCommandsKeepManagedUpdateAuthority(t *testing.T) {
 	}
 }
 
+func TestFileInvestigationToolsAreOnlyAvailableDuringCoding(t *testing.T) {
+	for _, name := range []string{"codex", "copilot"} {
+		for _, coding := range []bool{false, true} {
+			args, err := Arguments(name, "/owned/workspace", "/private/reply.json", "fixture-model", coding)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if name == "copilot" {
+				index := slices.Index(args, "--available-tools")
+				if index < 0 || index+1 >= len(args) || !slices.Contains(args, "--disable-builtin-mcps") {
+					t.Fatal("missing bounded tool policy", args)
+				}
+				tools := strings.Split(args[index+1], ",")
+				for _, tool := range []string{"bash", "view", "web_fetch"} {
+					if slices.Contains(tools, tool) != coding {
+						t.Fatal("file/web tools escaped the coding boundary", name, coding, tool, args)
+					}
+				}
+				for _, tool := range []string{"task", "ask_user", "list_agents", "write_agent"} {
+					if slices.Contains(tools, tool) {
+						t.Fatal("investigation enabled human prompts or another worker", tool)
+					}
+				}
+				continue
+			}
+			if !slices.Contains(args, "mcp_servers={}") || !slices.Contains(args, "features.multi_agent=false") {
+				t.Fatal("investigation enabled arbitrary MCPs or another worker", args)
+			}
+			for _, feature := range []string{"shell_tool", "browser_use", "computer_use", "view_image", "search_tool"} {
+				if slices.Contains(args, "features."+feature+"=false") == coding {
+					t.Fatal("file/browser tools escaped the coding boundary", name, coding, feature, args)
+				}
+			}
+		}
+	}
+}
+
 func TestProviderHealthAndReplyValidation(t *testing.T) {
 	c := config.DefaultWorker(filepath.Join(t.TempDir(), "state"))
 	c.ProviderPaths = map[string]string{"codex": "/fixture/codex"}

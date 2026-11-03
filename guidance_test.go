@@ -84,6 +84,70 @@ func TestGuideCatalogSkillsLinksAndCurrentCommands(t *testing.T) {
 	}
 }
 
+func TestGuideDocumentsBrowserDownloadsAndFileInvestigation(t *testing.T) {
+	for file, fragments := range map[string][]string{
+		"COMMANDS.md": {"Browser downloads and file investigation", "Founder or a current project delegate",
+			"exact public URL", "tool-disabled", "web_fetch", "is not browser automation",
+			"actual completed", "PPTX", "DOCX", "photos", "source-bound", "untrusted data"},
+		"README.md": {"browser downloads", "PPTX, DOCX", "actual bytes", "Later thread replies", "No browser/Office runtime"},
+		"SCHEMA.md": {"Attachment metadata", "references, not inspected content", "same verified local copy", "No schema, protocol, slot"},
+		"TEST_PLAN.md": {"TestOfficeAndPhotoQuestionsUseActualPrivateBytes",
+			"TestApprovedTaskFileInvestigationUsesPublishedAttachments",
+			"TestBrowserInvestigationReportsUnavailableToolWithoutRetry", "not a live browser download"},
+		".agents/skills/foundation-work/SKILL.md": {"downloading with a web browser",
+			"investigating PPTX/DOCX/PDF", "browser-downloads-and-file-investigation", "metadata and receipts are not contents"},
+	} {
+		data, err := guidance.Read(file)
+		if err != nil {
+			t.Fatal(file, err)
+		}
+		text := strings.Join(strings.Fields(string(data)), " ")
+		for _, fragment := range fragments {
+			if !strings.Contains(text, fragment) {
+				t.Fatal("guide lost the existing-tools investigation contract", file, fragment)
+			}
+		}
+	}
+	context, err := guidance.WorkContext()
+	if err != nil || len(context) > 32<<10 || !strings.Contains(context, "browser-downloads-and-file-investigation") {
+		t.Fatal("browser/file guidance escaped the bounded explicit prompt context", err)
+	}
+}
+
+func TestGuideDocumentsWebsiteSignInBoundaries(t *testing.T) {
+	for file, fragments := range map[string][]string{
+		"COMMANDS.md": {"Web-page investigation and authorized website sign-in", "investigate a web page",
+			"may sign in to an ordinary website unattended", "Password possession is not account authority",
+			"local credential", "HTTPS origin", "at most one password submission",
+			"HTTP 200", "MFA/OTP/passkeys", "CAPTCHA", "do not manufacture a provider-authentication notice",
+			"not a credential-isolation or automatic-redaction guarantee"},
+		"README.md": {"investigate web pages", "authorized locally available password", "Known credentials are not account authority"},
+		"SCHEMA.md": {"exact current site/account authority", "local non-logging automation", "no credential store"},
+		"TEST_PLAN.md": {"TestWebInvestigationUsesActualPagesAndAuthorizedSignIn",
+			"TestWebsiteSignInBlockersDoNotRetryOrLeakSecrets", "TestWebsiteSignInLostReceiptReplaysWithoutAnotherLogin",
+			"not a browser-engine"},
+		".agents/skills/foundation-work/SKILL.md": {"investigating web pages", "authorized website sign-in",
+			"authorized local credentials, never model-visible secrets"},
+		".agents/skills/foundation-provider-auth/SKILL.md": {"protected **human-only** views",
+			"ask for a token/password in chat", "Actual credential inputs, one-time codes and private sign-in state must not enter a model"},
+	} {
+		data, err := guidance.Read(file)
+		if err != nil {
+			t.Fatal(file, err)
+		}
+		text := strings.Join(strings.Fields(string(data)), " ")
+		for _, fragment := range fragments {
+			if !strings.Contains(text, fragment) {
+				t.Fatal("guide lost ordinary/protected authentication boundaries", file, fragment)
+			}
+		}
+	}
+	context, err := guidance.WorkContext()
+	if err != nil || len(context) > 32<<10 || !strings.Contains(context, "authorized website sign-in") {
+		t.Fatal("website guidance escaped bounded explicit prompt delivery", err)
+	}
+}
+
 func TestGuideDocumentsExplicitLegacyResetCleanup(t *testing.T) {
 	for file, fragments := range map[string][]string{
 		"COMMANDS.md":    {"terminal legacy tmux", "kernel-confirmed pane parentage", "sessions/retired", "operator-required"},

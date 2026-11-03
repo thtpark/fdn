@@ -659,6 +659,24 @@ require the owner's explicit `file publish` first. Private message attachment
 selection grants that message's receiver access, without enabling reader
 re-sharing to third parties. Announcements retain their exact reviewed audience.
 
+Founder/delegates can request browser downloads and questions about PPTX, DOCX,
+PDF, photos or other files in messages, task comments or approved tasks. The
+controller routes required retrieval/inspection into its existing tool-enabled
+work slot; a filename, URL or receipt is not content analysis. Agents use available
+local browser/document/image tools, inspect actual bytes, cite source locations
+and report missing tools or inspection limits explicitly. Later thread replies
+can ask further questions about the verified copy. No browser/Office runtime is
+bundled or implicitly installed; protected sign-in, privacy and approval fences
+remain. See the [browser/file procedure](COMMANDS.md#browser-downloads-and-file-investigation).
+
+The same workflow can investigate web pages, search/expand/paginate and read
+authorized account pages. Ordinary website sign-in may use an agent-owned
+session or an authorized locally available password for the exact site/account,
+without putting credential values in model prompts or captured tool output.
+Known credentials are not account authority; MFA/CAPTCHA, protected SSO/consent,
+provider sign-in and uncertain outcomes remain explicit blockers, not automatic
+retries. See [website access](COMMANDS.md#web-page-investigation-and-authorized-website-sign-in).
+
 `publication create/change/list/show/versions/version` publishes team-readable
 Markdown of kind `file`, `diary`, `skill` or `idea`, with company/project/agent
 metadata scope, creator/editor provenance, content hashes and immutable version

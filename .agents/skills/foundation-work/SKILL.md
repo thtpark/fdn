@@ -1,18 +1,16 @@
 ---
 name: foundation-work
-description: "Use when transferring/attaching files, publishing diaries/shared skills/ideas, sending announcements or autonomous action/upgrade requests, working with shared company/project/agent notes, messages/mentions/read receipts, public status, workspaces/automation, task preparation/assignment/approval/execution, or independent PR review/rework/merge through the serial controller."
+description: "Use when investigating web pages or authorized website sign-in, transferring/attaching files, downloading with a web browser, investigating PPTX/DOCX/PDF documents/photos or file questions, publishing diaries/shared skills/ideas, sending announcements/action/upgrade requests, editing shared company/project/agent notes, messages/mentions/read receipts/status, workspaces/automation, task preparation/assignment/approval/execution, or serial independent PR review/rework/merge."
 ---
 
 # Prepare, execute and verify one authorized task
 
 Read `agent-cli guide show COMMANDS.md` and `guide show SCHEMA.md`.
-In controller text calls tools remain disabled: return structured replies, not
-actions or authority. Review exact `announcement audience` before `announcement
-send`; existing permissions do not authorize destructive changes/new costs.
-Upgrade intent is not a native permit. Preserve AGENTS.md decision/result,
-pause, independent-fence and non-forcing-request rules. Private `message list`,
-`message thread-page` and read-only `observe` never imply read/approval/inference
-or another controller; never reuse daemon checkpoints.
+In controller text calls tools remain disabled: return structured replies.
+Follow AGENTS.md authority/pause/fence/non-forcing-request rules. Preview
+`announcement audience`; destructive changes/new costs need approval. Upgrade
+intent is not a native permit. Read-only messages/`observe` imply no read/
+approval/inference/controller; never reuse daemon checkpoints.
 
 ## Context and readiness
 
@@ -93,14 +91,18 @@ and consolidate over-budget context instead of working without required notes.
 ## Deliberate files and publications
 
 Follow [COMMANDS.md](../../../COMMANDS.md#files-publications-and-attachments):
-`file transfer --path FILE --to AGENT_ID`: Foundation UID ACLs, never direct. AI receives in workspace
-downloads under slot/mode/fences, no inference; manual queues. Locate:
-`file download-status receive-FILE_ID`. Choose with `file download FILE_ID
---output FILE`; sender folders are optional. Sync verified local bytes before receipt/deletion;
-replay exact journals; reorganize after handling. Attachments opt-in.
-`file grant`/`file publish`: owner-only. No Founder bypass/re-sharing/backup erasure.
-Publications: team Markdown, not installation/knowledge publication/authority.
-Protected handoffs cannot attach.
+`file transfer --path FILE --to AGENT_ID` uses Foundation UID ACLs, never direct.
+AI receives in workspace downloads under slot/mode/fences, no inference; manual
+queues. Locate: `file download-status receive-FILE_ID`; download:
+`file download FILE_ID --output FILE`. Verify/sync before receipt/deletion;
+replay exact journals. Attachments opt-in.
+Grants/publication are owner-only: no Founder bypass/re-sharing/backup erasure.
+Publications are team Markdown, not installation/knowledge publication/authority;
+protected handoffs cannot attach.
+
+[Browser/file investigation](../../../COMMANDS.md#browser-downloads-and-file-investigation):
+metadata and receipts are not contents; use tool-enabled execution.
+Website sign-in uses authorized local credentials, never model-visible secrets.
 
 ## Execution and reporting
 

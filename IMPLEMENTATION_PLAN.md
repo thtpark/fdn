@@ -6,6 +6,36 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Web pages and scoped website sign-in source work (0.3.25)
+
+The existing-tools workflow also covers actual web-page inspection, ordinary
+navigation/search/filter/pagination and authorized authenticated pages. Known-
+password ordinary website sign-in or reuse of an agent-owned session is allowed
+under exact current site/account authority, with credentials read only by a local
+non-logging routine and sanitized content returned to the model. Password
+possession alone grants no account/disclosure authority. Verify the authenticated
+account/page rather than a form submission or HTTP status, and never blindly
+repeat rejected, challenged or uncertain login effects. Foundation/provider
+authentication, MFA/CAPTCHA, protected SSO/consent and human sessions keep their
+existing boundaries. This adds no credential store, managed browser, native/schema
+change or live website/credential-isolation qualification.
+
+### Browser/file investigation with existing tools source work (0.3.24)
+
+Ordinary Founder/delegate messages, relevant task comments and approved tasks
+can request browser downloads and questions about PPTX/DOCX/PDF/photos. Tool-
+disabled planning preserves the source, questions and required browser method
+in a source-bound action; actual inspection uses the existing claimed work slot.
+Copilot coding permits page retrieval with `web_fetch`, not browser automation.
+Agents use available local browser/parser/image tools, verify downloaded bytes,
+cite content locations, distinguish text from visual evidence and report missing
+tools or unsupported content instead of guessing from metadata/receipts.
+Follow-up questions reuse verified local copies and the exact thread context.
+No managed browser/Office runtime, implicit installation, new controller,
+automatic URL fetch, schema/protocol/authority change or live-browser/model
+qualification is implied. Private files are never automatically sent to external
+converters or exposed through shared task records.
+
 ### Human help and normal local access source work (0.3.22)
 
 Typed protected help-message actions open an exact unexpired scope from desktop

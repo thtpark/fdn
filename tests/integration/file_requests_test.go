@@ -33,6 +33,7 @@ type fileRequestExecutor struct {
 	checks     []string
 	planning   int
 	executions int
+	analyze    func([]byte) (string, error)
 }
 
 func (x *fileRequestExecutor) Check(ctx context.Context, name string) (provider.Health, error) {
@@ -55,7 +56,7 @@ func (x *fileRequestExecutor) Invoke(ctx context.Context, invocation provider.In
 	if err := json.Unmarshal([]byte(raw), &launch); err != nil {
 		x.t.Fatal(err)
 	}
-	if invocation.Provider != x.preferred || invocation.Model != "fixture-model" || launch.Message == nil {
+	if invocation.Provider != x.preferred || invocation.Model != "fixture-model" || (launch.Message == nil && launch.Task == nil) {
 		x.t.Fatal("file request lost its recipient provider/model or private source", invocation.Provider, invocation.Model, launch)
 	}
 	if invocation.Started != nil {
@@ -64,21 +65,27 @@ func (x *fileRequestExecutor) Invoke(ctx context.Context, invocation provider.In
 		}
 	}
 	if !invocation.Coding {
+		if launch.Phase == "preflight" && launch.Task != nil && slices.Contains(launch.Task.Attachments, x.file.FileReference) {
+			return provider.Reply{Outcome: "clear", Summary: "Review the published file and answer the approved task's questions during execution."}, nil
+		}
 		x.planning++
-		if launch.Phase != "message" || (!strings.Contains(launch.Message.Body, x.file.ID) &&
-			!slices.Contains(launch.Message.Attachments, x.file.FileReference)) {
+		references := func(message domain.Message) bool {
+			return strings.Contains(message.Body, x.file.ID) || slices.Contains(message.Attachments, x.file.FileReference)
+		}
+		if launch.Phase != "message" || launch.Message == nil ||
+			(!references(*launch.Message) && !slices.ContainsFunc(launch.Thread, references)) {
 			x.t.Fatal("file request did not supply the exact private file reference", launch.Message)
 		}
 		return provider.Reply{Outcome: "responded", Summary: "Read and analyze the authorized private file before reporting a result.",
-			Action: &provider.ConversationAction{Instructions: "Read the private file, sum its numbers, and verify the saved analysis."}}, nil
+			Action: &provider.ConversationAction{Instructions: "Read the referenced file, answer the exact source questions using actual content, and verify the saved analysis."}}, nil
 	}
 	x.executions++
-	if launch.Phase != domain.ExecutionRun || launch.ConversationID == "" || launch.Task == nil ||
-		launch.Task.ProjectID != domain.AdhocProjectID || launch.Task.AssigneeID != launch.AgentID {
-		x.t.Fatal("file analysis bypassed source-bound Adhoc execution", launch)
+	if launch.Phase != domain.ExecutionRun || launch.Task == nil || launch.Task.AssigneeID != launch.AgentID ||
+		(launch.Message != nil && (launch.ConversationID == "" || launch.Task.ProjectID != domain.AdhocProjectID)) {
+		x.t.Fatal("file analysis bypassed a claimed task or source-bound Adhoc execution", launch)
 	}
 	operation := "analyze-" + x.file.ID
-	destination := filepath.Join(invocation.Workspace, "input.txt")
+	destination := filepath.Join(invocation.Workspace, x.file.Name)
 	if x.file.TransferTo != "" {
 		operation = "receive-" + x.file.ID
 		var retained filetransfer.Proposal
@@ -94,15 +101,23 @@ func (x *fileRequestExecutor) Invoke(ctx context.Context, invocation provider.In
 	if err != nil || !bytes.Equal(content, x.content) {
 		x.t.Fatal("analysis did not read the actual verified private bytes", err)
 	}
-	var total int
-	for _, field := range strings.Fields(string(content)) {
-		number, err := strconv.Atoi(field)
+	var result string
+	if x.analyze != nil {
+		result, err = x.analyze(content)
 		if err != nil {
 			return provider.Reply{}, err
 		}
-		total += number
+	} else {
+		var total int
+		for _, field := range strings.Fields(string(content)) {
+			number, err := strconv.Atoi(field)
+			if err != nil {
+				return provider.Reply{}, err
+			}
+			total += number
+		}
+		result = fmt.Sprintf("Private file total: %d", total)
 	}
-	result := fmt.Sprintf("Private file total: %d", total)
 	output := filepath.Join(invocation.Workspace, "analysis.txt")
 	if err := os.WriteFile(output, []byte(result), 0600); err != nil {
 		return provider.Reply{}, err
@@ -111,9 +126,12 @@ func (x *fileRequestExecutor) Invoke(ctx context.Context, invocation provider.In
 	if err != nil || string(checked) != result {
 		x.t.Fatal("saved analysis was not verified", err)
 	}
-	noResponse := false
-	return provider.Reply{Outcome: "completed", Summary: result, Evidence: []string{"Verified the input bytes and saved analysis."},
-		ResponseRequested: &noResponse}, nil
+	reply := provider.Reply{Outcome: "completed", Summary: result, Evidence: []string{"Verified the input bytes and saved analysis."}}
+	if launch.ConversationID != "" {
+		noResponse := false
+		reply.ResponseRequested = &noResponse
+	}
+	return reply, nil
 }
 
 func TestPrivateFileRequestsUseReadyRecipientProviderWithoutSignIn(t *testing.T) {
