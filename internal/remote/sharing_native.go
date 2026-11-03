@@ -294,7 +294,9 @@ func attachManagedTerminal(ctx context.Context, socket string) (io.ReadWriteClos
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	cmd := exec.Command("tmux", "-S", socket, "attach-session", "-t", "foundation", "-f", "ignore-size")
+	socketArgument, directory := tmuxSocketLocation(socket)
+	cmd := exec.Command("tmux", "-S", socketArgument, "attach-session", "-t", "foundation", "-f", "ignore-size")
+	cmd.Dir = directory
 	cmd.Env = process.Environment("TERM=xterm-256color")
 	file, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 40, Cols: 120})
 	if err != nil {

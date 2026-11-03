@@ -6,6 +6,16 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Native terminal long state paths (0.3.28)
+
+tmux creation, observation, passive attachment and owned cleanup use a relative
+socket address from the same private parent when an absolute address exceeds
+the platform Unix limit. Canonical socket/ownership records and user state stay
+unchanged; explicit pane working-directory selection preserves approved
+workspace behavior. Real long-path regressions check native output, kernel
+ownership and cleanup. Existing unproven launch evidence is not erased or
+declared safe by this change; native rollout qualification remains separate.
+
 ### Verified native maintenance receipt reconciliation (0.3.27)
 
 The independent request receiver recognizes the exact signed permit's already

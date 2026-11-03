@@ -1146,6 +1146,13 @@ as `vnc_password_file` on that screen. It is not an encrypted vncpasswd database
 Foundation authenticates the backend locally and relays only authorized view data.
 Do not disclose the file/value to requester agents or put it in shared notes.
 No viewer may install/unlock a desktop or change OS capture permission.
+
+From 0.3.28, long current state paths keep their existing private socket/record
+namespace. tmux binds/connects using the socket basename from its owned parent
+directory when the absolute address would exceed the native Unix limit; the
+requested shell/workspace directory is preserved explicitly. No identity,
+state, workspace or old ownership evidence is moved, renamed or cleared.
+
 ### Display-equipped agents and browser VNC
 
 VNC is conditional on an actual physical/virtual desktop, never on a VM display
