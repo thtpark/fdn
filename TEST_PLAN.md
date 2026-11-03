@@ -42,6 +42,11 @@ runs while preserving unrelated processes and PID-reuse rejection.
 These cases must pass on their first CI attempt, not through blanket retries,
 relaxed production expiry checks or platform skips.
 
+`TestOwnedProcessGroupAbsenceDoesNotAdoptAChangedPID` requires kernel ESRCH for
+the exact old group before accepting cleanup despite a changed PID observation.
+Live/replaced groups, permission denial and I/O errors remain unproved; no
+changed process is signalled or adopted.
+
 Linux process inspection treats both ENOENT and ESRCH during `/proc` reads as
 an exited PID, while cleanup still proves process-group disappearance and
 preserves permission/I/O failures. Sharing input recovery rechecks the exact

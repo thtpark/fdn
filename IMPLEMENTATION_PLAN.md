@@ -16,6 +16,10 @@ unrelated values are stripped and text-only calls receive none. No paths enter
 provider prompts/argv/public DTOs, and no configuration/identity/state is
 discovered, copied or moved. A real compiled-CLI child regression verifies the
 native boundary rather than a fixture's direct API substitute.
+The release's independent repeated Linux cleanup gate also exposed a native
+PID-observation race: only proved disappearance of the exact old kernel group
+can complete cleanup despite changed PID metadata. A live/replaced group or
+permission/I/O failure remains fenced and is never adopted or signalled.
 
 ### Routine renewal and bounded inbox catch-up (0.3.30)
 

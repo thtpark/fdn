@@ -312,8 +312,9 @@ func TestNativeCloseRetriesAndPersistsOwnedCleanupWithoutCachingFailure(t *testi
 }
 
 func TestOwnedProcessIdentityRejectsPIDReuseWithoutSignals(t *testing.T) {
-	current, err := inspectProcess(os.Getpid())
-	if err != nil || current == nil || current.Started == "" || current.UID != uint32(os.Geteuid()) {
+	cmd, _ := legacyProcess(t, "")
+	current, err := inspectProcess(cmd.Process.Pid)
+	if err != nil || current == nil || !current.valid() {
 		t.Fatal("kernel process identity unavailable", current, err)
 	}
 	wrong := *current
