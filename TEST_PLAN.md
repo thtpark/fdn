@@ -42,6 +42,17 @@ runs while preserving unrelated processes and PID-reuse rejection.
 These cases must pass on their first CI attempt, not through blanket retries,
 relaxed production expiry checks or platform skips.
 
+Linux process inspection treats both ENOENT and ESRCH during `/proc` reads as
+an exited PID, while cleanup still proves process-group disappearance and
+preserves permission/I/O failures. Sharing input recovery rechecks the exact
+fence after acquiring `work.lock`, never cleans a retired/replaced lease and
+does not repeat native cleanup after durable proof. CI repeats these real-tmux
+lifecycle/kernel cases 20 times and the complete task-safe handoff 10 times;
+these repetitions are regression checks, not retries of a failed suite.
+Input arriving during the target's acknowledgement observes its completed
+server decision and durable native readiness, rather than silently losing the
+first input after a server-visible grant. Denied acknowledgement never enables it.
+
 ## Human help and normal local access
 
 ### Unified sharing

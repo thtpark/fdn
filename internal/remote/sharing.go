@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -37,9 +38,16 @@ type sharingInputRecord struct {
 }
 
 type sharedConnection struct {
-	cancel context.CancelFunc
-	done   chan struct{}
-	input  atomic.Bool
+	cancel  context.CancelFunc
+	done    chan struct{}
+	input   atomic.Bool
+	inputMu sync.RWMutex
+}
+
+func (connection *sharedConnection) inputAllowed() bool {
+	connection.inputMu.RLock()
+	defer connection.inputMu.RUnlock()
+	return connection.input.Load()
 }
 
 func (m *Manager) PublishSharing(ctx context.Context) (err error) {
@@ -328,10 +336,10 @@ func (m *Manager) serveSharing(ctx context.Context, backend SharingBackend, sess
 		result = errors.Join(result, <-controlDone)
 	}()
 	if session.Mode == "tmux" {
-		return bridgeSharedTerminal(ctx, conn, endpoint, connection.input.Load)
+		return bridgeSharedTerminal(ctx, conn, endpoint, connection.inputAllowed)
 	}
 	if len(password) != 0 {
-		return BridgeAuthenticatedVNC(ctx, conn, endpoint, password, connection.input.Load)
+		return BridgeAuthenticatedVNC(ctx, conn, endpoint, password, connection.inputAllowed)
 	}
 	requester, err := api.Call[domain.Agent](ctx, m.Client, "GET", api.Path("agents", session.RequesterID), nil)
 	if err != nil {
@@ -340,7 +348,7 @@ func (m *Manager) serveSharing(ctx context.Context, backend SharingBackend, sess
 	if !requester.Founder {
 		return domain.Fail(domain.Prerequisite, "delegate VNC needs target-owned private backend authentication; credentials cannot be handed to the delegate")
 	}
-	return BridgeSharedVNC(ctx, conn, endpoint, connection.input.Load)
+	return BridgeSharedVNC(ctx, conn, endpoint, connection.inputAllowed)
 }
 
 func bridgeSharedTerminal(ctx context.Context, viewer, terminal io.ReadWriteCloser, inputAllowed func() bool) error {
@@ -451,15 +459,9 @@ func (m *Manager) sharingControl(ctx context.Context, backend SharingBackend, c 
 						return err
 					}
 					prepared = true
-					inputLease, err = m.sharingChange(ctx, inputLease, "grant-input")
-					if err != nil {
+					if err := m.acknowledgeSharingInput(ctx, connection, &lease); err != nil {
 						return err
 					}
-					lease.State, lease.Session = "granted", inputLease
-					if err := m.State.Put(ctx, sharingInputKey(inputLease.ID), lease); err != nil {
-						return err
-					}
-					connection.input.Store(inputLease.InputGranted)
 				}
 
 			}
@@ -472,4 +474,21 @@ func (m *Manager) sharingControl(ctx context.Context, backend SharingBackend, c 
 		case <-ticker.C:
 		}
 	}
+}
+
+func (m *Manager) acknowledgeSharingInput(ctx context.Context, connection *sharedConnection, lease *sharingInputRecord) error {
+	// Input arriving during acknowledgement must observe its completed result,
+	// not race the server-visible grant against durable native readiness.
+	connection.inputMu.Lock()
+	defer connection.inputMu.Unlock()
+	granted, err := m.sharingChange(ctx, lease.Session, "grant-input")
+	if err != nil {
+		return err
+	}
+	lease.State, lease.Session = "granted", granted
+	if err := m.State.Put(ctx, sharingInputKey(granted.ID), *lease); err != nil {
+		return err
+	}
+	connection.input.Store(granted.InputGranted)
+	return nil
 }

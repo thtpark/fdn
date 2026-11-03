@@ -52,6 +52,11 @@ jobs:
         with:
           go-version-file: go.mod
       - run: bash scripts/test.sh unit
+      - name: Repeat real Linux sharing lifecycle and kernel-exit regressions
+        if: runner.os == 'Linux'
+        run: |
+          tmux -V
+          go test -race -count=20 ./internal/remote -run '^(TestSharingNative|TestLinuxProcess|TestSharingInput)' -timeout=3m
 
   integration:
     name: TLS, concurrency, recovery / ${{ matrix.os }}
@@ -68,6 +73,9 @@ jobs:
         with:
           go-version-file: go.mod
       - run: bash scripts/test.sh integration
+      - name: Repeat Linux task-safe sharing handoff and cleanup
+        if: runner.os == 'Linux'
+        run: go test -race -count=10 -tags=integration ./tests/integration -run '^TestSharingViewsContinueDuringExecutionAndInputUsesTheSameLogicalSession$' -timeout=2m
 
   end-to-end:
     name: Native binaries / ${{ matrix.os }}
