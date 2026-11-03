@@ -26,6 +26,15 @@ Cancel only owned processes, using exact process identities/process groups.
 
 ### CI timing and process-exit regressions
 
+The race-checked unit runner has an explicit 15-minute aggregate per-package
+alarm. Its 207-test Foundation package exceeded Go's implicit 10-minute alarm
+on a hosted macOS runner while an ordinary migration fixture was only one
+second old; this is not a longer native session, provider or admission deadline.
+Synthetic API fixtures retain bounded error-level diagnostics on failure rather
+than hiding an internal failure behind the deliberately redacted client fault.
+Both platforms repeat private raw/native attachment and assistance-observation
+cases together; their separate aggregate repetition budget is three minutes.
+
 Real-clock session fixtures must leave margin inside the server's unchanged
 60-900 second admission window, rather than request the exact minimum. The
 automatic-cleanup integration fixture models a request constructed one second

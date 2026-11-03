@@ -63,8 +63,8 @@ jobs:
         run: go test -race -count=200 ./internal/remote -run '^TestSharingNativeLongStatePathPreservesDirectoryAndOwnedCleanup$' -timeout=3m
       - name: Repeat native owner ping and revocation readiness on Unix transport
         run: go test -race -count=20 ./internal/identityservice -run '^TestNativeOwnerReadLoopServicesFreshPingsAndPolicyViolation$' -timeout=2m
-      - name: Repeat assistance message observation and immutable-byte checks
-        run: go test -race -count=20 ./internal/api -run '^TestAssistanceHelpAPISelfRoutingPrivacyAndNoAuthority$' -timeout=2m
+      - name: Repeat assistance observations and native private attachments
+        run: go test -race -count=20 ./internal/api -run '^(TestAssistanceHelpAPISelfRoutingPrivacyAndNoAuthority|TestMessageAttachmentsRawAndNativePreserveReplyAndPrivateAudience)$' -timeout=3m
 
   integration:
     name: TLS, concurrency, recovery / ${{ github.base_ref }} / ${{ matrix.os }}
