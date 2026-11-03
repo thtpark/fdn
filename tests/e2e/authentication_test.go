@@ -40,11 +40,18 @@ func TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference(t *testing.T
 				!strings.Contains(messages[0].Body, "assistance open GRANT --provider "+name) {
 				t.Fatal("native missing-login request is not protected/actionable", messages)
 			}
-			status := must[struct {
+			type nativeStatus struct {
 				Work work.Status `json:"work"`
-			}](t, "agent-cli", []string{"--config", l.worker.configFile, "work", "status"}, nil)
-			if len(status.Work.AuthenticationRequests) != 1 || status.Work.AuthenticationRequests[0].State != "requested" ||
-				status.Work.AuthenticationRequests[0].ExpiresAt-status.Work.AuthenticationRequests[0].CreatedAt != 900 || messages[0].ExpiresAt != status.Work.AuthenticationRequests[0].ExpiresAt {
+			}
+			readStatus := func() nativeStatus {
+				return must[nativeStatus](t, "agent-cli", []string{"--config", l.worker.configFile, "work", "status"}, nil)
+			}
+			var status nativeStatus
+			waitFor(t, 10*time.Second, func() bool {
+				status = readStatus()
+				return len(status.Work.AuthenticationRequests) == 1 && status.Work.AuthenticationRequests[0].State == "requested"
+			}, "durable local confirmation of the sign-in notice")
+			if status.Work.AuthenticationRequests[0].ExpiresAt-status.Work.AuthenticationRequests[0].CreatedAt != 900 || messages[0].ExpiresAt != status.Work.AuthenticationRequests[0].ExpiresAt {
 				t.Fatal("native work status did not expose confirmed handoff", status)
 			}
 			time.Sleep(1200 * time.Millisecond)
@@ -69,10 +76,13 @@ func TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference(t *testing.T
 			}
 			resumed := l.startAgent(t)
 			waitFor(t, 10*time.Second, func() bool { return len(inbox()) == 2 }, "fresh sign-in notice after explicit Founder refresh")
+			var fresh nativeStatus
+			waitFor(t, 10*time.Second, func() bool {
+				fresh = readStatus()
+				return len(fresh.Work.AuthenticationRequests) == 1 && fresh.Work.AuthenticationRequests[0].State == "requested" &&
+					fresh.Work.AuthenticationRequests[0].RefreshID == control.ID
+			}, "durable local confirmation of the refreshed sign-in notice")
 			resumed.stop(t)
-			fresh := must[struct {
-				Work work.Status `json:"work"`
-			}](t, "agent-cli", []string{"--config", l.worker.configFile, "work", "status"}, nil)
 			if len(fresh.Work.AuthenticationRequests) != 1 || fresh.Work.AuthenticationRequests[0].Supersedes != status.Work.AuthenticationRequests[0].ID ||
 				fresh.Work.AuthenticationRequests[0].RefreshID != control.ID || fresh.Work.AuthenticationRequests[0].ExpiresAt-fresh.Work.AuthenticationRequests[0].CreatedAt != 900 {
 				t.Fatal("native refresh did not supersede the original episode with a fresh deadline", fresh)

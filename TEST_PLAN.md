@@ -26,6 +26,15 @@ Cancel only owned processes, using exact process identities/process groups.
 
 ### CI timing and process-exit regressions
 
+The race-checked unit runner has an explicit 15-minute aggregate per-package
+alarm. Its 207-test Foundation package exceeded Go's implicit 10-minute alarm
+on a hosted macOS runner while an ordinary migration fixture was only one
+second old; this is not a longer native session, provider or admission deadline.
+Synthetic API fixtures retain bounded error-level diagnostics on failure rather
+than hiding an internal failure behind the deliberately redacted client fault.
+Both platforms repeat private raw/native attachment and assistance-observation
+cases together; their separate aggregate repetition budget is three minutes.
+
 Real-clock session fixtures must leave margin inside the server's unchanged
 60-900 second admission window, rather than request the exact minimum. The
 automatic-cleanup integration fixture models a request constructed one second
@@ -41,6 +50,11 @@ context failure. The real legacy-reset fixture must also pass repeated race
 runs while preserving unrelated processes and PID-reuse rejection.
 These cases must pass on their first CI attempt, not through blanket retries,
 relaxed production expiry checks or platform skips.
+
+`TestOwnedProcessGroupAbsenceDoesNotAdoptAChangedPID` requires kernel ESRCH for
+the exact old group before accepting cleanup despite a changed PID observation.
+Live/replaced groups, permission denial and I/O errors remain unproved; no
+changed process is signalled or adopted.
 
 Linux process inspection treats both ENOENT and ESRCH during `/proc` reads as
 an exited PID, while cleanup still proves process-group disappearance and
@@ -833,6 +847,39 @@ model and successive reply composer. CLI/observer/background reads remain
 read-only; displaying a message is the app's separate acknowledgement action.
 
 ## Tool-disabled response-contract regressions
+
+`TestNativeCodingToolsUseExplicitWorkerConfiguration` runs a real compiled
+worker CLI inside a native coding child with a non-default configuration,
+unrelated inherited context, isolated HOME and synthetic provider. It must
+observe the correct enrolled fixture identity without paid inference. Unit
+tests cover explicit flag precedence, missing-context failure without fallback,
+both providers' coding-only export and no prompt/argv disclosure.
+Codex machine-output tests keep event bytes distinct from the final reply file,
+reproduce human diagnostic overflow rejecting a valid response, and require
+actual stderr overflow to remain failure in machine mode. Native owner
+readiness/ping/revocation uses a real Unix socket rather than an unbuffered
+in-memory pipe; safe fixture status is emitted on failures without credentials.
+Native terminal fixture failures retain a bounded synthetic-output tail and
+the exact attachment process identity/join state. Linux CI repeats long-socket
+attachment startup separately to expose intermittent failures without hiding
+them behind a successful sibling pull-request workflow.
+Workflow contracts require distinct main/release check names and execute the
+publication filter against synthetic API responses. A same-head sibling PR,
+different source/event, unfinished/failed run, or acceptance outside the
+release PR's pre-merge interval must not authorize publication.
+Assistance message comparisons preserve every immutable/private field while
+allowing the server's live observation timestamp to advance. Runtime-reset
+fixtures use immutable state roots when checking retained native evidence while
+the controller reconciles configuration; both regressions repeat under race
+detection on Linux and macOS.
+Native startup must prove the exact `foundation` session, not merely an owned
+tmux server. A deterministic real-tmux fixture withholds session-admission proof
+after server discovery and fails if startup returns early. Missing sessions are
+queried within the unchanged startup bound; an unready deadline, unexpected
+query/cleanup failure or nonzero client exit remains explicit failure.
+Native sign-in fixtures wait for durable local delivery confirmation before
+asserting handoff state or restarting the daemon. A notice already visible in
+Founder's inbox is not proof that the target has committed its acknowledgement.
 
 `TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch` keeps
 an actual binary authority query active across renewal, then verifies its exact

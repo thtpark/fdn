@@ -54,7 +54,11 @@ func sharingNativeFixture(t *testing.T) (context.Context, config.Worker, *local.
 
 func readNativeSharing(t *testing.T, endpoint io.ReadWriteCloser, marker string) {
 	t.Helper()
-	done := make(chan error, 1)
+	type result struct {
+		err    error
+		output string
+	}
+	done := make(chan result, 1)
 	go func() {
 		var output strings.Builder
 		buffer := make([]byte, 4096)
@@ -63,20 +67,34 @@ func readNativeSharing(t *testing.T, endpoint io.ReadWriteCloser, marker string)
 			if n > 0 {
 				output.Write(buffer[:n])
 				if strings.Contains(output.String(), marker) {
-					done <- nil
+					done <- result{}
 					return
 				}
 			}
 			if err != nil {
-				done <- err
+				tail := output.String()
+				if len(tail) > len(buffer) {
+					tail = tail[len(tail)-len(buffer):]
+				}
+				done <- result{err: err, output: tail}
 				return
 			}
 		}
 	}()
 	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatal("native terminal output was not observed", err)
+	case got := <-done:
+		if got.err != nil {
+			if attachment, ok := endpoint.(*sharingAttachment); ok {
+				current, inspectErr := inspectProcess(attachment.identity.PID)
+				t.Logf("attachment identity: expected=%+v current=%+v inspection=%v", attachment.identity, current, inspectErr)
+				select {
+				case <-attachment.done:
+					t.Log("attachment process has exited")
+				default:
+					t.Log("attachment process has not joined")
+				}
+			}
+			t.Fatalf("native terminal output was not observed: %v; fixture output tail=%q", got.err, got.output)
 		}
 	case <-time.After(5 * time.Second):
 		closeErr := endpoint.Close()

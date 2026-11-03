@@ -30,7 +30,7 @@ func (r *fixtureRunner) Run(_ context.Context, s process.Spec) error {
 		return err
 	}
 	if slices.Contains(s.Args, "--help") {
-		_, err := io.WriteString(s.Stdout, "--available-tools --allow-all --disable-builtin-mcps --no-custom-instructions --no-ask-user --no-auto-update --silent --dangerously-bypass-approvals-and-sandbox --ask-for-approval --output-last-message --ephemeral --sandbox --skip-git-repo-check")
+		_, err := io.WriteString(s.Stdout, "--available-tools --allow-all --disable-builtin-mcps --no-custom-instructions --no-ask-user --no-auto-update --silent --dangerously-bypass-approvals-and-sandbox --ask-for-approval --json --output-last-message --ephemeral --sandbox --skip-git-repo-check")
 		return err
 	}
 	if slices.Contains(s.Args, "login") {

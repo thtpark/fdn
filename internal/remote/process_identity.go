@@ -28,21 +28,28 @@ func (p ownedProcess) valid() bool {
 }
 
 func (p ownedProcess) stopped() (bool, error) {
+	return p.stoppedWithProbe(inspectProcess, func(group int) error { return syscall.Kill(-group, 0) })
+}
+
+func (p ownedProcess) stoppedWithProbe(inspect func(int) (*ownedProcess, error), probe func(int) error) (bool, error) {
 	if !p.valid() {
 		return false, domain.Fail(domain.Prerequisite, "session cleanup has no exact owned process-group identity")
 	}
-	current, err := inspectProcess(p.PID)
+	groupErr := probe(p.Group)
+	if errors.Is(groupErr, syscall.ESRCH) {
+		return true, nil
+	}
+	if groupErr != nil && !errors.Is(groupErr, syscall.EPERM) {
+		return false, groupErr
+	}
+	current, err := inspect(p.PID)
 	if err != nil {
-		return false, err
+		return false, errors.Join(err, groupErr)
 	}
 	if current != nil && *current != p {
 		return false, domain.Fail(domain.Conflict, "session process identity changed; an unrelated process was not adopted")
 	}
-	err = syscall.Kill(-p.Group, 0)
-	if errors.Is(err, syscall.ESRCH) {
-		return true, nil
-	}
-	return false, err
+	return false, groupErr
 }
 
 func (p ownedProcess) stop(ctx context.Context) error {
@@ -77,7 +84,7 @@ func (p ownedProcess) stopWithSignal(ctx context.Context, signal func(int, sysca
 		return p.waitStopped(ctx)
 	}
 	if *current != p {
-		return domain.Fail(domain.Prerequisite, "session process-group ownership cannot be revalidated")
+		return p.waitStopped(ctx)
 	}
 	if err := ctx.Err(); err != nil {
 		return err

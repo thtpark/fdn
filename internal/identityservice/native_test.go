@@ -24,9 +24,18 @@ func TestNativeOwnerReadLoopServicesFreshPingsAndPolicyViolation(t *testing.T) {
 	admitted := make(chan struct{})
 	handlerDone := make(chan struct{})
 	serverCtx, cancelServer := context.WithCancel(context.Background())
-	left, right := net.Pipe()
+	listener, err := net.Listen("unix", filepath.Join(f.root, "owner-fixture.sock"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	go func() {
 		defer close(handlerDone)
+		left, err := listener.Accept()
+		if err != nil {
+			pingResult <- err
+			return
+		}
+		defer left.Close()
 		identity := f.profile.Identity
 		challenge := domain.IdentityChallenge{Nonce: nonce(10001), AgentID: identity.AgentID, InstanceID: identity.InstanceID,
 			Generation: identity.Generation, ExpiresAt: f.now.Add(10 * time.Second).Unix()}
@@ -76,9 +85,11 @@ func TestNativeOwnerReadLoopServicesFreshPingsAndPolicyViolation(t *testing.T) {
 		case <-serverCtx.Done():
 		}
 	}()
-	defer func() { cancelServer(); left.Close(); right.Close() }()
+	defer func() { cancelServer(); listener.Close() }()
 	f.remote.owner = func(ctx context.Context) (OwnerStream, error) {
-		client := api.NewMessageClient("fixture://owner", func(context.Context) (net.Conn, error) { return right, nil })
+		client := api.NewMessageClient("fixture://owner", func(ctx context.Context) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "unix", listener.Addr().String())
+		})
 		connection, err := client.MessageSession(ctx)
 		if err != nil {
 			return nil, err

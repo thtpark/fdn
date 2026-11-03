@@ -159,6 +159,16 @@ not an extra local permission gate. Fresh defaults are true; old false values
 do not block automatic owned project directories. Explicit binding disables,
 inode/ownership checks and task/mode/uncertainty/OS/financial authority remain.
 
+From 0.3.31, `agent-cli` and `agent-service` select configuration in this order:
+explicit `--config`, local `FDN_WORKER_CONFIG`, then the normal HOME default.
+Foundation server commands ignore that worker-only variable. Coding provider
+calls set it from their already loaded exact worker configuration; inherited
+unrelated values are stripped, and tool-disabled calls receive no binding.
+This keeps bare native file/message CLI tools on their own enrolled computer
+when its installation uses an explicit path. The path stays local, outside
+provider argv/prompts and public DTOs. Missing/invalid context fails explicitly;
+no configuration discovery, copying, migration or extra authority is implied.
+
 Protected authentication, local-OS permission and `assistance request` messages
 carry typed `help` scope and a server observation time. Desktop/iOS message
 actions show Open terminal session or Open screen session only for that scope,
@@ -1787,6 +1797,10 @@ provider/model, not the assignee's required selection.
 Missing/unsupported provider/model never silently falls back. Current Codex
 status may be credentials-present-unverified; do not report live authentication
 from that alone. Copilot has bounded read-only authentication/model RPC.
+Managed Codex exec uses capability-checked `--json` event output and the exact
+`--output-last-message` file for its final structured reply. Human-format prompt/
+tool diagnostics must not unnecessarily fill stderr. Existing stdout/stderr
+and final-reply limits stay enforced; genuine overflow remains failure.
 
 Provider install/update and worker daemon startup install managed `codex` and
 `copilot` launchers in `$HOME/.foundation/bin`. They dispatch through `provider exec`,

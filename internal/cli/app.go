@@ -75,6 +75,8 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 	defaultConfig, homeErr := config.DefaultConfig()
 	if role == "foundation" {
 		defaultConfig, homeErr = config.DefaultServerConfig()
+	} else if scoped := os.Getenv(config.WorkerConfigEnvironment); scoped != "" {
+		defaultConfig = scoped
 	}
 	flags := flag.NewFlagSet(role, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -87,7 +89,8 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 	version := flags.Bool("version", false, "print version")
 	err := flags.Parse(args)
 	if errors.Is(err, flag.ErrHelp) {
-		return a.emit(map[string]any{"commands": commands(role), "global_options": "--config --json --non-interactive --timeout --operation-id --expected-rev --version"}, nil)
+		return a.emit(map[string]any{"commands": commands(role), "global_options": "--config --json --non-interactive --timeout --operation-id --expected-rev --version",
+			"configuration": "Workers: --config > FDN_WORKER_CONFIG > HOME default. Foundation server ignores the worker environment binding."}, nil)
 	}
 	if err != nil {
 		return a.emit(nil, domain.Fail(domain.Invalid, "invalid global options; flags precede the command"))

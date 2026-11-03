@@ -100,6 +100,7 @@ type Credential struct {
 }
 
 const UserDirectory = ".foundation"
+const WorkerConfigEnvironment = "FDN_WORKER_CONFIG"
 
 func DefaultWorker(stateDir string) Worker {
 	return Worker{StateDir: stateDir, URL: "https://localhost:8443",

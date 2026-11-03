@@ -196,7 +196,7 @@ func (m *Manager) compatibility(ctx context.Context, name, path string) error {
 		if err != nil {
 			return domain.Fail(domain.Prerequisite, "Codex exec capability probe failed")
 		}
-		for _, flag := range []string{"--output-last-message", "--ephemeral", "--sandbox", "--skip-git-repo-check"} {
+		for _, flag := range []string{"--json", "--output-last-message", "--ephemeral", "--sandbox", "--skip-git-repo-check"} {
 			if !bytes.Contains(execHelp, []byte(flag)) {
 				return domain.Fail(domain.Prerequisite, "Codex is missing a required unattended-output/sandbox capability")
 			}
@@ -284,7 +284,7 @@ func Arguments(name, workspace, output, model string, coding bool) ([]string, er
 		} else {
 			args = append(args, "--ask-for-approval", "never")
 		}
-		args = append(args, "exec", "--ephemeral", "--skip-git-repo-check", "--color", "never")
+		args = append(args, "exec", "--json", "--ephemeral", "--skip-git-repo-check", "--color", "never")
 		if !coding {
 			args = append(args, "--sandbox", "read-only")
 			for _, feature := range []string{"shell_tool", "unified_exec", "multi_agent", "multi_agent_v2", "apply_patch_freeform", "js_repl", "js_repl_tools_only", "apps", "browser_use", "computer_use", "view_image", "search_tool", "tool_search", "hooks", "plugin_hooks", "plugins"} {
@@ -356,7 +356,11 @@ func (m *Manager) Invoke(ctx context.Context, inv Invocation) (reply Reply, err 
 		_, closeErr := stdout.finish()
 		return reply, errors.Join(err, closeErr)
 	}
-	runErr := m.Runner.Run(ctx, process.Spec{Path: inv.Path, Args: args, Dir: cwd, Env: process.Environment(),
+	environment := process.Environment()
+	if inv.Coding && m.Config.SourcePath() != "" {
+		environment = append(environment, config.WorkerConfigEnvironment+"="+m.Config.SourcePath())
+	}
+	runErr := m.Runner.Run(ctx, process.Spec{Path: inv.Path, Args: args, Dir: cwd, Env: environment,
 		Stdin: strings.NewReader(inv.Prompt), Stdout: stdout, Stderr: stderr, Started: inv.Started})
 	out, outErr := stdout.finish()
 	_, diagErr := stderr.finish()

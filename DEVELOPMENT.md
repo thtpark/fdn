@@ -194,6 +194,17 @@ Do not treat unproved cleanup, old uncertainty, applied decisions or coding
 execution as safe text retries. Test unrelated file/message catch-up after pause
 and preserve original evidence and exhausted budgets across restart.
 
+Coding invocations retain the exact loaded worker configuration through the
+local `FDN_WORKER_CONFIG` tool environment. Never inherit another binding,
+export it to text-only calls, embed it in model prompts/argv/public DTOs, move
+state to a default layout, or use it as identity/project authority. Worker CLI
+explicit flags take precedence; Foundation server commands ignore the variable.
+The native-child e2e test must execute the real CLI against an explicit-path
+fixture, not substitute a direct in-process API call for that boundary.
+Managed Codex exec uses capability-checked `--json` events and its exact
+`--output-last-message` file. Keep stdout/stderr/final-reply bounds unchanged;
+real overflow remains an explicit failure, never successful truncation.
+
 ### Founder desktop onboarding
 
 Founder desktop onboarding is implemented by `internal/cli/agent_add.go`,
@@ -289,6 +300,11 @@ credentials local and reject unsupported/encrypted encodings rather than trust
 viewer flags. Execution mirrors stream bounded private stdout/stderr without
 changing provider stdin/non-prompting batch behavior. Do not adopt unmanaged
 terminals or treat skipped real-tmux tests as native qualification.
+Native tmux startup must verify the exact `foundation` session after recording
+its owned server, before another viewer can attach. Server discovery alone is
+not session readiness. The existing startup bound is unchanged; unready
+deadlines, nonzero client exits and unexpected query failures are explicit errors,
+with exact ownership retained for cleanup.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
 - File content/version identities and aligned chunks are immutable. Keep staged
@@ -383,7 +399,9 @@ workflow through an administrator override.
 PRs into `main` or `release` run separate static, unit, integration,
 native-binary end-to-end and stress jobs; Linux/macOS runs qualify their own
 sources. Release PRs must pass this acceptance before merge; packaging is not
-a substitute for those checks. Packaging runs only
+a substitute for those checks. Check names distinguish the target branch, and
+the acceptance run identifies the initiating PR, target branch and exact head;
+a successful same-head sibling PR cannot authorize publication. Packaging runs only
 for merged PRs into `release`, on the exact merge commit. Version changes must
 produce new immutable releases.
 
