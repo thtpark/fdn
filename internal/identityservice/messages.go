@@ -31,20 +31,12 @@ func (s *Service) serveMessagePeer(ctx context.Context, conn net.Conn) error {
 		if err := api.ValidateOrdinaryMessage(request); err != nil {
 			return nil, err
 		}
-		s.mu.RLock()
-		lease, problem, ownerExpiry := s.lease, s.status.Problem, s.ownerExpiry
-		s.mu.RUnlock()
-		now := s.options.Now()
-		if problem == domain.Denied || problem == domain.Conflict || (!ownerExpiry.IsZero() && !ownerExpiry.After(now)) {
-			return nil, domain.Fail(domain.Denied, "identity owner authority was withdrawn or expired")
+		lease, err := s.acquireOwnerLease()
+		if err != nil {
+			return nil, err
 		}
-		if lease != nil && !lease.expires.After(now) {
-			return nil, domain.Fail(domain.Denied, "identity owner certificate expired")
-		}
-		if lease == nil || lease.context.Err() != nil {
-			return nil, domain.Fail(domain.Unavailable, "identity owner connection is not ready")
-		}
-		forward, cancel := context.WithDeadline(call, lease.expires)
+		defer lease.release()
+		forward, cancel := context.WithCancel(call)
 		stop := context.AfterFunc(lease.context, cancel)
 		defer stop()
 		defer cancel()

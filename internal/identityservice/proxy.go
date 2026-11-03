@@ -187,21 +187,12 @@ func (s *Service) handler() http.Handler {
 			localResponse(w, nil, domain.Fail(domain.Denied, "websocket upgrades are only available on ordinary session relays"))
 			return
 		}
-		s.mu.RLock()
-		lease, problem, ownerExpiry := s.lease, s.status.Problem, s.ownerExpiry
-		s.mu.RUnlock()
-		if problem == domain.Denied || problem == domain.Conflict || (!ownerExpiry.IsZero() && !ownerExpiry.After(s.options.Now())) {
-			localResponse(w, nil, domain.Fail(domain.Denied, "identity owner authority was revoked, banned or expired; execution must stop"))
+		lease, err := s.acquireOwnerLease()
+		if err != nil {
+			localResponse(w, nil, err)
 			return
 		}
-		if lease != nil && !lease.expires.After(s.options.Now()) {
-			localResponse(w, nil, domain.Fail(domain.Denied, "identity owner certificate has expired; execution must stop"))
-			return
-		}
-		if lease == nil || lease.context.Err() != nil {
-			localResponse(w, nil, domain.Fail(domain.Unavailable, "identity owner connection is not ready"))
-			return
-		}
+		defer lease.release()
 		base, err := url.Parse(lease.client.BaseURL)
 		if err != nil {
 			localResponse(w, nil, domain.Fail(domain.Unavailable, "identity owner transport is unavailable"))

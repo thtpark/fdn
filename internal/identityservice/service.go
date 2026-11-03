@@ -29,12 +29,6 @@ type Service struct {
 	ownerExpiry time.Time
 }
 
-type ownerLease struct {
-	client  *api.Client
-	context context.Context
-	expires time.Time
-}
-
 func New(c config.IdentityService, options Options) (*Service, error) {
 	c = c.WithCurrentUser()
 	if err := validateSettings(c); err != nil {
@@ -231,7 +225,7 @@ func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile
 		}
 	}()
 	leaseCtx, leaseCancel := context.WithCancel(ctx)
-	clients := []*api.Client{}
+	var closed sync.WaitGroup
 	defer func() {
 		s.mu.Lock()
 		s.lease = nil
@@ -244,9 +238,7 @@ func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile
 		leaseCancel()
 		stream.Close()
 		<-readDone
-		for _, client := range clients {
-			client.Close()
-		}
+		closed.Wait()
 	}()
 	awaiting := false
 	send := func(challenge domain.IdentityChallenge) error {
@@ -321,18 +313,19 @@ func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile
 				client.Close()
 				return domain.Fail(domain.Denied, "native owner transport requires the binary SSH protocol")
 			}
-			if len(clients) > 0 {
-				clients[0].Close()
-			}
-			clients = []*api.Client{client}
 			generation, challenge, awaiting = certificate.Generation, certificate.Challenge, false
 			deadline.Stop()
+			remaining := pair.Leaf.NotAfter.Sub(s.options.Now())
+			lease := newOwnerLease(leaseCtx, client, pair.Leaf.NotAfter, remaining, &closed)
 			s.mu.Lock()
-			s.lease = &ownerLease{client: client, context: leaseCtx, expires: pair.Leaf.NotAfter}
+			previous := s.lease
+			s.lease = lease
 			s.ownerExpiry = pair.Leaf.NotAfter
 			s.status.Ready, s.status.OwnerGeneration, s.status.Problem = true, generation, ""
 			s.mu.Unlock()
-			remaining := pair.Leaf.NotAfter.Sub(s.options.Now())
+			if previous != nil {
+				previous.retire()
+			}
 			expiry.Reset(remaining)
 			untilChallengeExpiry := time.Unix(challenge.ExpiresAt, 0).Sub(s.options.Now())
 			renew.Reset(min(s.options.RenewInterval, remaining/3, untilChallengeExpiry/2))

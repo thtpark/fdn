@@ -208,6 +208,7 @@ type signOutDuringWork struct {
 	authentication string
 	phase          string
 	failed         bool
+	phaseCalls     int
 }
 
 func (x *signOutDuringWork) Check(_ context.Context, name string) (provider.Health, error) {
@@ -219,6 +220,9 @@ func (x *signOutDuringWork) Invoke(ctx context.Context, invocation provider.Invo
 	var launch work.Launch
 	if err := json.Unmarshal([]byte(raw), &launch); err != nil {
 		return provider.Reply{}, err
+	}
+	if launch.Phase == x.phase {
+		x.phaseCalls++
 	}
 	if launch.Phase == x.phase && !x.failed {
 		x.failed, x.authentication = true, "credentials-rejected"
@@ -273,8 +277,14 @@ func TestProviderSignOutDuringWorkEscalatesWithoutBypassingRecovery(t *testing.T
 				}
 			}
 			if phase == "preflight" {
-				if _, err := engine.Step(context.Background(), false); err == nil || !strings.Contains(err.Error(), "fenced") {
-					t.Fatal("sign-in notice bypassed uncertain invocation recovery", err)
+				pending, err := engine.State.Journals(context.Background(), true)
+				if err != nil || len(pending) != 0 || len(status.TextResponseBlocks) != 1 ||
+					status.TextResponseBlocks[0].State != "blocked" || status.TextResponseBlocks[0].Attempts != 1 {
+					t.Fatal("settled sign-out lost its exact source fence or poisoned global admission", pending, status.TextResponseBlocks, err)
+				}
+				x.authentication = "authenticated"
+				if _, err := engine.Step(context.Background(), false); err != nil || x.phaseCalls != 1 {
+					t.Fatal("renewed sign-in bypassed the failed source's explicit recovery requirement", x.phaseCalls, err)
 				}
 			}
 		})

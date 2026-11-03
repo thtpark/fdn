@@ -29,7 +29,7 @@ func (s *State) Journal(ctx context.Context, id string) (Journal, error) {
 // restart nor a lost recovery response may silently authorize another model call.
 func (s *State) SaveTextResponse(ctx context.Context, journal Journal, actionHash string, block any) error {
 	if !domain.ValidOperation(journal.ID) || !domain.ValidHash(actionHash) || journal.TextActionHash != actionHash ||
-		(journal.State != "reply-rejected" && journal.State != "abandoned") || journal.Kind == domain.ExecutionRun || journal.Kind == domain.VerificationRun {
+		(journal.State != "reply-rejected" && journal.State != "text-failed" && journal.State != "abandoned") || journal.Kind == domain.ExecutionRun || journal.Kind == domain.VerificationRun {
 		return domain.Fail(domain.Invalid, "text response requires an exact non-execution journal and action fence")
 	}
 	journalData, err := json.Marshal(journal)
@@ -55,7 +55,7 @@ func (s *State) SaveTextResponse(ctx context.Context, journal Journal, actionHas
 }
 
 func (s *State) TextResponseValues(ctx context.Context) ([]json.RawMessage, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT value FROM kv WHERE key LIKE 'text-response:%' AND json_extract(value,'$.state')='blocked' ORDER BY key LIMIT 100`)
+	rows, err := s.db.QueryContext(ctx, `SELECT value FROM kv WHERE key LIKE 'text-response:%' AND json_extract(value,'$.state') IN ('blocked','retry-wait') ORDER BY key LIMIT 100`)
 	if err != nil {
 		return nil, err
 	}

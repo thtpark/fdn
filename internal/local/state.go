@@ -137,7 +137,7 @@ ON CONFLICT(key) DO UPDATE SET value=excluded.value`, terminal); err != nil {
 func (s *State) Journals(ctx context.Context, pending bool) ([]Journal, error) {
 	query := "SELECT data FROM journals"
 	if pending {
-		query += " WHERE state NOT IN ('done','stale','abandoned','reply-rejected')"
+		query += " WHERE state NOT IN ('done','stale','abandoned','reply-rejected','text-failed')"
 	}
 	query += " ORDER BY created_at,id"
 	rows, err := s.db.QueryContext(ctx, query)

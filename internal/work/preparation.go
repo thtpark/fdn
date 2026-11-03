@@ -150,6 +150,9 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 		}
 		return err
 	}
+	if err := e.resolveTextRetry(ctx, launch); err != nil {
+		return err
+	}
 	if err := e.phaseHealth(ctx, "applying", &launch, j.ID, 30, true); err != nil {
 		return err
 	}

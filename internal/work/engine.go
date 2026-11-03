@@ -745,6 +745,9 @@ func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journ
 	saveCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer stop()
 	if err != nil {
+		if !checkCleanup(err) {
+			return e.settleTextFailure(saveCtx, ctx, c, j, launch, errors.Join(err, context.Cause(invocationCtx)))
+		}
 		j.State, j.Problem = "uncertain", "text invocation interrupted/invalid; explicit retry requires confirming its process stopped"
 		saveErr := e.State.SaveJournal(saveCtx, *j)
 		return errors.Join(err, saveErr, e.invocationBlocked(saveCtx, c, *j, launch, err))

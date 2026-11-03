@@ -108,7 +108,11 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    polling, restart and a new work-run operation never authorize another model
    call. Exact native journal recovery can authorize a fresh text review after
    stopped-process confirmation. Never coerce the retained reply or clear an
-   uncertain/possibly applied decision under this rule.
+   uncertain/possibly applied decision under this rule. From 0.3.30, settled
+   unapplied tool-disabled interruptions use source-scoped `text-failed` and
+   at most three total transient attempts (5/10-second backoff). Inspect attempts
+   and retry_at in text_response_blocks; do not renew exhausted budgets or
+   convert old uncertain journals. Unrelated messages/files remain eligible.
 7. Manage private notes through `knowledge put/list/show/history`; use current
    revision, explicit selection/archive and useful consolidation. `inventory
    refresh` is native read-only observation, not a network scan or proof of OS/

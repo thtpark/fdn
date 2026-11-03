@@ -185,6 +185,15 @@ Git-host fixtures rather than add task-title, provider or repository branches
 to production policy. All providers must prove non-prompting local
 approval behavior before enabling coding; text calls must remain tool-disabled.
 
+Routine certificate renewal must drain active native calls rather than break
+authority watches. Retired transports close after their last admitted call or
+earlier expiry/owner loss; never replay a mutation across renewal. Settled,
+unapplied tool-disabled failures use atomic source-scoped `text-failed` journals
+and a maximum of three transient attempts with retained 5/10-second backoff.
+Do not treat unproved cleanup, old uncertainty, applied decisions or coding
+execution as safe text retries. Test unrelated file/message catch-up after pause
+and preserve original evidence and exhausted budgets across restart.
+
 ### Founder desktop onboarding
 
 Founder desktop onboarding is implemented by `internal/cli/agent_add.go`,
