@@ -868,6 +868,9 @@ tmux server. A deterministic real-tmux fixture withholds session-admission proof
 after server discovery and fails if startup returns early. Missing sessions are
 queried within the unchanged startup bound; an unready deadline, unexpected
 query/cleanup failure or nonzero client exit remains explicit failure.
+Native sign-in fixtures wait for durable local delivery confirmation before
+asserting handoff state or restarting the daemon. A notice already visible in
+Founder's inbox is not proof that the target has committed its acknowledgement.
 
 `TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch` keeps
 an actual binary authority query active across renewal, then verifies its exact
