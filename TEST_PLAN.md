@@ -80,12 +80,17 @@ Live output tests must preserve provider stdout/stderr limits and structured
 reply bytes; reading a filename/status is not an output-stream test.
 
 `TestSharingNative*` requires a real tmux executable and disposable owner-only
-short-path state. Verify producer survival after a viewer closes, real shell
+state under a short test root, with explicit long-state cases. Verify producer
+survival after a viewer closes, real shell
 output (not typed command echo), live private-log appends, ignore-size viewing,
 retired-tail cleanup and exact-generation input cleanup preserving newer
 terminals. If tmux is absent these tests explicitly skip: do not report native
 qualification. Missing tools or denied isolated test builds remain reported
 native-test prerequisites, not successful builds or host installations.
+The long-state-path cases additionally exceed the kernel Unix address limit,
+observe actual shell output in unchanged canonical state and explicit workspace
+directories, retain exact server ownership, and prove native cleanup. They must
+not shorten hashes, move state, weaken private directories or adopt old resources.
 Shared app/phone builds and fixtures do not certify actual display/OS consent,
 provider privacy, credential isolation, release rollout or fleet capacity.
 
