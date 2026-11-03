@@ -983,9 +983,15 @@ func TestBrowserWrapperDisablesClipboardWithoutBundlingNoVNC(t *testing.T) {
 			t.Fatalf("original wrapper omitted clipboard/transport policy: %s", fragment)
 		}
 	}
-	for _, forbidden := range []string{"navigator.clipboard", "console.", "http://", "https://", "localStorage", "sessionStorage", "URLSearchParams", "FormData", "fetch(", "XMLHttpRequest", "sendBeacon"} {
+	for _, forbidden := range []string{"navigator.clipboard", "console.", "http://", "https://", "localStorage", "sessionStorage", "URLSearchParams", "FormData", "XMLHttpRequest", "sendBeacon"} {
 		if strings.Contains(browserScript, forbidden) {
 			t.Fatalf("wrapper added automatic data exchange or logging: %s", forbidden)
+		}
+		if strings.Count(browserScript, "fetch(") != 1 || !strings.Contains(browserScript, "fetch(new URL(path, import.meta.url)") ||
+			!strings.Contains(browserScript, "const loadAccess = async (path = 'state', method = 'GET')") ||
+			!strings.Contains(browserScript, "typeof access.input_allowed !== 'boolean'") ||
+			!strings.Contains(browserScript, "Input authority unavailable; input is disabled.") {
+			t.Fatal("viewer may fetch only authenticated same-origin input state and must fail closed")
 		}
 	}
 	if !strings.Contains(browserPage, "MPL-2.0") || !strings.Contains(browserPage, "assets/LICENSE.txt") {

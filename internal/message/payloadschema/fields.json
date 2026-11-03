@@ -730,6 +730,10 @@
       "id": 16,
       "name": "desktop_fallback"
     },
+    "ExpiresAt": {
+      "id": 17,
+      "name": "expires_at"
+    },
     "ID": {
       "id": 1,
       "name": "id"
@@ -783,6 +787,10 @@
     "DesktopFallback": {
       "id": 12,
       "name": "desktop_fallback"
+    },
+    "DurationSeconds": {
+      "id": 13,
+      "name": "duration_seconds"
     },
     "ExpectedRevision": {
       "id": 2,
@@ -884,9 +892,17 @@
       "id": 8,
       "name": "screen_id"
     },
+    "SelectionRevision": {
+      "id": 13,
+      "name": "selection_revision"
+    },
     "TaskID": {
       "id": 7,
       "name": "task_id"
+    },
+    "TerminalID": {
+      "id": 12,
+      "name": "terminal_id"
     }
   },
   "AssistanceRevoke": {
@@ -3084,6 +3100,22 @@
       "id": 1,
       "name": "id"
     },
+    "InputEpoch": {
+      "id": 26,
+      "name": "input_epoch"
+    },
+    "InputGranted": {
+      "id": 22,
+      "name": "input_granted"
+    },
+    "InputLeaseID": {
+      "id": 24,
+      "name": "input_lease_id"
+    },
+    "InputRequestedBy": {
+      "id": 21,
+      "name": "input_requested_by"
+    },
     "Mode": {
       "id": 6,
       "name": "mode"
@@ -3091,6 +3123,10 @@
     "OpenRequested": {
       "id": 11,
       "name": "open_requested"
+    },
+    "ParentSessionID": {
+      "id": 25,
+      "name": "parent_session_id"
     },
     "ProjectID": {
       "id": 4,
@@ -3120,6 +3156,14 @@
       "id": 16,
       "name": "screen_id"
     },
+    "SelectionRevision": {
+      "id": 20,
+      "name": "selection_revision"
+    },
+    "ServerObservedAt": {
+      "id": 23,
+      "name": "server_observed_at"
+    },
     "State": {
       "id": 10,
       "name": "state"
@@ -3131,6 +3175,10 @@
     "TaskID": {
       "id": 5,
       "name": "task_id"
+    },
+    "TerminalID": {
+      "id": 19,
+      "name": "terminal_id"
     }
   },
   "SessionChange": {
@@ -3216,6 +3264,10 @@
       "id": 15,
       "name": "help_message_id"
     },
+    "LifetimeSeconds": {
+      "id": 16,
+      "name": "lifetime_seconds"
+    },
     "Mode": {
       "id": 6,
       "name": "mode"
@@ -3244,6 +3296,10 @@
       "id": 12,
       "name": "screen_id"
     },
+    "SelectionRevision": {
+      "id": 18,
+      "name": "selection_revision"
+    },
     "TargetID": {
       "id": 3,
       "name": "target_id"
@@ -3251,6 +3307,10 @@
     "TaskID": {
       "id": 5,
       "name": "task_id"
+    },
+    "TerminalID": {
+      "id": 17,
+      "name": "terminal_id"
     }
   },
   "SharedFile": {
@@ -3321,6 +3381,88 @@
     "UploadedBytes": {
       "id": 8,
       "name": "uploaded_bytes"
+    }
+  },
+  "Sharing": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "FollowExecution": {
+      "id": 10,
+      "name": "follow_execution"
+    },
+    "Protected": {
+      "id": 5,
+      "name": "protected"
+    },
+    "Revision": {
+      "id": 6,
+      "name": "revision"
+    },
+    "ScreenID": {
+      "id": 4,
+      "name": "screen_id"
+    },
+    "SelectionRevision": {
+      "id": 7,
+      "name": "selection_revision"
+    },
+    "ServerObservedAt": {
+      "id": 9,
+      "name": "server_observed_at"
+    },
+    "TerminalID": {
+      "id": 3,
+      "name": "terminal_id"
+    },
+    "Terminals": {
+      "id": 2,
+      "name": "terminals"
+    },
+    "UpdatedAt": {
+      "id": 8,
+      "name": "updated_at"
+    }
+  },
+  "SharingPublishRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Terminals": {
+      "id": 3,
+      "name": "terminals"
+    }
+  },
+  "SharingSelectRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Mode": {
+      "id": 3,
+      "name": "mode"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Protected": {
+      "id": 5,
+      "name": "protected"
+    },
+    "Reason": {
+      "id": 6,
+      "name": "reason"
+    },
+    "ResourceID": {
+      "id": 4,
+      "name": "resource_id"
     }
   },
   "SystemEnvironment": {
@@ -3645,6 +3787,32 @@
     "Title": {
       "id": 4,
       "name": "title"
+    }
+  },
+  "Terminal": {
+    "CanInput": {
+      "id": 5,
+      "name": "can_input"
+    },
+    "Generation": {
+      "id": 3,
+      "name": "generation"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 4,
+      "name": "kind"
+    },
+    "Name": {
+      "id": 2,
+      "name": "name"
+    },
+    "Protected": {
+      "id": 6,
+      "name": "protected"
     }
   },
   "Update": {

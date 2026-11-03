@@ -253,6 +253,21 @@ func (s *Server) routes() {
 	read(s, "GET /v1/agents/{id}/screens", func(r *operationRequest, a domain.Agent) ([]domain.Screen, error) {
 		return s.Store.Screens(r.Context(), a.ID, r.PathValue("id"))
 	})
+	read(s, "GET /v1/agents/{id}/sharing", func(r *operationRequest, a domain.Agent) (domain.Sharing, error) {
+		return s.Store.Sharing(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/agents/{id}/sharing", false, func(r *operationRequest, a domain.Agent, q domain.SharingPublishRequest) (domain.Sharing, error) {
+		if a.ID != r.PathValue("id") {
+			return domain.Sharing{}, domain.Fail(domain.Denied, "only the target may publish owned terminal capabilities")
+		}
+		return s.Store.PublishSharing(r.Context(), a.ID, q)
+	})
+	body(s, "POST /v1/agents/{id}/sharing/select", false, func(r *operationRequest, a domain.Agent, q domain.SharingSelectRequest) (domain.Sharing, error) {
+		return s.Store.SelectSharing(r.Context(), a.ID, r.PathValue("id"), q)
+	})
+	read(s, "GET /v1/agents/{id}/sharing/sessions", func(r *operationRequest, a domain.Agent) ([]domain.Session, error) {
+		return s.Store.SharingSessions(r.Context(), a.ID, r.PathValue("id"))
+	})
 	read(s, "GET /v1/agents/{id}/environment", func(r *operationRequest, a domain.Agent) (domain.AgentEnvironment, error) {
 		if err := monitoringRead(r, false); err != nil {
 			return domain.AgentEnvironment{}, err
@@ -491,6 +506,9 @@ func (s *Server) routes() {
 	})
 	read(s, "GET /v1/sessions/{id}", func(r *operationRequest, a domain.Agent) (domain.Session, error) {
 		return s.Store.Session(r.Context(), a.ID, r.PathValue("id"))
+	})
+	read(s, "GET /v1/sessions/{id}/access", func(r *operationRequest, a domain.Agent) (domain.Session, error) {
+		return s.Store.SessionAccess(r.Context(), a.ID, r.PathValue("id"), "requester")
 	})
 	body(s, "POST /v1/sessions/{id}", false, func(r *operationRequest, a domain.Agent, q domain.SessionChange) (domain.Session, error) {
 		return s.Store.ChangeSession(r.Context(), a.ID, r.PathValue("id"), q)

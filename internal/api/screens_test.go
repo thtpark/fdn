@@ -187,7 +187,7 @@ func TestScreenAwareAssistanceAPIBindsScopeAndRelay(t *testing.T) {
 	screensPath := "/v1/agents/" + f.target.ID + "/screens"
 	envelope, status := f.request(t, f.target, http.MethodPost, screensPath, domain.ScreensRequest{Command: domain.Command{OperationID: "publish-session-capability"}, Screens: apiScreens()})
 	screenAPIValue[[]domain.Screen](t, envelope, status)
-	grantReq := domain.AssistanceGrantRequest{Command: domain.Command{OperationID: "screen-bound-grant"}, RequesterID: f.delegate.ID, TargetID: f.target.ID, ProjectID: f.project.ID, Mode: "vnc", Purpose: "terminal", Reason: "Exact selected-screen access", ScreenID: "screen-1", ApplicationID: "browser"}
+	grantReq := domain.AssistanceGrantRequest{Command: domain.Command{OperationID: "screen-bound-grant"}, RequesterID: f.delegate.ID, TargetID: f.target.ID, ProjectID: f.project.ID, Mode: "vnc", Purpose: "terminal", Reason: "Exact selected-screen access", ScreenID: "screen-1", ApplicationID: "browser", DurationSeconds: 86400}
 	envelope, status = f.request(t, f.delegate, http.MethodPost, "/v1/assistance", grantReq)
 	screenAPIFault(t, envelope, status, domain.Denied)
 	envelope, status = f.request(t, f.founder, http.MethodPost, "/v1/assistance", grantReq)

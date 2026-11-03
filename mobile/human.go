@@ -24,6 +24,9 @@ type humanSession struct {
 	bootstrap string
 	result    domain.Session
 	err       error
+	client    *api.Client
+	context   context.Context
+	streamMu  sync.Mutex
 }
 
 type humanOpen struct {
@@ -31,6 +34,8 @@ type humanOpen struct {
 	HelpMessageID string `json:"help_message_id"`
 	Provider      string `json:"provider,omitempty"`
 	AssetsDir     string `json:"assets_dir,omitempty"`
+	TargetID      string `json:"target_id,omitempty"`
+	Mode          string `json:"mode,omitempty"`
 }
 
 type humanProposal struct {
@@ -51,16 +56,22 @@ func (r *Runtime) openHuman(ctx context.Context, q Request) (any, error) {
 }
 
 func (r *Runtime) openHumanIn(ctx context.Context, q Request, f *foreground) (any, error) {
+	var input humanOpen
+	if err := decode(q.Body, &input); err != nil {
+		return nil, err
+	}
 	me, err := api.Call[domain.Agent](ctx, f.client, "GET", "/v1/me", nil)
 	if err != nil {
 		return nil, err
 	}
-	if !me.Active || !me.Founder || me.Mode != "manual" {
-		return nil, domain.Fail(domain.Denied, "human assistance requires this active Founder's manual mode")
+	if !me.Active || !me.Founder {
+		return nil, domain.Fail(domain.Denied, "human viewing requires this device's active Founder identity")
 	}
-	var input humanOpen
-	if err := decode(q.Body, &input); err != nil {
-		return nil, err
+	if input.TargetID != "" {
+		return r.openSharingHuman(ctx, q, f, input)
+	}
+	if me.Mode != "manual" {
+		return nil, domain.Fail(domain.Denied, "human assistance requires this active Founder's manual mode")
 	}
 	grant, err := api.Call[domain.AssistanceGrant](ctx, f.client, "GET", api.Path("assistance", input.GrantID), nil)
 	if err != nil {
@@ -128,8 +139,27 @@ func (r *Runtime) openHumanIn(ctx context.Context, q Request, f *foreground) (an
 	if err != nil {
 		return nil, err
 	}
-	live, cancel := context.WithDeadline(f.context, time.Unix(session.ExpiresAt, 0))
-	h := &humanSession{session: session, cancel: cancel, done: make(chan struct{})}
+	return r.attachHuman(ctx, q, f, input, session)
+}
+
+func (r *Runtime) attachHuman(ctx context.Context, q Request, f *foreground, input humanOpen, session domain.Session) (any, error) {
+	deadline := time.Unix(session.ExpiresAt, 0)
+	if session.Sharing() {
+		started := time.Now()
+		current, err := api.Call[domain.Session](ctx, f.client, "GET", api.Path("sessions", session.ID), nil)
+		if err != nil {
+			return nil, err
+		}
+		session = current
+		computed, clockErr := session.SharingDeadline(started)
+		if clockErr != nil {
+			return nil, clockErr
+		}
+		deadline = computed
+	}
+	live, cancel := context.WithDeadline(f.context, deadline)
+	h := &humanSession{session: session, client: f.client, context: live, cancel: cancel, done: make(chan struct{})}
+	var err error
 	if session.Mode == "tmux" {
 		h.conn, err = remote.Dial(live, f.client, session.ID, "requester")
 		if err != nil {
@@ -153,9 +183,11 @@ func (r *Runtime) openHumanIn(ctx context.Context, q Request, f *foreground) (an
 			<-live.Done()
 		}
 		cancel()
+		h.streamMu.Lock()
 		if h.conn != nil {
 			viewerErr = errors.Join(viewerErr, h.conn.Close())
 		}
+		h.streamMu.Unlock()
 		cleanup, stop := context.WithTimeout(context.Background(), 10*time.Second)
 		defer stop()
 		current, closeErr := api.Call[domain.Session](cleanup, f.client, "GET", api.Path("sessions", session.ID), nil)
@@ -205,10 +237,35 @@ func (r *Runtime) HumanRead(id uint64, buffer []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	if h.conn == nil || len(buffer) == 0 || len(buffer) > 64<<10 {
+	h.streamMu.Lock()
+	hasConnection := h.conn != nil
+	h.streamMu.Unlock()
+	if !hasConnection || len(buffer) == 0 || len(buffer) > 64<<10 {
 		return 0, domain.Fail(domain.Invalid, "bounded terminal stream required")
 	}
-	return h.conn.Read(buffer)
+	for {
+		h.streamMu.Lock()
+		connection := h.conn
+		h.streamMu.Unlock()
+		n, readErr := connection.Read(buffer)
+		if n != 0 || readErr == nil || !h.session.Sharing() || h.context.Err() != nil {
+			return n, readErr
+		}
+		if _, err := api.Call[domain.Session](h.context, h.client, "GET", api.Path("sessions", h.session.ID, "access"), nil); err != nil {
+			return 0, err
+		}
+		h.streamMu.Lock()
+		if h.conn == connection {
+			closeErr := connection.Close()
+			current, err := remote.Dial(h.context, h.client, h.session.ID, "requester")
+			if err != nil {
+				h.streamMu.Unlock()
+				return 0, errors.Join(err, closeErr)
+			}
+			h.conn = current
+		}
+		h.streamMu.Unlock()
+	}
 }
 
 func (r *Runtime) HumanWrite(id uint64, data []byte) (int, error) {
@@ -216,10 +273,16 @@ func (r *Runtime) HumanWrite(id uint64, data []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	if h.conn == nil || len(data) == 0 || len(data) > 64<<10 {
+	h.streamMu.Lock()
+	hasConnection := h.conn != nil
+	h.streamMu.Unlock()
+	if !hasConnection || len(data) == 0 || len(data) > 64<<10 {
 		return 0, domain.Fail(domain.Invalid, "bounded terminal input required")
 	}
-	return h.conn.Write(data)
+	h.streamMu.Lock()
+	connection := h.conn
+	h.streamMu.Unlock()
+	return connection.Write(data)
 }
 
 func (r *Runtime) HumanURL(id uint64) (string, error) {
@@ -238,8 +301,11 @@ func (r *Runtime) CloseHuman(id uint64) error {
 		return err
 	}
 	h.cancel()
-	if h.conn != nil {
-		if err := h.conn.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+	h.streamMu.Lock()
+	connection := h.conn
+	h.streamMu.Unlock()
+	if connection != nil {
+		if err := connection.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 			return err
 		}
 	}
@@ -254,9 +320,12 @@ func (r *Runtime) stopHuman() error {
 		return nil
 	}
 	h.cancel()
+	h.streamMu.Lock()
+	connection := h.conn
+	h.streamMu.Unlock()
 	var err error
-	if h.conn != nil {
-		err = h.conn.Close()
+	if connection != nil {
+		err = connection.Close()
 		if errors.Is(err, net.ErrClosed) {
 			err = nil
 		}

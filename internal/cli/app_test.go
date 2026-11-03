@@ -137,7 +137,7 @@ func TestGuideCommandsNeedNoConfigurationNetworkOrEnrollment(t *testing.T) {
 		t.Fatal("manual prompt omitted operating guidance", err)
 	}
 	catalog, err := guidance.Catalog()
-	if err != nil || len(catalog.Skills) != 6 {
+	if err != nil || len(catalog.Skills) != 7 {
 		t.Fatal("wrong skill catalog", err)
 	}
 }

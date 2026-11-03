@@ -27,7 +27,7 @@ type Query struct {
 	PublicationKind string `json:"publication_kind,omitempty"`
 }
 
-var kinds = strings.Fields("version help status identity work agents agent environment announcementAudience projects project tasks task taskHistory runs discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens devices diagnostics operation upgrade configuration guides guide doctor events")
+var kinds = strings.Fields("version help status identity work agents agent environment announcementAudience projects project tasks task taskHistory runs discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens sharing sharingSessions sharingStatus devices diagnostics operation upgrade configuration guides guide doctor events")
 
 func (q Query) Validate() error {
 	if !slices.Contains(kinds, q.Kind) || q.Limit < 0 || q.Limit > 200 || len(q.Cursor) > 512 || q.Offset < 0 || q.Offset > domain.MaxFileSize {
@@ -47,7 +47,7 @@ func (q Query) Key() string {
 }
 
 func (q Query) Subscribable() bool {
-	return q.Kind != "provider" && q.Kind != "inventoryRefresh" && q.Kind != "doctor" && q.Kind != "announcementAudience" && q.Kind != "fileChunk" && q.Kind != "publicationVersion"
+	return q.Kind != "provider" && q.Kind != "inventoryRefresh" && q.Kind != "doctor" && q.Kind != "announcementAudience" && q.Kind != "fileChunk" && q.Kind != "publicationVersion" && q.Kind != "sharingStatus"
 }
 
 func (q Query) SampleInterval() time.Duration {
@@ -104,6 +104,10 @@ func (q Query) Matches(u domain.Update, actor string) bool {
 		return u.Topic == "note"
 	case "sessions", "session":
 		return u.Topic == "session" && (q.ID == "" || u.SourceID == q.ID)
+	case "sharing":
+		return (u.Topic == "sharing" && u.SourceID == q.ID) || u.Topic == "assistance" || u.Topic == "agent"
+	case "sharingSessions":
+		return u.Topic == "session" || (u.Topic == "sharing" && u.SourceID == q.ID)
 	case "grants", "grant":
 		return u.Topic == "assistance" && (q.ID == "" || u.SourceID == q.ID)
 	case "events":
@@ -140,6 +144,8 @@ func Filters(queries []Query, actor string) (domain.UpdateFilter, domain.UpdateF
 			private.Sources = append(private.Sources, q.ID)
 		case "sessions", "session":
 			private.Topics = append(private.Topics, "session")
+		case "sharing", "sharingSessions":
+			private.Topics = append(private.Topics, "sharing", "session", "assistance", "agent")
 		case "grants", "grant":
 			private.Topics = append(private.Topics, "assistance")
 		case "mentions":

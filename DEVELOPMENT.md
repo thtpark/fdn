@@ -260,7 +260,7 @@ resources untouched. An `operator-required` result is not a successful reset.
 Server, local-worker and guidance formats have separate responsibilities.
 `PRAGMA user_version` tracks each SQLite schema. The current API/schema contract
 version is **2**; native message protocol is **2**, server SQLite migration is
-**10**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
+**11**, local SQLite remains **1**. Existing SQL5 is the server-state floor;
 SQL6 adds notes, SQL7 adds Founder device bindings and SQL8 adds observer/history
 indexes; SQL9 appends shared publications/private files while preserving all
 business records and shipped SQL1-SQL8. SQL10 adds a pinned filesystem content
@@ -269,6 +269,17 @@ SQL9 migration/backup rehydration must verify durable bytes before BLOB retireme
 Snapshots hold the process-shared writer lock and re-embed verified file bytes
 only in an isolated archive DB, preserving manifest2 recovery/quarantine.
 Read [SCHEMA.md](SCHEMA.md) before changing either database.
+
+SQL11 appends private unified-sharing selection/inventory without rewriting
+SQL1-SQL10. Logical views are outside execution admission; input child leases
+retain `work.lock` and exact native cleanup proof. Test live viewing during an
+actual blocked invocation, same-session resource switching, fixed 24-hour
+approval/revocation, protected UI and target-acknowledged input. Native RFB must
+filter both directions at the target, force shared connections, keep backend
+credentials local and reject unsupported/encrypted encodings rather than trust
+viewer flags. Execution mirrors stream bounded private stdout/stderr without
+changing provider stdin/non-prompting batch behavior. Do not adopt unmanaged
+terminals or treat skipped real-tmux tests as native qualification.
 
 - Add ordered, idempotence-tested migrations; do not rewrite a shipped migration.
 - File content/version identities and aligned chunks are immutable. Keep staged

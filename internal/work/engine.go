@@ -359,7 +359,8 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	}
 	for _, session := range sessions {
-		if session.TargetID == me.ID && (session.State == "active" || (session.OpenRequested && session.State == "consented")) {
+		if session.TargetID == me.ID && (!session.Sharing() || session.InputRequestedBy != "") &&
+			(session.State == "active" || (session.OpenRequested && session.State == "consented")) {
 			status.State = "session-pending"
 			return status, nil
 		}

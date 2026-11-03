@@ -347,13 +347,20 @@ func (m *Manager) Invoke(ctx context.Context, inv Invocation) (reply Reply, err 
 	}
 	ctx, cancel := context.WithTimeout(ctx, inv.Timeout)
 	defer cancel()
-	stdout, stderr := process.NewBuffer(2<<20), process.NewBuffer(256<<10)
+	stdout, err := newInvocationOutput(filepath.Join(dir, "stdout.log"), 2<<20)
+	if err != nil {
+		return reply, err
+	}
+	stderr, err := newInvocationOutput(filepath.Join(dir, "stderr.log"), 256<<10)
+	if err != nil {
+		_, closeErr := stdout.finish()
+		return reply, errors.Join(err, closeErr)
+	}
 	runErr := m.Runner.Run(ctx, process.Spec{Path: inv.Path, Args: args, Dir: cwd, Env: process.Environment(),
 		Stdin: strings.NewReader(inv.Prompt), Stdout: stdout, Stderr: stderr, Started: inv.Started})
-	out, outErr := stdout.Bytes()
-	diagnostic, diagErr := stderr.Bytes()
-	saveErr := errors.Join(secure.Write(filepath.Join(dir, "stdout.log"), out), secure.Write(filepath.Join(dir, "stderr.log"), diagnostic))
-	if err := errors.Join(runErr, outErr, diagErr, saveErr); err != nil {
+	out, outErr := stdout.finish()
+	_, diagErr := stderr.finish()
+	if err := errors.Join(runErr, outErr, diagErr); err != nil {
 		if ctx.Err() != nil {
 			return reply, errors.Join(fmt.Errorf("provider stopped: %w", ctx.Err()), err)
 		}

@@ -328,24 +328,32 @@ type Message struct {
 }
 
 type Session struct {
-	ID              string `json:"id"`
-	RequesterID     string `json:"requester_id"`
-	TargetID        string `json:"target_id"`
-	ProjectID       string `json:"project_id"`
-	TaskID          string `json:"task_id,omitempty"`
-	Mode            string `json:"mode"`
-	Purpose         string `json:"purpose"`
-	Provider        string `json:"provider,omitempty"`
-	Reason          string `json:"reason"`
-	State           string `json:"state"`
-	OpenRequested   bool   `json:"open_requested"`
-	ExpiresAt       int64  `json:"expires_at"`
-	Revision        int64  `json:"revision"`
-	CreatedAt       int64  `json:"created_at"`
-	GrantID         string `json:"grant_id,omitempty"`
-	ScreenID        string `json:"screen_id,omitempty"`
-	ApplicationID   string `json:"application_id,omitempty"`
-	DesktopFallback bool   `json:"desktop_fallback,omitempty"`
+	ID                string `json:"id"`
+	RequesterID       string `json:"requester_id"`
+	TargetID          string `json:"target_id"`
+	ProjectID         string `json:"project_id"`
+	TaskID            string `json:"task_id,omitempty"`
+	Mode              string `json:"mode"`
+	Purpose           string `json:"purpose"`
+	Provider          string `json:"provider,omitempty"`
+	Reason            string `json:"reason"`
+	State             string `json:"state"`
+	OpenRequested     bool   `json:"open_requested"`
+	ExpiresAt         int64  `json:"expires_at"`
+	Revision          int64  `json:"revision"`
+	CreatedAt         int64  `json:"created_at"`
+	GrantID           string `json:"grant_id,omitempty"`
+	ScreenID          string `json:"screen_id,omitempty"`
+	ApplicationID     string `json:"application_id,omitempty"`
+	DesktopFallback   bool   `json:"desktop_fallback,omitempty"`
+	TerminalID        string `json:"terminal_id,omitempty"`
+	SelectionRevision int64  `json:"selection_revision,omitempty"`
+	InputRequestedBy  string `json:"input_requested_by,omitempty"`
+	InputGranted      bool   `json:"input_granted,omitempty"`
+	InputLeaseID      string `json:"input_lease_id,omitempty"`
+	ParentSessionID   string `json:"parent_session_id,omitempty"`
+	InputEpoch        int64  `json:"input_epoch,omitempty"`
+	ServerObservedAt  int64  `json:"server_observed_at,omitempty"`
 }
 
 type AssistanceGrant struct {
@@ -365,6 +373,7 @@ type AssistanceGrant struct {
 	ScreenID        string `json:"screen_id,omitempty"`
 	ApplicationID   string `json:"application_id,omitempty"`
 	DesktopFallback bool   `json:"desktop_fallback,omitempty"`
+	ExpiresAt       int64  `json:"expires_at,omitempty"`
 }
 
 type History struct {

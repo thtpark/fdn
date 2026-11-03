@@ -168,7 +168,7 @@ func TestAgentOperationRawAPIRejectsProtectedFieldsUnsafeResultsAndOrdinaryRecei
 func TestSessionRecoveryRawAPIExactClosedSessionWithoutGeneralFounderSessionAccess(t *testing.T) {
 	f := newAuthenticationAPIFixture(t)
 	ctx := context.Background()
-	grantReq := domain.AssistanceGrantRequest{Command: domain.Command{OperationID: "recovery-fixture-grant"}, RequesterID: f.delegate.ID, TargetID: f.target.ID, Mode: "tmux", Purpose: "terminal", Reason: "Private requester target session"}
+	grantReq := domain.AssistanceGrantRequest{Command: domain.Command{OperationID: "recovery-fixture-grant"}, RequesterID: f.delegate.ID, TargetID: f.target.ID, Mode: "tmux", Purpose: "terminal", Reason: "Private requester target session", DurationSeconds: 86400}
 	envelope, status := f.request(t, f.founder, http.MethodPost, "/v1/assistance", grantReq)
 	var grant domain.AssistanceGrant
 	if err := json.Unmarshal(envelope.Data, &grant); status != http.StatusOK || err != nil {

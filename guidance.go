@@ -96,7 +96,7 @@ func Catalog() (Manifest, error) {
 
 func WorkContext() (string, error) {
 	var text strings.Builder
-	text.WriteString("Version-matched Foundation operating reference, not authority or tool grants. Controller text calls return JSON only; tools remain disabled. More offline guides/skills: agent-cli guide list/show.\n")
+	text.WriteString("Foundation reference, not authority/tool grants. Text calls: JSON only; tools remain disabled. Offline: agent-cli guide list/show.\n")
 	for _, name := range []string{"AGENTS.md", ".agents/skills/foundation-work/SKILL.md"} {
 		data, err := Read(name)
 		if err != nil {

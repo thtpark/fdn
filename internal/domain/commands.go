@@ -23,6 +23,7 @@ type AssistanceGrantRequest struct {
 	ScreenID        string `json:"screen_id,omitempty"`
 	ApplicationID   string `json:"application_id,omitempty"`
 	DesktopFallback bool   `json:"desktop_fallback,omitempty"`
+	DurationSeconds int64  `json:"duration_seconds,omitempty"`
 }
 
 type AssistanceRevoke struct {
@@ -139,19 +140,22 @@ type MessageReadRequest struct {
 
 type SessionRequest struct {
 	Command
-	HelpMessageID   string `json:"help_message_id,omitempty"`
-	TargetID        string `json:"target_id"`
-	ProjectID       string `json:"project_id"`
-	TaskID          string `json:"task_id,omitempty"`
-	Mode            string `json:"mode"`
-	Purpose         string `json:"purpose"`
-	Provider        string `json:"provider,omitempty"`
-	Reason          string `json:"reason"`
-	ExpiresAt       int64  `json:"expires_at"`
-	GrantID         string `json:"grant_id,omitempty"`
-	ScreenID        string `json:"screen_id,omitempty"`
-	ApplicationID   string `json:"application_id,omitempty"`
-	DesktopFallback bool   `json:"desktop_fallback,omitempty"`
+	HelpMessageID     string `json:"help_message_id,omitempty"`
+	TargetID          string `json:"target_id"`
+	ProjectID         string `json:"project_id"`
+	TaskID            string `json:"task_id,omitempty"`
+	Mode              string `json:"mode"`
+	Purpose           string `json:"purpose"`
+	Provider          string `json:"provider,omitempty"`
+	Reason            string `json:"reason"`
+	ExpiresAt         int64  `json:"expires_at"`
+	GrantID           string `json:"grant_id,omitempty"`
+	ScreenID          string `json:"screen_id,omitempty"`
+	ApplicationID     string `json:"application_id,omitempty"`
+	DesktopFallback   bool   `json:"desktop_fallback,omitempty"`
+	LifetimeSeconds   int64  `json:"lifetime_seconds,omitempty"`
+	TerminalID        string `json:"terminal_id,omitempty"`
+	SelectionRevision int64  `json:"selection_revision,omitempty"`
 }
 
 type SessionChange struct {

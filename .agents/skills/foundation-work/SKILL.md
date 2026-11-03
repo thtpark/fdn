@@ -103,6 +103,7 @@ protected handoffs cannot attach.
 [Browser/file investigation](../../../COMMANDS.md#browser-downloads-and-file-investigation):
 metadata and receipts are not contents; use tool-enabled execution.
 Website sign-in uses authorized local credentials, never model-visible secrets.
+For live sharing use [foundation-sharing](../../../.agents/skills/foundation-sharing/SKILL.md).
 
 ## Execution and reporting
 
@@ -204,19 +205,17 @@ Website sign-in uses authorized local credentials, never model-visible secrets.
   --acknowledge-stopped`; this does not authorize retry. Current exact unsafe
   retry approval, backoff and remaining failure budget still apply.
 - Routine session cleanup is autonomous before human interruption. The target
-  retries the exact owned endpoint with bounded backoff, replays durable native
-  ownership/proof after restart and atomically retires its matching fence.
-  This does not retry inference/login, alter mode/approvals/budgets, interrupt
-  active sessions or adopt unknown resources. Eligible ai work then resumes.
-  For remaining exact closed-session fences, Founder may explicitly request
-  `agent diagnose AGENT_ID --refresh`, inspect `agent operation REQUEST_ID`, then
-  use `agent repair AGENT_ID --input FILE` with the fresh exact session/fence
-  SHA256. The target requires existing durable native cleanup proof; old/unproven
-  fences remain operator-required. This is not journal/inference retry, native
-  restart, identity recovery or pause/approval/spending bypass. Previously
-  approved ai work may resume only when all independent fences permit. Queued/
-  expired is not fresh success; inspect the operation then diagnose again for
-  actual progress. Use the
+  retries its exact owned endpoint with bounded backoff, replays durable native
+  ownership/proof and atomically retires only that fence. Never retry inference/
+  login, alter mode/approvals/budgets, interrupt active sessions or adopt unknown resources.
+  Eligible ai work then resumes. For closed-session fences Founder uses `agent diagnose
+  AGENT_ID --refresh`, `agent operation REQUEST_ID`, then `agent repair AGENT_ID
+  --input FILE` with the fresh exact session/fence SHA256. Existing durable native
+  cleanup proof is mandatory; old/unproven fences remain operator-required.
+  No journal/inference retry, native restart, identity recovery or pause/approval/
+  spending bypass follows. Approved ai work resumes only when every independent
+  fence permits; queued/expired is not fresh success. Diagnose again for actual
+  progress. Use the
   [exact remote recovery procedure](../../../COMMANDS.md#founder-diagnostic-refresh-and-exact-closed-session-recovery)
   for the complete private input/replay workflow.
 

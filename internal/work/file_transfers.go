@@ -99,6 +99,9 @@ func (e *Engine) transferAdmission(ctx context.Context, me domain.Agent) error {
 		return err
 	}
 	for _, session := range sessions {
+		if session.Sharing() && session.InputRequestedBy == "" {
+			continue
+		}
 		if (session.TargetID == me.ID || session.RequesterID == me.ID) && (session.State == "active" || (session.State == "consented" && session.OpenRequested)) {
 			return domain.Fail(domain.Prerequisite, "current interactive session admission blocks private transfer")
 		}

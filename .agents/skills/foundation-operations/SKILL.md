@@ -208,9 +208,12 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 13. On suspected exposure, preserve redacted evidence and obtain current
     authority for revocation/rotation. Founder can revoke non-Founder agents;
     parties can close/revoke sessions. Downloaded material cannot be recalled.
-    Persistent assistance survives closed/expired sessions and restarts;
-    Founder revokes the grant itself to remove future access. Reconnection
-    under a still-valid grant never requires repeated authorization. Full
+    Retained assistance approvals survive closed sessions and restarts, but
+    delegate approval expires at its fixed server deadline within 24 hours.
+    Reconnection never renews it; Founder revokes the approval itself to remove
+    future access sooner. Founder-only legacy human-help grants may persist.
+    Use `share show AGENT` and `share sessions AGENT` with foundation-sharing
+    for passive execution-safe viewing, selection and task-safe input. Full
     software/RAM cloning or sequential use remains possible; no hardware
     signer, attestation or perfect physical-clone prevention is claimed.
 

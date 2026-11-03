@@ -282,7 +282,7 @@ func TestSQL10FileMigrationPreservesContentGrantsReceiptsAndRestartEvidence(t *t
 			t.Fatal(err)
 		}
 	}
-	if _, err := image.Exec("DROP TABLE file_acl_pending; DROP TABLE file_store_state; PRAGMA user_version=9"); err != nil {
+	if _, err := image.Exec("DROP TABLE sharing; DROP TABLE file_acl_pending; DROP TABLE file_store_state; PRAGMA user_version=9"); err != nil {
 		t.Fatal(err)
 	}
 

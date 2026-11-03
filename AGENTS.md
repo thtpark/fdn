@@ -13,6 +13,7 @@ commands from historical examples.
 | Install Codex/Copilot, arrange protected sign-in or consented access | [foundation-provider-auth](.agents/skills/foundation-provider-auth/SKILL.md) |
 | Prepare, assign, clarify, approve, execute, and verify tasks | [foundation-work](.agents/skills/foundation-work/SKILL.md) |
 | Inspect health, pause work, recover, back up/restore, renew TLS | [foundation-operations](.agents/skills/foundation-operations/SKILL.md) |
+| View/select terminals/screens, approve delegates, hand off input | [foundation-sharing](.agents/skills/foundation-sharing/SKILL.md) |
 | Change code/schema/docs, test locally, prepare a release | [foundation-develop](.agents/skills/foundation-develop/SKILL.md) |
 
 Read only the relevant skill and detailed references. Installed binaries provide
@@ -31,11 +32,12 @@ guide includes this file, all skills, and the development references.
   pause/resume their global mode; delegates and the target cannot put themselves
   in `manual` or bypass a Founder pause through `work run`. Task checkpoints,
   missing prerequisites and local OS safety stops are not another automation mode.
-- Founder may authorize a persistent, revocable assistance grant once for an exact
-  requester/target and mode/purpose/provider/project scope. It survives disconnects
-  and restarts. Targets prepare explicitly opened grant-backed sessions unattended;
-  no repeated target-human consent is required. Live connections still expire and
-  recheck current authority/revocation. Never infer a grant from a message.
+- Founder views selected terminals/screens by role without occupying execution.
+  Delegate approvals are explicit, fixed-expiry and at most 24 hours, reusable
+  until expiry/revocation but never automatically renewed. Target/Founder selects
+  resources. Input needs a Founder request and native target acknowledgement
+  under the existing work slot; viewing never pauses work. All bytes pass through
+  Foundation, never peers. Protected credential UI remains human Founder-only.
 - Resolve the actual computer, OS account, HOME, configuration, enrolled agent,
   project, authority, and software version before changing state. Founder is a
   role, not a display-name convention. Never borrow another computer's
@@ -61,8 +63,8 @@ guide includes this file, all skills, and the development references.
   Foundation-host SSH account/UID.
   New Foundation SSH accounts use the OS-safe lowercase agent name; local worker
   usernames are independent. Existing Foundation names/UIDs stay retained.
-  Manual work, automatic work, onboarding, replies, and remote sessions share
-  admission. Literal `@{NAME}` and `@{AGENT_ID}` mentions resolve to stable IDs;
+  Manual work, automatic work, onboarding, replies and remote input share
+  admission; passive viewing does not. Literal `@{NAME}` and `@{AGENT_ID}` mentions resolve to stable IDs;
   ambiguous names require an ID. Mentioning never assigns work or confers authority.
 - Read the current instructions, criteria, discussion, assignment, workspace,
   approvals, project epoch, and continuation before execution. Questions are not
@@ -147,15 +149,13 @@ guide includes this file, all skills, and the development references.
   Founder arranges any genuinely human-only action; delegate agents coordinate
   without seeing protected UI bytes. The authorized requester explicitly opens
   an existing assistance grant, not a new authorization on every reconnect.
-  VNC help is only for actual physical/virtual screen-equipped targets. Prefer
-  per-screen applications/capture; whole-desktop fallback must be labelled and
-  explicitly Founder-authorized. Use screen list, the target's assistance request,
-  a matching retained grant and a human browser viewer over SSH-forwarded localhost.
-  Never expose public VNC/web ports, enable clipboard transfer, invent a desktop
-  on a headless target, or copy token-bearing viewer URLs into messages/model logs.
-  Do not open a human terminal or collect credentials on the person's behalf.
-  Before enrollment use an approved
-  out-of-band channel; absent one, report pending delivery.
+  VNC needs a configured physical/virtual screen; never invent a desktop or
+  bypass OS consent. Label and explicitly authorize whole-desktop fallback.
+  Use Foundation's relay and a localhost human viewer, never public VNC/web
+  ports, clipboard transfer or token-bearing URLs in model/messages.
+  No agent opens a human terminal or collects credentials for a person.
+  Before enrollment use an approved out-of-band channel; otherwise report
+  pending delivery. Follow foundation-sharing for selection and input leases.
 - Founder may explicitly request fresh diagnostics with `agent diagnose AGENT_ID
   --refresh`, then inspect `agent operation REQUEST_ID`. Default diagnosis remains
   saved read-only GET. Exact closed-session `agent repair AGENT_ID --input FILE`

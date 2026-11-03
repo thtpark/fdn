@@ -606,7 +606,7 @@ func TestSecurityOfflineRecoveryOfEnrolledFounderAndFutureSchema(t *testing.T) {
 	}
 	defer probe.Close()
 	var version int
-	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 11 {
+	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 12 {
 		t.Fatal("future schema refusal modified retained database", version, err)
 	}
 }

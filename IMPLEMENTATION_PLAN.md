@@ -6,6 +6,22 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Unified selected-resource sharing source work (0.3.26)
+
+SQL11 adds private target-owned terminal inventory/selection. Founder opens
+logical terminal/VNC views during execution by role; delegates require explicit
+server-fixed approvals of at most 24 hours, reusable only until original expiry.
+Target/Founder selection updates the same view without renewing it. All bytes
+cross Foundation's authenticated native relay; no peer routing is introduced.
+Execution output uses owner-only bounded live logs and managed read-only tmux
+mirrors, without converting batch providers into interactive inference.
+Linked input leases require a Founder request and task-safe target acknowledgement
+under the existing work slot and cleanup fences. Protected credential UI remains
+human Founder-only. RFB filtering, target-owned VNCAuth, CLI/observation/mobile and
+shared app controls are source implementations, not live OS/backend/provider,
+secret-isolation, security or fleet qualification. Real native prerequisites and
+any skipped/blocked qualification must be reported separately.
+
 ### Web pages and scoped website sign-in source work (0.3.25)
 
 The existing-tools workflow also covers actual web-page inspection, ordinary

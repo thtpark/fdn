@@ -78,12 +78,12 @@ func (b *Broker) Open(ctx context.Context, actor, id, side string) (net.Conn, er
 		go b.bridge(id, s, s.target, s.requester)
 	}
 	b.mu.Unlock()
-	go b.guard(ctx, actor, id, side, watermark.NextCursor, session.ExpiresAt, s)
+	go b.guard(ctx, actor, id, side, watermark.NextCursor, session, s)
 	return &endpoint{Conn: local, close: func() { b.retire(id, s) }}, nil
 }
 
-func (b *Broker) guard(ctx context.Context, actor, id, side, cursor string, expires int64, s *slot) {
-	ctx, cancel := context.WithDeadline(ctx, time.Unix(expires, 0))
+func (b *Broker) guard(ctx context.Context, actor, id, side, cursor string, initial domain.Session, s *slot) {
+	ctx, cancel := context.WithDeadline(ctx, time.Unix(initial.ExpiresAt, 0))
 	defer cancel()
 	stop := context.AfterFunc(ctx, func() { b.retire(id, s) })
 	defer stop()
@@ -102,7 +102,8 @@ func (b *Broker) guard(ctx context.Context, actor, id, side, cursor string, expi
 		}
 		cursor = page.NextCursor
 		if len(page.Items) > 0 {
-			if _, err := b.store.SessionAccess(ctx, actor, id, side); err != nil {
+			current, err := b.store.SessionAccess(ctx, actor, id, side)
+			if err != nil || (initial.Sharing() && (current.SelectionRevision != initial.SelectionRevision || current.InputEpoch != initial.InputEpoch)) {
 				b.retire(id, s)
 				return
 			}

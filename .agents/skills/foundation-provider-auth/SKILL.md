@@ -96,8 +96,9 @@ login, inference, a session, or another worker.
    be a delegate agent without inheriting human/credential/task/mode authority.
 6. Reuse that persistent revocable grant with `assistance open GRANT --provider
    NAME`. The target prepares the explicitly opened bounded session unattended.
-   The grant survives disconnects/restarts until revoked; another live connection
-   is not another authorization decision. Current scope/identity/project
+   Founder-only human-help grants may persist until revoked; delegate approvals
+   have a fixed expiry of at most 24 hours and require duration_seconds. Reconnect
+   never renews expiry or authorizes another scope. Current identity/project
    authority and revocation are always rechecked.
 7. The human may view the provider's sign-in screen and verification link in
    Founder's authorized human-help channel. Showing them there is permitted;

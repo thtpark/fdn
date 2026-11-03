@@ -51,6 +51,8 @@ var AgentCommands = []string{
 	"work prompt", "work status", "work run", "work recover", "service plan", "service install", "service status",
 	"upgrade check", "upgrade plan", "upgrade apply", "upgrade status",
 	"upgrade-lease", "message-worker",
+	"share show", "share sessions", "share publish", "share terminal", "share select", "share approve", "share revoke", "share request", "share open", "share stream", "share input", "share release-input", "share help",
+	"share status",
 }
 
 var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install", "upgrade-helper", "request-worker"}
@@ -210,7 +212,8 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 	longRunning := tail[0] == "observe" || tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" || tail[0] == "request-worker" ||
 		(tail[0] == "upgrade" && len(tail) > 1 && tail[1] == "apply") ||
 		(tail[0] == "accounts" && len(tail) > 1 && tail[1] == "serve") || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
-	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open")) {
+	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open") ||
+		(tail[0] == "share" && (tail[1] == "open" || tail[1] == "stream")) || (tail[0] == "session" && tail[1] == "open")) {
 		longRunning = true
 		flags.Visit(func(option *flag.Flag) {
 			if option.Name == "timeout" {

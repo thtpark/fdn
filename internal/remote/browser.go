@@ -89,6 +89,7 @@ func AttachBrowserVNC(ctx context.Context, client *api.Client, sessionID string,
 	if err != nil {
 		return err
 	}
+	started := time.Now()
 	session, err := api.Call[domain.Session](ctx, client, "GET", api.Path("sessions", sessionID), nil)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -103,6 +104,12 @@ func AttachBrowserVNC(ctx context.Context, client *api.Client, sessionID string,
 		return domain.Fail(domain.Denied, "VNC session must be consented and explicitly opened")
 	}
 	expires := time.Unix(session.ExpiresAt, 0)
+	if session.Sharing() {
+		expires, err = session.SharingDeadline(started)
+		if err != nil {
+			return err
+		}
+	}
 	if !expires.After(time.Now()) {
 		return domain.Fail(domain.Denied, "VNC session has expired")
 	}
@@ -129,7 +136,8 @@ func AttachBrowserVNC(ctx context.Context, client *api.Client, sessionID string,
 		prefix: "/viewer/" + secrets[2] + "/", cookieName: "fdn_vnc_" + secrets[2],
 		bootstrapHash: sha256.Sum256([]byte(secrets[0])), cookieHash: sha256.Sum256([]byte(secrets[1])),
 		cookieValue: secrets[1], expires: expires, assets: assets,
-		done: make(chan error, 1), activity: make(chan struct{}, 1),
+		sharing: session.Sharing(),
+		done:    make(chan error, 1), activity: make(chan struct{}, 1),
 	}
 	server := &http.Server{
 		Handler: a, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: browserHandshakeTimeout,
@@ -194,6 +202,7 @@ type browserAttachment struct {
 	bootstrapped              bool
 	reserved, used, stopping  bool
 	viewerDone                chan struct{}
+	sharing                   bool
 }
 
 func (a *browserAttachment) touch() {
@@ -221,7 +230,11 @@ func (a *browserAttachment) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Set("Cross-Origin-Opener-Policy", "same-origin")
 	h.Set("Cross-Origin-Resource-Policy", "same-origin")
 	h.Set("Permissions-Policy", "clipboard-read=(), clipboard-write=(), camera=(), microphone=(), geolocation=(), display-capture=()")
-	h.Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src ws://"+a.host+"; img-src 'self' data: blob:; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; worker-src 'none'")
+	connect := "ws://" + a.host
+	if a.sharing {
+		connect = "'self' " + connect
+	}
+	h.Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src "+connect+"; img-src 'self' data: blob:; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; worker-src 'none'")
 	if r.Host != a.host || r.URL.IsAbs() || r.URL.Host != "" {
 		http.Error(w, "unexpected local host", http.StatusForbidden)
 		return
@@ -246,7 +259,8 @@ func (a *browserAttachment) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid local path", http.StatusBadRequest)
 		return
 	}
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+	sharingClose := a.sharing && r.Method == http.MethodDelete && r.URL.Path == a.prefix+"connection"
+	if r.Method != http.MethodGet && r.Method != http.MethodHead && !sharingClose {
 		h.Set("Allow", "GET, HEAD")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -269,6 +283,29 @@ func (a *browserAttachment) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rel := strings.TrimPrefix(r.URL.Path, a.prefix)
+	if sharingClose {
+		if len(origins) != 1 {
+			http.Error(w, "same-origin sharing closure required", http.StatusForbidden)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		a.finish(nil)
+		return
+	}
+	if rel == "state" {
+		session, err := api.Call[domain.Session](r.Context(), a.client, "GET", api.Path("sessions", a.sessionID, "access"), nil)
+		if err != nil {
+			http.Error(w, "current sharing input authority could not be validated", http.StatusForbidden)
+			return
+		}
+		h.Set("Content-Type", "application/json")
+		allowed := !session.Sharing() || session.InputGranted
+		if _, err := fmt.Fprintf(w, `{"input_allowed":%t}`, allowed); err != nil {
+			a.finish(domain.Fail(domain.Unavailable, "sharing input status could not be delivered"))
+		}
+		a.touch()
+		return
+	}
 	if rel == "relay" {
 		if r.Method != http.MethodGet || len(origins) != 1 || r.Header.Get("Sec-WebSocket-Protocol") != "binary" {
 			http.Error(w, "same-origin binary WebSocket required", http.StatusForbidden)
@@ -281,6 +318,9 @@ func (a *browserAttachment) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch rel {
 	case "":
 		body = []byte(browserPage)
+		if a.sharing {
+			body = []byte(strings.Replace(browserPage, "<html", `<html data-sharing="true"`, 1))
+		}
 		h.Set("Content-Type", "text/html; charset=utf-8")
 	case "viewer.js":
 		body = []byte(browserScript)
@@ -341,7 +381,7 @@ func browserSecretMatches(value string, expected [32]byte) bool {
 
 func (a *browserAttachment) relay(w http.ResponseWriter, r *http.Request) {
 	a.mu.Lock()
-	if a.stopping || a.reserved || a.used || a.ctx.Err() != nil {
+	if a.stopping || a.reserved || (a.used && !a.sharing) || a.ctx.Err() != nil {
 		a.mu.Unlock()
 		http.Error(w, "browser viewer already connected or stopping", http.StatusConflict)
 		return
@@ -374,7 +414,9 @@ func (a *browserAttachment) relay(w http.ResponseWriter, r *http.Request) {
 		if a.ctx.Err() != nil {
 			err = a.ctx.Err()
 		}
-		a.finish(err)
+		if !a.sharing {
+			a.finish(err)
+		}
 		return
 	}
 	defer relay.Close()
@@ -384,7 +426,14 @@ func (a *browserAttachment) relay(w http.ResponseWriter, r *http.Request) {
 	ending := &atomic.Bool{}
 	left := &browserBridgeStream{ReadWriteCloser: relay, ctx: a.ctx, ending: ending, remote: true, limit: browserOutputLimit, touch: a.touch, cancel: cancel}
 	right := &browserBridgeStream{ReadWriteCloser: &browserSocket{Conn: local, socket: socket}, ctx: a.ctx, ending: ending, limit: browserInputLimit, touch: a.touch}
-	a.finish(Bridge(a.ctx, left, right))
+	result := Bridge(a.ctx, left, right)
+	if !a.sharing {
+		a.finish(result)
+		return
+	}
+	if _, err := api.Call[domain.Session](a.ctx, a.client, "GET", api.Path("sessions", a.sessionID, "access"), nil); err != nil {
+		a.finish(err)
+	}
 }
 
 type browserSocket struct {
@@ -676,28 +725,73 @@ for (const type of ['keydown', 'keypress', 'keyup']) {
 const endpoint = new URL('relay', import.meta.url);
 endpoint.protocol = 'ws:';
 try {
-    const rfb = new ClipboardIsolatedRFB(document.getElementById('screen'), endpoint.href, { shared: false });
+    const sharing = !!(document.documentElement && document.documentElement.dataset && document.documentElement.dataset.sharing === 'true');
+    let accessTimer = null;
+    let rfb;
+    let requesterClosed = false;
     let failureMessage = '';
+    const loadAccess = async (path = 'state', method = 'GET') => {
+        const response = await fetch(new URL(path, import.meta.url), { method, credentials: 'same-origin', cache: 'no-store' });
+        if (!response.ok) throw new Error('input authority unavailable');
+        if (method === 'DELETE') return null;
+        const access = await response.json();
+        if (typeof access.input_allowed !== 'boolean') throw new Error('invalid input state');
+        return access;
+    };
+    const connectViewer = () => {
+    const current = new ClipboardIsolatedRFB(document.getElementById('screen'), endpoint.href, { shared: true });
+    rfb = current;
     rfb.scaleViewport = true;
     rfb.resizeSession = false;
     rfb.addEventListener('connect', () => {
+        if (rfb !== current || requesterClosed) return;
         clearCredentials();
         failureMessage = '';
-        rfb.viewOnly = false;
-        rfb.focusOnClick = true;
-        rfb.focus();
-        status.textContent = 'Connected. Clipboard sharing is disabled.';
+        if (!sharing) {
+            rfb.viewOnly = false;
+            rfb.focusOnClick = true;
+            rfb.focus();
+            status.textContent = 'Connected. Clipboard sharing is disabled.';
+        } else {
+            rfb.viewOnly = true;
+            rfb.focusOnClick = false;
+            const refreshAccess = async () => {
+                try {
+                    const access = await loadAccess();
+                    if (rfb !== current || requesterClosed) return;
+                    rfb.viewOnly = !access.input_allowed;
+                    rfb.focusOnClick = access.input_allowed;
+                    status.textContent = access.input_allowed ? 'Input granted by the target. Clipboard remains disabled.' : 'View only. Task execution continues.';
+                } catch {
+                    if (rfb !== current || requesterClosed) return;
+                    rfb.viewOnly = true;
+                    rfb.focusOnClick = false;
+                    status.textContent = 'Input authority unavailable; input is disabled.';
+                }
+            };
+            refreshAccess();
+            accessTimer = setInterval(refreshAccess, 1000);
+        }
     });
     rfb.addEventListener('disconnect', event => {
+        if (rfb !== current) return;
+        if (accessTimer !== null) clearInterval(accessTimer);
         clearCredentials();
         status.textContent = failureMessage || (event.detail.clean ? 'Disconnected. Close this tab.' : 'VNC transport stopped; check the authorized terminal.');
+        if (sharing && !requesterClosed && !failureMessage) {
+            loadAccess().then(() => {
+                if (!requesterClosed && rfb === current) setTimeout(connectViewer, 500);
+            }).catch(() => { status.textContent = 'Sharing access ended; reconnect only under current authorization.'; });
+        }
     });
     rfb.addEventListener('securityfailure', () => {
+        if (rfb !== current) return;
         clearCredentials();
         failureMessage = 'VNC endpoint authentication failed; disconnect and retry in the authorized human browser.';
         status.textContent = failureMessage;
     });
     rfb.addEventListener('credentialsrequired', event => {
+        if (rfb !== current) return;
         clearCredentials();
         const types = event.detail && event.detail.types;
         if (!Array.isArray(types) || types.length === 0 || types.length > credentialFields.size || new Set(types).size !== types.length || types.some(type => !credentialFields.has(type))) {
@@ -722,6 +816,8 @@ try {
         credentialFields.get(requestedCredentials[0]).focus();
         status.textContent = 'Enter the requested VNC credentials here. Clipboard sharing remains disabled.';
     });
+    };
+    connectViewer();
     credentialForm.addEventListener('submit', event => {
         event.preventDefault();
         event.stopPropagation();
@@ -747,7 +843,13 @@ try {
             rfb.disconnect();
         }
     });
-    const disconnect = () => { clearCredentials(); rfb.disconnect(); };
+    const disconnect = () => {
+        requesterClosed = true;
+        if (accessTimer !== null) clearInterval(accessTimer);
+        clearCredentials();
+        rfb.disconnect();
+        if (sharing) loadAccess('connection', 'DELETE').catch(() => { status.textContent = 'Disconnected; check closure in the authorized terminal.'; });
+    };
     document.getElementById('credential-cancel').addEventListener('click', disconnect);
     document.getElementById('disconnect').addEventListener('click', disconnect);
     addEventListener('pagehide', disconnect, { once: true });

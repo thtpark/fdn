@@ -469,7 +469,28 @@ func (r *updateRouter) route(change updateChange) error {
 		u.Topic, u.Urgent = "session", true
 		for _, session := range values {
 			parties.add(session.RequesterID, session.TargetID)
+			if session.Sharing() {
+				if err := r.includeFounders(parties); err != nil {
+					return err
+				}
+			}
 			u.TaskID, u.ProjectID = session.TaskID, session.ProjectID
+		}
+	case "sharing":
+		values, err := changeValues[domain.Sharing](change)
+		if err != nil {
+			return err
+		}
+		u.Topic, u.Urgent = "sharing", true
+		for _, record := range values {
+			parties.add(record.AgentID)
+			if err := r.includeFounders(parties); err != nil {
+				return err
+			}
+			if err := r.partyRows(`SELECT requester_id,requester_id FROM assistance_grants
+WHERE target_id=? AND active=1 AND json_extract(data,'$.purpose')='sharing'`, parties, record.AgentID); err != nil {
+				return err
+			}
 		}
 	case "assistance_grants":
 		values, err := changeValues[domain.AssistanceGrant](change)

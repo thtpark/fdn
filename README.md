@@ -5,9 +5,10 @@ authoritative SQLite-backed service, a native worker daemon, and one structured
 CLI for people and coding agents. Development and operation need no companion
 checkout. The supported baseline is 0.3.5: API/schema **2**, native protocol
 **2**, server SQL **5** and local SQL **1**. Older formats/layouts are not
-imported or overwritten. Current source advances server SQL to **10**, preserving
+imported or overwritten. Current source advances server SQL to **11**, preserving
 SQL6 notes, SQL7 Founder devices, SQL8 observation indexes and SQL9 publications/
-file metadata, with ACL-backed Foundation storage and durable receiver copies.
+file metadata, with ACL-backed Foundation storage, durable receiver copies and
+private unified-sharing selection.
 The software-first security model
 is being integrated; source-bound acceptance and native qualification are
 separate. No hardware adapter or attestation is claimed.
@@ -413,6 +414,19 @@ stop. Project authority/context epochs also invalidate old approvals and clarity
 authorized verification reaches `done`.
 
 ## Local work and providers
+
+### Unified live sharing
+
+Founder views a worker's selected terminal/screen through Foundation without
+pausing execution, claiming a slot or changing mode. Target/Founder selects
+resources; delegate approval is explicit, reusable until a server-fixed expiry
+of at most 24 hours, and never renewed by reconnect. Input needs a Founder request
+and native task-safe acknowledgement under the existing work slot. All bytes use
+Foundation's SSH/mTLS/native relay, never a peer connection. Protected credential
+surfaces remain human Founder-only. Tmux/existing configured VNC backends and
+their OS permissions remain prerequisites, not automatic installation.
+See [unified sharing](COMMANDS.md#unified-live-sharing) and the
+[sharing skill](.agents/skills/foundation-sharing/SKILL.md).
 
 Bind a safe, owned workspace and explicitly authorize tools:
 

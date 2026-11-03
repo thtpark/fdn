@@ -48,7 +48,7 @@ The checkout's root documents are canonical; no old source tree is required.
    adapters must prove non-prompting coding approval and tool-disabled text calls.
 5. Add ordered compatibility-tested migrations, never rewrite shipped schemas
    or reset state. Application/schema contract is 2, native message protocol 2,
-   server SQL migration 10, local SQL 1. SQL5 preserves private message bytes,
+   server SQL migration 11, local SQL 1. SQL5 preserves private message bytes,
    insertion order, receipts and scoped updates while admitting the exact
    Foundation maintenance mailbox, never an enrolled synthetic agent.
    SQL5 is the existing server-state floor; older and future unsupported

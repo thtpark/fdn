@@ -101,7 +101,8 @@ commands.
    `/var/lib/fdn-files`, 0711). Provision it outside private state with traversable
    ancestors, sandbox write access and an exact native `backup_paths` entry
    before cutover. No private HOME/state permissions may be weakened.
-   Current server SQL10 retains SQL9 publications/file metadata and
+   Current server SQL11 adds private sharing selection while retaining SQL10
+   file storage, SQL9 publications/file metadata and
    SQL8 indexes, SQL7's independently keyed Founder devices and concurrent
    owner records after SQL6 shared company/project/agent notes from the SQL5
    floor, preserving retained state. Note-aware workers require the new
@@ -109,7 +110,8 @@ commands.
    old/offline server cannot provide it. SQL5 binaries cannot read SQL6, and
    SQL6 binaries cannot read SQL7; SQL7 binaries cannot read SQL8's additive
    observer/history indexes; SQL8 binaries cannot read SQL9 file/publication
-   tables; SQL9 binaries cannot open SQL10. Upgrade the account helper/server before new
+   tables; SQL9 binaries cannot open SQL10; SQL10 binaries cannot open SQL11.
+   Upgrade the account helper/server before new
    device enrollments; do not copy existing Founder keys to another computer.
    A restored snapshot quarantines every identity/owner/key epoch; root-private
    fresh Founder recovery retains its ID/history, then Founder reapproves regulars

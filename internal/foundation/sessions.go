@@ -9,6 +9,12 @@ import (
 )
 
 func (s *Store) sessionAuthority(ctx context.Context, q queryer, session domain.Session) error {
+	if session.InputLease() {
+		return s.inputLeaseAuthority(ctx, q, session)
+	}
+	if session.Sharing() {
+		return s.sharingSessionAuthority(ctx, q, session)
+	}
 	requester, err := activeIdentitySubject(ctx, q, session.RequesterID)
 	if err != nil {
 		return err
@@ -56,18 +62,34 @@ ON CONFLICT(id) DO UPDATE SET data=excluded.data, state=excluded.state`, session
 }
 
 func (s *Store) RequestSession(ctx context.Context, actor string, req domain.SessionRequest) (domain.Session, error) {
-	return mutate(ctx, s, actor, "session.request", req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.Session, error) {
+	result, err := mutate(ctx, s, actor, "session.request", req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.Session, error) {
 		session := domain.Session{ID: domain.NewID("session"), RequesterID: a.ID, TargetID: req.TargetID,
 			ProjectID: req.ProjectID, TaskID: req.TaskID, Mode: req.Mode, Purpose: req.Purpose,
 			Provider: req.Provider, Reason: req.Reason, State: "requested", ExpiresAt: req.ExpiresAt, Revision: 1, CreatedAt: s.timestamp(),
-			ScreenID: req.ScreenID, ApplicationID: req.ApplicationID, DesktopFallback: req.DesktopFallback}
+			ScreenID: req.ScreenID, ApplicationID: req.ApplicationID, DesktopFallback: req.DesktopFallback,
+			TerminalID: req.TerminalID, SelectionRevision: req.SelectionRevision}
 		session.GrantID = req.GrantID
+		if session.Sharing() {
+			return s.requestSharingSession(ctx, tx, a, req, session)
+		}
+		if req.LifetimeSeconds != 0 || req.TerminalID != "" || req.SelectionRevision != 0 {
+			return session, domain.Fail(domain.Invalid, "unified sharing fields require purpose sharing")
+		}
 		target, err := activeIdentitySubject(ctx, tx, req.TargetID)
 		if err != nil {
 			return session, err
 		}
 		if !target.Founder && req.GrantID == "" {
 			return session, domain.Fail(domain.Prerequisite, "autonomous targets require a persistent Founder-issued assistance grant, not a local human consent step")
+		}
+		if req.GrantID != "" {
+			grant, err := get[domain.AssistanceGrant](ctx, tx, "assistance_grants", req.GrantID)
+			if err != nil {
+				return session, err
+			}
+			if grant.ExpiresAt != 0 {
+				session.ExpiresAt = min(session.ExpiresAt, grant.ExpiresAt)
+			}
 		}
 		if err := s.sessionAuthority(ctx, tx, session); err != nil {
 			return session, err
@@ -118,8 +140,15 @@ func (s *Store) RequestSession(ctx context.Context, actor string, req domain.Ses
 		if session.GrantID != "" {
 			session.State = "consented"
 		}
+		if err := s.protectAuthenticationScreen(ctx, tx, a, session); err != nil {
+			return session, err
+		}
 		return session, s.saveSession(ctx, tx, session, a.ID, "request")
 	})
+	if result.Sharing() {
+		result.ServerObservedAt = s.timestamp()
+	}
+	return result, err
 }
 
 func (s *Store) ChangeSession(ctx context.Context, actor, id string, req domain.SessionChange) (domain.Session, error) {
@@ -128,7 +157,7 @@ func (s *Store) ChangeSession(ctx context.Context, actor, id string, req domain.
 		if err != nil {
 			return session, err
 		}
-		if session.TargetID != a.ID && session.RequesterID != a.ID {
+		if session.TargetID != a.ID && session.RequesterID != a.ID && !(a.Founder && (session.Sharing() || session.InputLease())) {
 			return session, domain.Fail(domain.Denied, "session is private to requester and target")
 		}
 		if err := expect(session.Revision, req.ExpectedRevision); err != nil {
@@ -138,7 +167,7 @@ func (s *Store) ChangeSession(ctx context.Context, actor, id string, req domain.
 		if terminal {
 			return session, domain.Fail(domain.Conflict, "session is already retired")
 		}
-		if req.Action != "close" && req.Action != "revoke" {
+		if req.Action != "close" && req.Action != "revoke" && req.Action != "fail" {
 			if session.ExpiresAt <= s.timestamp() {
 				return session, domain.Fail(domain.Prerequisite, "session expired; request fresh consent")
 			}
@@ -147,7 +176,19 @@ func (s *Store) ChangeSession(ctx context.Context, actor, id string, req domain.
 			}
 		}
 		switch req.Action {
+		case "fail":
+			if !session.Sharing() || a.ID != session.TargetID {
+				return session, domain.Fail(domain.Denied, "only the target may report a failed sharing backend")
+			}
+			session.State = "failed"
+		case "request-input", "grant-input", "revoke-input":
+			if err := s.changeSharingInput(ctx, tx, a, &session, req.Action); err != nil {
+				return session, err
+			}
 		case "open":
+			if session.InputLease() {
+				return session, domain.Fail(domain.Denied, "input leases do not open independent viewers")
+			}
 			if a.ID != session.RequesterID {
 				return session, domain.Fail(domain.Denied, "only the requester explicitly opens access")
 			}
@@ -175,24 +216,33 @@ func (s *Store) ChangeSession(ctx context.Context, actor, id string, req domain.
 		default:
 			return session, domain.Fail(domain.Invalid, "unsupported session action")
 		}
+		if req.Action == "close" || req.Action == "revoke" || req.Action == "fail" {
+			if err := s.closeSharingControl(ctx, tx, a.ID, &session); err != nil {
+				return session, err
+			}
+		}
 		session.Revision++
 		return session, s.saveSession(ctx, tx, session, a.ID, req.Action)
 	})
 }
 
 func (s *Store) Session(ctx context.Context, actor, id string) (domain.Session, error) {
-	if _, err := s.actor(ctx, s.db, actor); err != nil {
+	a, err := s.actor(ctx, s.db, actor)
+	if err != nil {
 		return domain.Session{}, err
 	}
 	session, err := get[domain.Session](ctx, s.db, "sessions", id)
 	if err != nil {
 		return session, err
 	}
-	if actor != session.RequesterID && actor != session.TargetID {
+	if actor != session.RequesterID && actor != session.TargetID && !(a.Founder && (session.Sharing() || session.InputLease())) {
 		return domain.Session{}, domain.Fail(domain.Denied, "session is private to requester and target")
 	}
 	if session.ExpiresAt <= s.timestamp() && slices.Contains([]string{"requested", "consented", "active"}, session.State) {
 		session.State = "expired"
+	}
+	if session.Sharing() || session.InputLease() {
+		session.ServerObservedAt = s.timestamp()
 	}
 	return session, nil
 }
@@ -201,6 +251,9 @@ func (s *Store) SessionAccess(ctx context.Context, actor, id, side string) (doma
 	session, err := s.Session(ctx, actor, id)
 	if err != nil {
 		return session, err
+	}
+	if session.InputLease() {
+		return session, domain.Fail(domain.Denied, "input leases have no separate relay; use the unified sharing viewer")
 	}
 	if (side == "target" && actor != session.TargetID) || (side == "requester" && actor != session.RequesterID) || (side != "target" && side != "requester") {
 		return session, domain.Fail(domain.Denied, "wrong relay side")
@@ -219,7 +272,13 @@ func (s *Store) Sessions(ctx context.Context, actor string) ([]domain.Session, e
 	if err != nil {
 		return nil, err
 	}
-	return scanJSON[domain.Session](rows)
+	sessions, err := scanJSON[domain.Session](rows)
+	for i := range sessions {
+		if sessions[i].Sharing() {
+			sessions[i].ServerObservedAt = s.timestamp()
+		}
+	}
+	return sessions, err
 }
 
 func (s *Store) RetireSessions(ctx context.Context) error {

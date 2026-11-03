@@ -885,15 +885,120 @@ Delivery or an AI acknowledgement is not installation success.
 `agent-identity --version` is now an offline structured version/source probe;
 it reads no private configuration and starts no owner or service.
 
-## Persistent assistance and protected sessions
+## Unified live sharing
 
-Every non-Founder target is unattended. Founder issues authorization once;
-delegates may be AI agents, not substitute humans. All new sessions to a
-non-Founder target require a matching persistent assistance grant.
+Source 0.3.26 appends server SQL11 for private sharing selection/inventory.
+API/application and native message versions remain 2; the locked payload
+fingerprint changes, so deploy compatible server, proxies and clients together,
+server first. Existing SQL1-SQL10 records and local SQL1 remain intact.
+
+Founder can view an agent's currently selected terminal/screen by current role,
+including while its task is executing or paused, without a grant or mode change.
+Viewing has no execution claim, `work.lock` or session-cleanup fence. All bytes
+travel requester -> Foundation -> target using the existing authenticated native
+relay. Never open a direct agent-to-agent SSH/tmux/VNC/web connection.
+
+| Command | Exact input / result |
+| --- | --- |
+| `agent-cli share show` | `AGENT`; private terminal inventory, selected terminal/screen, selection generation and server observation; Founder/target or currently approved delegate only |
+| `agent-cli share sessions` | `AGENT`; Founder/target inspection of current logical viewers and their input lease references |
+| `agent-cli share publish` | Publish this computer's owned terminal capabilities; no task, input or mode authority |
+| `agent-cli share terminal` | `--input FILE`: name, optional workspace_ref and protected; prepare an owner-managed shell and publish its capability, not run a task or connect a viewer |
+| `agent-cli share select` | `AGENT --input FILE`: mode tmux/vnc, resource_id, reason and current expected_revision; only Founder/target selects |
+| `agent-cli share help` | `--input FILE`: mode, reason, optional project_id/task_id and matching terminal_id/screen_id/selection_revision; send a protected notice for the selected resource without creating access |
+| `agent-cli share approve` | `--input FILE`: requester_id, target_id, mode tmux/vnc/both, duration_seconds 1..86400, reason, optional project_id and explicit desktop_fallback; Founder-only |
+| `agent-cli share revoke` | `APPROVAL --input FILE`: non-secret reason/current revision; Founder-only, active streams close on authority recheck |
+| `agent-cli share request` | `AGENT [--mode tmux|vnc --grant APPROVAL --ttl 1..86400]`; create a logical view for the current selected resource; no raw UI bytes or connection yet |
+| `agent-cli share open` | Same target/mode/grant/ttl options; protected human terminal/app viewing, plus VNC `--viewer browser|native --listen 127.0.0.1:PORT --assets-dir TRUSTED_NOVNC_DIR` |
+| `agent-cli share status` | `ORIGINAL_OPEN_OPERATION`; read the exact locally retained creation/session outcome; no new native action or retry |
+| `agent-cli share stream` | `SESSION`; native binary stdin/stdout relay for an approved ordinary view, never JSON or protected credential UI |
+| `agent-cli share input` | `SESSION --input FILE`: optional action request-input, operation/revision; Founder asks the target for a task-safe input handoff |
+| `agent-cli share release-input` | `SESSION --input FILE`: optional action revoke-input, operation/revision; Founder/target withdraws input while retaining the logical view |
+
+Example fixed delegate approval:
+
+```json
+{"requester_id":"DELEGATE_ID","target_id":"AGENT_ID","mode":"both","duration_seconds":3600,"reason":"View only the target-selected resources for this help request"}
+```
+
+```sh
+agent-cli share open AGENT_ID --mode tmux
+agent-cli share open AGENT_ID --mode vnc --assets-dir TRUSTED_NOVNC_DIR
+agent-cli share open AGENT_ID --mode tmux --grant APPROVAL_ID
+agent-cli share select AGENT_ID --input selection.json
+```
+
+```json
+{"mode":"tmux","resource_id":"shell","reason":"Select the terminal needing help","expected_revision":3}
+```
+
+An approval has a single server-fixed expiry, at most 24 hours after issuance.
+Reconnect, polling, selection changes and restart never extend it; after expiry
+only Founder may issue another approval. A project-bound approval also rechecks
+current project authority. A delegate cannot select another endpoint, request
+input, approve itself, access protected UI, or gain task/OS/spending/retry authority.
+Existing unbounded delegate assistance grants are retained as history but fail
+closed until replaced by a fresh bounded approval. Legacy explicit interactive/
+authentication assistance below also requires duration_seconds for non-Founder
+requesters; it cannot extend a session beyond that approval.
+
+The target publishes a managed help shell and an execution-output mirror when
+tmux is installed. `execution` follows the current invocation generation until
+target/Founder selects something else; it displays actual bounded private
+stdout/stderr, not prompts, and is read-only. Batch provider invocations are not
+silently converted into interactive provider calls. For input select an owned
+managed shell. Unmanaged OS sockets/processes are not adopted. Closing a viewer
+ends its attachment, not the terminal producer, provider or task.
+
+VNC uses a currently published configured physical/virtual screen, never a
+desktop invented on a headless target. Observer connections do not launch apps.
+Capture must be screen-isolated or explicitly labelled whole-desktop fallback;
+a delegate's approval must include that fallback. Screen/terminal changes update
+the same logical viewer without renewing expiry. Foundation withdraws old
+resource/input generations before reconnecting streams to the new selection.
+The apps expose sharing and input controls independently of manual mode; their
+protected terminal/browser bytes never enter captured CLI JSON or proposal data.
+
+For unattended VNC, configure each target screen's private
+`vnc_password_file`: an absolute 0600 same-user file containing 1..8 raw plaintext
+VNC password bytes, distinct from an encrypted `vncpasswd` database. The target
+performs one backend VNCAuth submission locally; the already Foundation-authenticated
+viewer receives None security only inside that protected channel. Password,
+challenge, response and backend failure text are never sent to the requester.
+Missing/unsupported/rejected authentication is explicit failure, not a password
+retry loop. Native RFB 3.3/3.7/3.8, None/VNCAuth and bounded Raw/CopyRect/Cursor/
+DesktopSize/LastRect are supported; encrypted/unsupported RFB security or encodings
+fail closed. Viewer keyboard/pointer events are rejected by the target boundary
+until input is granted. Clipboard in both directions, power and remote resizing
+remain blocked; connections are shared and cannot detach another viewer.
+
+Input is a child control lease of the logical view, not another worker. Founder
+requests it; the target waits for the existing work slot, reconciled journals/
+reports and independent fences, then acknowledges readiness. It never interrupts
+active execution or changes global mode. The control lease holds `work.lock` and
+an exact native cleanup fence. Ending input closes/joins owned resources and
+proves cleanup before retiring that fence; the logical view and original expiry
+remain. Interrupted uncertain input retains proof and may require Founder
+inspection/exact repair. Never resubmit a command or clear a fence to recover a
+viewer. Already in-flight native input/content cannot be recalled.
+
+Mark selection `protected:true` before credential entry. Typed authentication
+screen requests also protect that screen; an approved delegate still cannot see
+it. This is not automatic visual/text redaction or OS-user secret isolation.
+Availability requires connectivity, current authority and ready tmux/display/
+capture backends; fixture/build tests are not live display/provider/fleet qualification.
+
+## Persistent Founder assistance and protected sessions
+
+Every non-Founder target is unattended. The following legacy explicit protected
+authentication/interactive commands remain available; use unified sharing above
+for passive viewing. Delegate authorization is fixed-expiry, at most 24 hours;
+legacy unbounded delegate records do not authorize new access. Founder-only
+retained human-help grants may remain persistent. Delegates are not substitute humans.
 
 | Command | Arguments/input |
 | --- | --- |
-| `agent-cli assistance grant` | `--input FILE`: requester_id, target_id, mode tmux/vnc, purpose authentication/terminal, optional provider/project_id, reason; Founder-only issuance |
+| `agent-cli assistance grant` | `--input FILE`: requester_id, target_id, mode tmux/vnc, purpose authentication/terminal, optional provider/project_id, reason; duration_seconds 1..86400 is required for a non-Founder requester; Founder-only issuance |
 | `agent-cli assistance list` | Up to 200 active grants visible to the parties or Founder |
 | `agent-cli assistance show` | `GRANT`; immutable scope, active state, revision and issuance attribution |
 | `agent-cli assistance revoke` | `GRANT --input FILE`: reason/current revision; Founder-only, closes live access on recheck |

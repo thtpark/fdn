@@ -1100,8 +1100,9 @@ in work status. New requested actions can ask again; pending deliveries retain
 the same operation. After a provider fails mid-work, an explicit sign-out in a
 fresh readiness probe produces help, but uncertainty/report/retry fences remain.
 No login, provider/device-code renewal, mode change, model call or assistance
-session is initiated. Persistent assistance grants remain separate and valid
-until revoked; their live connections and provider codes have their own expiry.
+session is initiated. Assistance authorization remains separate: delegate grants
+expire within 24 hours, while Founder-only legacy human-help grants may persist.
+Live connections and provider codes have their own expiry.
 
 Founder authorizes assistance once with `assistance grant --input FILE`. Scope
 is the exact requester/target, tmux/VNC, authentication/terminal purpose, optional
@@ -1109,8 +1110,10 @@ provider, and optional project. Explicit computer-local grants work before a
 project exists; project-scoped grants additionally require current project
 authority. The requester may be an AI delegate, not a presumed human.
 
-The grant has no timed expiry and is not consumed by a session. It persists
-across restarts/disconnects until Founder revokes it. Reuse
+Founder-only legacy human-help grants may have no timed expiry. Non-Founder
+requesters require explicit duration_seconds 1..86400; old unbounded delegate
+records are preserved but cannot authorize access. No session consumes or renews
+an approval. Reuse
 `assistance open GRANT --provider codex` on the authorized requester's computer
 without reauthorization; the unattended target prepares the granted session.
 Only the protected UI itself requires Founder-coordinated human participation.
@@ -1122,6 +1125,17 @@ closes routes, not the grant. Closing a connection does not revoke future access
 `assistance revoke GRANT --input FILE` does. Broad terminal access needs its own
 explicit purpose grant; authentication permission is not a shell grant. Existing
 no-grant per-session consent is retained only for Founder targets.
+
+For ongoing execution use [unified sharing](COMMANDS.md#unified-live-sharing),
+not legacy interactive assistance. Founder viewing requires no grant or mode
+change; a delegate needs a server-fixed approval of at most 24 hours. Install
+tmux through the authorized native operator and configure actual screen capture/
+authenticated loopback VNC profiles. For unattended VNC, optionally provision a
+same-user 0600 plaintext 1..8 byte password file and reference its absolute path
+as `vnc_password_file` on that screen. It is not an encrypted vncpasswd database.
+Foundation authenticates the backend locally and relays only authorized view data.
+Do not disclose the file/value to requester agents or put it in shared notes.
+No viewer may install/unlock a desktop or change OS capture permission.
 ### Display-equipped agents and browser VNC
 
 VNC is conditional on an actual physical/virtual desktop, never on a VM display

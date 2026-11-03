@@ -79,6 +79,13 @@ func (a *app) openSessionViewer(ctx context.Context, r *resources, id, viewer st
 	if err != nil {
 		return nil, err
 	}
+	requested, err := api.Call[domain.Session](ctx, r.client, "GET", api.Path("sessions", id), nil)
+	if err != nil {
+		return nil, err
+	}
+	if requested.Sharing() {
+		return a.openSharingViewer(ctx, r, id, viewer, browser)
+	}
 	req := domain.SessionChange{Action: "open"}
 	if err := a.metadata(&req.Command); err != nil {
 		return nil, err

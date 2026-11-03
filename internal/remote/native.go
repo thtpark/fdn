@@ -20,7 +20,9 @@ import (
 )
 
 type Native struct {
-	Runner process.Runner
+	Runner    process.Runner
+	Command   []string
+	Directory string
 }
 
 func (n Native) Open(ctx context.Context, s domain.Session, c config.Worker) (io.ReadWriteCloser, error) {
@@ -51,6 +53,8 @@ func (n Native) OpenOwned(ctx context.Context, s domain.Session, c config.Worker
 			return nil, &startupFailure{error: err, clean: true}
 		}
 		args = append(append(args, path), native...)
+	} else if len(n.Command) != 0 {
+		args = append(args, n.Command...)
 	}
 	record := nativeSession{Version: 1, SessionID: s.ID, TargetID: s.TargetID, Generation: generation, State: "launching"}
 	data, err := json.Marshal(record)
@@ -63,6 +67,9 @@ func (n Native) OpenOwned(ctx context.Context, s domain.Session, c config.Worker
 	cmd := exec.Command("tmux", args...)
 	cmd.Env = process.Environment("TERM=xterm-256color")
 	cmd.Dir = c.StateDir
+	if n.Directory != "" {
+		cmd.Dir = n.Directory
+	}
 	terminal, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 40, Cols: 120})
 	if err != nil {
 		if cmd.Process == nil {
