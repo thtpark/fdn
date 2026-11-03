@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
@@ -29,6 +30,9 @@ type TextResponseBlock struct {
 	State      string `json:"state"`
 	CreatedAt  int64  `json:"created_at"`
 	ResolvedAt int64  `json:"resolved_at,omitempty"`
+	Failure    string `json:"failure,omitempty"`
+	Attempts   int    `json:"attempts,omitempty"`
+	RetryAt    int64  `json:"retry_at,omitempty"`
 }
 
 func phaseOutcomes(phase string) []string {
@@ -163,11 +167,24 @@ func (e *Engine) textResponseBlocked(ctx context.Context, c config.Worker, launc
 	if block.State == "retry-authorized" {
 		return nil
 	}
+	if block.State == "resolved" {
+		return nil
+	}
+	if block.State == "retry-wait" {
+		if block.Failure != "interrupted" || block.Attempts < 1 || block.Attempts >= maxTextAttempts || block.RetryAt <= 0 {
+			return domain.Fail(domain.Prerequisite, "unsupported retained text retry; preserve its original evidence")
+		}
+		if e.Now().Unix() >= block.RetryAt {
+			return nil
+		}
+		deferWorkUntil(ctx, time.Unix(block.RetryAt, 0))
+		return textResponseFenced{domain.Fail(domain.Prerequisite, "tool-disabled planning retry is waiting for its retained backoff")}
+	}
 	if block.State != "blocked" {
 		return domain.Fail(domain.Prerequisite, "unknown retained text-response fence state")
 	}
 	_, helpErr := e.requestPermission(ctx, c, launch.Task, "text-response:"+block.JournalID, "provider-response")
-	return textResponseFenced{errors.Join(domain.Fail(domain.Prerequisite, "invalid phase response retained in "+block.JournalID+"; exact local work recover is required before repeating this review"), helpErr, e.blockHealth(ctx, "work-prerequisite"))}
+	return textResponseFenced{errors.Join(domain.Fail(domain.Prerequisite, "failed tool-disabled review retained in "+block.JournalID+"; exact local work recover is required before repeating this source"), helpErr, e.blockHealth(ctx, "work-prerequisite"))}
 }
 
 func (e *Engine) rejectTextResponse(ctx context.Context, journal *local.Journal, launch Launch, cause error) error {
@@ -201,7 +218,7 @@ func (e *Engine) recoverTextResponse(ctx context.Context, journal *local.Journal
 	if err != nil {
 		return err
 	}
-	if !found || block.Version != textResponseFormat || block.ActionHash != journal.TextActionHash || block.JournalID != journal.ID || block.State != "blocked" {
+	if !found || block.Version != textResponseFormat || block.ActionHash != journal.TextActionHash || block.JournalID != journal.ID || (block.State != "blocked" && block.State != "retry-wait") {
 		return domain.Fail(domain.Conflict, "exact rejected text action changed; retained evidence was not overwritten")
 	}
 	block.State, block.ResolvedAt = "retry-authorized", e.Now().UTC().Unix()

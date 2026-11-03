@@ -195,7 +195,8 @@ func TestPushFounderPauseCancelsBusyTextWithoutReadOrReply(t *testing.T) {
 	f.publish(domain.Update{Topic: "agent-mode", SourceID: f.me.ID, Urgent: true})
 	eventuallyPush(t, func() bool {
 		journals, err := f.engine.State.Journals(context.Background(), true)
-		return err == nil && len(journals) == 1 && journals[0].State == "uncertain"
+		blocks, blockErr := f.engine.textResponseBlocks(context.Background())
+		return err == nil && blockErr == nil && len(journals) == 0 && len(blocks) == 1 && blocks[0].State == "retry-wait"
 	})
 	if time.Since(started) >= time.Second {
 		t.Fatal("priority pause cancellation exceeded the isolated one-second harness bound")

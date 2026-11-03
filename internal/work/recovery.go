@@ -148,7 +148,7 @@ func (e *Engine) Recover(ctx context.Context, id string, acknowledgeStopped bool
 	if err != nil {
 		return err
 	}
-	if j.State == "reply-rejected" {
+	if j.State == "reply-rejected" || j.State == "text-failed" {
 		return e.recoverTextResponse(ctx, &j)
 	}
 	if j.State != "invoking" && j.State != "uncertain" && j.State != "reply-prepared" && j.State != "applying" {

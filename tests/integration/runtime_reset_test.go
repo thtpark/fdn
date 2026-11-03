@@ -176,12 +176,14 @@ func TestFounderRuntimeResetCancelsActiveInferenceWithoutRetryAcrossRestart(t *t
 		t.Fatal(err)
 	}
 	result := waitAgentOperation(t, h.founder, queued.ID, engine)
-	if result.State != "operator-required" || result.Result == nil || result.Result.Code != "invocation-uncertain" {
-		t.Fatal("interrupted inference was silently abandoned or retried", result)
+	if result.State != "reset" || result.Result == nil {
+		t.Fatal("settled tool-disabled inference prevented safe runtime reset", result)
 	}
 	journals, err := engine.State.Journals(ctx, true)
-	if err != nil || len(journals) != 1 || journals[0].State != "uncertain" || x.count("message") != 1 {
-		t.Fatal("owned invocation was not joined and durably fenced", journals, err, x.count("message"))
+	status, statusErr := engine.Status(ctx)
+	if err != nil || statusErr != nil || len(journals) != 0 || len(status.TextResponseBlocks) != 1 ||
+		status.TextResponseBlocks[0].State != "blocked" || status.TextResponseBlocks[0].RetryAt != 0 || x.count("message") != 1 {
+		t.Fatal("reset repeated settled inference or lost its exact nonretryable source fence", journals, status.TextResponseBlocks, err, statusErr, x.count("message"))
 	}
 	stop()
 	select {
@@ -209,8 +211,10 @@ func TestFounderRuntimeResetCancelsActiveInferenceWithoutRetryAcrossRestart(t *t
 		t.Fatal("restarted control loop did not run", got)
 	}
 	after, err := engine.State.Journals(ctx, true)
-	if err != nil || !reflect.DeepEqual(journals, after) || x.count("message") != 1 {
-		t.Fatal("restart or reset replay repeated uncertain inference", after, err, x.count("message"))
+	currentStatus, statusErr := engine.Status(ctx)
+	if err != nil || statusErr != nil || !reflect.DeepEqual(journals, after) ||
+		!reflect.DeepEqual(status.TextResponseBlocks, currentStatus.TextResponseBlocks) || x.count("message") != 1 {
+		t.Fatal("restart or reset replay repeated inference or reset its source fence", after, err, statusErr, x.count("message"))
 	}
 }
 

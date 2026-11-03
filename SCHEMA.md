@@ -351,6 +351,15 @@ an unresolved acknowledgement.
 | `journals` | Durable invocation/claim/reply/report state, pinned provider/model/version, private context and evidence |
 | `outbox` | Immutable report operation/method/path/body awaiting remote acknowledgement |
 
+Settled tool-disabled failures are atomically recorded as `text-failed` with
+their semantic-source `kv` fence. Transient cancellation/deadline/unavailability
+has at most three total attempts, retaining 5/10-second backoff across restart.
+New operation IDs do not reset it. Permanent or exhausted failures isolate that
+source and request protected help; unrelated pending messages/files remain
+eligible. Current pause, identity, provider, workspace and approval checks still
+apply before any attempt. Unknown cleanup, old uncertain journals and possibly
+applied decisions are never automatically converted to this settled state.
+
 A fully returned tool-disabled reply that violates its phase outcome contract is
 stored as `reply-rejected`; its original context, reply and prompt hash remain
 private and unchanged. This terminal admission state is committed atomically
@@ -1011,6 +1020,11 @@ binary keepalive pings run independently of certificate renewal so the
 finite-idle SSH gateway does not expire a healthy owner. Native SSH process exit
 propagates EOF even while its stdin is idle; a closed gateway cannot leave a
 stale local lease looking ready instead of triggering same-owner reconnection.
+Routine owner-certificate renewal publishes the new transport for new calls but
+drains already admitted calls on their old, still-valid certificate. Their last
+completion closes that retired transport. Old certificate expiry, owner loss,
+revocation and shutdown still cancel all affected calls immediately; no mutation
+is replayed or moved to another transport.
 
 Ordinary CLI calls attach to the existing local identity proxy. They do not open
 a second owner or expose signing/control keys to provider processes. Device
@@ -1295,9 +1309,11 @@ restores ordinary task content, advances the specification and never resurrects
 approval/ownership. A pruned target is not found. Source deletion is unsupported.
 
 Worker journal states include prepared, claim-prepared, claimed, invoking,
-reply-prepared/applying, report-prepared, done, stale, uncertain and abandoned.
-Prepared reports replay without another model call. Interrupted invocations stay
-fenced until explicit stopped-process recovery. A disconnected already-approved
+reply-prepared/applying, report-prepared, done, stale, uncertain, abandoned,
+reply-rejected and text-failed. Prepared reports replay without another model
+call. Unproved interrupted invocations stay fenced until exact stopped-process
+recovery; settled tool-disabled failures follow the source-scoped policy below.
+A disconnected already-approved
 run is bounded by retained owner authority and local supervision, not permission
 to run indefinitely offline: expiry/denial closes owned streams and must retain
 uncertain effects for recovery. No new unclaimed work starts offline. Never
