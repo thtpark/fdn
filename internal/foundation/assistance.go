@@ -18,16 +18,24 @@ func (s *Store) grantAuthority(ctx context.Context, q queryer, grant domain.Assi
 	if !issuer.Founder {
 		return domain.Fail(domain.Denied, "assistance grant has no current Founder authorization")
 	}
+	if grant.Purpose == "sharing" && (grant.ExpiresAt <= s.timestamp() || grant.ExpiresAt > grant.CreatedAt+domain.MaxSharingSeconds) {
+		return domain.Fail(domain.Denied, "time-limited sharing approval expired or exceeds 24 hours")
+	}
 	requester, err := activeIdentitySubject(ctx, q, grant.RequesterID)
 	if err != nil {
 		return err
+	}
+	if !requester.Founder && (grant.ExpiresAt <= s.timestamp() || grant.ExpiresAt > grant.CreatedAt+domain.MaxSharingSeconds) {
+		return domain.Fail(domain.Denied, "delegate assistance requires a fresh Founder approval lasting at most 24 hours")
 	}
 	target, err := activeIdentitySubject(ctx, q, grant.TargetID)
 	if err != nil {
 		return err
 	}
-	if _, err := assistanceScreen(target, grant.Mode, grant.ScreenID, grant.ApplicationID, grant.DesktopFallback); err != nil {
-		return err
+	if grant.Purpose != "sharing" {
+		if _, err := assistanceScreen(target, grant.Mode, grant.ScreenID, grant.ApplicationID, grant.DesktopFallback); err != nil {
+			return err
+		}
 	}
 	if grant.ProjectID != "" {
 		project, err := get[domain.Project](ctx, q, "projects", grant.ProjectID)
@@ -47,6 +55,19 @@ func (s *Store) CreateAssistance(ctx context.Context, actor string, req domain.A
 		if !a.Founder {
 			return grant, domain.Fail(domain.Denied, "only Founder may issue persistent assistance authorization")
 		}
+		if req.Purpose == "sharing" {
+			return s.createSharingApproval(ctx, tx, a, req)
+		}
+		if req.DurationSeconds < 0 || req.DurationSeconds > domain.MaxSharingSeconds {
+			return grant, domain.Fail(domain.Invalid, "assistance duration cannot exceed 24 hours")
+		}
+		requester, err := activeIdentitySubject(ctx, tx, req.RequesterID)
+		if err != nil {
+			return grant, err
+		}
+		if !requester.Founder && req.DurationSeconds == 0 {
+			return grant, domain.Fail(domain.Invalid, "delegate assistance needs an explicit 1-86400 second Founder approval")
+		}
 		if req.Mode != "tmux" && req.Mode != "vnc" {
 			return grant, domain.Fail(domain.Invalid, "assistance mode must be tmux or vnc")
 		}
@@ -65,6 +86,9 @@ func (s *Store) CreateAssistance(ctx context.Context, actor string, req domain.A
 		grant = domain.AssistanceGrant{ID: domain.NewID("assistance"), RequesterID: req.RequesterID, TargetID: req.TargetID, ProjectID: req.ProjectID,
 			Mode: req.Mode, Purpose: req.Purpose, Provider: req.Provider, Active: true, Revision: 1, CreatedBy: a.ID, CreatedAt: s.timestamp(), UpdatedAt: s.timestamp(), Reason: req.Reason,
 			ScreenID: req.ScreenID, ApplicationID: req.ApplicationID, DesktopFallback: req.DesktopFallback}
+		if req.DurationSeconds != 0 {
+			grant.ExpiresAt = grant.CreatedAt + req.DurationSeconds
+		}
 		if err := s.grantAuthority(ctx, tx, grant); err != nil {
 			return grant, err
 		}
@@ -99,8 +123,8 @@ func (s *Store) AssistanceList(ctx context.Context, actor string) ([]domain.Assi
 	if err != nil {
 		return nil, err
 	}
-	query := "SELECT data FROM assistance_grants WHERE active = 1"
-	args := []any{}
+	query := "SELECT data FROM assistance_grants WHERE active = 1 AND (json_extract(data,'$.purpose') <> 'sharing' OR json_extract(data,'$.expires_at') > ?)"
+	args := []any{s.timestamp()}
 	if !a.Founder {
 		query += " AND (requester_id = ? OR target_id = ?)"
 		args = append(args, a.ID, a.ID)

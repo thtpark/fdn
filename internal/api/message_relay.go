@@ -20,22 +20,28 @@ type RelayChunk = domain.RelayChunk
 type RelayWritten = domain.RelayWritten
 
 type relayPeer struct {
-	server   *Server
-	ctx      context.Context
-	actor    domain.Agent
-	mu       sync.Mutex
-	streams  map[string]*relayStream
-	openings map[string]bool
+	server          *Server
+	ctx             context.Context
+	actor           domain.Agent
+	mu              sync.Mutex
+	streams         map[string]*relayStream
+	openings        map[string]bool
+	sharingOpenings map[string]bool
 }
 
 type relayStream struct {
 	net.Conn
-	readMu  sync.Mutex
-	writeMu sync.Mutex
+	readMu     sync.Mutex
+	writeMu    sync.Mutex
+	sharing    bool
+	sessionID  string
+	side       string
+	selection  int64
+	inputEpoch int64
 }
 
 func newRelayPeer(server *Server, ctx context.Context, actor domain.Agent) *relayPeer {
-	return &relayPeer{server: server, ctx: ctx, actor: actor, streams: map[string]*relayStream{}, openings: map[string]bool{}}
+	return &relayPeer{server: server, ctx: ctx, actor: actor, streams: map[string]*relayStream{}, openings: map[string]bool{}, sharingOpenings: map[string]bool{}}
 }
 
 func (p *relayPeer) close() {
@@ -62,18 +68,39 @@ func (p *relayPeer) call(ctx context.Context, request message.Request) ([]byte, 
 		if !domain.ValidOperation(input.Ticket) {
 			return nil, domain.Fail(domain.Invalid, "relay ticket is invalid")
 		}
+		session, err := p.server.Store.SessionAccess(ctx, p.actor.ID, input.SessionID, input.Side)
+		if err != nil {
+			return nil, err
+		}
+		limit, count := 4, 0
+		if session.Sharing() {
+			limit = 32
+		}
 		p.mu.Lock()
-		if len(p.streams)+len(p.openings) >= 4 || p.streams[input.Ticket] != nil || p.openings[input.Ticket] {
+		for _, stream := range p.streams {
+			if stream.sharing == session.Sharing() {
+				count++
+			}
+		}
+		for ticket := range p.openings {
+			if p.sharingOpenings[ticket] == session.Sharing() {
+				count++
+			}
+		}
+		if count >= limit || p.streams[input.Ticket] != nil || p.openings[input.Ticket] {
 			p.mu.Unlock()
 			return nil, domain.Fail(domain.Conflict, "relay admission is occupied or at its connection bound")
 		}
 		p.openings[input.Ticket] = true
+		p.sharingOpenings[input.Ticket] = session.Sharing()
 		p.mu.Unlock()
 		stream, err := p.server.Relay.Open(p.ctx, p.actor.ID, input.SessionID, input.Side)
 		p.mu.Lock()
 		delete(p.openings, input.Ticket)
+		delete(p.sharingOpenings, input.Ticket)
 		if err == nil && ctx.Err() == nil && p.ctx.Err() == nil {
-			p.streams[input.Ticket] = &relayStream{Conn: stream}
+			p.streams[input.Ticket] = &relayStream{Conn: stream, sharing: session.Sharing(), sessionID: session.ID,
+				side: input.Side, selection: session.SelectionRevision, inputEpoch: session.InputEpoch}
 		} else if stream != nil {
 			_ = stream.Close()
 		}
@@ -109,6 +136,23 @@ func (p *relayPeer) call(ctx context.Context, request message.Request) ([]byte, 
 	if stream == nil {
 		return nil, domain.Fail(domain.Denied, "relay ticket is not owned by this connection")
 	}
+	validate := func() error {
+		if !stream.sharing {
+			return nil
+		}
+		current, err := p.server.Store.SessionAccess(ctx, p.actor.ID, stream.sessionID, stream.side)
+		if err != nil || current.SelectionRevision != stream.selection || current.InputEpoch != stream.inputEpoch {
+			_ = stream.Close()
+			if err != nil {
+				return err
+			}
+			return domain.Fail(domain.Conflict, "sharing resource/input generation changed; reconnect the same viewer")
+		}
+		return nil
+	}
+	if err := validate(); err != nil {
+		return nil, err
+	}
 	switch request.Operation {
 	case "relay.read":
 		if len(request.Payload) != 0 {
@@ -130,6 +174,9 @@ func (p *relayPeer) call(ctx context.Context, request message.Request) ([]byte, 
 		n, err := stream.Read(data)
 		if err != nil && !errors.Is(err, io.EOF) {
 			return nil, domain.Fail(domain.Unavailable, "authorized relay read ended")
+		}
+		if err := validate(); err != nil {
+			return nil, err
 		}
 		return message.MarshalPayload(RelayChunk{Data: data[:n], EOF: errors.Is(err, io.EOF)})
 	case "relay.write":

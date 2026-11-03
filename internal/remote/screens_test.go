@@ -104,6 +104,18 @@ func (f *managerFixture) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	switch r.URL.Path {
+	case "/v1/agents/agent_fixture/sharing":
+		if r.Method != http.MethodPost {
+			f.otherRequests = append(f.otherRequests, r.Method+" "+r.URL.Path)
+			envelope(w, nil, domain.Fail(domain.Invalid, "unexpected sharing publication method"))
+			return
+		}
+		var request domain.SharingPublishRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			envelope(w, nil, domain.Fail(domain.Invalid, "invalid sharing publication"))
+			return
+		}
+		envelope(w, domain.Sharing{AgentID: "agent_fixture", Terminals: request.Terminals, Revision: 1}, nil)
 	case "/v1/agents/agent_fixture/screens":
 		if r.Method == "GET" {
 			envelope(w, f.screens, nil)

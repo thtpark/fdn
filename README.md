@@ -5,9 +5,10 @@ authoritative SQLite-backed service, a native worker daemon, and one structured
 CLI for people and coding agents. Development and operation need no companion
 checkout. The supported baseline is 0.3.5: API/schema **2**, native protocol
 **2**, server SQL **5** and local SQL **1**. Older formats/layouts are not
-imported or overwritten. Current source advances server SQL to **10**, preserving
+imported or overwritten. Current source advances server SQL to **11**, preserving
 SQL6 notes, SQL7 Founder devices, SQL8 observation indexes and SQL9 publications/
-file metadata, with ACL-backed Foundation storage and durable receiver copies.
+file metadata, with ACL-backed Foundation storage, durable receiver copies and
+private unified-sharing selection.
 The software-first security model
 is being integrated; source-bound acceptance and native qualification are
 separate. No hardware adapter or attestation is claimed.
@@ -414,6 +415,19 @@ authorized verification reaches `done`.
 
 ## Local work and providers
 
+### Unified live sharing
+
+Founder views a worker's selected terminal/screen through Foundation without
+pausing execution, claiming a slot or changing mode. Target/Founder selects
+resources; delegate approval is explicit, reusable until a server-fixed expiry
+of at most 24 hours, and never renewed by reconnect. Input needs a Founder request
+and native task-safe acknowledgement under the existing work slot. All bytes use
+Foundation's SSH/mTLS/native relay, never a peer connection. Protected credential
+surfaces remain human Founder-only. Tmux/existing configured VNC backends and
+their OS permissions remain prerequisites, not automatic installation.
+See [unified sharing](COMMANDS.md#unified-live-sharing) and the
+[sharing skill](.agents/skills/foundation-sharing/SKILL.md).
+
 Bind a safe, owned workspace and explicitly authorize tools:
 
 ```sh
@@ -658,6 +672,24 @@ Founder has no private-read bypass. Shared tasks/comments/worklogs/publications
 require the owner's explicit `file publish` first. Private message attachment
 selection grants that message's receiver access, without enabling reader
 re-sharing to third parties. Announcements retain their exact reviewed audience.
+
+Founder/delegates can request browser downloads and questions about PPTX, DOCX,
+PDF, photos or other files in messages, task comments or approved tasks. The
+controller routes required retrieval/inspection into its existing tool-enabled
+work slot; a filename, URL or receipt is not content analysis. Agents use available
+local browser/document/image tools, inspect actual bytes, cite source locations
+and report missing tools or inspection limits explicitly. Later thread replies
+can ask further questions about the verified copy. No browser/Office runtime is
+bundled or implicitly installed; protected sign-in, privacy and approval fences
+remain. See the [browser/file procedure](COMMANDS.md#browser-downloads-and-file-investigation).
+
+The same workflow can investigate web pages, search/expand/paginate and read
+authorized account pages. Ordinary website sign-in may use an agent-owned
+session or an authorized locally available password for the exact site/account,
+without putting credential values in model prompts or captured tool output.
+Known credentials are not account authority; MFA/CAPTCHA, protected SSO/consent,
+provider sign-in and uncertain outcomes remain explicit blockers, not automatic
+retries. See [website access](COMMANDS.md#web-page-investigation-and-authorized-website-sign-in).
 
 `publication create/change/list/show/versions/version` publishes team-readable
 Markdown of kind `file`, `diary`, `skill` or `idea`, with company/project/agent

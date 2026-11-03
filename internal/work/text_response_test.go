@@ -41,6 +41,54 @@ func TestPhaseContractRequiresPreparationOutcomesNotReviewed(t *testing.T) {
 	}
 }
 
+func TestWebInvestigationPromptsSeparateWebsiteSignInFromProtectedAuthentication(t *testing.T) {
+	for _, phase := range []string{"message", "attention", domain.ExecutionRun, domain.VerificationRun} {
+		launch := Launch{Phase: phase, Message: &domain.Message{
+			Body: "Investigate https://example.org/account/reports using the already authorized local credential reference reports-site.",
+		}}
+		data, err := json.Marshal(launch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prompt, err := invocationPrompt(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, retained, found := strings.Cut(prompt, "\nFDN_CONTEXT_JSON\n")
+		if !found || retained != string(data) {
+			t.Fatal("website work changed its exact source context", phase)
+		}
+		fragments := []string{"actual page content or interaction", "authorized site/account scope",
+			"search snippets and a sign-in page", "non-secret local credential reference",
+			"Knowing a password is not permission"}
+		if phase == domain.ExecutionRun || phase == domain.VerificationRun {
+			fragments = []string{"JavaScript-rendered content", "actual headings/tables/regions",
+				"Ordinary website sign-in may run unattended", "exact HTTPS origin/account",
+				"An authorized known-password website login is not itself a human-only blocker",
+				"does not authorize Foundation enrollment or provider sign-in",
+				"existing session belongs to the intended account", "local non-logging automation routine",
+				"authorized HTTPS origin/form destination", "model/tool arguments, argv/environment",
+				"Block if the available tool cannot keep those values local",
+				"not HTTP 200 or a submitted form", "at most one password submission",
+				"MFA/OTP/passkeys", "CAPTCHA", "protected SSO/consent", "missing scope",
+				"read-only session checks or pause, never blindly resubmit"}
+		}
+		for _, fragment := range fragments {
+			if !strings.Contains(prompt, fragment) {
+				t.Fatal("missing website investigation/sign-in contract", phase, fragment)
+			}
+		}
+		contract, err := phasePrompt(phase)
+		if err != nil {
+			t.Fatal(err)
+		}
+		execution := phase == domain.ExecutionRun || phase == domain.VerificationRun
+		if strings.Contains(contract, "Ordinary website sign-in may run unattended") != execution {
+			t.Fatal("website sign-in escaped the tool-enabled boundary", phase)
+		}
+	}
+}
+
 func TestRejectedTextResponseRetainsEvidenceFencesOnlyActionAndAllowsExactRetry(t *testing.T) {
 	f := newPermissionFixture(t)
 	ctx := context.Background()

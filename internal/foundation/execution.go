@@ -98,6 +98,16 @@ func (s *Store) Claim(ctx context.Context, actor, id string, req domain.ClaimReq
 			}
 		}
 		var active int
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM sessions
+WHERE target_id=? AND state IN ('consented','active') AND expires_at>?
+AND (json_extract(data,'$.purpose')='sharing-input'
+OR (json_extract(data,'$.purpose')='sharing' AND COALESCE(json_extract(data,'$.input_requested_by'),'')<>''))`,
+			a.ID, s.timestamp()).Scan(&active); err != nil {
+			return domain.Run{}, err
+		}
+		if active != 0 {
+			return domain.Run{}, domain.Fail(domain.Prerequisite, "a Founder-requested task-safe input handoff is pending or active")
+		}
 		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM tasks WHERE json_extract(data, '$.active_run.agent_id') = ?", a.ID).Scan(&active); err != nil {
 			return domain.Run{}, err
 		}

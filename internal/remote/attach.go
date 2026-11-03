@@ -19,20 +19,36 @@ import (
 )
 
 func AttachTerminal(ctx context.Context, client *api.Client, id string, input, output *os.File) (err error) {
-	conn, err := Dial(ctx, client, id, "requester")
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	state, err := term.MakeRaw(int(input.Fd()))
-	if err != nil {
-		return err
-	}
-	defer func() { err = errors.Join(err, term.Restore(int(input.Fd()), state)) }()
+	_, err = attachTerminal(ctx, client, id, input, output, true)
+	return err
+}
+
+func AttachSharingTerminal(ctx context.Context, client *api.Client, id string, input, output *os.File) (bool, error) {
+	return attachTerminal(ctx, client, id, input, output, true)
+}
+
+func StreamSharing(ctx context.Context, client *api.Client, id string, input *os.File, output io.Writer) error {
+	_, err := attachTerminal(ctx, client, id, input, output, false)
+	return err
+}
+
+func attachTerminal(ctx context.Context, client *api.Client, id string, input *os.File, output io.Writer, raw bool) (detached bool, err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	conn, err := Dial(ctx, client, id, "requester")
+	if err != nil {
+		return false, err
+	}
+	defer conn.Close()
+	if raw {
+		state, err := term.MakeRaw(int(input.Fd()))
+		if err != nil {
+			return false, err
+		}
+		defer func() { err = errors.Join(err, term.Restore(int(input.Fd()), state)) }()
+	}
 	done := make(chan error, 1)
-	go func() { _, err := io.Copy(output, conn); done <- err; cancel() }()
+	go func() { _, err := io.Copy(output, conn); done <- err; cancel(); conn.Close() }()
 	buffer := make([]byte, 4096)
 	for ctx.Err() == nil {
 		fds := []unix.PollFd{{Fd: int32(input.Fd()), Events: unix.POLLIN}}
@@ -47,7 +63,8 @@ func AttachTerminal(ctx context.Context, client *api.Client, id string, input, o
 		if fds[0].Revents&(unix.POLLIN|unix.POLLHUP) != 0 {
 			n, readErr := input.Read(buffer)
 			if n > 0 {
-				if bytes.IndexByte(buffer[:n], 0x1d) >= 0 {
+				if raw && bytes.IndexByte(buffer[:n], 0x1d) >= 0 {
+					detached = true
 					cancel()
 					break
 				}
@@ -58,6 +75,7 @@ func AttachTerminal(ctx context.Context, client *api.Client, id string, input, o
 			}
 			if readErr != nil {
 				err = readErr
+				detached = true
 				break
 			}
 		}
@@ -67,7 +85,7 @@ func AttachTerminal(ctx context.Context, client *api.Client, id string, input, o
 	if errors.Is(copyErr, net.ErrClosed) || errors.Is(copyErr, io.EOF) {
 		copyErr = nil
 	}
-	return errors.Join(err, copyErr)
+	return detached, errors.Join(err, copyErr)
 }
 
 func viewerArguments(port int) []string {

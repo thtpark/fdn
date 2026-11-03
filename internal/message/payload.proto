@@ -269,6 +269,7 @@ message Go_AssistanceGrant {
   String screen_id = 14;
   String application_id = 15;
   Bool desktop_fallback = 16;
+  Signed expires_at = 17;
 }
 
 message Go_AssistanceGrantRequest {
@@ -284,6 +285,7 @@ message Go_AssistanceGrantRequest {
   String screen_id = 10;
   String application_id = 11;
   Bool desktop_fallback = 12;
+  Signed duration_seconds = 13;
 }
 
 message Go_AssistanceHelp {
@@ -305,6 +307,8 @@ message Go_AssistanceHelpRequest {
   String application_id = 9;
   Bool desktop_fallback = 10;
   String reason = 11;
+  String terminal_id = 12;
+  Signed selection_revision = 13;
 }
 
 message Go_AssistanceRevoke {
@@ -1064,6 +1068,14 @@ message Go_Session {
   String screen_id = 16;
   String application_id = 17;
   Bool desktop_fallback = 18;
+  String terminal_id = 19;
+  Signed selection_revision = 20;
+  String input_requested_by = 21;
+  Bool input_granted = 22;
+  Signed server_observed_at = 23;
+  String input_lease_id = 24;
+  String parent_session_id = 25;
+  Signed input_epoch = 26;
 }
 
 message Go_SessionChange {
@@ -1104,6 +1116,9 @@ message Go_SessionRequest {
   String application_id = 13;
   Bool desktop_fallback = 14;
   String help_message_id = 15;
+  Signed lifetime_seconds = 16;
+  String terminal_id = 17;
+  Signed selection_revision = 18;
 }
 
 message Go_SharedFile {
@@ -1124,6 +1139,34 @@ message Go_SharedFile {
   Signed deleted_at = 15;
   Signed published_at = 16;
   String published_by = 17;
+}
+
+message Go_Sharing {
+  String agent_id = 1;
+  List_Go_Terminal terminals = 2;
+  String terminal_id = 3;
+  String screen_id = 4;
+  Bool protected = 5;
+  Signed revision = 6;
+  Signed selection_revision = 7;
+  Signed updated_at = 8;
+  Signed server_observed_at = 9;
+  Bool follow_execution = 10;
+}
+
+message Go_SharingPublishRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  List_Go_Terminal terminals = 3;
+}
+
+message Go_SharingSelectRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String mode = 3;
+  String resource_id = 4;
+  Bool protected = 5;
+  String reason = 6;
 }
 
 message Go_SystemEnvironment {
@@ -1215,6 +1258,15 @@ message Go_TaskRequest {
   Signed priority = 9;
   Signed importance = 10;
   List_String attachment_ids = 11;
+}
+
+message Go_Terminal {
+  String id = 1;
+  String name = 2;
+  String generation = 3;
+  String kind = 4;
+  Bool can_input = 5;
+  Bool protected = 6;
 }
 
 message Go_Update {
@@ -1996,6 +2048,21 @@ message List_Go_SharedFile {
   bool present = 2;
 }
 
+message List_Go_Sharing {
+  repeated Go_Sharing items = 1;
+  bool present = 2;
+}
+
+message List_Go_SharingPublishRequest {
+  repeated Go_SharingPublishRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SharingSelectRequest {
+  repeated Go_SharingSelectRequest items = 1;
+  bool present = 2;
+}
+
 message List_Go_SystemEnvironment {
   repeated Go_SystemEnvironment items = 1;
   bool present = 2;
@@ -2013,6 +2080,11 @@ message List_Go_TaskChange {
 
 message List_Go_TaskRequest {
   repeated Go_TaskRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_Terminal {
+  repeated Go_Terminal items = 1;
   bool present = 2;
 }
 
@@ -2701,6 +2773,21 @@ message List_Page_Go_SharedFile {
   bool present = 2;
 }
 
+message List_Page_Go_Sharing {
+  repeated Page_Go_Sharing items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SharingPublishRequest {
+  repeated Page_Go_SharingPublishRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SharingSelectRequest {
+  repeated Page_Go_SharingSelectRequest items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_SystemEnvironment {
   repeated Page_Go_SystemEnvironment items = 1;
   bool present = 2;
@@ -2718,6 +2805,11 @@ message List_Page_Go_TaskChange {
 
 message List_Page_Go_TaskRequest {
   repeated Page_Go_TaskRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_Terminal {
+  repeated Page_Go_Terminal items = 1;
   bool present = 2;
 }
 
@@ -4036,6 +4128,36 @@ message Map_Go_SharedFile_Entry {
   Go_SharedFile value = 2;
 }
 
+message Map_Go_Sharing {
+  repeated Map_Go_Sharing_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SharingPublishRequest {
+  repeated Map_Go_SharingPublishRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SharingPublishRequest_Entry {
+  optional string key = 1;
+  Go_SharingPublishRequest value = 2;
+}
+
+message Map_Go_SharingSelectRequest {
+  repeated Map_Go_SharingSelectRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SharingSelectRequest_Entry {
+  optional string key = 1;
+  Go_SharingSelectRequest value = 2;
+}
+
+message Map_Go_Sharing_Entry {
+  optional string key = 1;
+  Go_Sharing value = 2;
+}
+
 message Map_Go_SystemEnvironment {
   repeated Map_Go_SystemEnvironment_Entry items = 1;
   bool present = 2;
@@ -4074,6 +4196,16 @@ message Map_Go_TaskRequest_Entry {
 message Map_Go_Task_Entry {
   optional string key = 1;
   Go_Task value = 2;
+}
+
+message Map_Go_Terminal {
+  repeated Map_Go_Terminal_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_Terminal_Entry {
+  optional string key = 1;
+  Go_Terminal value = 2;
 }
 
 message Map_Go_Update {
@@ -5446,6 +5578,36 @@ message Map_Page_Go_SharedFile_Entry {
   Page_Go_SharedFile value = 2;
 }
 
+message Map_Page_Go_Sharing {
+  repeated Map_Page_Go_Sharing_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SharingPublishRequest {
+  repeated Map_Page_Go_SharingPublishRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SharingPublishRequest_Entry {
+  optional string key = 1;
+  Page_Go_SharingPublishRequest value = 2;
+}
+
+message Map_Page_Go_SharingSelectRequest {
+  repeated Map_Page_Go_SharingSelectRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SharingSelectRequest_Entry {
+  optional string key = 1;
+  Page_Go_SharingSelectRequest value = 2;
+}
+
+message Map_Page_Go_Sharing_Entry {
+  optional string key = 1;
+  Page_Go_Sharing value = 2;
+}
+
 message Map_Page_Go_SystemEnvironment {
   repeated Map_Page_Go_SystemEnvironment_Entry items = 1;
   bool present = 2;
@@ -5484,6 +5646,16 @@ message Map_Page_Go_TaskRequest_Entry {
 message Map_Page_Go_Task_Entry {
   optional string key = 1;
   Page_Go_Task value = 2;
+}
+
+message Map_Page_Go_Terminal {
+  repeated Map_Page_Go_Terminal_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_Terminal_Entry {
+  optional string key = 1;
+  Page_Go_Terminal value = 2;
 }
 
 message Map_Page_Go_Update {
@@ -6291,6 +6463,21 @@ message Page_Go_SharedFile {
   String next_cursor = 2;
 }
 
+message Page_Go_Sharing {
+  List_Go_Sharing items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SharingPublishRequest {
+  List_Go_SharingPublishRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SharingSelectRequest {
+  List_Go_SharingSelectRequest items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_SystemEnvironment {
   List_Go_SystemEnvironment items = 1;
   String next_cursor = 2;
@@ -6308,6 +6495,11 @@ message Page_Go_TaskChange {
 
 message Page_Go_TaskRequest {
   List_Go_TaskRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_Terminal {
+  List_Go_Terminal items = 1;
   String next_cursor = 2;
 }
 

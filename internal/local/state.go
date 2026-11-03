@@ -111,9 +111,27 @@ func (s *State) SaveJournal(ctx context.Context, j Journal) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO journals(id,data,state,created_at) VALUES(?,?,?,?)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(ctx, `INSERT INTO journals(id,data,state,created_at) VALUES(?,?,?,?)
 ON CONFLICT(id) DO UPDATE SET data=excluded.data,state=excluded.state`, j.ID, data, j.State, j.CreatedAt)
-	return err
+	if err != nil {
+		return err
+	}
+	if j.State == "invoking" && (j.Kind == domain.ExecutionRun || j.Kind == domain.VerificationRun) {
+		terminal, err := json.Marshal(domain.Terminal{ID: "execution", Name: "Current execution output", Generation: j.ID, Kind: "execution"})
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO kv(key,value) VALUES('sharing-execution',?)
+ON CONFLICT(key) DO UPDATE SET value=excluded.value`, terminal); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (s *State) Journals(ctx context.Context, pending bool) ([]Journal, error) {

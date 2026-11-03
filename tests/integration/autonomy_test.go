@@ -14,7 +14,8 @@ import (
 func grantFor(t *testing.T, h *harness, requester, target, mode, purpose, project string) domain.AssistanceGrant {
 	t.Helper()
 	grant, err := api.Call[domain.AssistanceGrant](context.Background(), h.founder, "POST", "/v1/assistance", domain.AssistanceGrantRequest{
-		Command: command(), RequesterID: requester, TargetID: target, Mode: mode, Purpose: purpose, ProjectID: project, Reason: "Founder authorizes persistent scoped fixture assistance"})
+		Command: command(), RequesterID: requester, TargetID: target, Mode: mode, Purpose: purpose, ProjectID: project,
+		DurationSeconds: 86400, Reason: "Founder authorizes bounded scoped fixture assistance"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +58,7 @@ func TestFounderOnlyModeControlAndScopedDelegateAssistance(t *testing.T) {
 	}
 	retained, err := api.Call[domain.AssistanceGrant](ctx, h.other, "GET", api.Path("assistance", grant.ID), nil)
 	if err != nil || !retained.Active || retained.Revision != 1 {
-		t.Fatal("relay restart consumed permanent authorization", retained, err)
+		t.Fatal("relay restart consumed unexpired authorization", retained, err)
 	}
 	request.Command = command()
 	reconnected, err := api.Call[domain.Session](ctx, h.other, "POST", "/v1/sessions", request)

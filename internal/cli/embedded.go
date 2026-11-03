@@ -51,7 +51,7 @@ func (e *Embedded) Events(ctx context.Context, cursor string, filter domain.Upda
 	return e.source().Events(ctx, cursor, filter, wait)
 }
 
-var embeddedReads = strings.Fields("version help status identity work agents agent environment announcementAudience projects project tasks task taskHistory runs discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory sessions session grants grant assistanceStatus devices diagnostics operation configuration guides guide events")
+var embeddedReads = strings.Fields("version help status identity work agents agent environment announcementAudience projects project tasks task taskHistory runs discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory sessions session grants grant assistanceStatus sharing sharingSessions sharingStatus devices diagnostics operation configuration guides guide events")
 
 func (e *Embedded) ValidateQuery(q observe.Query) error {
 	if err := q.Validate(); err != nil {
@@ -91,6 +91,7 @@ var embeddedWrites = []string{
 	"file begin", "file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded",
 	"publication create", "publication change",
 	"assistance grant", "assistance revoke", "session change",
+	"share select", "share approve", "share revoke", "share input", "share release-input",
 }
 
 func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessage, operation string, revision int64) (json.RawMessage, error) {
@@ -108,6 +109,7 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 		"message read", "message receipt", "message request-report", "mention acknowledge",
 		"file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded", "publication change",
 		"assistance revoke", "session change",
+		"share select", "share revoke", "share input", "share release-input",
 	}, args[0]+" "+args[1])
 	expected := 4
 	if targeted {
@@ -135,7 +137,8 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 		return nil, domain.Fail(domain.Denied, "mobile content requires this device's active Founder identity")
 	}
 	pause := args[0] == "agent" && args[1] == "mode"
-	if me.Mode != "manual" && !pause {
+	sharing := args[0] == "share"
+	if me.Mode != "manual" && !pause && !sharing {
 		return nil, domain.Fail(domain.Prerequisite, "human publishing requires freshly confirmed manual mode")
 	}
 	a := &app{in: bytes.NewReader(body), out: io.Discard, diagnostic: io.Discard, json: true,
@@ -148,6 +151,8 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 		value, err = a.announcementCommand(ctx, &e.res, args[1:])
 	case "assistance":
 		value, err = a.assistanceCommand(ctx, &e.res, args[1:])
+	case "share":
+		value, err = a.sharingCommand(ctx, &e.res, args[1:])
 	case "session":
 		value, err = a.sessionCommand(ctx, &e.res, args[1:])
 	case "project":

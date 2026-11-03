@@ -5,8 +5,8 @@ Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
 Native message protocol version is **2**; server SQLite migration version is
-**10**; local-worker SQLite remains **1**. Existing SQL5-SQL9 databases advance
-through ordered SQL10 plus verified filesystem materialization; earlier server-state formats remain unsupported.
+**11**; local-worker SQLite remains **1**. Existing SQL5-SQL10 databases advance
+through ordered SQL11 after verified SQL10 filesystem materialization; earlier server-state formats remain unsupported.
 Deploy the server first. Version 2 requires account-bound public-key admission
 and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
 create new runtime identities. Native multi-UID qualification is separate from
@@ -226,6 +226,26 @@ retained destination/verification/receipt without contacting Foundation.
 Explicit recipient-chosen paths and legacy `state_dir/transfers` proposals stay
 unchanged through renames/restarts/configuration changes. Existing local/server
 SQL and wire contracts are unchanged by this storage-default change.
+
+Requested browser downloads and document/image questions use existing claimed
+task execution or source-bound Adhoc conversation actions. Attachment metadata,
+URLs and receipts are references, not inspected content. External downloads and
+derived analysis stay in private local workspaces; they neither create Foundation
+file receipts/publications nor change readership. Text planning remains tool-
+disabled, and browser/parser/image availability is a local prerequisite, not a
+new runtime or authority grant. Follow-up questions retain exact source/thread
+context and may inspect the same verified local copy. No schema, protocol, slot,
+approval, mode, inference-retry or automatic-fetch change is implied.
+
+Web-page investigation can use existing static-fetch/browser tools and an
+already authorized local website session or private credential reference.
+Ordinary website password sign-in requires exact current site/account authority;
+credential values remain inside local non-logging automation, never controller
+prompts/actions/shared records. Verify authenticated account/page access and
+retain rejected/challenged/uncertain results without blind submission retries.
+This adds no credential store, native field, Foundation/provider authentication
+permission or human-consent bypass. Website account access and disclosure
+authority remain separate from project membership and possession of a password.
 
 Private message attachment grants are resolved transactionally; existing readers
 cannot grant third-party access. Shared tasks/descriptions/criteria, entries and
@@ -1156,7 +1176,7 @@ compatible server/proxies/clients/receivers must be deployed together.
 | Read an agent operation | Its requester Founder or exact target, not arbitrary session/message access |
 | List pending / report an agent operation | Exact target only, with current identities/generations and immutable expiry |
 | Read private message diagnostics | Message sender/recipient only; no Founder bypass |
-| Issue/revoke persistent assistance | Founder only; scope is explicit and the requester may be an agent |
+| Issue/revoke assistance approval | Founder only; explicit requester/target scope; delegate expiry is fixed within 24 hours, while Founder-only legacy human-help grants may persist |
 | Create a project | Founder, or specific creation authorization consumed by creation |
 | Grant a delegate | Founder |
 | Revoke a project delegate / change project context | Founder or that project's current delegate |
@@ -1283,6 +1303,44 @@ to run indefinitely offline: expiry/denial closes owned streams and must retain
 uncertain effects for recovery. No new unclaimed work starts offline. Never
 claim exactly-once external side effects.
 
+## Unified sharing and input leases
+
+SQL11 appends private `sharing` metadata and scoped-update triggers only.
+Existing SQL1-SQL10 records, identities, mode, task/workspace/knowledge, immutable
+operations and recovery evidence remain unchanged. Sharing metadata contains
+safe terminal IDs/labels/native generations and the target-selected terminal/
+screen, not local sockets, paths, commands or credentials. Only target/self
+publishes; target/Founder selects. Founder reads by current role. Other viewers
+need exact active Founder approval with a server-fixed expiry no later than
+creation plus 86,400 seconds. Reconnect and selection never renew it.
+
+Logical `sessions` purpose `sharing` reuse Foundation's native relay and do not
+consume execution admission. Selected-resource changes atomically update live
+logical viewers, advance selection generation and retire old byte streams.
+Native read/write rechecks generation/authority; no agent-to-agent route exists.
+Only current target-selected resources may be opened. Delegates cannot select
+or see protected surfaces, including active authentication screens. Metadata
+and pixels have separate private feeds; no UI bytes enter observations/history.
+
+Founder requests input on a logical view. A linked internal `sharing-input`
+lease is created transactionally, bounded by the viewer's original expiry.
+It has no independent relay or public creation path. Only target may acknowledge
+it, with no active execution and no other input owner. The native supervisor
+also owns the existing `work.lock`, reconciled journals/reports and an exact
+generation-bound cleanup fence before forwarding any input. The original viewer
+stays available and its expiry never changes. Input revocation advances an input
+epoch; streams reconnect view-only after owned cleanup. A closed viewer cancels
+pending input, while granted input remains fenced until native cleanup is proved.
+An interrupted uncertain input lease is operator-required even after cleanup,
+not implicit task/inference retry permission.
+
+Old unbounded delegate assistance grants are retained, not converted into fresh
+24-hour authority; they fail closed until Founder deliberately issues a bounded
+approval. Existing Founder human-help grants may remain persistent. Protected
+authentication/interactive compatibility paths retain their task-safe input
+admission and cannot extend delegate access beyond the approval. None of this
+changes global mode, task approval/project authority, budgets or OS permissions.
+
 ## Privacy, sessions and future data
 
 Shared application context is team-readable. Messages are sender/recipient
@@ -1339,7 +1397,8 @@ silently resumed.
 
 Assistance grants persist in their own table, independent of live sessions.
 Founder authorizes an exact requester/target, mode/purpose, optional provider and
-project once; no timed expiry or consumption on disconnect. Project-bound
+project once. Delegate approvals expire within 24 hours; Founder-only legacy
+human-help grants may persist until revoked. No reconnect renews expiry. Project-bound
 grants require current project authority; computer-local grants confer only
 their explicit assistance scope, not task, mode, project or spending privileges.
 Grant holders may be AI delegates and are never proof of human presence.
@@ -1347,8 +1406,8 @@ Inactive/revoked parties, changed scope/project authority or Founder revocation
 deny new access and close existing streams on recheck.
 
 Session states are requested, consented, active and retired
-(denied/revoked/closed/expired/failed as applicable). Consent is valid for 60-900
-seconds for a live connection, cannot substitute for explicit requester open,
+(denied/revoked/closed/expired/failed as applicable). Legacy interactive consent is valid for 60-900
+seconds; unified views last 1-86400 seconds, capped by approval. Consent cannot substitute for explicit requester open,
 and does not survive a server relay restart. A retained grant supplies target
 authorization unattended and survives that restart; reconnect uses it without
 reapproval. Expiry/revocation closes streams, not the retained permission unless

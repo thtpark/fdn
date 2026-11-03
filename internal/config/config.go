@@ -73,19 +73,20 @@ type Worker struct {
 }
 
 type Screen struct {
-	ID           string              `json:"id"`
-	Name         string              `json:"name"`
-	Scope        string              `json:"scope"`
-	Width        int                 `json:"width"`
-	Height       int                 `json:"height"`
-	X            int                 `json:"x,omitempty"`
-	Y            int                 `json:"y,omitempty"`
-	Primary      bool                `json:"primary"`
-	VNCAddress   string              `json:"vnc_address,omitempty"`
-	VNCVerified  bool                `json:"vnc_verified"`
-	Display      string              `json:"display"`
-	XAuthority   string              `json:"xauthority,omitempty"`
-	Applications []ScreenApplication `json:"applications,omitempty"`
+	ID              string              `json:"id"`
+	Name            string              `json:"name"`
+	Scope           string              `json:"scope"`
+	Width           int                 `json:"width"`
+	Height          int                 `json:"height"`
+	X               int                 `json:"x,omitempty"`
+	Y               int                 `json:"y,omitempty"`
+	Primary         bool                `json:"primary"`
+	VNCAddress      string              `json:"vnc_address,omitempty"`
+	VNCVerified     bool                `json:"vnc_verified"`
+	Display         string              `json:"display"`
+	XAuthority      string              `json:"xauthority,omitempty"`
+	Applications    []ScreenApplication `json:"applications,omitempty"`
+	VNCPasswordFile string              `json:"vnc_password_file,omitempty"`
 }
 
 type ScreenApplication struct {
@@ -264,6 +265,9 @@ func (c Worker) validateScreensForOwner(ownerUID uint32) error {
 		primary = primary || screen.Primary
 		if screen.VNCVerified && screen.VNCAddress == "" {
 			return domain.Fail(domain.Invalid, "a verified screen backend needs a loopback VNC address")
+		}
+		if screen.VNCPasswordFile != "" && (!filepath.IsAbs(screen.VNCPasswordFile) || strings.ContainsAny(screen.VNCPasswordFile, "\x00\r\n")) {
+			return domain.Fail(domain.Invalid, "VNC backend password reference must be an absolute private file path")
 		}
 		if screen.VNCAddress != "" {
 			if err := Loopback(screen.VNCAddress); err != nil {

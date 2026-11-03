@@ -94,6 +94,8 @@ type Manager struct {
 	Config          config.Worker
 	ConfigPath      string // Overrides Config.SourcePath when the caller did not load it through config.LoadWorker.
 	Opener          Opener
+	Sharing         SharingBackend
+	sharingBackend  SharingBackend
 	Log             *slog.Logger
 	wakeOnce        sync.Once
 	wake            chan struct{}
@@ -161,6 +163,12 @@ func (m *Manager) Run(ctx context.Context) error {
 		m.Log = slog.Default()
 	}
 	ctx, cancel := context.WithCancel(ctx)
+	m.sharingBackend = m.Sharing
+	if m.sharingBackend == nil {
+		m.sharingBackend = newNativeSharingBackend(ctx)
+	}
+	sharingDone := make(chan struct{})
+	go func() { defer close(sharingDone); m.runSharing(ctx, m.sharingBackend) }()
 	publicationDone := make(chan struct{})
 	go func() { defer close(publicationDone); m.publishLoop(ctx) }()
 	var watchDone chan struct{}
@@ -170,6 +178,7 @@ func (m *Manager) Run(ctx context.Context) error {
 	}
 	defer func() {
 		cancel()
+		<-sharingDone
 		<-publicationDone
 		if watchDone != nil {
 			<-watchDone
@@ -208,7 +217,7 @@ func (m *Manager) Run(ctx context.Context) error {
 			} else {
 				pending = pending[:0]
 				for _, session := range sessions {
-					if session.TargetID == m.Client.Credential.AgentID && session.State == "consented" && session.OpenRequested {
+					if !session.Sharing() && !session.InputLease() && session.TargetID == m.Client.Credential.AgentID && session.State == "consented" && session.OpenRequested {
 						pending = append(pending, session)
 					}
 				}
@@ -421,6 +430,16 @@ func (m *Manager) finish(ctx context.Context, id string) error {
 
 func (m *Manager) retryCleanup(ctx context.Context) (err error) {
 	snapshot, err := ReadSessionFence(ctx, m.State)
+	if err == nil && snapshot.Fence.Active {
+		var sharing sharingInputRecord
+		found, readErr := m.State.Get(ctx, sharingInputKey(snapshot.Fence.ID), &sharing)
+		if readErr != nil {
+			return readErr
+		}
+		if found {
+			return nil
+		}
+	}
 	if err != nil {
 		return err
 	}

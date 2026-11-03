@@ -26,6 +26,8 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/notes", "/v1/note-context",
 		"/v1/agents/*/environment", "/v1/announcements/audience", "/v1/messages/*/announcement-authority",
 		"/v1/files", "/v1/files/*", "/v1/files/*/chunks", "/v1/publications", "/v1/publications/*", "/v1/publications/*/versions", "/v1/publication-versions/*",
+		"/v1/agents/*/sharing", "/v1/agents/*/sharing/sessions",
+		"/v1/sessions/*/access",
 	},
 	http.MethodPost: {
 		"/v1/identity/register", "/v1/identity/*/recover", "/v1/identity/devices", "/v1/identity/devices/*/revoke",
@@ -36,6 +38,7 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/agents/*/environment", "/v1/announcements",
 		"/v1/files", "/v1/files/*/chunks", "/v1/files/*/finalize", "/v1/files/*/publish", "/v1/files/*/grants", "/v1/files/*/delete", "/v1/files/*/downloaded",
 		"/v1/publications", "/v1/publications/*/change",
+		"/v1/agents/*/sharing", "/v1/agents/*/sharing/select",
 	},
 }
 
@@ -97,6 +100,10 @@ func ordinaryPath(method string, u *url.URL) bool {
 					}
 				}
 			case "/v1/announcements", "/v1/agents/*/environment", "/v1/messages/*/announcement-authority":
+				return u.RawQuery == ""
+			case "/v1/agents/*/sharing", "/v1/agents/*/sharing/select", "/v1/agents/*/sharing/sessions":
+				return u.RawQuery == ""
+			case "/v1/sessions/*/access":
 				return u.RawQuery == ""
 			case "/v1/notes", "/v1/note-context":
 				query, err := url.ParseQuery(u.RawQuery)

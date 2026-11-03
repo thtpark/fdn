@@ -207,6 +207,14 @@ func (s observationSource) snapshot(ctx context.Context, q observe.Query) (any, 
 			args = []string{"show", q.ID}
 		}
 		return a.sessionCommand(ctx, r, args)
+	case "sharing", "sharingSessions":
+		leaf := "show"
+		if q.Kind == "sharingSessions" {
+			leaf = "sessions"
+		}
+		return a.sharingCommand(ctx, r, []string{leaf, q.ID})
+	case "sharingStatus":
+		return a.sharingCommand(ctx, r, []string{"status", q.ID})
 	case "grants", "grant":
 		args := []string{"list"}
 		if q.Kind == "grant" {

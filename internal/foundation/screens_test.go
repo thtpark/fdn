@@ -223,7 +223,7 @@ func TestScreenAwareAssistanceCurrentProjectAndIdentityAuthority(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			grant, err := f.s.CreateAssistance(ctx, f.founder.ID, domain.AssistanceGrantRequest{Command: op(), RequesterID: f.other.ID, TargetID: f.worker.ID, ProjectID: project.ID, Mode: "vnc", Purpose: "terminal", Reason: "Project-scoped selected screen", ScreenID: "screen-1"})
+			grant, err := f.s.CreateAssistance(ctx, f.founder.ID, domain.AssistanceGrantRequest{Command: op(), RequesterID: f.other.ID, TargetID: f.worker.ID, ProjectID: project.ID, Mode: "vnc", Purpose: "terminal", Reason: "Project-scoped selected screen", ScreenID: "screen-1", DurationSeconds: 86400})
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -12,9 +12,13 @@ import (
 )
 
 func inspectProcessWithParent(pid int) (*ownedProcess, int, error) {
+	return inspectProcProcess(pid, os.Stat, os.ReadFile)
+}
+
+func inspectProcProcess(pid int, stat func(string) (os.FileInfo, error), readFile func(string) ([]byte, error)) (*ownedProcess, int, error) {
 	path := filepath.Join("/proc", strconv.Itoa(pid))
-	info, err := os.Stat(path)
-	if errors.Is(err, os.ErrNotExist) {
+	info, err := stat(path)
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ESRCH) {
 		return nil, 0, nil
 	}
 	if err != nil {
@@ -24,8 +28,8 @@ func inspectProcessWithParent(pid int) (*ownedProcess, int, error) {
 	if !ok {
 		return nil, 0, domain.Fail(domain.Prerequisite, "kernel process ownership is unavailable")
 	}
-	data, err := os.ReadFile(filepath.Join(path, "stat"))
-	if errors.Is(err, os.ErrNotExist) {
+	data, err := readFile(filepath.Join(path, "stat"))
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ESRCH) {
 		return nil, 0, nil
 	}
 	if err != nil {

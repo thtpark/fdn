@@ -51,6 +51,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return nil, observe.Run(ctx, a.in, a.out, observationSource{app: a, res: r})
 	case "screen":
 		return a.screenCommand(ctx, r, tail)
+	case "share":
+		return a.sharingCommand(ctx, r, tail)
 	case "config", "mode", "knowledge", "inventory", "workspace", "provider", "preferences", "service", "work":
 		return a.localCommand(ctx, r, group, tail)
 	case "status":

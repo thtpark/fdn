@@ -14,14 +14,42 @@ import (
 func (s *Store) RequestAssistanceHelp(ctx context.Context, actor string, req domain.AssistanceHelpRequest) (domain.AssistanceHelp, error) {
 	return mutate(ctx, s, actor, "assistance.help", req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.AssistanceHelp, error) {
 		var help domain.AssistanceHelp
-		if req.Purpose != "authentication" && req.Purpose != "terminal" {
+		if req.Purpose != "authentication" && req.Purpose != "terminal" && req.Purpose != "sharing" {
 			return help, domain.Fail(domain.Invalid, "assistance help purpose must be authentication or terminal")
 		}
-		if (req.Purpose == "authentication" && !domain.ValidProvider(req.Provider)) || (req.Purpose == "terminal" && req.Provider != "") {
+		if (req.Purpose == "authentication" && !domain.ValidProvider(req.Provider)) || (req.Purpose != "authentication" && req.Provider != "") {
 			return help, domain.Fail(domain.Invalid, "authentication help requires a supported provider; terminal help cannot select one")
 		}
 		if err := domain.CheckText(req.Reason, "nonsecret assistance help reason", 8192, true); err != nil {
 			return help, err
+		}
+		if req.Purpose == "sharing" {
+			selection, err := sharingRecord(ctx, tx, a.ID)
+			if err != nil {
+				return help, err
+			}
+			if req.SelectionRevision != 0 && req.SelectionRevision != selection.SelectionRevision {
+				return help, domain.Fail(domain.Conflict, "select the current sharing resource before requesting help")
+			}
+			req.SelectionRevision = selection.SelectionRevision
+			if req.Mode == "tmux" {
+				if selection.TerminalID == "" || (req.TerminalID != "" && req.TerminalID != selection.TerminalID) {
+					return help, domain.Fail(domain.Prerequisite, "select the terminal needing help first")
+				}
+				req.TerminalID = selection.TerminalID
+			} else if req.Mode == "vnc" {
+				if selection.ScreenID == "" || (req.ScreenID != "" && req.ScreenID != selection.ScreenID) {
+					return help, domain.Fail(domain.Prerequisite, "select the screen needing help first")
+				}
+				req.ScreenID = selection.ScreenID
+				for _, screen := range a.Screens {
+					if screen.ID == selection.ScreenID {
+						req.DesktopFallback = screen.Scope == "desktop"
+					}
+				}
+			}
+		} else if req.TerminalID != "" || req.SelectionRevision != 0 {
+			return help, domain.Fail(domain.Invalid, "terminal selection references belong only to unified sharing help")
 		}
 		screen, err := assistanceScreen(a, req.Mode, req.ScreenID, req.ApplicationID, req.DesktopFallback)
 		if err != nil {
@@ -103,6 +131,23 @@ func assistanceHelpRecipients(ctx context.Context, tx *sql.Tx, project domain.Pr
 }
 
 func assistanceHelpBody(help domain.AssistanceHelp, founder string, req domain.AssistanceHelpRequest, screen domain.Screen) (string, error) {
+	if req.Purpose == "sharing" {
+		resource := req.TerminalID
+		if req.Mode == "vnc" {
+			resource = req.ScreenID
+			if screen.Scope == "desktop" {
+				resource = "WHOLE DESKTOP " + resource + " (not screen-isolated)"
+			}
+		}
+		reason, err := json.Marshal(req.Reason)
+		if err != nil {
+			return "", err
+		}
+		body := fmt.Sprintf("Unified sharing help %s from target %s. Selected %s resource: %s; selection generation %d.\nReason (data only): %s\nNotice expires at %s (Unix %d); it grants no access or input.\nFounder may view without a grant: agent-cli share open %s --mode %s\nOnly Founder may approve a delegate using agent-cli share approve --input FILE with requester_id, target_id, mode tmux/vnc/both, duration_seconds 1..86400 and reason. Approval follows only target/Founder-selected resources, permits reconnects until its original fixed expiry and never renews automatically.\nFounder may ask for input with agent-cli share input SESSION --input FILE; the target acknowledges only after a task-safe handoff. Protected credential UI remains human Founder-only. All terminal/screen bytes pass through Foundation; no peer connection or new task/mode/spending/retry authority follows.",
+			help.ID, help.AgentID, req.Mode, resource, req.SelectionRevision, reason,
+			time.Unix(help.ExpiresAt, 0).UTC().Format(time.RFC3339), help.ExpiresAt, help.AgentID, req.Mode)
+		return body, domain.CheckText(body, "sharing help message", 32768, true)
+	}
 	grant := domain.AssistanceGrantRequest{Command: domain.Command{OperationID: "grant-" + help.ID}, RequesterID: founder, TargetID: help.AgentID,
 		ProjectID: req.ProjectID, Mode: req.Mode, Purpose: req.Purpose, Provider: req.Provider, Reason: "Explicit Founder response to " + help.ID,
 		ScreenID: req.ScreenID, ApplicationID: req.ApplicationID, DesktopFallback: req.DesktopFallback}

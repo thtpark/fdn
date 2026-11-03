@@ -42,7 +42,60 @@ runs while preserving unrelated processes and PID-reuse rejection.
 These cases must pass on their first CI attempt, not through blanket retries,
 relaxed production expiry checks or platform skips.
 
+Linux process inspection treats both ENOENT and ESRCH during `/proc` reads as
+an exited PID, while cleanup still proves process-group disappearance and
+preserves permission/I/O failures. Sharing input recovery rechecks the exact
+fence after acquiring `work.lock`, never cleans a retired/replaced lease and
+does not repeat native cleanup after durable proof. CI repeats these real-tmux
+lifecycle/kernel cases 20 times and the complete task-safe handoff 10 times;
+these repetitions are regression checks, not retries of a failed suite.
+Input arriving during the target's acknowledgement observes its completed
+server decision and durable native readiness, rather than silently losing the
+first input after a server-visible grant. Denied acknowledgement never enables it.
+
 ## Human help and normal local access
+
+### Unified sharing
+
+```sh
+go test -race -count=1 ./internal/foundation ./internal/remote ./internal/provider ./mobile -run 'Sharing|TestBridge'
+go test -race -count=1 -tags=integration ./tests/integration -run '^TestSharing'
+```
+
+`TestSharingViewsContinueDuringExecutionAndInputUsesTheSameLogicalSession`
+keeps an actual invocation blocked while Founder receives selected terminal
+bytes through Foundation, rejects ungranted input, waits for task completion
+before granting input under the same work lock, then releases input and
+reconnects the original view with unchanged expiry. Selection/revocation tests
+deny delegate endpoint choice and withdraw old Foundation relay streams before
+reconnecting the same logical session. Exact server-time tests cover 0, 1,
+86,400 and 86,401 second bounds, reconnect/replay without renewal, current
+project/identity authority and protected credential surfaces.
+
+Native RFB net.Pipe fixtures exercise 3.3/3.7/3.8, local VNCAuth, None-only
+authenticated viewer handshake, pixels, shared flag, per-event input gating,
+both clipboard directions, power/resize denial, malformed/bounded messages and
+joined cancellation. Unsupported/encrypted security/encodings fail closed.
+Live output tests must preserve provider stdout/stderr limits and structured
+reply bytes; reading a filename/status is not an output-stream test.
+
+`TestSharingNative*` requires a real tmux executable and disposable owner-only
+short-path state. Verify producer survival after a viewer closes, real shell
+output (not typed command echo), live private-log appends, ignore-size viewing,
+retired-tail cleanup and exact-generation input cleanup preserving newer
+terminals. If tmux is absent these tests explicitly skip: do not report native
+qualification. Missing tools or denied isolated test builds remain reported
+native-test prerequisites, not successful builds or host installations.
+Shared app/phone builds and fixtures do not certify actual display/OS consent,
+provider privacy, credential isolation, release rollout or fleet capacity.
+
+`TestSharingHumanViewsInAIModeAndReconnectsTheSelectedTerminal` checks mobile
+Founder viewing without manual mode or a grant, actual binary output across
+selection changes, one retained creation/open/close and unchanged expiry.
+Shared Swift `SharingTests` cover bounded approvals, selected-resource policy,
+protected uncaptured invocation and exact sharing-control replay while Founder
+remains in AI mode. Disconnect/quit cancels and joins owned sharing attachments;
+late results stay private and cannot replace a different connection's state.
 
 `HelpSessionOpen*`, `AssistanceHelp*`, `Human*` and `ProjectWorkspaceUses*`
 verify typed help scope, unchanged immutable notices, server-clock expiry,
@@ -433,6 +486,55 @@ tests submit successive replies to the sender's own previous message without
 reversing the recipient or inheriting a previous response opt-out.
 These are deterministic provider/business-policy fixtures, not a diagnosis of
 Agent1's deployed authentication or native multi-UID qualification.
+
+### Browser/file investigation with existing tools
+
+```sh
+go test -race -count=1 . ./internal/provider ./internal/work -run 'Guide.*(Catalog|Browser)|FileInvestigation'
+go test -race -count=1 -tags=integration ./tests/integration -run 'OfficeAndPhotoQuestions|ApprovedTaskFileInvestigation|BrowserInvestigation|PrivateFileRequests'
+```
+
+Prompt/adapter checks distinguish reference-only message/comment planning from
+tool-enabled execution/verification, retain explicitly requested browser methods,
+permit Copilot coding `web_fetch` without calling it a browser, and keep text
+tools/MCPs/delegation disabled. Embedded discovery, source hashes, private-home
+preservation and the unchanged 32 KiB operating-guidance budget must pass.
+
+`TestOfficeAndPhotoQuestionsUseActualPrivateBytes` exercises Founder/delegate
+requests, actual DOCX paragraph/table XML, PPTX slides/notes and decoded image
+pixels, plus follow-up questions without repeated file downloads or broadened
+private readership. `TestApprovedTaskFileInvestigationUsesPublishedAttachments`
+uses ordinary approved task claims and explicitly published attachments.
+`TestBrowserInvestigationReportsUnavailableToolWithoutRetry` checks that a
+missing browser produces a private paused result with a useful question, no
+download/completion claim and no automatic execution retry after restart.
+Existing source-disposition, Founder-pause, receipt-loss and single-slot tests
+remain required. These are deterministic routing/content fixtures, not a live
+browser download, full Office rendering/OCR/vision or model-quality certification.
+Browser/document/image tools are not installed by tests or this workflow.
+
+### Web pages and authorized ordinary website sign-in
+
+```sh
+go test -race -count=1 . ./internal/work -run 'Guide.*(Catalog|Browser|Website)|WebInvestigation|FileInvestigation'
+go test -race -count=1 -tags=integration ./tests/integration -run 'WebInvestigation|WebsiteSignIn'
+```
+
+`TestWebInvestigationUsesActualPagesAndAuthorizedSignIn` uses a local HTTPS
+application, real page bytes, an owner-only synthetic credential source and
+cookie-bound account checks with both provider fixtures. Cover public inspection,
+known-password sign-in, an existing authorized session and follow-up page
+questions without another password submission. URLs/titles/login forms cannot
+stand in for actual account-page facts.
+`TestWebsiteSignInBlockersDoNotRetryOrLeakSecrets` covers missing authorization,
+wrong credential origin/account/password, MFA and uncertain submissions, with no
+guessed completion, bypass or retry on restart. Synthetic password/cookie/hidden-
+field canaries must stay out of prompts, plans, journals, shared results and
+private reply bodies. `TestWebsiteSignInLostReceiptReplaysWithoutAnotherLogin`
+verifies exact report/receipt replay without another sign-in or provider call.
+These are deterministic local tool/controller fixtures, not a browser-engine,
+real-account, secret-isolation or live provider/model qualification. No browser,
+credential manager, external account, actual credential or paid inference is used.
 
 ## Existing-user worker ownership
 

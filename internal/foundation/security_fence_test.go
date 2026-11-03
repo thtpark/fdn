@@ -109,7 +109,7 @@ func TestSecurityFencedDistinctSubjectsAndSessionAccess(t *testing.T) {
 		req.SpecGeneration = current.SpecGeneration
 	})
 	grant, err := f.s.CreateAssistance(founderCtx, f.founder.AgentID, domain.AssistanceGrantRequest{Command: op(),
-		RequesterID: delegate.AgentID, TargetID: target.AgentID, ProjectID: project.ID, Mode: "tmux", Purpose: "terminal", Reason: "fixture-only distinct-party assistance"})
+		RequesterID: delegate.AgentID, TargetID: target.AgentID, ProjectID: project.ID, Mode: "tmux", Purpose: "terminal", Reason: "fixture-only distinct-party assistance", DurationSeconds: 86400})
 	if err != nil {
 		t.Fatal("grant subjects were treated as callers", err)
 	}
@@ -311,7 +311,7 @@ func TestSecurityFencedSessionDeniesRevokedReferencedParty(t *testing.T) {
 	founderCtx := securityOwnerContext(t, f.s, f.founder)
 	requesterCtx := securityOwnerContext(t, f.s, requester)
 	grant, err := f.s.CreateAssistance(founderCtx, f.founder.AgentID, domain.AssistanceGrantRequest{Command: op(),
-		RequesterID: requester.AgentID, TargetID: target.AgentID, Mode: "tmux", Purpose: "terminal", Reason: "fixture assistance"})
+		RequesterID: requester.AgentID, TargetID: target.AgentID, Mode: "tmux", Purpose: "terminal", Reason: "fixture assistance", DurationSeconds: 86400})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -337,6 +337,6 @@ func TestSecurityFencedSessionDeniesRevokedReferencedParty(t *testing.T) {
 	_, err = f.s.SessionAccess(requesterCtx, requester.AgentID, session.ID, "requester")
 	assertCode(t, err, domain.Denied)
 	_, err = f.s.CreateAssistance(founderCtx, f.founder.AgentID, domain.AssistanceGrantRequest{Command: op(),
-		RequesterID: requester.AgentID, TargetID: target.AgentID, Mode: "tmux", Purpose: "terminal", Reason: "must reject revoked subject"})
+		RequesterID: requester.AgentID, TargetID: target.AgentID, Mode: "tmux", Purpose: "terminal", Reason: "must reject revoked subject", DurationSeconds: 86400})
 	assertCode(t, err, domain.Denied)
 }

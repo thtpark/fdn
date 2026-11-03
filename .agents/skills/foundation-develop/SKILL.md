@@ -48,7 +48,7 @@ The checkout's root documents are canonical; no old source tree is required.
    adapters must prove non-prompting coding approval and tool-disabled text calls.
 5. Add ordered compatibility-tested migrations, never rewrite shipped schemas
    or reset state. Application/schema contract is 2, native message protocol 2,
-   server SQL migration 10, local SQL 1. SQL5 preserves private message bytes,
+   server SQL migration 11, local SQL 1. SQL5 preserves private message bytes,
    insertion order, receipts and scoped updates while admitting the exact
    Foundation maintenance mailbox, never an enrolled synthetic agent.
    SQL5 is the existing server-state floor; older and future unsupported
@@ -139,8 +139,11 @@ The checkout's root documents are canonical; no old source tree is required.
    uses a new empty sub-StateDir in the same user's HOME and retains old keys/
    all runner state; never invent `--rotate` or rotate during normal retries.
 9. PRs into main run separate Linux/macOS suites. Real packaging only follows
-   an authorized PR merge into release on the exact source commit. Never
-   fabricate a local Actions event or build/test on a deployment target.
+   an authorized PR merge into release on the exact source commit. Never push
+   directly or force-push to `release`, including through a `HEAD:release`
+   refspec. Every change must use a PR with passing required checks before
+   merge; administrator access is not a bypass. Never fabricate a local Actions
+   event or build/test on a deployment target.
    The all-platform publisher verifies exact artifacts and pre-merge acceptance,
    creates all versioned GitHub release assets as a draft, then publishes once.
    Never overwrite a release/tag or let updater discovery fall back to Actions

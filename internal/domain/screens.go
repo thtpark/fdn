@@ -18,15 +18,17 @@ type ScreensRequest struct {
 
 type AssistanceHelpRequest struct {
 	Command
-	Mode            string `json:"mode"`
-	Purpose         string `json:"purpose"`
-	Provider        string `json:"provider,omitempty"`
-	ProjectID       string `json:"project_id,omitempty"`
-	TaskID          string `json:"task_id,omitempty"`
-	ScreenID        string `json:"screen_id,omitempty"`
-	ApplicationID   string `json:"application_id,omitempty"`
-	DesktopFallback bool   `json:"desktop_fallback,omitempty"`
-	Reason          string `json:"reason"`
+	Mode              string `json:"mode"`
+	Purpose           string `json:"purpose"`
+	Provider          string `json:"provider,omitempty"`
+	ProjectID         string `json:"project_id,omitempty"`
+	TaskID            string `json:"task_id,omitempty"`
+	ScreenID          string `json:"screen_id,omitempty"`
+	ApplicationID     string `json:"application_id,omitempty"`
+	DesktopFallback   bool   `json:"desktop_fallback,omitempty"`
+	Reason            string `json:"reason"`
+	TerminalID        string `json:"terminal_id,omitempty"`
+	SelectionRevision int64  `json:"selection_revision,omitempty"`
 }
 
 type AssistanceHelp struct {
