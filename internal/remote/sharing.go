@@ -206,7 +206,8 @@ func (m *Manager) runSharing(ctx context.Context, backend SharingBackend) {
 						defer cancel()
 						if err := m.serveSharing(streamCtx, backend, session, connection); err != nil && ctx.Err() == nil {
 							m.Log.Warn("sharing stream ended", "session", session.ID, "code", domain.AsFault(err).Code)
-							if streamCtx.Err() == nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) &&
+							if streamCtx.Err() == nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) &&
+								!errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) &&
 								!errors.Is(err, net.ErrClosed) && domain.AsFault(err).Code != domain.Unavailable && domain.AsFault(err).Code != domain.Conflict {
 								cleanupCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 								current, readErr := api.Call[domain.Session](cleanupCtx, m.Client, "GET", api.Path("sessions", session.ID), nil)

@@ -72,6 +72,11 @@ reconnecting the same logical session. Exact server-time tests cover 0, 1,
 86,400 and 86,401 second bounds, reconnect/replay without renewal, current
 project/identity authority and protected credential surfaces.
 
+`TestSharingOwnedTransportCancellationPreservesLogicalView` injects the native
+target-side cancellation ordering through the actual Foundation relay. It must
+reconnect the same active logical view without extending expiry; a normal owned
+stream cancellation is not a failed sharing authorization or task outcome.
+
 Native RFB net.Pipe fixtures exercise 3.3/3.7/3.8, local VNCAuth, None-only
 authenticated viewer handshake, pixels, shared flag, per-event input gating,
 both clipboard directions, power/resize denial, malformed/bounded messages and
