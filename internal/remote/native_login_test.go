@@ -31,7 +31,7 @@ func TestNativeAuthenticationPrefersAdvertisedDeviceFlow(t *testing.T) {
 			}
 			c.ProviderPaths = map[string]string{item.name: path}
 			log := filepath.Join(c.StateDir, "tmux-arguments")
-			tmux := "#!/bin/sh\ncase \"$*\" in *kill-server*) exit 0;; esac\nprintf '%s\\n' \"$@\" > tmux-arguments.pending\n/bin/mv tmux-arguments.pending tmux-arguments\n"
+			tmux := "#!/bin/sh\ncase \"$*\" in *kill-server*) exit 0;; esac\nprevious=\nfor argument in \"$@\"; do\n  if [ \"$previous\" = -c ]; then cd \"$argument\" || exit 95; break; fi\n  previous=$argument\ndone\nprintf '%s\\n' \"$@\" > tmux-arguments.pending\n/bin/mv tmux-arguments.pending tmux-arguments\n"
 			if err := os.WriteFile(filepath.Join(bin, "tmux"), []byte(tmux), 0700); err != nil {
 				t.Fatal(err)
 			}

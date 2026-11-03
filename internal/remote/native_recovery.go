@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/thtpark/fdn/internal/config"
@@ -80,10 +81,19 @@ func (n Native) tmux(ctx context.Context, socket string, arguments ...string) ([
 		runner = process.Native{}
 	}
 	output := process.NewBuffer(4096)
-	err := runner.Run(ctx, process.Spec{Path: "tmux", Args: append([]string{"-S", socket}, arguments...),
+	socketArgument, directory := tmuxSocketLocation(socket)
+	err := runner.Run(ctx, process.Spec{Path: "tmux", Dir: directory, Args: append([]string{"-S", socketArgument}, arguments...),
 		Env: process.Environment(), Stdout: output, Stderr: process.NewBuffer(4096)})
 	data, outputErr := output.Bytes()
 	return data, errors.Join(err, outputErr)
+}
+
+func tmuxSocketLocation(socket string) (string, string) {
+	if len(socket) < len(syscall.RawSockaddrUnix{}.Path) {
+		return socket, ""
+	}
+	// Keep the owned namespace; only the sockaddr passed to tmux is relative.
+	return filepath.Base(socket), filepath.Dir(socket)
 }
 
 func (n Native) serverIdentity(ctx context.Context, socket string) (*ownedProcess, error) {

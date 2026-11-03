@@ -46,7 +46,15 @@ func (n Native) OpenOwned(ctx context.Context, s domain.Session, c config.Worker
 	if _, err := os.Lstat(socket); !errors.Is(err, os.ErrNotExist) {
 		return nil, domain.Fail(domain.Conflict, "native session namespace already exists or cannot be inspected")
 	}
-	args := []string{"-S", socket, "-f", "/dev/null", "new-session", "-s", "foundation"}
+	directory := c.StateDir
+	if n.Directory != "" {
+		directory = n.Directory
+	}
+	socketArgument, socketDirectory := tmuxSocketLocation(socket)
+	args := []string{"-S", socketArgument, "-f", "/dev/null", "new-session", "-s", "foundation"}
+	if socketDirectory != "" {
+		args = append(args, "-c", directory)
+	}
 	if s.Purpose == "authentication" {
 		path, native, err := provider.New(c).LoginCommand(ctx, s.Provider)
 		if err != nil {
@@ -66,9 +74,9 @@ func (n Native) OpenOwned(ctx context.Context, s domain.Session, c config.Worker
 	}
 	cmd := exec.Command("tmux", args...)
 	cmd.Env = process.Environment("TERM=xterm-256color")
-	cmd.Dir = c.StateDir
-	if n.Directory != "" {
-		cmd.Dir = n.Directory
+	cmd.Dir = directory
+	if socketDirectory != "" {
+		cmd.Dir = socketDirectory
 	}
 	terminal, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 40, Cols: 120})
 	if err != nil {
