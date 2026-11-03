@@ -373,6 +373,13 @@ func startService(t *testing.T, f *fixture, boundary Boundary) (*Service, func()
 		})
 	}
 	t.Cleanup(stop)
+	t.Cleanup(func() {
+		if t.Failed() {
+			status := service.Status()
+			t.Logf("identity readiness: connected=%t ready=%t problem=%s owner_generation=%d",
+				status.Connected, status.Ready, status.Problem, status.OwnerGeneration)
+		}
+	})
 	eventually(t, "owner did not become ready", func() bool { return service.Status().Ready })
 	return service, stop
 }

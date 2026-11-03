@@ -54,6 +54,13 @@ discovered; explicit current-format configuration paths remain valid.
 External tool directories/environment settings and platform discovery/service
 locations retain their own contracts.
 
+Native coding children receive local `FDN_WORKER_CONFIG` from their already
+loaded worker configuration. Worker CLI/service selection is explicit flag,
+that local binding, then normal HOME default; Foundation server commands ignore
+the binding. Text-only calls receive none and inherited unrelated values are
+stripped. This local runtime context is not a DTO, new identity, state migration,
+provider credential or project/OS authority.
+
 Founder `agent add` is a client-side, current-user SSH installation saga, not
 a new authority or schema. It uses existing transactional signed registration.
 Its private local journal binds the original Founder/operation, exact target,

@@ -90,7 +90,8 @@ func (n Native) OpenOwned(ctx context.Context, s domain.Session, c config.Worker
 	// Capture the kernel identity before Wait can reap a fast-exiting client.
 	client, inspectErr := inspectProcess(cmd.Process.Pid)
 	done := make(chan struct{})
-	go func() { _ = cmd.Wait(); close(done) }()
+	var waitErr error
+	go func() { waitErr = cmd.Wait(); close(done) }()
 	endpoint := &nativeTerminal{File: terminal, cmd: cmd, done: done, socket: socket, path: path, record: record, native: n}
 	if inspectErr != nil || client == nil || !client.valid() {
 		return endpoint, errors.Join(inspectErr, domain.Fail(domain.Prerequisite, "native session client ownership was not durably captured"))
@@ -102,29 +103,41 @@ func (n Native) OpenOwned(ctx context.Context, s domain.Session, c config.Worker
 	}
 	startup := time.NewTimer(300 * time.Millisecond)
 	defer startup.Stop()
+	var readinessErr error
 	for {
 		server, err := n.serverIdentity(ctx, socket)
 		if err != nil {
 			return endpoint, err
 		}
 		if server != nil {
-			endpoint.record.Server = server
-			if err := writeNativeSession(path, endpoint.record); err != nil {
-				return endpoint, err
+			if endpoint.record.Server == nil {
+				endpoint.record.Server = server
+				if err := writeNativeSession(path, endpoint.record); err != nil {
+					return endpoint, err
+				}
+			} else if *server != *endpoint.record.Server {
+				return endpoint, domain.Fail(domain.Conflict, "native session server ownership changed during startup")
 			}
-			break
+			_, readinessErr = n.tmux(ctx, socket, "has-session", "-t", "=foundation")
+			if readinessErr == nil {
+				return endpoint, nil
+			}
+			var exit *exec.ExitError
+			var cleanup *process.CleanupError
+			if errors.As(readinessErr, &cleanup) || !errors.As(readinessErr, &exit) || exit.ExitCode() != 1 {
+				return endpoint, readinessErr
+			}
 		}
 		select {
 		case <-ctx.Done():
 			return endpoint, ctx.Err()
 		case <-done:
-			return endpoint, nil
+			return endpoint, waitErr
 		case <-startup.C:
-			return endpoint, nil
+			return endpoint, errors.Join(domain.Fail(domain.Prerequisite, "native session readiness was not proven before the startup deadline"), readinessErr)
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
-	return endpoint, nil
 }
 
 type nativeTerminal struct {

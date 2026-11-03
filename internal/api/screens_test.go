@@ -142,7 +142,12 @@ func TestAssistanceHelpAPISelfRoutingPrivacyAndNoAuthority(t *testing.T) {
 		}
 		for _, actor := range []domain.Agent{f.target, recipient} {
 			envelope, status := f.request(t, actor, http.MethodGet, "/v1/messages/"+message.ID, nil)
-			if got := screenAPIValue[domain.Message](t, envelope, status); !reflect.DeepEqual(got, message) {
+			got := screenAPIValue[domain.Message](t, envelope, status)
+			if got.ServerObservedAt < message.ServerObservedAt {
+				t.Fatal("help observation clock moved backwards", got.ServerObservedAt, message.ServerObservedAt)
+			}
+			got.ServerObservedAt = message.ServerObservedAt
+			if !reflect.DeepEqual(got, message) {
 				t.Fatal("help message was not immutable and private to its parties", got)
 			}
 		}

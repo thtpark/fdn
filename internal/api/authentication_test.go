@@ -17,6 +17,7 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/filestore"
 	"github.com/thtpark/fdn/internal/foundation"
+	"github.com/thtpark/fdn/internal/process"
 	"github.com/thtpark/fdn/internal/testidentity"
 )
 
@@ -68,7 +69,18 @@ func newAuthenticationAPIFixture(t *testing.T) *authenticationAPIFixture {
 		t.Fatal(err)
 	}
 	f.actor = f.founder
-	f.server, err = NewAuthenticated(store, slog.New(slog.NewTextHandler(io.Discard, nil)), func(*http.Request) (domain.Agent, error) { return f.actor, nil })
+	diagnostics := process.NewBuffer(8192)
+	t.Cleanup(func() {
+		if t.Failed() {
+			data, err := diagnostics.Bytes()
+			if err != nil {
+				t.Log("fixture error diagnostics exceeded their bound", err)
+			} else if len(data) != 0 {
+				t.Logf("synthetic API fixture errors:\n%s", data)
+			}
+		}
+	})
+	f.server, err = NewAuthenticated(store, slog.New(slog.NewTextHandler(diagnostics, &slog.HandlerOptions{Level: slog.LevelError})), func(*http.Request) (domain.Agent, error) { return f.actor, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
