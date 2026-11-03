@@ -6,6 +6,19 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Routine renewal and bounded inbox catch-up (0.3.30)
+
+Owner-certificate renewal drains admitted native calls while new requests use
+the renewed transport; expiry/revocation/owner loss still cancel immediately.
+Settled tool-disabled failures before any reply application no longer globally
+fence unrelated work. Only transient interruptions use a persistent per-source
+budget of three total attempts with 5/10-second backoff, current authority and
+pause checks. Exhausted/permanent sources retain evidence and protected help
+without starving other messages/files. Genuine process uncertainty, coding
+effects and possibly applied decisions keep exact recovery/retry requirements.
+Tests cover the actual binary renewal failure and paused-file catch-up with
+real verified private fixture bytes; these are not live-provider qualification.
+
 ### Logical sharing views after owned transport cancellation (0.3.29)
 
 Expected cancellation/deadline errors from an owned byte-stream teardown leave

@@ -135,6 +135,7 @@ type fakeRemote struct {
 	streams     chan *fakeOwner
 	requests    chan *http.Request
 	ordinary    func(*http.Request) (*http.Response, error)
+	client      func(config.Worker, tls.Certificate) (*api.Client, error)
 	owner       func(context.Context) (OwnerStream, error)
 }
 
@@ -234,6 +235,9 @@ func (r *fakeRemote) Client(c config.Worker, cert tls.Certificate) (*api.Client,
 	identity, err := pki.ParseIdentity(cert.Leaf)
 	if err != nil || identity.Purpose != "owner" {
 		return nil, errors.New("ordinary client did not use the ephemeral owner certificate")
+	}
+	if r.client != nil {
+		return r.client(c, cert)
 	}
 	return &api.Client{BaseURL: c.URL, HTTP: &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		if r.ordinary != nil {

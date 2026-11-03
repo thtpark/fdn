@@ -194,6 +194,10 @@ func (f *pushFixture) RoundTrip(request *http.Request) (*http.Response, error) {
 		switch path {
 		case "/v1/me":
 			return f.response(f.me, nil)
+		case "/v1/agents/agent_push":
+			return f.response(f.me, nil)
+		case "/v1/agents":
+			return f.response([]domain.Agent{f.me, {ID: "agent_founder", Active: true, Founder: true}}, nil)
 		case "/v1/agents/agent_founder":
 			return f.response(domain.Agent{ID: "agent_founder", Active: true, Founder: true}, nil)
 		case "/v1/ownership":

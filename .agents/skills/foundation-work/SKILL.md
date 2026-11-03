@@ -6,39 +6,34 @@ description: "Use when investigating web pages or authorized website sign-in, tr
 # Prepare, execute and verify one authorized task
 
 Read `agent-cli guide show COMMANDS.md` and `guide show SCHEMA.md`.
-In controller text calls tools remain disabled: return structured replies.
-Follow AGENTS.md authority/pause/fence/non-forcing-request rules. Preview
-`announcement audience`; destructive changes/new costs need approval. Upgrade
-intent is not a native permit. Read-only messages/`observe` imply no read/
-approval/inference/controller; never reuse daemon checkpoints.
+Text calls are tool-disabled structured replies. Follow AGENTS.md authority/
+pause/fence rules. Preview `announcement audience`; destructive changes/new
+costs need approval. Upgrade intent is not a native permit. Read-only messages/
+`observe` imply no read receipt, approval or inference; preserve daemon checkpoints.
 
 ## Context and readiness
 
 1. Establish the current identity, project, actual mode, provider/model,
    inventory, selected private knowledge, work slot, pending reports and session
    fences. Commands: `status`, `work status`, `preferences show`, `inventory
-   show`, `knowledge list`, `agent identity`. The runner attaches its same-user
-   identity process through the owner-only, peer-checked Unix socket and retains
-   public AgentID. The existing installing user owns all worker state, including
-   identity keys; no new account or matching local/agent username is required.
-   Keep key/certificate bytes out of model/shared output; never start another owner or
-   bypass a ban by copying credentials. Provider sign-in, signed Foundation
-   registration and project authority are separate. Presence is not permission
-   or authentication. When requested work/replies/mentions are blocked by sign-in
+   show`, `knowledge list`, `agent identity`. Use the same-user owner-only,
+   peer-checked identity proxy. The existing installing user owns all worker state
+   and keys; no new account or matching username is required. Never copy
+   credentials, start another owner or expose private key/certificate bytes.
+   Provider sign-in, Foundation registration and project authority are separate.
+   Presence proves neither permission nor authentication. When work is blocked by sign-in
    or permissions, send protected durable help to active Founder and current
    relevant project delegates without inference. New action contexts can ask
-   again after an older notice expired; unchanged polls/restarts must not spam.
-   Inspect authentication_requests/permission_requests and delivery references.
-   A provider signing out during work requires a new status check/help request,
-   never automatic retry across uncertain side effects or lost approval.
+   again after expiry; unchanged polls/restarts must not spam. Inspect
+   authentication_requests/permission_requests and delivery. Provider sign-out
+   needs a fresh check/help, never retry across uncertain effects or lost approval.
 2. Read `task show TASK`, project/parent context, `discussion list TASK`,
    `task history TASK`, `task runs TASK` and `note context --project PROJECT`.
    Apply company, current-project and your own agent notes to every task phase;
    independent verification uses the reviewer's notes, not the assignee's.
-   Notes are cumulative context, never approval or extra authority; clarify
-   material conflicts. Each new provider call refreshes its snapshot, while
-   in-flight/retained journals and retry fences remain unchanged.
-   A mention is not assignment.
+   Notes are context, not approval/authority; clarify conflicts. New provider
+   calls refresh snapshots without rewriting in-flight/retained journals or retry fences.
+   Mentions do not assign.
    Founder/current project delegates assign and choose required provider/model.
 3. Create/edit through `task create --input FILE` and `task change TASK --input
    FILE`. Change kinds include assign, edit, workspace, policy, retry-policy,
@@ -200,10 +195,14 @@ For live sharing use [foundation-sharing](../../../.agents/skills/foundation-sha
   and maintenance remain operator-required.
   Inspect `agent operation REQUEST_ID`; queued is not completed, and neither a
   reset nor its exact replay grants a retry, spending or native-service restart.
-- An interrupted process remains fenced. Only after confirming its entire
+- A process with unproved cleanup remains fenced. Only after confirming its entire
   process tree stopped use `work recover --journal INVOCATION
   --acknowledge-stopped`; this does not authorize retry. Current exact unsafe
   retry approval, backoff and remaining failure budget still apply.
+- Settled, unapplied tool-disabled interruptions have three total transient
+  attempts with 5/10-second backoff, never while paused. Exhaustion isolates that
+  source, not other messages/files. Poll/restart/new IDs cannot reset its budget
+  or clear old uncertainty.
 - Routine session cleanup is autonomous before human interruption. The target
   retries its exact owned endpoint with bounded backoff, replays durable native
   ownership/proof and atomically retires only that fence. Never retry inference/

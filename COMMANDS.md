@@ -1704,6 +1704,20 @@ coerces `reviewed` into `clear`, invents approval, resets execution retries or
 remotely accepts a stopped-process assertion. Uncertain invocations and possibly
 partially applied decisions remain fenced under their existing recovery rules.
 
+From 0.3.30, a tool-disabled call that has returned without unproved native
+cleanup and before applying any reply is retained as `text-failed`, not a global
+uncertain-invocation fence. Only transient cancellation, timeout or transport
+unavailability may retry automatically: at most three total attempts for the
+unchanged semantic source, with 5- and 10-second backoffs. Paused agents never
+start those retries. Explicit runtime reset does not grant an automatic retry.
+`text_response_blocks` exposes attempts, retry_at and the
+original journal. Polling, restart and fresh operation IDs cannot reset the
+budget. A permanent/exhausted source is isolated and sends protected help;
+unrelated messages and file reception can continue. Successful prepared replies
+replay their original decisions, never inference. Tool-enabled execution,
+possibly applied decisions, legacy uncertainty and unproved process cleanup
+retain their existing exact recovery and retry authority.
+
 When an ai-mode or explicitly invoked controller observes `login-required` or
 `credentials-rejected`, it sends a protected `authentication` message to the
 active Founder and, for task-scoped work, current project delegates. This

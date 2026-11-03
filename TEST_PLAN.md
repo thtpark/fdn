@@ -834,6 +834,19 @@ read-only; displaying a message is the app's separate acknowledgement action.
 
 ## Tool-disabled response-contract regressions
 
+`TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch` keeps
+an actual binary authority query active across renewal, then verifies its exact
+reply and retired-client closure. Expiry/revocation/shutdown still terminate
+draining calls. `TestStoppedText*` checks three-attempt source budgets, 5/10-second
+wakes, restart/new-operation non-reset, success and unrelated-source isolation;
+unproved cleanup remains globally fenced. The paused-file catch-up integration
+queues both transfer and instruction while manual, resumes, plans and reads the
+actual private bytes despite an unrelated settled text failure, and returns
+the analysis without duplicate execution after restart.
+Settled sign-out remains source-fenced even after credentials return; an explicit
+runtime reset joins a text-only call but never grants it an automatic retry.
+Coding/unknown-cleanup journals retain the original global uncertainty behavior.
+
 ```sh
 go test -race -count=1 ./internal/local ./internal/work
 go test -race -count=1 -tags integration ./tests/integration -run 'Test(RejectedScopeReplyDoesNotPoisonInboxOrRepeatInference|RejectedMessageDoesNotStarveAnotherRequestedReply)$'

@@ -112,7 +112,7 @@ func permissionMessage(request PermissionRequest) string {
 	case "provider-permission":
 		body += "Inspect agent-cli provider status and agent-cli guide show COMMANDS.md without inference. Required provider/tool or OS permissions must be arranged by an authorized local OS operator using the supported provider/native procedures; there is no generic Foundation OS-permission grant. Do not use inference or login as a permission probe.\n"
 	case "provider-response":
-		body += "The provider returned a tool-disabled response that does not match its controller phase. The original reply is retained and was not accepted as task approval or execution. This exact action will not call the model again on unchanged polling, restart or a new work-run operation; unrelated actions can continue.\n"
+		body += "A tool-disabled planning call failed or returned a response that does not match its controller phase. Its original private evidence is retained and was not applied as task approval or execution. Any bounded transient retry allowance is exhausted or unavailable for this source. Unchanged polling, restart or a new work-run operation cannot authorize more inference; unrelated messages and files can continue.\n"
 		journal := strings.TrimPrefix(request.ActionKey, "text-response:")
 		if strings.HasPrefix(journal, "invocation_") && domain.ValidOperation(journal) {
 			body += "After native confirmation that the exact owned process tree stopped, an authorized operator can inspect work status text_response_blocks and explicitly authorize a fresh review with agent-cli work recover --journal " + journal + " --acknowledge-stopped. Do not coerce the rejected response or reset execution retry authority.\n"
