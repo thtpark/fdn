@@ -16,6 +16,12 @@ unrelated values are stripped and text-only calls receive none. No paths enter
 provider prompts/argv/public DTOs, and no configuration/identity/state is
 discovered, copied or moved. A real compiled-CLI child regression verifies the
 native boundary rather than a fixture's direct API substitute.
+Retained live provider evidence also showed a valid final reply rejected after
+Codex's human diagnostic stream exceeded its cap. Managed Codex exec calls use
+the capability-checked JSON event mode and still read the exact final-response
+file. Actual output overflow remains failure; no log cap is raised or truncated
+into success. Native-owner ping/revocation fixtures use real buffered Unix
+sockets, retaining the unchanged production framing/admission deadlines.
 The release's independent repeated Linux cleanup gate also exposed a native
 PID-observation race: only proved disappearance of the exact old kernel group
 can complete cleanup despite changed PID metadata. A live/replaced group or

@@ -29,7 +29,7 @@ func main() {
 		return
 	}
 	if slices.Contains(args, "--help") {
-		fmt.Println("--available-tools --allow-all --disable-builtin-mcps --no-custom-instructions --no-ask-user --no-auto-update --silent --dangerously-bypass-approvals-and-sandbox --ask-for-approval --output-last-message --ephemeral --sandbox --skip-git-repo-check")
+		fmt.Println("--available-tools --allow-all --disable-builtin-mcps --no-custom-instructions --no-ask-user --no-auto-update --silent --dangerously-bypass-approvals-and-sandbox --ask-for-approval --json --output-last-message --ephemeral --sandbox --skip-git-repo-check")
 		return
 	}
 	if slices.Contains(args, "--version") {

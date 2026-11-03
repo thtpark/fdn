@@ -845,6 +845,11 @@ unrelated inherited context, isolated HOME and synthetic provider. It must
 observe the correct enrolled fixture identity without paid inference. Unit
 tests cover explicit flag precedence, missing-context failure without fallback,
 both providers' coding-only export and no prompt/argv disclosure.
+Codex machine-output tests keep event bytes distinct from the final reply file,
+reproduce human diagnostic overflow rejecting a valid response, and require
+actual stderr overflow to remain failure in machine mode. Native owner
+readiness/ping/revocation uses a real Unix socket rather than an unbuffered
+in-memory pipe; safe fixture status is emitted on failures without credentials.
 
 `TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch` keeps
 an actual binary authority query active across renewal, then verifies its exact

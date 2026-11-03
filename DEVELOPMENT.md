@@ -201,6 +201,9 @@ state to a default layout, or use it as identity/project authority. Worker CLI
 explicit flags take precedence; Foundation server commands ignore the variable.
 The native-child e2e test must execute the real CLI against an explicit-path
 fixture, not substitute a direct in-process API call for that boundary.
+Managed Codex exec uses capability-checked `--json` events and its exact
+`--output-last-message` file. Keep stdout/stderr/final-reply bounds unchanged;
+real overflow remains an explicit failure, never successful truncation.
 
 ### Founder desktop onboarding
 

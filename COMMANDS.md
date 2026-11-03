@@ -1797,6 +1797,10 @@ provider/model, not the assignee's required selection.
 Missing/unsupported provider/model never silently falls back. Current Codex
 status may be credentials-present-unverified; do not report live authentication
 from that alone. Copilot has bounded read-only authentication/model RPC.
+Managed Codex exec uses capability-checked `--json` event output and the exact
+`--output-last-message` file for its final structured reply. Human-format prompt/
+tool diagnostics must not unnecessarily fill stderr. Existing stdout/stderr
+and final-reply limits stay enforced; genuine overflow remains failure.
 
 Provider install/update and worker daemon startup install managed `codex` and
 `copilot` launchers in `$HOME/.foundation/bin`. They dispatch through `provider exec`,
