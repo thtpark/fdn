@@ -25,11 +25,12 @@ import (
 )
 
 type sharingBackendFixture struct {
-	mu        sync.Mutex
-	peers     []net.Conn
-	input     chan string
-	opens     atomic.Int64
-	inputEnds atomic.Int64
+	mu         sync.Mutex
+	peers      []net.Conn
+	input      chan string
+	opens      atomic.Int64
+	inputEnds  atomic.Int64
+	closeError error
 }
 
 func (backend *sharingBackendFixture) Inventory(context.Context, config.Worker, *local.State) ([]domain.Terminal, error) {
@@ -60,7 +61,23 @@ func (backend *sharingBackendFixture) Open(_ context.Context, _ config.Worker, _
 			}
 		}
 	}()
+	if backend.closeError != nil {
+		return sharingCancellationEndpoint{ReadWriteCloser: view, err: backend.closeError}, nil
+	}
 	return view, nil
+}
+
+type sharingCancellationEndpoint struct {
+	io.ReadWriteCloser
+	err error
+}
+
+func (endpoint sharingCancellationEndpoint) Read(data []byte) (int, error) {
+	n, err := endpoint.ReadWriteCloser.Read(data)
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, net.ErrClosed) {
+		return n, endpoint.err
+	}
+	return n, err
 }
 func (backend *sharingBackendFixture) EndInput(context.Context, config.Worker, *local.State, domain.Session) error {
 	backend.inputEnds.Add(1)
@@ -76,10 +93,13 @@ func (backend *sharingBackendFixture) Close() error {
 	return result
 }
 
-func startSharingManager(t *testing.T, h *harness, engine *work.Engine) (*sharingBackendFixture, context.Context) {
+func startSharingManager(t *testing.T, h *harness, engine *work.Engine, closeErrors ...error) (*sharingBackendFixture, context.Context) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	backend := &sharingBackendFixture{input: make(chan string, 16)}
+	if len(closeErrors) != 0 {
+		backend.closeError = closeErrors[0]
+	}
 	var logs bytes.Buffer
 	manager := &remote.Manager{Client: h.worker, State: engine.State, Config: engine.Config, Sharing: backend,
 		Log: slog.New(slog.NewTextHandler(&logs, nil))}
