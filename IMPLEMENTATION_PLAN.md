@@ -6,7 +6,7 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
-### Renewal-safe authority watches (current source, not yet deployed)
+### Renewal-safe authority watches (0.3.33)
 
 Validated owner renewal hands off only blocking update/event reads, preserving
 the exact cursor and logical caller across old certificate expiry. The owner
