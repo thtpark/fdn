@@ -8,6 +8,8 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 )
 
+var errAuthorityFeedInterrupted = domain.Fail(domain.Unavailable, "current authority update reception was interrupted")
+
 type authoritySubscription struct {
 	taskID, projectID, messageID, fileID string
 	modeOnly                             bool
@@ -42,7 +44,7 @@ func (e *Engine) setFeedOnline(online bool) {
 	e.feedOnline = online
 	if !online {
 		for subscription := range e.authorities {
-			subscription.failure = domain.Fail(domain.Unavailable, "current authority update reception was interrupted")
+			subscription.failure = errAuthorityFeedInterrupted
 			signalUpdate(subscription.wake)
 		}
 	}

@@ -2,6 +2,7 @@ package identityservice
 
 import (
 	"context"
+	"errors"
 	"net"
 
 	"github.com/thtpark/fdn/internal/api"
@@ -31,20 +32,7 @@ func (s *Service) serveMessagePeer(ctx context.Context, conn net.Conn) error {
 		if err := api.ValidateOrdinaryMessage(request); err != nil {
 			return nil, err
 		}
-		lease, err := s.acquireOwnerLease()
-		if err != nil {
-			return nil, err
-		}
-		defer lease.release()
-		forward, cancel := context.WithCancel(call)
-		stop := context.AfterFunc(lease.context, cancel)
-		defer stop()
-		defer cancel()
-		result, err := lease.client.ForwardMessage(forward, request)
-		if err != nil && !lease.expires.After(s.options.Now()) {
-			return nil, domain.Fail(domain.Denied, "identity owner certificate expired during the request")
-		}
-		return result, message.PublicError(err)
+		return s.forwardOwnerMessage(call, request)
 	})
 	if err != nil {
 		return err
@@ -52,4 +40,58 @@ func (s *Service) serveMessagePeer(ctx context.Context, conn net.Conn) error {
 	defer session.Close()
 	<-session.Done()
 	return session.Err()
+}
+
+func renewalWatch(request message.Request) bool {
+	return (request.Operation == "query.updates" || request.Operation == "query.events") &&
+		request.Query["wait"] == "true"
+}
+
+func (s *Service) forwardOwnerMessage(call context.Context, request message.Request) ([]byte, error) {
+	var previous *ownerLease
+	for {
+		if err := call.Err(); err != nil {
+			return nil, message.PublicError(err)
+		}
+		lease, err := s.acquireOwnerLease()
+		if err != nil {
+			return nil, err
+		}
+		if previous != nil && (previous.authority.Err() != nil ||
+			lease.authority.Done() != previous.authority.Done() ||
+			lease.ownerGeneration != previous.ownerGeneration) {
+			lease.release()
+			return nil, domain.Fail(domain.Denied, "identity owner authority changed during watch renewal")
+		}
+		result, err, renewed := forwardOwnerCall(call, lease, request)
+		if renewed {
+			previous = lease
+			continue
+		}
+		if err != nil && !lease.expires.After(s.options.Now()) {
+			return nil, domain.Fail(domain.Denied, "identity owner certificate expired during the request")
+		}
+		return result, message.PublicError(err)
+	}
+}
+
+func forwardOwnerCall(call context.Context, lease *ownerLease, request message.Request) ([]byte, error, bool) {
+	defer lease.release()
+	forward, cancel := context.WithCancelCause(call)
+	defer cancel(nil)
+	stopOwner := context.AfterFunc(lease.context, func() { cancel(context.Cause(lease.context)) })
+	defer stopOwner()
+	if renewalWatch(request) {
+		stopRenewal := context.AfterFunc(lease.retirement, func() {
+			if errors.Is(context.Cause(lease.retirement), errOwnerLeaseRenewed) {
+				cancel(errOwnerLeaseRenewed)
+			}
+		})
+		defer stopRenewal()
+	}
+	result, err := lease.client.ForwardMessage(forward, request)
+	renewed := err != nil && call.Err() == nil &&
+		errors.Is(context.Cause(forward), errOwnerLeaseRenewed) &&
+		(errors.Is(err, context.Canceled) || domain.AsFault(err).Code == domain.Cancelled)
+	return result, err, renewed
 }

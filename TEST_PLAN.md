@@ -884,10 +884,19 @@ Native sign-in fixtures wait for durable local delivery confirmation before
 asserting handoff state or restarting the daemon. A notice already visible in
 Founder's inbox is not proof that the target has committed its acknowledgement.
 
-`TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch` keeps
-an actual binary authority query active across renewal, then verifies its exact
-reply and retired-client closure. Expiry/revocation/shutdown still terminate
-draining calls. `TestStoppedText*` checks three-attempt source budgets, 5/10-second
+`TestOwnerRenewalHandsOffNativeWatchWithoutDisconnectingCaller` keeps a logical
+binary authority query active across renewal and verifies its real reply and
+old-client closure. `TestOwnerRenewalMovesNativeWatchesBeforeOldCertificateExpiry`
+uses actual mTLS/native framing and the Unix identity proxy, waits beyond the
+old certificate expiry, and checks unchanged update/event cursors and queries.
+It uses fixture certificate issuance and accelerated lifetimes, not live SSH or
+multi-user identity qualification. Watch-only replay tests exclude mutations,
+nonblocking reads and unrelated queries; changed owner generations/lifetimes,
+caller cancellation, failed replacement validation, real denial and unexpected
+transport failure remain conservative. Expiry/revocation/shutdown still terminate
+other draining calls. `TestInterruptedExecutionReportsAuthorityChannelInsteadOfProviderFailure`
+checks one stopped coding run, its non-secret specific report and unchanged
+unsafe-retry requirement. `TestStoppedText*` checks three-attempt source budgets, 5/10-second
 wakes, restart/new-operation non-reset, success and unrelated-source isolation;
 unproved cleanup remains globally fenced. The paused-file catch-up integration
 queues both transfer and instruction while manual, resumes, plans and reads the

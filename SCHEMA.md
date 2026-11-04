@@ -1034,11 +1034,17 @@ binary keepalive pings run independently of certificate renewal so the
 finite-idle SSH gateway does not expire a healthy owner. Native SSH process exit
 propagates EOF even while its stdin is idle; a closed gateway cannot leave a
 stale local lease looking ready instead of triggering same-owner reconnection.
-Routine owner-certificate renewal publishes the new transport for new calls but
-drains already admitted calls on their old, still-valid certificate. Their last
-completion closes that retired transport. Old certificate expiry, owner loss,
-revocation and shutdown still cancel all affected calls immediately; no mutation
-is replayed or moved to another transport.
+Routine owner-certificate renewal establishes and validates the new native
+transport before publishing it. Only blocking `query.updates` and `query.events`
+reads cancelled by this normal retirement are reissued internally with the exact
+original target/query/payload and cursor. The local logical watch stays open;
+only an actual server response is returned. The replacement must retain the
+same owner generation and uninterrupted owner lifetime. This is not a retry
+after an arbitrary disconnect, denial, owner reconnection or identity change.
+All other admitted calls drain on their old, still-valid certificate. Their last
+completion closes that retired transport. Expiry without a validated successor,
+owner loss, revocation, shutdown and caller cancellation still terminate affected
+calls. No mutation, provider invocation or uncertain effect is replayed.
 
 Ordinary CLI calls attach to the existing local identity proxy. They do not open
 a second owner or expose signing/control keys to provider processes. Device

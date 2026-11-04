@@ -22,7 +22,7 @@ func TestDrainingOwnerLeaseStillExpiresOrStopsImmediatelyOnAuthorityLoss(t *test
 				lifetime = 50 * time.Millisecond
 			}
 			var closed sync.WaitGroup
-			lease := newOwnerLease(ctx, client, time.Now().Add(lifetime), lifetime, &closed)
+			lease := newOwnerLease(ctx, client, 1, time.Now().Add(lifetime), lifetime, &closed)
 			if !lease.acquire() {
 				t.Fatal("current owner request was not admitted")
 			}

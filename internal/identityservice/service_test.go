@@ -124,6 +124,7 @@ type fakeRemote struct {
 	now         time.Time
 	nowFn       func() time.Time
 	deviceTTL   time.Duration
+	ownerTTL    time.Duration
 	mu          sync.Mutex
 	challenge   domain.IdentityChallenge
 	activations []domain.ActivateIdentityRequest
@@ -279,8 +280,12 @@ func (o *fakeOwner) Send(ctx context.Context, request domain.OwnerRequest) error
 	if err != nil {
 		return err
 	}
+	lifetime := o.remote.ownerTTL
+	if lifetime == 0 {
+		lifetime = 15 * time.Minute
+	}
 	certificate, err := pki.IssueClient(o.remote.ca.CA, o.remote.ca.CAKey, public, domain.CertificateIdentity{
-		AgentID: o.remote.profile.Identity.AgentID, DeviceID: o.remote.profile.Identity.DeviceID, InstanceID: o.remote.profile.Identity.InstanceID, Generation: 1, Purpose: "owner", OwnerGeneration: 1}, o.remote.currentTime(), 15*time.Minute)
+		AgentID: o.remote.profile.Identity.AgentID, DeviceID: o.remote.profile.Identity.DeviceID, InstanceID: o.remote.profile.Identity.InstanceID, Generation: 1, Purpose: "owner", OwnerGeneration: 1}, o.remote.currentTime(), lifetime)
 	if err != nil {
 		return err
 	}

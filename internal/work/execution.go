@@ -122,10 +122,15 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	}
 	if invokeErr != nil {
 		outcome := "failed"
+		failureCode := domain.Provider
 		summary := "provider failed; private evidence retained; review possible side effects before retry"
 		if runCtx.Err() != nil {
 			outcome = "stopped"
 			summary = "provider stopped by cancellation or a current mode/authority/workspace guard; partial private evidence retained"
+			if errors.Is(context.Cause(runCtx), errAuthorityFeedInterrupted) {
+				failureCode = domain.Unavailable
+				summary = "Foundation authority update channel was interrupted; execution stopped and partial private evidence was retained; review possible side effects before retry"
+			}
 		}
 		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
 			SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(j), Outcome: outcome, Summary: summary, Checkpoint: j.ID, SafeToRetry: !verification && j.PID == 0}
@@ -136,7 +141,10 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 		if err := e.flushReports(saveCtx); err != nil {
 			return errors.Join(err, helpErr)
 		}
-		return errors.Join(domain.Fail(domain.Provider, "provider failed or stopped; a fenced failure report was recorded, not completion"), helpErr)
+		if failureCode == domain.Unavailable {
+			return errors.Join(domain.Fail(failureCode, summary+"; a fenced report was recorded, not completion"), helpErr)
+		}
+		return errors.Join(domain.Fail(failureCode, "provider failed or stopped; a fenced failure report was recorded, not completion"), helpErr)
 	}
 	validReply := reply.Decision == "" && reply.RequestDecision == "" && !reply.MessageRead && reply.Action == nil &&
 		(launch.ConversationID != "" || reply.ResponseRequested == nil) && validExecutionOutcome(reply.Outcome)

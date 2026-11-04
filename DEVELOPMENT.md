@@ -185,9 +185,17 @@ Git-host fixtures rather than add task-title, provider or repository branches
 to production policy. All providers must prove non-prompting local
 approval behavior before enabling coding; text calls must remain tool-disabled.
 
-Routine certificate renewal must drain active native calls rather than break
-authority watches. Retired transports close after their last admitted call or
-earlier expiry/owner loss; never replay a mutation across renewal. Settled,
+Routine certificate renewal validates the new native connection before publishing
+it. Blocking `query.updates`/`query.events` reads move to that replacement with
+their exact original cursor/query while the local caller stays subscribed.
+Only cancellation caused by that normal retirement permits a read reissue, and
+the owner generation and uninterrupted owner lifetime must still match. Return
+the actual server response, never a manufactured empty page. Other admitted
+calls drain on the retired transport; never replay a mutation or inference.
+Expiry without a validated successor, owner loss, revocation, caller cancellation
+and unexpected transport failure still terminate affected calls. A real feed
+interruption stops coding with a specific authority-channel report and retains
+its existing unsafe-retry fence. Settled,
 unapplied tool-disabled failures use atomic source-scoped `text-failed` journals
 and a maximum of three transient attempts with retained 5/10-second backoff.
 Do not treat unproved cleanup, old uncertainty, applied decisions or coding

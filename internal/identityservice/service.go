@@ -313,10 +313,23 @@ func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile
 				client.Close()
 				return domain.Fail(domain.Denied, "native owner transport requires the binary SSH protocol")
 			}
+			if client.IsMessageClient() {
+				check, stop := context.WithTimeout(ctx, 10*time.Second)
+				err := client.Ping(check)
+				stop()
+				if err != nil {
+					client.Close()
+					return err
+				}
+			}
 			generation, challenge, awaiting = certificate.Generation, certificate.Challenge, false
 			deadline.Stop()
 			remaining := pair.Leaf.NotAfter.Sub(s.options.Now())
-			lease := newOwnerLease(leaseCtx, client, pair.Leaf.NotAfter, remaining, &closed)
+			if remaining <= 0 {
+				client.Close()
+				return domain.Fail(domain.Denied, "owner certificate expired before the renewed transport was ready")
+			}
+			lease := newOwnerLease(leaseCtx, client, generation, pair.Leaf.NotAfter, remaining, &closed)
 			s.mu.Lock()
 			previous := s.lease
 			s.lease = lease
