@@ -13,28 +13,31 @@ costs need approval. Upgrade intent is not a native permit. Read-only messages/
 
 ## Context and readiness
 
-1. Establish the current identity, project, actual mode, provider/model,
-   inventory, selected private knowledge, work slot, pending reports and session
-   fences. Commands: `status`, `work status`, `preferences show`, `inventory
-   show`, `knowledge list`, `agent identity`. Use the same-user owner-only,
-   peer-checked identity proxy. The existing installing user owns all worker state
-   and keys; no new account or matching username is required. Never copy
-   credentials, start another owner or expose private key/certificate bytes.
-   Provider sign-in, Foundation registration and project authority are separate.
-   Presence proves neither permission nor authentication. When work is blocked by sign-in
+1. Check identity/project/mode, provider/model, inventory/private knowledge,
+   slot, pending reports and session fences with `status`, `work status`,
+   `preferences show`, `inventory show`, `knowledge list`, `agent identity`.
+   The existing installing user owns all worker state and keys. Follow AGENTS.md
+   same-user owner-only peer-checked proxy, no-new-account, key privacy and
+   no-extra-owner rules. Sign-in, registration and project authority are separate;
+   presence proves neither permission nor authentication.
+   For all routine tool-enabled jobs, install missing ordinary needed tools
+   autonomously and non-interactively within existing OS permissions and task
+   scope. Prefer trusted per-user or environment-local package managers.
+   Verify usability and continue without requesting confirmation solely for
+   missing software. Do not infer new financial/legal commitments, protected
+   authentication, destructive changes, or changes to authority or OS privileges.
+   Report an actual remaining boundary or installation failure, not a setup request.
+   When work is blocked by sign-in
    or permissions, send protected durable help to active Founder and current
    relevant project delegates without inference. New action contexts can ask
    again after expiry; unchanged polls/restarts must not spam. Inspect
    authentication_requests/permission_requests and delivery. Provider sign-out
    needs a fresh check/help, never retry across uncertain effects or lost approval.
-2. Read `task show TASK`, project/parent context, `discussion list TASK`,
-   `task history TASK`, `task runs TASK` and `note context --project PROJECT`.
-   Apply company, current-project and your own agent notes to every task phase;
-   independent verification uses the reviewer's notes, not the assignee's.
-   Notes are context, not approval/authority; clarify conflicts. New provider
-   calls refresh snapshots without rewriting in-flight/retained journals or retry fences.
-   Mentions do not assign.
-   Founder/current project delegates assign and choose required provider/model.
+2. Read `task show TASK`, project/parent, `discussion list TASK`, `task history
+   TASK`, `task runs TASK`, `note context --project PROJECT`. Apply AGENTS.md note
+   rules in all phases; reviewers use their own notes. Refresh each provider call,
+   never in-flight/retained journals/fences. Mentions do not assign; Founder/current project
+   delegates assign and select required provider/model.
 3. Create/edit through `task create --input FILE` and `task change TASK --input
    FILE`. Change kinds include assign, edit, workspace, policy, retry-policy,
    status, approve, verify, waiting, clarity, stop and exact retry-approve.
@@ -43,45 +46,28 @@ costs need approval. Upgrade intent is not a native permit. Read-only messages/
    using `workspace bind --path OWNED_DIR --allow-tools`; attach its opaque ref
    through a workspace change. Never publish paths, bind private state, borrow
    permissions, or create a new binding to bypass a disabled one.
-5. Unapproved scope and acceptance/risk review are separate productive steps.
-   Ask only decision-changing unanswered questions; do not invent a quota or
-   infer answers from silence. Use literal `@{NAME}` (for example `@{Agent1}`)
-   or `@{AGENT_ID}` mentions of identified responsible active respondents in
-   task comments. Names resolve case-insensitively to stable IDs; unknown or
-   ambiguous names fail, so use an exact ID for legacy duplicate names.
-   Self/duplicate mentions do not create extra attention.
-6. Record published question IDs/requested actors in waiting state. Evaluate
-   actual requested replies, incorporate agreed facts into description/criteria,
-   retain answer references and re-review. Changed execution context advances
-   specification and invalidates old approval. Answers do not grant authority.
-7. Request eligible Founder/delegate signoff on the exact specification when a
-   bounded first attempt is actionable. Named actors are an eligibility
-   allowlist, not a grant or quorum; independent review means a different actor.
-   Delivery/acknowledgement is never approval.
+5. Review unapproved scope and acceptance/risk separately. Ask only unanswered,
+   decision-changing questions: no quota or assumed answers from silence. Mention
+   responsible active respondents with literal `@{NAME}` or `@{AGENT_ID}`.
+   Names resolve case-insensitively to stable IDs; unknown/ambiguous names fail,
+   so use IDs for duplicates. Self/duplicate mentions add no attention.
+6. Record question IDs/requested actors in waiting state. Incorporate actual
+   replies into description/criteria, retain references and re-review. Changed
+   execution context advances specification and invalidates approval; answers
+   grant no authority.
+7. Obtain eligible Founder/delegate signoff on the exact actionable specification.
+   Named actors restrict eligibility, not authority or quorum. Independent review
+   requires a different actor; delivery/acknowledgement is never approval.
 
 ### Deliberate shared guidance
 
-Use `note show company`, `note show project PROJECT` or `note show agent
-[AGENT]` before editing. `note set --input FILE` replaces that scope's complete
-Markdown document with `scope`, optional `target_id`, required `content`, exact
-`expected_revision` (0 creates) and a non-secret `reason`; missing agent target
-means self. Empty content explicitly clears it. `note history` keeps three
-snapshots; reuse the exact operation/input after uncertainty rather than
-overwriting someone else's revision.
-
-Founder alone sets company notes. Founder/current delegates set active-project
-notes. Founder/self can set agent notes; another editor must currently delegate
-an active project with an unarchived nonterminal task assigned to that non-Founder
-target. Delegates cannot edit Founder's agent notes. Revocation, reassignment
-and archival remove that delegated editing basis.
-
-Shared notes are team-readable, at most 64 KiB per document. Use headings for
-instructions, skills, missions/visions/goals and context, with non-secret relative
-file, website and GitHub references. References are not automatically fetched,
-cloned or installed as skills. Never publish credentials, transcripts, private
-workspace paths or selected private knowledge. Private `knowledge` stays separate.
-Unavailable/malformed shared context blocks inference; inspect the server/version
-and consolidate over-budget context instead of working without required notes.
+Follow AGENTS.md note authority/privacy rules and [COMMANDS.md](../../../COMMANDS.md)
+for note show/set/history inputs. Use exact revisions and replay operation/input
+after uncertainty; never overwrite another revision. Revocation/reassignment/archival
+remove delegated access. Notes: team-readable, max64 KiB; no automatic reference
+fetch/clone/install. Unavailable/malformed context blocks inference; inspect
+server/version and consolidate over-budget context, never omit required notes.
+Private `knowledge` stays separate.
 
 ## Deliberate files and publications
 
@@ -121,20 +107,17 @@ For live sharing use [foundation-sharing](../../../.agents/skills/foundation-sha
 11. New uncertainty overrides apparent completion. Stop active operations,
     checkpoint progress, publish targeted questions and pause before switching
     work. Do not leave background commands running or continue affected actions.
-12. Completed means evidence awaiting verification, not done. An independent
-    current delegate automatically reviews completed results after assigned work,
-    using its own preferred provider/model and reusable `workspace_root/PROJECT`
-    binding under normal local OS-user access, never the assignee's private
-    binding. Review shares the same
-    fenced slot and binds exact spec/result/discussion generations and project
-    epoch. Return a structured reviewed decision, accept or rework, with actual
-    evidence; the controller publishes the task comment and applies authority.
-    In-scope rework records fresh delegate readiness for the unchanged scope,
-    returns todo and requires worker preflight of the feedback. The controller
-    acknowledges consumed typed review-feedback mentions without posting an echo;
-    ordinary requested mentions remain pending. Scope changes still require fresh
-    signoff. Manual verification remains `task change`
-    kind verify with exact spec/result generations and accept/rework decision.
+12. Completed awaits verification, not done. An independent current delegate
+    automatically reviews after assigned work with its own preferred provider/model
+    and reusable `workspace_root/PROJECT` binding under normal local OS-user access,
+    never the assignee's private binding. The same fenced slot pins exact
+    spec/result/discussion generations and project epoch. Return structured
+    accept/rework with actual evidence; the controller publishes and applies
+    authority. In-scope rework needs fresh delegate readiness, returns todo and
+    worker feedback preflight; scope changes need fresh signoff. Consumed typed
+    review-feedback mentions are acknowledged without echoes; ordinary requested
+    mentions remain pending. Manual verification uses `task change` kind verify,
+    exact spec/result generations and accept/rework.
 13. For an approved Git task, create or update one PR and report its URL, head
     revision and actual checks. Address delegate feedback on that existing PR.
     A verifier must inspect the current code/head/checks and confirm any merge
@@ -156,22 +139,22 @@ For live sharing use [foundation-sharing](../../../.agents/skills/foundation-sha
   not other project, spending, retry or verification authority. Report actual
   checked results, never a promise. Urgency uses the next free slot, not another
   worker; Founder pause, sign-in help and independent safety fences still apply.
-- A read receipt is voluntary and explicit. Peek with message show/inbox/diagnose
-  without marking read; after deliberately finishing reading, the recipient may
-  use `message read MESSAGE_ID` with a stable operation ID. In a tool-disabled
-  direct-message response only, optional `message_read:true` explicitly chooses
-  that acknowledgement; omission/false does not. The first server `read_at` is
-  immutable and party-visible; its absence is not proof of unreadness.
-  Reply/handled is not read acknowledgement or approval.
-- Public status should concisely describe current activity. Controller summaries
-  require no inference; optional self-authored `agent status --input FILE` uses
-  required single-line non-secret text (max160 characters), visible to all active
-  agents. Publish only meaningful changes, normally at most once per60 seconds;
-  rapid updates coalesce and identical text is suppressed. Empty text restores
-  automatic status, and changed activity/critical pause/block/recovery supersedes
-  old notes. Do not call models just for status, override another agent or put
-  credentials, private paths, messages or unpublished knowledge in public text.
-  Status is not progress/health proof, read acknowledgement or approval.
+- For admitted processing of an ordinary recipient message/request, acknowledge
+  reading before provider invocation using its durable source-bound read proposal.
+  Do not defer acknowledgement to an optional response field or until responding.
+  Passive message show/inbox/diagnose/observe does not mark read; protected controls
+  remain excluded. The first server `read_at` is immutable and party-visible;
+  its absence is not proof of unreadness. Read is not handling, reply completion
+  or approval. Retained legacy explicit-read replies preserve their exact replay.
+  Admitted service transfer notices are read before download, not proof of analysis.
+- Public status: concise current activity. Controller summaries need no inference;
+  optional self-authored `agent status --input FILE` requires non-secret single-line
+  text (max160 characters), visible to all active agents. Publish meaningful changes,
+  normally once per60 seconds at most; rapid updates coalesce, duplicates suppress.
+  Empty text restores automatic status; changed activity/critical pause/block/recovery
+  supersedes old notes. Never call models just for status, override another agent,
+  or expose credentials, private paths/messages or unpublished knowledge. Status is
+  not progress/health proof, read acknowledgement or approval.
 - Keep useful lessons in local memory/skills/knowledge deliberately. Selected
   content is private provider context, not automatic shared publication.
 - Before financial/legal commitments, checkpoint and notify BOTH Founder and

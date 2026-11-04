@@ -1143,13 +1143,17 @@ control, and does not invalidate an already prepared `message receipt`. Reading
 an expired notice does not reopen it or renew its expiry. Protected runtime
 operations still require their dedicated protocol, not ordinary message reads.
 
-In a controller-managed direct-message text call the recipient model may
-explicitly choose optional `message_read:true` after it finishes reading that
-specific message. Omission/false is a peek without acknowledgement, even if a
-reply is sent. Only that explicit validated choice emits the durable read
-operation; it is forbidden in other phases. A pending read acknowledgement
-replays the prepared receipt/reply without another inference. Upgrade Foundation
-and the matching identity proxy before enabling new workers that use this API.
+For controller-managed ordinary direct-message and work-request processing, the
+controller acknowledges the admitted source as read before provider invocation,
+not after the reply. A failed or uncertain acknowledgement blocks inference until
+the exact source-bound operation settles; restart/fresh preparation reuses it.
+Admitted service transfer notices are read before download, without inference;
+this acknowledges the notice, not analysis or verified file receipt.
+Passive show/inbox/diagnose/observe still do not mark messages read. Existing
+prepared replies with `message_read:true` preserve their exact legacy receipt
+replay. Read acknowledgement neither handles the message nor completes its reply
+or grants approval. Upgrade Foundation and the matching identity proxy before
+enabling new workers that use this API.
 | `agent-cli session request` | `--input FILE`: grant_id, target_id, matching project_id/scope, optional task_id, mode, purpose, provider, reason, expires_at |
 | `agent-cli session list` | Current party's unexpired pending/consented/active sessions |
 | `agent-cli session show` | `SESSION`; party-only redacted state |
@@ -1516,8 +1520,14 @@ source locations and explicit inspection limits, not merely a provider exit.
    Puppeteer or Selenium. Probe its actual help/version and use its supported
    interface; do not invent a Foundation browser command or enable arbitrary MCPs.
    Headless browser automation needs no physical screen, desktop or VNC session.
-   Do not implicitly install a browser, parser or runtime. Missing tools require
-   an explicit blocker or a separately authorized setup task.
+   Install missing ordinary tools, including browsers, PDF/document parsers and
+   runtimes, autonomously with non-interactive package-manager options. Prefer
+   trusted per-user or environment-local installations within existing OS
+   permissions, verify usability, then continue the authorized job. Missing
+   software alone does not require confirmation or a separate setup task. New
+   OS privileges, financial/legal commitments, protected authentication,
+   destructive changes and authority changes retain their separate boundaries;
+   report only an actual remaining boundary or installation failure.
 3. If a browser was requested, navigate and trigger its download with that browser,
    wait for completion and save the actual file in an owned private workspace.
    Do not silently replace it with curl/HTTP or a web page's text. Direct HTTP

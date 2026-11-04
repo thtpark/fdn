@@ -77,6 +77,7 @@ func TestStoppedTextRetriesAreBoundedSourceScopedAndRestartDurable(t *testing.T)
 	f.engine.Now = func() time.Time { return now }
 	launch := Launch{Phase: "message", AgentID: f.me.ID, Message: &domain.Message{
 		ID: "message_transient", Revision: 1, SenderID: "agent_founder", RecipientID: f.me.ID, Kind: "direct", State: "pending", ResponseRequest: true}}
+	f.messages[launch.Message.ID] = *launch.Message
 	var last local.Journal
 	for attempt := 1; attempt <= maxTextAttempts; attempt++ {
 		schedule := &workDeadline{}
@@ -138,7 +139,10 @@ func TestTextCleanupUncertaintyStillGloballyFencesWithoutAutomaticRetry(t *testi
 	f := sharedAuthorityFixture(t)
 	x := &stoppedTextExecutor{Executor: f.executor, err: &process.CleanupError{Err: context.Canceled}}
 	f.engine.Executor = x
-	launch := Launch{Phase: "message", AgentID: f.me.ID, Message: &domain.Message{ID: "message_uncertain", Revision: 1}}
+	message := domain.Message{ID: "message_uncertain", Revision: 1, RecipientID: f.me.ID,
+		Kind: "direct", State: "pending", ResponseRequest: true}
+	f.messages[message.ID] = message
+	launch := Launch{Phase: "message", AgentID: f.me.ID, Message: &message}
 	journal, err := f.engine.text(context.Background(), f.engine.Config, launch, false)
 	if err == nil || journal.State != "uncertain" || x.calls != 1 {
 		t.Fatal("unproved native cleanup was mistaken for a settled text call", journal, err)

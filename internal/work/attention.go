@@ -95,6 +95,22 @@ func (e *Engine) messages(ctx context.Context, c config.Worker, urgent, manual b
 	}
 }
 
+func (e *Engine) acknowledgeProcessingMessage(ctx context.Context, message domain.Message) error {
+	if message.RecipientID != e.Client.Credential.AgentID ||
+		message.Kind == "agent-operation" || message.AgentOperation != nil {
+		return domain.Fail(domain.Internal, "message processing requires its exact recipient-owned ordinary source")
+	}
+	read, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", message.ID, "read"),
+		domain.MessageReadRequest{Command: domain.Command{OperationID: "message." + domain.Hash(message.ID)[:32] + ".read"}})
+	if err != nil {
+		return errors.Join(domain.Fail(domain.Prerequisite, "message read acknowledgement must settle before processing; retain the exact proposal"), err)
+	}
+	if read.ID != message.ID || read.RecipientID != message.RecipientID || read.ReadAt <= 0 {
+		return domain.Fail(domain.Internal, "message read acknowledgement did not confirm the exact recipient source and server timestamp; evidence retained")
+	}
+	return nil
+}
+
 func (e *Engine) attention(ctx context.Context, c config.Worker, manual bool) (bool, error) {
 	cursor := ""
 	for {

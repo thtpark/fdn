@@ -728,6 +728,14 @@ func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journ
 	}); err != nil {
 		return err
 	}
+	if launch.Phase == "message" || launch.Phase == "request" {
+		if launch.Message == nil {
+			return domain.Fail(domain.Internal, "message processing requires its exact recipient-owned ordinary source")
+		}
+		if err := e.acknowledgeProcessingMessage(invocationCtx, *launch.Message); err != nil {
+			return err
+		}
+	}
 	if err := e.phaseHealth(ctx, "invoking", &launch, j.ID, min(c.InvocationTimeoutSeconds, 300), true); err != nil {
 		return err
 	}

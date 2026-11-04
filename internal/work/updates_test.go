@@ -540,8 +540,8 @@ func TestPushClosesInitialSnapshotRaceAndDoesNotDuplicateMessageInference(t *tes
 		return err == nil && checkpoint.Cursor == "cursor_1" && !checkpoint.Work.pending()
 	})
 	stop()
-	if f.executor.invocations.Load() != 1 || f.readEffects != 0 {
-		t.Fatal("initial snapshot race lost/duplicated inference or invented a read receipt", f.executor.invocations.Load(), f.readEffects)
+	if f.executor.invocations.Load() != 1 || f.readEffects != 1 {
+		t.Fatal("initial snapshot race lost/duplicated inference or its admitted source read", f.executor.invocations.Load(), f.readEffects)
 	}
 }
 
@@ -603,6 +603,105 @@ func TestPushControlWhilePausedFencedAndBusyRetriesOnlyRetainedResult(t *testing
 	var after workerHealthState
 	if _, err := f.engine.State.Get(ctx, workerHealthKey, &after); err != nil || !reflect.DeepEqual(before, after) {
 		t.Fatal("background control overwrote in-flight phase/progress", after, err)
+	}
+}
+
+func TestMessageReadIsCommittedBeforeProviderProcessing(t *testing.T) {
+	f := newPushFixture(t)
+	f.executor.entered, f.executor.release = make(chan struct{}, 1), make(chan struct{})
+	message := domain.Message{ID: "message_early_read", SenderID: "agent_founder", RecipientID: f.me.ID,
+		Kind: "direct", State: "pending", Revision: 1, ResponseRequest: true, Body: "Please inspect the file."}
+	f.messages[message.ID] = message
+	done := make(chan error, 1)
+	go func() {
+		_, err := f.engine.Step(context.Background(), false)
+		done <- err
+	}()
+	select {
+	case <-f.executor.entered:
+	case <-time.After(3 * time.Second):
+		close(f.executor.release)
+		t.Fatal("message was not admitted to provider processing")
+	}
+	f.mu.Lock()
+	source, effects := f.messages[message.ID], f.readEffects
+	f.mu.Unlock()
+	close(f.executor.release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if source.ReadAt == 0 || effects != 1 || source.State != "pending" {
+		t.Fatal("read was not committed independently before processing", source.ReadAt, effects, source.State)
+	}
+	if f.executor.invocations.Load() != 1 {
+		t.Fatal("message was processed more than once")
+	}
+}
+
+func TestMessageReadLostAcknowledgementRestartsWithoutPrematureInference(t *testing.T) {
+	f := newPushFixture(t)
+	ctx := context.Background()
+	message := domain.Message{ID: "message_early_read_restart", SenderID: "agent_founder", RecipientID: f.me.ID,
+		Kind: "direct", State: "pending", Revision: 1, ResponseRequest: true, Body: "Please inspect the file."}
+	f.messages[message.ID] = message
+	f.lostReadAck = true
+	if _, err := f.engine.Step(ctx, false); err == nil {
+		t.Fatal("lost read acknowledgement was hidden")
+	}
+	if f.executor.invocations.Load() != 0 {
+		t.Fatal("inference started before the read acknowledgement settled")
+	}
+	root, c, client := f.engine.State.Root, f.engine.Config, f.engine.Client
+	if err := f.engine.State.Close(); err != nil {
+		t.Fatal(err)
+	}
+	state, err := local.Open(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.engine = New(c, "", client, state, f.executor)
+	f.engine.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
+	for step := 0; step < 3 && f.executor.invocations.Load() == 0; step++ {
+		if _, err := f.engine.Step(ctx, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.executor.invocations.Load() != 1 || f.readEffects != 1 || len(f.readBodies) != 2 ||
+		!bytes.Equal(f.readBodies[0], f.readBodies[1]) || f.messages[message.ID].State != "handled" {
+		t.Fatal("restart changed the read proposal, repeated its effect or failed to process once",
+			f.executor.invocations.Load(), f.readEffects, len(f.readBodies))
+	}
+}
+
+func TestProcessingReadExcludesProtectedAndOtherRecipientSources(t *testing.T) {
+	f := newPushFixture(t)
+	for _, message := range []domain.Message{
+		{ID: "message_protected_read", RecipientID: f.me.ID, Kind: "agent-operation"},
+		{ID: "message_someone_else", RecipientID: "agent_other", Kind: "direct"},
+	} {
+		if err := f.engine.acknowledgeProcessingMessage(context.Background(), message); err == nil {
+			t.Fatal("ineligible source could acknowledge reading", message.ID)
+		}
+	}
+	if f.readEffects != 0 || f.executor.invocations.Load() != 0 {
+		t.Fatal("protected or unrelated sources were processed")
+	}
+}
+
+func TestPausedAgentDoesNotAcknowledgeInboxWithoutProcessing(t *testing.T) {
+	f := newPushFixture(t)
+	f.me.Mode, f.engine.Config.Mode = "manual", "manual"
+	f.me.ModeRequestedBy, f.me.ModeReason = "agent_founder", "Pause automatic processing"
+	message := domain.Message{ID: "message_paused_read", SenderID: "agent_founder", RecipientID: f.me.ID,
+		Kind: "direct", State: "pending", Revision: 1, ResponseRequest: true}
+	f.messages[message.ID] = message
+	if _, err := f.engine.Step(context.Background(), false); err != nil {
+		t.Fatal(err)
+	}
+	if f.executor.invocations.Load() != 0 || f.readEffects != 0 || f.messages[message.ID].ReadAt != 0 {
+		t.Fatal("paused inbox inspection acknowledged or processed a message")
 	}
 }
 

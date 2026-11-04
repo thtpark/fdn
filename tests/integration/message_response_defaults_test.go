@@ -66,8 +66,8 @@ func TestDefaultRequestedMessageUsesAIOnlyInAIMode(t *testing.T) {
 					if test.wantReplies != 0 {
 						wantState = "handled"
 					}
-					if message.State != wantState || message.ReadAt != 0 {
-						t.Fatal("automatic response changed explicit reading or message disposition", message)
+					if message.State != wantState || (message.ReadAt > 0) != (test.wantReplies > 0) {
+						t.Fatal("read receipt did not distinguish admitted processing from passive or paused inbox inspection", message)
 					}
 					continue
 				}

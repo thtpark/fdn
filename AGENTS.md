@@ -8,13 +8,13 @@ commands from historical examples.
 
 | Goal | Skill |
 | --- | --- |
-| Install a server/worker, register services, stage an upgrade | [foundation-install](.agents/skills/foundation-install/SKILL.md) |
-| Register/recover signed Founder or worker keys, manage authority | [foundation-enroll](.agents/skills/foundation-enroll/SKILL.md) |
-| Install Codex/Copilot, arrange protected sign-in or consented access | [foundation-provider-auth](.agents/skills/foundation-provider-auth/SKILL.md) |
-| Prepare, assign, clarify, approve, execute, and verify tasks | [foundation-work](.agents/skills/foundation-work/SKILL.md) |
-| Inspect health, pause work, recover, back up/restore, renew TLS | [foundation-operations](.agents/skills/foundation-operations/SKILL.md) |
-| View/select terminals/screens, approve delegates, hand off input | [foundation-sharing](.agents/skills/foundation-sharing/SKILL.md) |
-| Change code/schema/docs, test locally, prepare a release | [foundation-develop](.agents/skills/foundation-develop/SKILL.md) |
+| Install/upgrade | [foundation-install](.agents/skills/foundation-install/SKILL.md) |
+| Enroll/recover | [foundation-enroll](.agents/skills/foundation-enroll/SKILL.md) |
+| Provider sign-in | [foundation-provider-auth](.agents/skills/foundation-provider-auth/SKILL.md) |
+| Tasks | [foundation-work](.agents/skills/foundation-work/SKILL.md) |
+| Operate/recover | [foundation-operations](.agents/skills/foundation-operations/SKILL.md) |
+| Share/access | [foundation-sharing](.agents/skills/foundation-sharing/SKILL.md) |
+| Develop/test | [foundation-develop](.agents/skills/foundation-develop/SKILL.md) |
 
 Read only the relevant skill and detailed references. Installed binaries provide
 `agent-cli guide list`, `agent-cli guide show COMMANDS.md`, and
@@ -49,6 +49,13 @@ guide includes this file, all skills, and the development references.
   permissions and task scope. Routine local access needs no project approval.
   Root changes, another computer's consent, cloud costs, external commitments,
   and provider spending retain their separate authorization boundaries.
+  For all routine tool-enabled jobs, install missing ordinary needed tools
+  autonomously and non-interactively within existing OS permissions. Prefer
+  trusted per-user or environment-local package managers. Verify usability
+  and continue without requesting confirmation solely for missing software.
+  Do not infer new financial/legal commitments, protected authentication,
+  destructive changes, or changes to authority or OS privileges. Report an
+  actual remaining boundary or installation failure rather than a setup request.
 - Keep one enrolled identity per computer and one active work slot per agent.
   Non-Founders have one computer/live owner; Founder may enroll separately keyed
   devices with `device register` and keep multiple connections under one actor.
@@ -70,6 +77,10 @@ guide includes this file, all skills, and the development references.
   approvals, project epoch, and continuation before execution. Questions are not
   a quota: ask useful blocking questions, incorporate actual requested replies
   into task text, then obtain signoff on the exact changed specification.
+- For admitted processing of an ordinary recipient message/request, acknowledge
+  reading before provider invocation using its durable source-bound read proposal.
+  Do not defer acknowledgement to an optional response field or until responding.
+  Passive inspection and protected controls remain excluded; read is not approval.
 - Read the current company, task-project and own-agent shared Markdown notes
   whenever working on a task, including preparation and independent verification.
   Use `note context --project PROJECT_ID` to inspect applicable guidance and
@@ -202,27 +213,30 @@ backup/copy erasure. Published skills never auto-install or grant authority.
 
 Read [DEVELOPMENT.md](DEVELOPMENT.md), [SCHEMA.md](SCHEMA.md), and
 [TEST_PLAN.md](TEST_PLAN.md). Make surgical changes; preserve identity, mode,
-knowledge, workspaces, journals, and user modifications. Tests run locally with
-temporary state and loopback services, without VMs, containers, root, host-service
-registration, or paid inference. Never push directly or force-push to `release`.
-Release packages require a PR merged after required checks pass; `main` PRs run
-separate suites. Update related docs/skills and exact contract tests for behavior
-changes.
+knowledge, workspaces, journals and user edits. Test locally with temporary state
+and loopback, without VMs, containers, root, host-service registration or paid
+inference. Never push directly or force-push to `release`: packages need a PR
+merged after required checks; `main` PRs run separate suites. Update related
+docs/skills and exact contract tests.
 
-Development source wrappers isolate testing HOME/config/identity under ignored
-`.local` and automatically use cached development builds; they never move a
-live Founder. Software upgrades use explicit Founder check/plan/apply/status,
+Source wrappers use cached builds and ignored `.local` testing HOME/config/identity,
+never move live Founder. Upgrades require explicit Founder check/plan/apply/status,
 the exact published release and separately administrator-provisioned native
-policy/operator access. Ordinary messages are not upgrade authority. Preserve
-private plans, off-host recovery keys, native receipts/backups and all work
-fences; inspect uncertain installs, never retry or roll back SQL. Only unchanged
-verified temporary pauses restore prior AI; preserve newer/manual intent and fences.
+policy/operator access; ordinary messages grant no upgrade authority. Preserve
+private plans, off-host recovery keys, native receipts/backups and all work fences.
+Inspect uncertain installs; never retry or roll back SQL. Restore prior AI only
+for unchanged verified temporary pauses; preserve newer/manual intent and fences.
 
-Do not present future work in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
-as available commands. Do not certify live providers, full-host recovery,
-security, or 1,000-agent capacity using fixture tests or historical evidence.
+[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) future work is not available
+commands. Fixtures/history cannot certify live providers, full-host recovery,
+security or 1,000-agent capacity.
 
 ## Completion report
+
+Write human-facing messages, reports and document content as readable Markdown
+or plain text with real spaces and newlines, not literal escape sequences or
+double-encoded text. Required JSON transport envelopes remain valid JSON;
+after decoding, their human-facing string values must contain real whitespace.
 
 Report actual version/source, machine/role and non-secret identity references,
 observed final states, checks, remaining blockers, and the next authorized
