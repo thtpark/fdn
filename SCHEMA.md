@@ -328,10 +328,17 @@ server UTC Unix timestamp is immutable across new read operations or exact
 operation replay. Sender/recipient reads and message diagnostics expose it; a
 sender, unrelated agent or declared service origin cannot set it for someone else.
 
-No GET, inbox polling, model context selection, response or handled/deferred/stale
-disposition automatically sets this field. Optional model `message_read:true` is
-an explicit direct-message choice, not a processing side effect; omission/false
-leaves it unset. Read acknowledgement is independent of message state/revision,
+No GET, inbox polling, passive context inspection or handled/deferred/stale
+disposition automatically sets this field. After admitting an ordinary recipient
+message or work request for processing, the controller commits a durable read
+operation before invoking the provider. Admitted service transfer notices use
+the same read protocol before downloading; read never claims file analysis.
+A lost acknowledgement must settle by
+replaying that same source-bound operation before inference; a restart or fresh
+prepared journal does not create another read operation. Legacy prepared replies
+with `message_read:true` retain their exact receipt replay. The field is no longer
+an opt-out of reading during newly admitted processing.
+Read acknowledgement is independent of message state/revision,
 so concurrent disposition receipts commute without losing either observation.
 It never means task approval, comprehension, verified response or session consent.
 Expired notices retain their expiry/state. Protected agent operations are not

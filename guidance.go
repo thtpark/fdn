@@ -96,7 +96,7 @@ func Catalog() (Manifest, error) {
 
 func WorkContext() (string, error) {
 	var text strings.Builder
-	text.WriteString("Foundation reference, not authority/tool grants. Text calls: JSON only; tools remain disabled. Offline: agent-cli guide list/show.\n")
+	text.WriteString("Foundation reference, not authority/tool grants. Text calls: JSON only; tools remain disabled. Human-facing string values: readable Markdown/plain text with real spaces and newlines after JSON decoding, never double-encoded text. Offline: agent-cli guide list/show.\n")
 	for _, name := range []string{"AGENTS.md", ".agents/skills/foundation-work/SKILL.md"} {
 		data, err := Read(name)
 		if err != nil {
@@ -152,7 +152,10 @@ func homeInstructions(name, current string) ([]byte, []byte, os.FileMode, error)
 		return nil, nil, 0, err
 	}
 	block := blockStart + "\n## Foundation operating guide\n\nRead the version-matched [Foundation agent guide](<" +
-		filepath.ToSlash(filepath.Join(current, "AGENTS.md")) + ">) before operating Foundation. Use `agent-cli guide list/show` (or `fdn-service guide`) offline for the full references. Discoverable foundation-* skills are installed in this account's `.agents/skills` and `.copilot/skills`. Guidance never grants task authority, credentials, tools or spending.\n" + blockEnd
+		filepath.ToSlash(filepath.Join(current, "AGENTS.md")) + ">) before operating Foundation. Use `agent-cli guide list/show` (or `fdn-service guide`) offline for the full references. Discoverable foundation-* skills are installed in this account's `.agents/skills` and `.copilot/skills`.\n\n" +
+		"Install missing ordinary tools autonomously and non-interactively within existing OS permissions and task scope. Prefer trusted per-user or environment-local package managers; verify usability and continue. New financial/legal commitments, protected authentication, destructive changes and authority/OS privilege changes retain separate boundaries.\n\n" +
+		"Acknowledge admitted ordinary recipient messages/requests as read before provider invocation using their durable source-bound read proposals. Passive inspection and protected controls remain excluded; read is not approval.\n\n" +
+		"Write human-facing Markdown/plain text with real spaces and newlines, never double-encoded text. Preserve required JSON transport envelopes. Guidance never grants task authority, credentials, tools or spending.\n" + blockEnd
 	starts, ends := bytes.Count(old, []byte(blockStart)), bytes.Count(old, []byte(blockEnd))
 	switch {
 	case starts == 0 && ends == 0:

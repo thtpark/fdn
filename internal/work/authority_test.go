@@ -175,7 +175,7 @@ func TestManualAuthoritySubscriptionClosesValidationRaceAndCancelsOnDisconnect(t
 	}
 }
 
-func TestPushFounderPauseCancelsBusyTextWithoutReadOrReply(t *testing.T) {
+func TestPushFounderPauseCancelsBusyTextWithoutReplyOrUndoingRead(t *testing.T) {
 	f := newPushFixture(t)
 	f.executor.entered = make(chan struct{}, 1)
 	f.executor.release = make(chan struct{})
@@ -204,8 +204,9 @@ func TestPushFounderPauseCancelsBusyTextWithoutReadOrReply(t *testing.T) {
 	stop()
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.executor.invocations.Load() != 1 || f.readEffects != 0 || len(f.results) != 0 || f.messages["message_busy"].State != "pending" {
-		t.Fatal("priority cancellation repeated inference or fabricated a reply/read receipt")
+	if f.executor.invocations.Load() != 1 || f.readEffects != 1 || len(f.results) != 1 ||
+		f.messages["message_busy"].ReadAt == 0 || f.messages["message_busy"].State != "pending" {
+		t.Fatal("priority cancellation repeated inference, sent a reply or lost the already committed read")
 	}
 }
 

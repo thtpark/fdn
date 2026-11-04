@@ -283,10 +283,13 @@ remain explicit physical-device acceptance, not inferred from fixture tests.
 ## Desktop history and read-only observation
 
 `go test -race -count=1 ./internal/domain ./internal/api ./internal/cli -run 'MessageResponse|MessageSendDefaults|ExplicitAIOptOut|NativeMessageResponse'`
-and `go test -race -count=1 -tags=integration ./tests/integration -run 'DefaultRequestedMessage|ControllerMarksRead|ExplicitReadLostAck'`
+and `go test -race -count=1 -tags=integration ./tests/integration -run 'DefaultRequestedMessage|ControllerMarksRead|EarlyReadLostAck'`
 cover omitted response defaults, explicit opt-out/null/type rejection, native
 replay, CLI-inferred operational requests, AI/manual behavior, optional AI reply
-opt-out and unchanged voluntary read receipts. Shared Swift editor tests
+opt-out and read-before-processing receipts. `internal/work` push fixtures also
+check read commitment before provider entry, lost-ack restart with the identical
+source-bound proposal and no premature inference, paused-agent admission and
+legacy prepared explicit-read replay. Shared Swift editor tests
 cover fresh message/reply defaults and preserved restored false drafts.
 
 `go test -race -count=1 ./internal/foundation ./internal/provider ./internal/work ./internal/local -run 'ReplyLoop|Adhoc|AssignedComments|Conversation|AIResponse'`

@@ -179,6 +179,11 @@ func (e *Engine) receiveFileTransfers(ctx context.Context, c config.Worker, me d
 				cancel(err)
 				return false, blockers, err
 			}
+			if err := e.acknowledgeProcessingMessage(deadline, notice); err != nil {
+				stop()
+				cancel(err)
+				return false, blockers, err
+			}
 			receipt, err := filetransfer.Download(deadline, e.Client, e.State, operation, reference.ID,
 				destination, validate)
 			err = errors.Join(context.Cause(deadline), err)

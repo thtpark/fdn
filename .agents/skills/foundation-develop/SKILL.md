@@ -23,6 +23,12 @@ The checkout's root documents are canonical; no old source tree is required.
 2. Find existing helpers first. Keep server authority transactional, DTO/input
    validation narrow, errors explicit, and transport/provider/native boundaries
    testable. Do not enforce security only in a friendly CLI.
+   For all routine tool-enabled jobs, install missing ordinary needed tools
+   autonomously and non-interactively within existing OS permissions and task
+   scope. Prefer trusted per-user or environment-local package managers.
+   Verify usability and continue without requesting confirmation solely for
+   missing software. Do not infer new financial/legal commitments, protected
+   authentication, destructive changes, or changes to authority or OS privileges.
 3. Investigate every affected surface: domain models, API/client, CLI help/input/
    exit shape, server policy, local journal/controller/manual path, providers/
    cancellation, native deployment, embedded docs/skills and packages.

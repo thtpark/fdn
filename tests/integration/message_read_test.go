@@ -19,12 +19,18 @@ import (
 type readChoiceExecutor struct {
 	base        executor
 	acknowledge bool
+	before      func(context.Context) error
 }
 
 func (x *readChoiceExecutor) Check(ctx context.Context, name string) (provider.Health, error) {
 	return x.base.Check(ctx, name)
 }
 func (x *readChoiceExecutor) Invoke(ctx context.Context, inv provider.Invocation) (provider.Reply, error) {
+	if x.before != nil {
+		if err := x.before(ctx); err != nil {
+			return provider.Reply{}, err
+		}
+	}
 	r, err := x.base.Invoke(ctx, inv)
 	if err == nil && r.Outcome == "responded" {
 		r.MessageRead = x.acknowledge
@@ -47,11 +53,11 @@ func (transport *lostReadAcknowledgement) RoundTrip(request *http.Request) (*htt
 	return response, err
 }
 
-func TestControllerMarksReadOnlyForExplicitRecipientDecision(t *testing.T) {
+func TestControllerMarksReadBeforeRecipientProcessing(t *testing.T) {
 	for _, acknowledge := range []bool{false, true} {
-		name := "peek-without-receipt"
+		name := "legacy-field-false"
 		if acknowledge {
-			name = "explicit-finished-reading"
+			name = "legacy-field-true"
 		}
 		t.Run(name, func(t *testing.T) {
 			h := newHarness(t)
@@ -60,7 +66,7 @@ func TestControllerMarksReadOnlyForExplicitRecipientDecision(t *testing.T) {
 			e := newEngine(t, h, &executor{})
 			e.Executor = x
 			skipHealthOnboarding(t, e)
-			message, err := api.Call[domain.Message](ctx, h.founder, "POST", "/v1/messages", domain.MessageRequest{Command: command(), RecipientID: h.workerAgent.ID, Body: "Fixture requested response with optional explicit read receipt", Origin: "human", Kind: "direct", ResponseRequest: true})
+			message, err := api.Call[domain.Message](ctx, h.founder, "POST", "/v1/messages", domain.MessageRequest{Command: command(), RecipientID: h.workerAgent.ID, Body: "Acknowledge this message before processing it.", Origin: "human", Kind: "direct", ResponseRequest: true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -70,12 +76,22 @@ func TestControllerMarksReadOnlyForExplicitRecipientDecision(t *testing.T) {
 					t.Fatal("peek marked reading", shown, err)
 				}
 			}
+			x.before = func(ctx context.Context) error {
+				read, err := api.Call[domain.Message](ctx, h.founder, "GET", api.Path("messages", message.ID), nil)
+				if err != nil {
+					return err
+				}
+				if read.ReadAt == 0 || read.State != "pending" || read.Revision != message.Revision {
+					return domain.Fail(domain.Internal, "provider entry preceded an independent committed read acknowledgement")
+				}
+				return nil
+			}
 			if _, err := e.Step(ctx, false); err != nil {
 				t.Fatal(err)
 			}
 			read, err := api.Call[domain.Message](ctx, h.founder, "GET", api.Path("messages", message.ID), nil)
-			if err != nil || read.State != "handled" || (read.ReadAt != 0) != acknowledge || x.base.count("message") != 1 {
-				t.Fatal("reply implicitly stamped reading or lost explicit choice", read, err)
+			if err != nil || read.State != "handled" || read.ReadAt == 0 || x.base.count("message") != 1 {
+				t.Fatal("admitted processing did not preserve its early read independently of the legacy response field", read, err)
 			}
 			diagnosis, err := api.Call[domain.MessageDiagnostics](ctx, h.founder, "GET", api.Path("messages", message.ID, "diagnostics"), nil)
 			if err != nil || diagnosis.ReadAt != read.ReadAt {
@@ -85,7 +101,7 @@ func TestControllerMarksReadOnlyForExplicitRecipientDecision(t *testing.T) {
 	}
 }
 
-func TestExplicitReadLostAckReplaysWithoutAnotherModelCall(t *testing.T) {
+func TestEarlyReadLostAckReplaysBeforeFirstModelCall(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
 	x := &readChoiceExecutor{acknowledge: true}
@@ -101,7 +117,10 @@ func TestExplicitReadLostAckReplaysWithoutAnotherModelCall(t *testing.T) {
 	h.worker.HTTP.Transport = transport
 	defer func() { h.worker.HTTP.Transport = base }()
 	if status, err := e.Step(ctx, false); err == nil || domain.AsFault(err).Code != domain.Prerequisite || status.State != "blocked" {
-		t.Fatal("lost read receipt did not retain prepared response", status, err)
+		t.Fatal("lost read acknowledgement did not block processing", status, err)
+	}
+	if x.base.count("message") != 0 {
+		t.Fatal("provider ran before the read acknowledgement settled")
 	}
 	read, err := api.Call[domain.Message](ctx, h.founder, "GET", api.Path("messages", message.ID), nil)
 	if err != nil || read.ReadAt == 0 || read.State != "pending" || read.Revision != message.Revision {
@@ -110,7 +129,13 @@ func TestExplicitReadLostAckReplaysWithoutAnotherModelCall(t *testing.T) {
 	stamp := read.ReadAt
 	e = restartAuthenticationEngine(t, e)
 	if status, err := e.Step(ctx, false); err != nil || status.State != "reconciled" {
-		t.Fatal("read replay lost prepared reply", status, err)
+		t.Fatal("restart did not reconcile the unstarted prepared journal", status, err)
+	}
+	if x.base.count("message") != 0 {
+		t.Fatal("unstarted journal reconciliation began inference")
+	}
+	if _, err := e.Step(ctx, false); err != nil {
+		t.Fatal("exact source-bound read replay failed", err)
 	}
 	finished, err := api.Call[domain.Message](ctx, h.founder, "GET", api.Path("messages", message.ID), nil)
 	if err != nil || finished.ReadAt != stamp || finished.State != "handled" || x.base.count("message") != 1 {

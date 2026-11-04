@@ -182,10 +182,17 @@ func TestPrivateTransferWaitsForAIThenReceivesWithoutOnboardingOrInference(t *te
 		t.Fatal(err)
 	}
 	status, err := f.base.engine.Step(ctx, false)
-	if err != nil || status.State != "manual" || f.chunks != 0 || f.notifications != 0 {
+	if err != nil || status.State != "manual" || f.chunks != 0 || f.notifications != 0 || f.base.readEffects != 0 {
 		t.Fatal("manual transfer executed or became a provider request", status, err)
 	}
 	f.base.me.Mode, f.base.me.Revision, f.base.me.ModeReason = "ai", 3, "Founder restores AI intent"
+	f.beforeChunk = func(*http.Request) {
+		f.base.mu.Lock()
+		defer f.base.mu.Unlock()
+		if f.base.messages[notice.ID].ReadAt == 0 {
+			t.Error("transfer bytes were processed before acknowledging its admitted notice")
+		}
+	}
 	status, err = f.base.engine.Step(ctx, false)
 	if err != nil || status.State != "file-received" || f.notifications != 1 || f.chunks < 2 {
 		t.Fatal("resumed AI did not deterministically receive the pending transfer", status, err)
@@ -193,8 +200,8 @@ func TestPrivateTransferWaitsForAIThenReceivesWithoutOnboardingOrInference(t *te
 	if f.base.executor.checks.Load() != 0 || f.base.executor.invocations.Load() != 0 || status.InitialReviewDone {
 		t.Fatal("private transfer depended on provider authentication or initial AI review")
 	}
-	if handled := f.base.messages[notice.ID]; handled.State != "handled" || handled.ReadAt != 0 || handled.ResponseRequest {
-		t.Fatal("download conflated a receipt with an AI reply or explicit message read", handled)
+	if handled := f.base.messages[notice.ID]; handled.State != "handled" || handled.ReadAt == 0 || handled.ResponseRequest {
+		t.Fatal("admitted transfer notice was not read and handled independently of an AI reply", handled)
 	}
 	directory := filepath.Join(f.base.engine.Config.WorkspaceRoot, "downloads", "sender-agent_sender", notice.Attachments[0].ID)
 	if info, err := os.Lstat(directory); err != nil || info.Mode().Perm() != 0700 {
@@ -207,6 +214,27 @@ func TestPrivateTransferWaitsForAIThenReceivesWithoutOnboardingOrInference(t *te
 	}
 	if proposal.Destination != filepath.Join(directory, "private.bin") {
 		t.Fatal("automatic receipt did not preserve the readable file in the local workspace", proposal.Destination)
+	}
+}
+
+func TestPrivateTransferReadAcknowledgementSettlesBeforeDownloading(t *testing.T) {
+	f := newTransferFixture(t)
+	ctx := context.Background()
+	notice := f.addFile(domain.NewID("file"), []byte("private-fixture"))
+	f.base.lostReadAck = true
+	if _, err := f.base.engine.Step(ctx, false); err == nil {
+		t.Fatal("lost notice read acknowledgement was hidden")
+	}
+	if f.chunks != 0 || f.notifications != 0 || f.base.executor.invocations.Load() != 0 {
+		t.Fatal("file processing started before read acknowledgement settled")
+	}
+	status, err := f.base.engine.Step(ctx, false)
+	if err != nil || status.State != "file-received" {
+		t.Fatal("exact notice read replay did not allow the admitted transfer", status, err)
+	}
+	if f.base.readEffects != 1 || len(f.base.readBodies) != 2 ||
+		!bytes.Equal(f.base.readBodies[0], f.base.readBodies[1]) || f.base.messages[notice.ID].ReadAt == 0 {
+		t.Fatal("file notice read replay changed its proposal or repeated its effect")
 	}
 }
 

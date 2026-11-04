@@ -84,6 +84,51 @@ func TestGuideCatalogSkillsLinksAndCurrentCommands(t *testing.T) {
 	}
 }
 
+func TestGuideDocumentsAutonomousToolsEarlyReadAndReadableText(t *testing.T) {
+	for _, path := range []string{"AGENTS.md", ".agents/skills/foundation-work/SKILL.md", ".agents/skills/foundation-develop/SKILL.md"} {
+		data, err := guidance.Read(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := strings.Join(strings.Fields(string(data)), " ")
+		for _, fragment := range []string{"For all routine tool-enabled jobs", "autonomously and non-interactively within existing OS permissions",
+			"per-user or environment-local package managers", "Verify usability", "financial/legal commitments",
+			"destructive changes", "authority or OS privileges"} {
+			if !strings.Contains(text, fragment) {
+				t.Fatal(path, "missing guidance", fragment)
+			}
+		}
+		if path != ".agents/skills/foundation-develop/SKILL.md" {
+			if !strings.Contains(text, "reading before provider invocation") || strings.Contains(text, "A read receipt is voluntary and explicit") {
+				t.Fatal(path, "read acknowledgement was not moved before processing")
+			}
+		}
+	}
+	text, err := guidance.WorkContext()
+	if err != nil || len(text) > 32<<10 {
+		t.Fatal("invalid bounded work context", err, len(text))
+	}
+	for _, fragment := range []string{"tools remain disabled", "readable Markdown/plain text with real spaces and newlines after JSON decoding", "source-bound read proposal"} {
+		if !strings.Contains(text, fragment) {
+			t.Fatal("work context omitted contract", fragment)
+		}
+	}
+	home := t.TempDir()
+	if _, err := guidance.Install(home); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(home, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{"Install missing ordinary tools autonomously and non-interactively", "as read before provider invocation",
+		"Passive inspection and protected controls remain excluded", "Markdown/plain text with real spaces and newlines", "Preserve required JSON transport envelopes"} {
+		if !strings.Contains(string(data), fragment) {
+			t.Fatal("installed home guidance omitted contract", fragment)
+		}
+	}
+}
+
 func TestGuideDocumentsBrowserDownloadsAndFileInvestigation(t *testing.T) {
 	for file, fragments := range map[string][]string{
 		"COMMANDS.md": {"Browser downloads and file investigation", "Founder or a current project delegate",
