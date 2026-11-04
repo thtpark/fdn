@@ -2,6 +2,7 @@ package identityservice
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -9,19 +10,30 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 )
 
+var errOwnerLeaseRenewed = errors.New("owner lease replaced by a validated renewal")
+
 type ownerLease struct {
-	client  *api.Client
-	context context.Context
-	expires time.Time
-	cancel  context.CancelFunc
-	mu      sync.Mutex
-	active  int
-	retired bool
+	client          *api.Client
+	authority       context.Context
+	ownerGeneration int64
+	context         context.Context
+	expires         time.Time
+	cancel          context.CancelFunc
+	retirement      context.Context
+	notifyRetired   context.CancelCauseFunc
+	mu              sync.Mutex
+	active          int
+	retired         bool
 }
 
-func newOwnerLease(parent context.Context, client *api.Client, expires time.Time, lifetime time.Duration, closed *sync.WaitGroup) *ownerLease {
+func newOwnerLease(parent context.Context, client *api.Client, generation int64, expires time.Time, lifetime time.Duration, closed *sync.WaitGroup) *ownerLease {
 	ctx, cancel := context.WithTimeout(parent, lifetime)
-	lease := &ownerLease{client: client, context: ctx, expires: expires, cancel: cancel}
+	retirement, notifyRetired := context.WithCancelCause(ctx)
+	lease := &ownerLease{
+		client: client, authority: parent, ownerGeneration: generation,
+		context: ctx, expires: expires, cancel: cancel,
+		retirement: retirement, notifyRetired: notifyRetired,
+	}
 	closed.Add(1)
 	go func() {
 		defer closed.Done()
@@ -54,6 +66,7 @@ func (lease *ownerLease) retire() {
 	lease.mu.Lock()
 	defer lease.mu.Unlock()
 	lease.retired = true
+	lease.notifyRetired(errOwnerLeaseRenewed)
 	if lease.active == 0 {
 		lease.cancel()
 	}

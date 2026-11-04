@@ -6,6 +6,18 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Renewal-safe authority watches (current source, not yet deployed)
+
+Validated owner renewal hands off only blocking update/event reads, preserving
+the exact cursor and logical caller across old certificate expiry. The owner
+generation and uninterrupted owner lifetime must match; no mutation, inference
+or uncertain effect is replayed. Other calls retain normal drain/expiry rules.
+Genuine loss of authority or transport remains a safety stop, reported as an
+authority-channel interruption instead of a generic provider failure. Native
+mTLS/Unix expiry regressions and mutation/revocation/caller-cancellation tests
+cover the source behavior; isolated live-provider reproductions are separate
+from default CI and do not qualify a deployed fleet.
+
 ### Native coding-tool configuration binding (0.3.31)
 
 Coding children receive the already loaded exact worker configuration through

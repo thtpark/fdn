@@ -15,7 +15,7 @@ import (
 	"github.com/thtpark/fdn/internal/message"
 )
 
-func TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch(t *testing.T) {
+func TestOwnerRenewalHandsOffNativeWatchWithoutDisconnectingCaller(t *testing.T) {
 	f := newFixture(t)
 	f.now = time.Now().UTC()
 	f.remote.now = f.now
@@ -24,6 +24,7 @@ func TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch(t *
 	t.Cleanup(cancel)
 	entered, release, oldClosed := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	var releaseOnce sync.Once
+	var enteredOnce sync.Once
 	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 	var clients atomic.Int64
 	f.remote.client = func(c config.Worker, _ tls.Certificate) (*api.Client, error) {
@@ -37,7 +38,7 @@ func TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch(t *
 
 				session, err := message.NewSession(ctx, left, func(call context.Context, request message.Request) ([]byte, error) {
 					if request.Operation == "query.updates" {
-						close(entered)
+						enteredOnce.Do(func() { close(entered) })
 						select {
 						case <-release:
 						case <-call.Done():
@@ -80,9 +81,12 @@ func TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch(t *
 	select {
 	case err := <-result:
 		t.Fatal("routine renewal interrupted an admitted authority watch", err)
-	case <-oldClosed:
-		t.Fatal("routine renewal closed a transport with an in-flight call")
 	default:
+	}
+	select {
+	case <-oldClosed:
+	case <-time.After(3 * time.Second):
+		t.Fatal("watch was not handed off before its old transport expired")
 	}
 	releaseOnce.Do(func() { close(release) })
 	select {
@@ -92,11 +96,6 @@ func TestOwnerRenewalDrainsInflightNativeQueriesWithoutDisconnectingTheWatch(t *
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("draining watch did not complete")
-	}
-	select {
-	case <-oldClosed:
-	case <-time.After(3 * time.Second):
-		t.Fatal("retired transport was not closed after its last call")
 	}
 	me, err := api.Call[domain.Agent](ctx, client, "GET", "/v1/me", nil)
 	if err != nil || me.ID != f.profile.Identity.AgentID {
