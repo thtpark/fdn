@@ -63,6 +63,14 @@ func TestNativeProviderFailureAndMidRunQuestions(t *testing.T) {
 				if err != nil || strings.Count(string(count), "\n") != 1 {
 					t.Fatal("unsafe retry occurred without approval", err)
 				}
+				recovery, err := os.ReadFile(filepath.Join(l.workspace, "recovery.count"))
+				if err != nil || strings.Count(string(recovery), "\n") != 1 {
+					t.Fatal("native recovery did not inspect the failed execution exactly once", err)
+				}
+				current = l.task(t, task.ID)
+				if !current.UnsafeRetry || current.Attempts != 1 || current.RecoveryAttempts != 1 {
+					t.Fatal("unresolved native recovery retired its execution fence")
+				}
 			} else {
 				if code != 0 || !envelope.OK || current.Waiting == nil || current.Waiting.Kind != "clarification" || len(current.Waiting.QuestionIDs) != 1 || current.Failures != 0 {
 					t.Fatal("questions did not override completed reply", code)

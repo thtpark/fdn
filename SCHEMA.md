@@ -102,7 +102,7 @@ creates a whole-desktop profile or screen authorization.
 | `publications` | Team-readable current file/diary/skill/idea, scope/target metadata, creator/editor, hash/version/revision/archive and optional exact-project delegate edits |
 | `publication_versions` | Immutable complete publication snapshots, unique source/revision and globally distinct version IDs; independent of three-history retention |
 | `tasks` | Authoritative task aggregate; indexed project, assignee, status, priority, archive and active owner |
-| `runs` | Immutable execution/verification claim identity and stopped/result projection, provider/model, attempt, ownership-token hash; verification additionally binds result/discussion generations and project epoch |
+| `runs` | Immutable execution/verification/recovery claim identity, provider/model, ownership-token hash and stopped/result projection; recovery pins its source execution, discussion/project/actor generations and separate bounded attempt count |
 | `entries` | Creator-owned comment/worklog, body generation/revision, task/reply references, mentions; server-only run/spec/result/decision provenance on verification feedback |
 | `attention` | Recipient/entry/body-generation receipt: pending, handled, deferred or stale |
 | `messages` | Immutable private payload, explicit recipient `read_at`, independent disposition/revision, urgency and declared origin/kind; protected server-only `agent-operation` controls/results are excluded from ordinary inbox/read/disposition mutation |
@@ -1264,6 +1264,38 @@ or specification retains stale evidence without completing a newer task. New
 questions override an apparent completed result. `completed` is not accepted;
 verification binds exact spec/result generations and eligible authority.
 
+### Autonomous task reconciliation
+
+A stopped task with unknown effects is not blindly re-executed. Its current
+assignee may claim a distinct `kind:"recovery"` run under unchanged readiness,
+`spec_generation`, `project_epoch`, `source_run_id`, workspace and original
+provider/model. The target first verifies its exact canonical joined-process
+journal; missing, uncertain, operator-asserted or changed evidence is not adopted.
+The claim shares normal task/computer/input admission and cannot bypass Founder
+pause, grant revocation, backoff or the existing failure budget.
+
+`Task.recovery_run_id` and `recovery_attempts` retain at most one reconciliation
+for each interrupted execution and three invoked reconciliations per current
+specification. Recovery does not advance `last_run_id`, execution attempts,
+failure count or result generation. A report with `outcome:"reconciled"`,
+`safe_to_retry:true`, concrete checked evidence and the exact native checkpoint
+may retire only that source execution's retry fence after current authority,
+discussion and mode revalidation. It never completes or verifies the task.
+Subsequent execution needs current clarity and retains the same task/accounting.
+
+Stopped, failed, stale or unsupported recovery results leave uncertainty fenced
+with a specific risk; polling/new messages cannot repeat that model call.
+An exact recovered claim that never reached invocation reports native
+`not-started` and releases only its unused reservation, not any spent execution
+or failure budget. This is not a provider-declared result. Prepared
+claims/reports/replies retain their original operation and never repeat inference
+after a lost acknowledgement.
+
+These optional fields append to the native protobuf ledger; no shipped SQL
+migration or application-schema version changes. Deploy compatible source-bound
+components before enabling recovery; database compatibility is not permission
+to downgrade an active run.
+
 ### Autonomous delegated verification
 
 An eligible independent Founder/delegate controller can select completed results
@@ -1312,8 +1344,8 @@ rework. A prepared reply/report replays without another review/merge invocation.
 
 Defaults: three failure retries after the first attempt, 30-second initial
 exponential backoff capped at one day. Intentional pause/stop/clarification is
-not a failure retry. Unknown side effects need exact previous-run/next-attempt
-approval; restarts/new run IDs cannot erase the budget. An explicit administrative
+not a failure retry. Effects still unknown after bounded reconciliation need
+exact previous-run/next-attempt approval; restarts/new run IDs cannot erase the budget. An explicit administrative
 release requires the exact run and confirmation its process tree stopped.
 
 ## Replay, history and recovery
@@ -1413,6 +1445,18 @@ report is acknowledged. Private source text and raw results remain in private
 journals/conversations rather than shared Adhoc descriptions/run evidence.
 Restart/lost acknowledgement replays the same proposal, not inference/actions;
 changed sources become stale records, not permission to rerun.
+
+Interrupted conversation actions continue the original Adhoc task and scope.
+The controller refreshes task IDs found in the thread and distinguishes the
+executor's current mode from the requester's mode. A typed `action.task_id`, or
+the unique stopped same-thread action, binds continuation without task
+replacement or an approval-by-message shortcut. The original source authority
+is retained alongside a later request; both remain live guards. An acknowledged
+handled source is eligible only through its exact retained receipt. Per-run
+continuation operation IDs preserve old replies and prevent duplicate effects
+after restart. Unanswered structured questions require the actual reply, never
+automatic invented answers. Private checked risks/results stay in journals and
+the source conversation, not shared Adhoc records.
 
 An O(1) per-thread setting retains AI reply counts after an initial bounded
 ancestry seed. At 200 alternating AI messages (100 round trips), a transactional,

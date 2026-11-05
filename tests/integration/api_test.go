@@ -108,7 +108,7 @@ func (h *harness) enroll(t *testing.T, name, founder string, uid int64) (*api.Cl
 		t.Fatal(err)
 	}
 	c.Credential = config.Credential{AgentID: agent.ID}
-	c.HTTP.Transport = testidentity.Transport(c.HTTP.Transport, agent.ID)
+	c.HTTP.Transport = &switchableFixtureTransport{current: testidentity.Transport(c.HTTP.Transport, agent.ID)}
 	return c, agent
 }
 

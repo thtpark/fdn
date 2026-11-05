@@ -78,6 +78,34 @@ func main() {
 		}
 	case "research":
 		reply.Outcome = "researched"
+	case "recovery":
+		if launch.Task == nil || launch.Recovery == nil || launch.Recovery.SourceRun.ID != launch.Task.LastRunID {
+			panic("recovery omitted its exact interrupted execution")
+		}
+		name := codingProvider(args)
+		count, err := os.OpenFile("recovery.count", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+		check(err)
+		_, err = fmt.Fprintln(count, name)
+		check(err)
+		check(count.Close())
+		previous, err := os.ReadFile("invocations.count")
+		check(err)
+		if strings.Count(string(previous), "\n") != 1 {
+			panic("recovery repeated the original execution")
+		}
+		reply.Outcome = "paused"
+		reply.Summary = "The failed provider has no final effect result; retained evidence needs review before another execution."
+		reply.Evidence = []string{"Original invocation count inspected; no execution repeated."}
+		if launch.Task.Title == "recoverable" {
+			content, err := os.ReadFile("partial.txt")
+			check(err)
+			if string(content) != "verified fixture partial result\n" {
+				panic("recovery did not inspect actual retained progress")
+			}
+			reply.Outcome, reply.SafeToRetry = "reconciled", true
+			reply.Summary = "Verified retained local output; original fixture work can continue without repeating an external effect."
+			reply.Evidence = []string{"partial.txt bytes matched the retained fixture", "Original invocation count inspected"}
+		}
 	case "scope", "acceptance", "preflight":
 		if launch.Task != nil && launch.Task.Waiting != nil && launch.Task.Waiting.Kind == "clarification" {
 			for _, entry := range launch.Discussion {
@@ -94,21 +122,22 @@ func main() {
 			reply.Questions = []provider.Question{{Body: "Which fixture result is required?", RespondentIDs: []string{launch.Project.OwnerID}}}
 		}
 	case "execution":
-		name := "copilot"
-		if slices.Contains(args, "exec") {
-			name = "codex"
-			if !slices.Contains(args, "--dangerously-bypass-approvals-and-sandbox") {
-				panic("coding permission policy missing")
-			}
-		} else if !slices.Contains(args, "--allow-all") {
-			panic("coding approvals missing")
-		}
+		name := codingProvider(args)
 		count, err := os.OpenFile("invocations.count", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 		check(err)
 		_, err = fmt.Fprintln(count, name)
 		check(err)
 		check(count.Close())
 		check(os.WriteFile("started", []byte(strconv.Itoa(os.Getpid())), 0600))
+		if launch.Task.Title == "recoverable" {
+			invocations, err := os.ReadFile("invocations.count")
+			check(err)
+			if strings.Count(string(invocations), "\n") == 1 {
+				check(os.WriteFile("partial.txt", []byte("verified fixture partial result\n"), 0600))
+				fmt.Fprintln(os.Stderr, "fixture interrupted after verified local progress")
+				os.Exit(42)
+			}
+		}
 		if launch.Task.Title == "slow" || launch.Task.Title == "crash" {
 			time.Sleep(60 * time.Second)
 		}
@@ -146,6 +175,19 @@ func main() {
 	response, err := json.Marshal(reply)
 	check(err)
 	writeResponse(args, response)
+}
+
+func codingProvider(args []string) string {
+	if slices.Contains(args, "exec") {
+		if !slices.Contains(args, "--dangerously-bypass-approvals-and-sandbox") {
+			panic("coding permission policy missing")
+		}
+		return "codex"
+	}
+	if !slices.Contains(args, "--allow-all") {
+		panic("coding approvals missing")
+	}
+	return "copilot"
 }
 
 func writeResponse(args []string, response []byte) {

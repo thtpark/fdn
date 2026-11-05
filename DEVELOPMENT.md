@@ -185,6 +185,19 @@ Git-host fixtures rather than add task-title, provider or repository branches
 to production policy. All providers must prove non-prompting local
 approval behavior before enabling coding; text calls must remain tool-disabled.
 
+Task reconciliation is a separate tool-enabled `recovery` run, not a text retry
+or a replay of the interrupted execution. Native joined-process journals,
+unchanged readiness/source/workspace/provider and the original failure budget
+are required before admission. Concrete `reconciled` evidence can retire only
+that execution's unsafe-retry fence; it cannot complete or verify the task.
+One reconciliation per interrupted run and three per specification bound
+automatic model calls. An exact claim that never invoked a provider releases
+only its unused reservation. Unknown cleanup/effects and exhausted budgets
+stay fenced. Test handled-source continuation, thread-only task resolution,
+requester/executor mode separation, lost acknowledgements and real retained
+file outputs. This contract does not provide an OS read-only sandbox or prove
+exactly-once external effects.
+
 Routine certificate renewal validates the new native connection before publishing
 it. Blocking `query.updates`/`query.events` reads move to that replacement with
 their exact original cursor/query while the local caller stays subscribed.

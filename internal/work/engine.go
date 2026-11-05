@@ -46,7 +46,7 @@ func invocationPrompt(context []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if launch.ConversationID != "" {
+	if launch.ConversationID != "" && launch.Phase != domain.RecoveryRun {
 		contract += "This is the tool-enabled execution of a recorded Adhoc conversation action, not a text acknowledgement. Inspect applicable local/project skills and retrieve relevant current thread, task, notes, knowledge and workspace context before acting or answering. Reference actual records and checks in evidence. Perform the retained action only within the recipient's current authority and existing workspace/OS permissions; an Adhoc record does not authorize another project's unapproved work, root changes, protected consent, spending, contracts or disclosure. Report actual results or concrete blockers, never a promise or invented success. Do not retry prior uncertain effects. response_requested defaults to true; set false only when a further response is unnecessary.\n"
 	}
 	if launch.Message != nil && launch.Message.Announcement != nil {
@@ -82,6 +82,8 @@ type Status struct {
 type Launch struct {
 	Phase              string                    `json:"phase"`
 	AgentID            string                    `json:"agent_id"`
+	ExecutorAgent      *domain.Agent             `json:"executor_agent,omitempty"`
+	Recovery           *TaskRecoveryContext      `json:"recovery,omitempty"`
 	Task               *domain.Task              `json:"task,omitempty"`
 	Project            *domain.Project           `json:"project,omitempty"`
 	Discussion         []domain.Entry            `json:"discussion"`
@@ -452,6 +454,18 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 			return status, err
 		}
 		if managed {
+			acted, actionErr := e.continueManagedTask(ctx, c, task, conversation, manual)
+			if actionErr != nil {
+				fault := domain.AsFault(actionErr)
+				if !slices.Contains([]domain.Code{domain.Prerequisite, domain.Conflict, domain.NotFound, domain.Denied}, fault.Code) {
+					return status, actionErr
+				}
+				status.Blockers = append(status.Blockers, Blocker{TaskID: task.ID, Code: fault.Code, Reason: fault.Message})
+			}
+			if acted {
+				status.State, status.TaskID = "task", task.ID
+				return status, actionErr
+			}
 			continue
 		}
 		if task.Status != domain.Todo && task.Status != domain.Paused {
@@ -462,6 +476,22 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		}
 		if task.ActiveRun != nil {
 			status.Blockers = append(status.Blockers, Blocker{TaskID: task.ID, Code: domain.Prerequisite, Reason: "active server claim needs its original local journal or explicit stopped-process release"})
+			continue
+		}
+		if task.UnsafeRetry && task.RetryApproval == nil {
+			launch, recoveryErr := e.launch(ctx, domain.RecoveryRun, &task)
+			if recoveryErr == nil {
+				recoveryErr = e.recoverTask(ctx, c, task, launch, manual)
+			}
+			if recoveryErr == nil {
+				status.State, status.TaskID = "task", task.ID
+				return status, nil
+			}
+			fault := domain.AsFault(recoveryErr)
+			if !slices.Contains([]domain.Code{domain.Prerequisite, domain.Conflict, domain.NotFound, domain.Denied}, fault.Code) {
+				return status, recoveryErr
+			}
+			status.Blockers = append(status.Blockers, Blocker{TaskID: task.ID, Code: fault.Code, Reason: fault.Message})
 			continue
 		}
 		acted, actionErr := e.prepare(ctx, c, task, manual)
@@ -551,6 +581,14 @@ func (e *Engine) assigned(ctx context.Context, actor string) ([]domain.Task, err
 
 func (e *Engine) launch(ctx context.Context, phase string, task *domain.Task) (Launch, error) {
 	launch := Launch{Phase: phase, AgentID: e.Client.Credential.AgentID, Task: task, Discussion: []domain.Entry{}, Capabilities: []local.Observation{}, Knowledge: []local.Knowledge{}}
+	actor, err := api.Call[domain.Agent](ctx, e.Client, http.MethodGet, "/v1/me", nil)
+	if err != nil {
+		return launch, err
+	}
+	if actor.ID != launch.AgentID {
+		return launch, domain.Fail(domain.Denied, "execution context belongs to a different enrolled actor")
+	}
+	launch.ExecutorAgent = &actor
 	knowledge, err := e.State.SelectedKnowledge(ctx)
 	if err != nil {
 		return launch, err
@@ -611,6 +649,9 @@ func (e *Engine) launch(ctx context.Context, phase string, task *domain.Task) (L
 
 func (e *Engine) selected(ctx context.Context, c config.Worker, launch Launch) (provider.Health, string, error) {
 	name, model := c.Provider, c.Model
+	if launch.Recovery != nil {
+		return e.selectProvider(ctx, c, launch.Recovery.SourceRun.Provider, launch.Recovery.SourceRun.Model, launch.Task)
+	}
 	if task := launch.Task; task != nil && launch.Attention == nil && launch.Phase != domain.VerificationRun {
 		if task.Provider != "" {
 			name = task.Provider

@@ -163,9 +163,8 @@ func TestDelegateControllerReviewsReworkAndAcceptsCurrentResult(t *testing.T) {
 			}
 			steps := 2
 			if feedbackState == "lost-ack" {
-				original := h.worker.HTTP.Transport
-				h.worker.HTTP.Transport = &lostVerificationAck{base: original, suffix: api.Path("attention", feedbackID)}
-				defer func() { h.worker.HTTP.Transport = original }()
+				original := fixtureTransport(t, h.worker)
+				setFixtureTransport(t, h.worker, &lostVerificationAck{base: original, suffix: api.Path("attention", feedbackID)})
 				before := workerExecutor.count("preflight")
 				if _, err := worker.Step(ctx, false); err == nil || domain.AsFault(err).Code != domain.Unavailable {
 					t.Fatal("lost feedback acknowledgement was hidden", err)
@@ -343,9 +342,8 @@ func TestVerificationLostAcknowledgementDoesNotReinvokeTools(t *testing.T) {
 	if _, err := reviewer.Step(ctx, false); err != nil {
 		t.Fatal(err)
 	}
-	original := h.other.HTTP.Transport
-	h.other.HTTP.Transport = &lostVerificationAck{base: original}
-	defer func() { h.other.HTTP.Transport = original }()
+	original := fixtureTransport(t, h.other)
+	setFixtureTransport(t, h.other, &lostVerificationAck{base: original})
 	if _, err := reviewer.Step(ctx, false); err == nil || domain.AsFault(err).Code != domain.Unavailable {
 		t.Fatal("lost verification acknowledgement was hidden", err)
 	}

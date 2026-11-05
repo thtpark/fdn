@@ -232,7 +232,7 @@ func (e *Engine) pendingWorkRetry(ctx context.Context, c config.Worker) (bool, e
 		case "claim-prepared", "claimed", "report-prepared":
 			return true, nil
 		case "reply-prepared", "applying":
-			if journal.Kind == domain.ExecutionRun || journal.Kind == domain.VerificationRun || c.Mode == "ai" {
+			if domain.CodingRun(journal.Kind) || c.Mode == "ai" {
 				return true, nil
 			}
 		}

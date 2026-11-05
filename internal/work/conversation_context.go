@@ -159,7 +159,11 @@ func (e *Engine) conversationContext(ctx context.Context, launch *Launch) error 
 		}
 		launch.Requester = &requester
 	}
-	for _, id := range conversationTaskID.FindAllString(body, -1) {
+	contextBodies := []string{body}
+	for _, message := range launch.Thread {
+		contextBodies = append(contextBodies, message.Body)
+	}
+	for _, id := range conversationTaskID.FindAllString(strings.Join(contextBodies, "\n"), -1) {
 		if (launch.Task != nil && launch.Task.ID == id) || slices.ContainsFunc(launch.ReferencedTasks, func(task domain.Task) bool { return task.ID == id }) {
 			continue
 		}

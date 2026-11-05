@@ -33,8 +33,11 @@ The checkout's root documents are canonical; no old source tree is required.
    exit shape, server policy, local journal/controller/manual path, providers/
    cancellation, native deployment, embedded docs/skills and packages.
 4. Preserve exact replay, generation/epoch fences, completed-vs-done, creator/
-   recipient ownership and the one-slot rule. Identity tests must distinguish
-   separate-HOME business fixtures from actual Unix peer-UID/mTLS checks. Prove
+   recipient ownership and the one-slot rule. Distinguish
+   task reconciliation from replay: retain the exact interrupted run, native
+   joined proof, scope/provider/budgets and source-bound continuation receipts.
+   Identity tests distinguish separate-HOME business fixtures from actual
+   Unix peer-UID/mTLS checks. Prove
    different live non-Founder owner keys plus fresh incumbent binary ping before
    whole-identity ban; crash/reconnect/CLI/unproved attempts do not ban.
    Founder permits independently enrolled device keys and concurrent live owners,

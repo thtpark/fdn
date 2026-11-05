@@ -143,6 +143,13 @@ func EligibleApprover(a Agent, p Project, t Task, verification bool) bool {
 
 const ExecutionRun = "execution"
 const VerificationRun = "verification"
+const RecoveryRun = "recovery"
+const RecoveryNotStarted = "not-started"
+const MaxTaskRecoveries = 3
+
+func CodingRun(kind string) bool {
+	return kind == ExecutionRun || kind == VerificationRun || kind == RecoveryRun
+}
 
 type RetryPolicy struct {
 	MaxRetries     int   `json:"max_retries"`
@@ -234,6 +241,8 @@ type Task struct {
 	Waiting              *Waiting        `json:"waiting,omitempty"`
 	ActiveRun            *ActiveRun      `json:"active_run,omitempty"`
 	LastRunID            string          `json:"last_run_id,omitempty"`
+	RecoveryRunID        string          `json:"recovery_run_id,omitempty"`
+	RecoveryAttempts     int             `json:"recovery_attempts,omitempty"`
 	Attempts             int             `json:"attempts"`
 	Failures             int             `json:"failures"`
 	NextAttemptAt        int64           `json:"next_attempt_at,omitempty"`
@@ -245,6 +254,7 @@ type Run struct {
 	ID                   string   `json:"id"`
 	Kind                 string   `json:"kind,omitempty"`
 	TaskID               string   `json:"task_id"`
+	SourceRunID          string   `json:"source_run_id,omitempty"`
 	AgentID              string   `json:"agent_id"`
 	SpecGeneration       int64    `json:"spec_generation"`
 	ResultGeneration     int64    `json:"result_generation,omitempty"`

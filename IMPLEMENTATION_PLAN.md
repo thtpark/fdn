@@ -6,6 +6,21 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Bounded task reconciliation and conversation continuation (0.3.34)
+
+Proven joined interruptions enter a distinct bounded recovery run under current
+task readiness. Checked retained progress can permit same-task continuation;
+unknown effects, unproved cleanup, changed source/authority/mode and exhausted
+budgets remain fenced. One reconciliation per interrupted run and three per
+specification bound automatic calls. Native never-invoked claims release only
+unused reservations. Thread-only task resolution, requester/executor mode
+separation, retained original-source guards and per-cycle reply operations
+prevent replacement tasks, vague guard loops and duplicate effects after a lost
+acknowledgement. Synthetic exact-size nested ZIP/XLSX and native process-join
+tests verify actual output and conservative blocked states. Optional protobuf
+fields are additive; no SQL migration, live task retry, publication or rollout
+is implied by source acceptance.
+
 ### Renewal-safe authority watches (0.3.33)
 
 Validated owner renewal hands off only blocking update/event reads, preserving

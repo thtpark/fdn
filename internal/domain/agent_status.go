@@ -113,6 +113,8 @@ func SummarizeActivity(h WorkerHealth) ActivitySummary {
 			status.Text = "Working on an approved task"
 		case "verification":
 			status.Text = "Verifying completed work"
+		case "recovery":
+			status.Text = "Reconciling interrupted work"
 		case "message":
 			status.Text = "Replying to a message"
 		case "attention":

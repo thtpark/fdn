@@ -27,6 +27,7 @@ type Question struct {
 type ConversationAction struct {
 	Instructions string `json:"instructions"`
 	WorkspaceRef string `json:"workspace_ref,omitempty"`
+	TaskID       string `json:"task_id,omitempty"`
 }
 
 type Reply struct {
@@ -61,11 +62,14 @@ func (r Reply) Validate() error {
 		if r.Action.WorkspaceRef != "" && !domain.ValidOperation(r.Action.WorkspaceRef) {
 			return domain.Fail(domain.Provider, "conversation action workspace must be an existing opaque reference")
 		}
+		if r.Action.TaskID != "" && !domain.ValidOperation(r.Action.TaskID) {
+			return domain.Fail(domain.Provider, "conversation continuation requires an existing task reference")
+		}
 	}
 	if r.RequestDecision != "" && (r.Outcome != "responded" || !slices.Contains([]string{"accept", "defer", "decline", "answer"}, r.RequestDecision)) {
 		return domain.Fail(domain.Provider, "request_decision requires responded and accept/defer/decline/answer")
 	}
-	if !slices.Contains([]string{"reviewed", "clear", "blocked", "completed", "paused", "failed", "responded", "researched"}, r.Outcome) {
+	if !slices.Contains([]string{"reviewed", "clear", "blocked", "completed", "paused", "failed", "responded", "researched", "reconciled"}, r.Outcome) {
 		return domain.Fail(domain.Provider, "provider reply has an unsupported outcome")
 	}
 	if r.Decision != "" && (r.Outcome != "reviewed" || (r.Decision != "accept" && r.Decision != "rework")) {

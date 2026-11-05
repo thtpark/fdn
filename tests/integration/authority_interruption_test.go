@@ -46,12 +46,12 @@ func TestInterruptedExecutionReportsAuthorityChannelInsteadOfProviderFailure(t *
 	engine := newEngine(t, h, x)
 	task := readyForEngine(t, h, engine)
 	skipHealthOnboarding(t, engine)
+	interrupted := make(chan struct{})
+	setFixtureTransport(t, h.worker, interruptedAuthorityTransport{fixtureTransport(t, h.worker), interrupted})
 	if _, err := engine.Step(context.Background(), false); err != nil {
 		t.Fatal(err)
 	}
 	x.entered, x.block = make(chan struct{}), make(chan struct{})
-	interrupted := make(chan struct{})
-	h.worker.HTTP.Transport = interruptedAuthorityTransport{h.worker.HTTP.Transport, interrupted}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- engine.Serve(ctx, nil) }()

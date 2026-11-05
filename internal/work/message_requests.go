@@ -27,7 +27,8 @@ func (e *Engine) reconcileMessageAction(ctx context.Context, message domain.Mess
 		state, reason = "completed", "The linked task produced a new execution result. Independent task verification/acceptance remains separate."
 	case task.Status == domain.CancelledStatus || (task.ActiveRun == nil && (task.Status == domain.Paused || task.Waiting != nil)):
 		state, reason = "failed", "The linked task stopped or is blocked without a new completed result. Retained checkpoints, retry approvals and independent task authority still apply; no execution is being retried."
-	case request.State == "accepted" && task.ActiveRun != nil && task.ActiveRun.Kind != domain.VerificationRun && !task.ActiveRun.StopRequested:
+	case request.State == "accepted" && task.ActiveRun != nil &&
+		(task.ActiveRun.Kind == "" || task.ActiveRun.Kind == domain.ExecutionRun) && !task.ActiveRun.StopRequested:
 		state, reason = "executing", "The existing approved task was admitted through its normal fenced execution path."
 	default:
 		return false, nil

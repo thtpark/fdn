@@ -33,6 +33,7 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 		return err
 	}
 	verification := launch.Phase == domain.VerificationRun
+	recovery := launch.Phase == domain.RecoveryRun
 	var binding local.Binding
 	var err error
 	if verification {
@@ -65,6 +66,11 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	j.Claim = &domain.ClaimRequest{Command: domain.Command{OperationID: j.ID + ".claim", ExpectedRevision: task.Revision}, SpecGeneration: task.SpecGeneration, TokenHash: domain.Hash(j.Token), Provider: health.Provider, Model: model}
 	if verification {
 		j.Claim.Kind, j.Claim.ResultGeneration, j.Claim.ProjectEpoch = domain.VerificationRun, task.ResultGeneration, launch.Project.Epoch
+	} else if recovery {
+		if launch.Recovery == nil || launch.Project == nil {
+			return domain.Fail(domain.Internal, "recovery invocation omitted its exact prior run or project")
+		}
+		j.Claim.Kind, j.Claim.SourceRunID, j.Claim.ProjectEpoch = domain.RecoveryRun, launch.Recovery.SourceRun.ID, launch.Project.Epoch
 	}
 	if err := e.State.SaveJournal(ctx, j); err != nil {
 		return err
@@ -133,7 +139,7 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 			}
 		}
 		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
-			SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(j), Outcome: outcome, Summary: summary, Checkpoint: j.ID, SafeToRetry: !verification && j.PID == 0}
+			SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(j), Outcome: outcome, Summary: summary, Checkpoint: j.ID, SafeToRetry: !verification && !recovery && j.PID == 0}
 		helpErr := e.invocationBlocked(saveCtx, c, j, launch, invokeErr)
 		if err := e.queueReport(saveCtx, &j); err != nil {
 			return errors.Join(invokeErr, err, helpErr)
@@ -153,6 +159,11 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 		stopped := (reply.Outcome == "paused" || reply.Outcome == "failed") && reply.Decision == ""
 		validReply = (decision || stopped) && len(reply.Questions) == 0 && len(reply.AnswerIDs) == 0 && !reply.SafeToRetry &&
 			!reply.MessageRead && reply.RequestDecision == "" && reply.Action == nil && reply.ResponseRequested == nil
+	} else if recovery {
+		validReply = reply.Decision == "" && reply.RequestDecision == "" && !reply.MessageRead && reply.Action == nil &&
+			reply.ResponseRequested == nil && len(reply.Questions) == 0 && len(reply.AnswerIDs) == 0 &&
+			((reply.Outcome == "reconciled" && reply.SafeToRetry && len(reply.Evidence) != 0) ||
+				((reply.Outcome == "paused" || reply.Outcome == "failed") && !reply.SafeToRetry))
 	}
 	if reply.Description != nil || reply.AcceptanceCriteria != nil || !validReply {
 		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
@@ -207,6 +218,15 @@ func (e *Engine) finishExecution(ctx context.Context, j *local.Journal, launch L
 	if launch.Task == nil {
 		return domain.Fail(domain.Internal, "coding invocation omitted its task context")
 	}
+	if j.Kind == domain.RecoveryRun {
+		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
+			SpecGeneration: j.SpecGeneration, Outcome: reply.Outcome, Summary: reply.Summary, Evidence: reply.Evidence,
+			Checkpoint: j.ID, SafeToRetry: reply.SafeToRetry}
+		if err := e.queueReport(ctx, j); err != nil {
+			return err
+		}
+		return e.flushReports(ctx)
+	}
 	if j.Kind == domain.VerificationRun {
 		outcome := reply.Outcome
 		if outcome == "reviewed" {
@@ -242,7 +262,7 @@ func (e *Engine) finishExecution(ctx context.Context, j *local.Journal, launch L
 		return err
 	}
 	j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
-		SpecGeneration: j.SpecGeneration, Outcome: outcome, Summary: reply.Summary, Evidence: reply.Evidence, Checkpoint: j.ID, Waiting: waiting}
+		SpecGeneration: j.SpecGeneration, Outcome: outcome, Summary: reply.Summary, Evidence: reply.Evidence, Checkpoint: j.ID, Waiting: waiting, SafeToRetry: reply.SafeToRetry}
 	if err := e.queueReport(ctx, j); err != nil {
 		return err
 	}
@@ -258,7 +278,18 @@ func verificationResult(j local.Journal) int64 {
 
 func (e *Engine) notStarted(ctx context.Context, j *local.Journal, reason string) error {
 	j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
-		SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(*j), Outcome: "failed", Summary: reason + "; provider process was never started", SafeToRetry: j.Kind != domain.VerificationRun}
+		SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(*j), Outcome: "failed", Summary: reason + "; provider process was never started", SafeToRetry: j.Kind == domain.ExecutionRun}
+	if j.Kind == domain.RecoveryRun {
+		if j.PID != 0 || j.State == "invoking" || len(j.Reply) != 0 {
+			return domain.Fail(domain.Prerequisite, "an invoked recovery cannot be reported as never started")
+		}
+		j.Report.Outcome, j.Report.Checkpoint = domain.RecoveryNotStarted, j.ID
+		c, err := e.currentConfig()
+		if err != nil {
+			return err
+		}
+		deferWorkUntil(ctx, e.Now().Add(time.Duration(c.PollSeconds)*time.Second))
+	}
 	if err := e.queueReport(ctx, j); err != nil {
 		return err
 	}

@@ -186,10 +186,9 @@ func TestRequestedTaskHelpLostAcknowledgementReplaysSameScopedNotice(t *testing.
 	engine := authenticationEngine(t, h, x)
 	project := requestedHelpProject(t, h)
 	task := requestedHelpTask(t, h, project.ID, "delivery uncertainty")
-	original := h.worker.HTTP.Transport
+	original := fixtureTransport(t, h.worker)
 	transport := &authenticationTransport{base: original, mode: "lost-ack"}
-	h.worker.HTTP.Transport = transport
-	defer func() { h.worker.HTTP.Transport = original }()
+	setFixtureTransport(t, h.worker, transport)
 	first, err := engine.Step(context.Background(), false)
 	if err == nil {
 		t.Fatal("lost delivery acknowledgement was hidden")
