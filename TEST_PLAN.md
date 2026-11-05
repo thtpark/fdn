@@ -106,6 +106,12 @@ relaxed production expiry checks or platform skips.
 the exact old group before accepting cleanup despite a changed PID observation.
 Live/replaced groups, permission denial and I/O errors remain unproved; no
 changed process is signalled or adopted.
+`TestOwnedProcessGroupDisappearanceDuringInspectionRequiresFreshKernelProof`
+covers group disappearance between the first existence probe and the ownership
+snapshot. A changed start/group/UID or a failed snapshot needs a fresh ESRCH
+probe of the original group; live groups, EPERM and I/O failures retain their
+causes and fences. Pre-signal snapshot failure likewise cannot signal a changed
+PID, and can finish only after the original group is proved absent.
 
 Linux process inspection treats both ENOENT and ESRCH during `/proc` reads as
 an exited PID, while cleanup still proves process-group disappearance and
