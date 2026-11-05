@@ -21,6 +21,17 @@ tests verify actual output and conservative blocked states. Optional protobuf
 fields are additive; no SQL migration, live task retry, publication or rollout
 is implied by source acceptance.
 
+The unreleased inspection refinement supplies controller-verified inspection
+admission/budget and a paired CLI, requires native source-bound inspection
+receipts and observed blockers, distinguishes expected new-output absence from
+missing inputs, and keeps preparation's sandbox separate from later coding.
+An exact authority-bound `recovery-review` permits one corrective review without
+resetting spent counts or clearing execution uncertainty. Metadata-only refusals,
+foreign receipts, changed files and unresolved effects remain fenced. This
+refinement uses the existing native task-change/report shapes; no new native
+payload fields or SQL migration are added. Opt-in real-provider synthetic
+validation remains separate from default deterministic suites and deployment.
+
 ### Renewal-safe authority watches (0.3.33)
 
 Validated owner renewal hands off only blocking update/event reads, preserving

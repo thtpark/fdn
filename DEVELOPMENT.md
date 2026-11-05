@@ -190,13 +190,27 @@ or a replay of the interrupted execution. Native joined-process journals,
 unchanged readiness/source/workspace/provider and the original failure budget
 are required before admission. Concrete `reconciled` evidence can retire only
 that execution's unsafe-retry fence; it cannot complete or verify the task.
-One reconciliation per interrupted run and three per specification bound
-automatic model calls. An exact claim that never invoked a provider releases
+One automatic reconciliation per interrupted run and three per specification
+bound model calls. Current project authority may authorize one exact corrective
+`recovery-review` for a settled inadequate recovery, retaining every prior run
+and spent count. An exact claim that never invoked a provider releases
 only its unused reservation. Unknown cleanup/effects and exhausted budgets
 stay fenced. Test handled-source continuation, thread-only task resolution,
 requester/executor mode separation, lost acknowledgements and real retained
 file outputs. This contract does not provide an OS read-only sandbox or prove
 exactly-once external effects.
+
+The recovery context supplies controller-verified inspection admission, joined
+cleanup, remaining failure budget and the exact paired CLI. Zero retries with
+zero failures is not exhaustion. `work recovery-inspect` records private,
+invocation-bound file hashes, directory observations and explicit failures;
+`expected_absent` verifies fresh output destinations without treating missing
+inputs as success. Reconciled files/absent outputs are rechecked before reporting.
+Providers return its `inspection_id` and either checked reconciliation or an
+observed structured blocker. Metadata-only refusals, foreign receipts and changed
+inputs remain failed/fenced with the rejected reply retained. Preparation's
+tool-disabled sandbox is not a restriction on later admitted coding. This uses
+existing task-change/report wire types, not a new native schema or SQL migration.
 
 Routine certificate renewal validates the new native connection before publishing
 it. Blocking `query.updates`/`query.events` reads move to that replacement with

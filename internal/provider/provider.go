@@ -45,6 +45,7 @@ type Reply struct {
 	RequestDecision    string              `json:"request_decision,omitempty"`
 	ResponseRequested  *bool               `json:"response_requested,omitempty"`
 	Action             *ConversationAction `json:"action,omitempty"`
+	Recovery           *RecoveryResult     `json:"recovery,omitempty"`
 }
 
 func (r Reply) RequestsResponse() bool {
@@ -52,6 +53,11 @@ func (r Reply) RequestsResponse() bool {
 }
 
 func (r Reply) Validate() error {
+	if r.Recovery != nil {
+		if err := r.Recovery.Validate(r.Outcome); err != nil {
+			return err
+		}
+	}
 	if r.Action != nil {
 		if r.Outcome != "responded" {
 			return domain.Fail(domain.Provider, "a conversation action requires a responded planning reply")

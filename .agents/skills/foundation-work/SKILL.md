@@ -20,13 +20,11 @@ costs need approval. Upgrade intent is not a native permit. Read-only messages/
    same-user owner-only peer-checked proxy, no-new-account, key privacy and
    no-extra-owner rules. Sign-in, registration and project authority are separate;
    presence proves neither permission nor authentication.
-   For all routine tool-enabled jobs, install missing ordinary needed tools
-   autonomously and non-interactively within existing OS permissions and task
-   scope. Prefer trusted per-user or environment-local package managers.
-   Verify usability and continue without requesting confirmation solely for
-   missing software. Do not infer new financial/legal commitments, protected
-   authentication, destructive changes, or changes to authority or OS privileges.
-   Report an actual remaining boundary or installation failure, not a setup request.
+   For all routine tool-enabled jobs, install needed tools autonomously and non-interactively within existing OS permissions/task scope.
+   Prefer trusted per-user or environment-local package managers. Verify usability;
+   missing tools need no confirmation. Do not infer financial/legal commitments,
+   protected authentication, destructive changes, or authority or OS privileges.
+   Report actual boundaries/failures, not routine setup requests.
    When work is blocked by sign-in
    or permissions, send protected durable help to active Founder and current
    relevant project delegates without inference. New action contexts can ask
@@ -178,12 +176,14 @@ For live sharing use [foundation-sharing](../../../.agents/skills/foundation-sha
   and maintenance remain operator-required.
   Inspect `agent operation REQUEST_ID`; queued is not completed, and neither a
   reset nor its exact replay grants a retry, spending or native-service restart.
-- A process with unproved cleanup remains fenced. Only after confirming its entire
-  process tree stopped use `work recover --journal INVOCATION
-  --acknowledge-stopped`; this does not authorize retry. Current exact unsafe
-  retry approval, backoff and remaining failure budget still apply.
+- Unproved process cleanup stays fenced. Only after confirming the entire tree
+  stopped use `work recover --journal INVOCATION --acknowledge-stopped`.
+  This grants no retry; exact approval/backoff/failure budgets still apply.
 - Proven joined interruptions use [bounded task reconciliation](../../../COMMANDS.md#automatic-task-reconciliation),
-  never a new task, invented answer or budget reset.
+  not replay/new tasks. Recovery is tool-enabled; zero retries with zero failures
+  is not exhausted. Use the paired `inspection_cli` and `work recovery-inspect`;
+  return its `inspection_id` and any observed blocker, never task flags. Authority
+  may grant one exact `recovery-review`; spent counts/fences remain.
 - Settled, unapplied tool-disabled interruptions have three total transient
   attempts with 5/10-second backoff, never while paused. Exhaustion isolates that
   source, not other messages/files. Poll/restart/new IDs cannot reset its budget

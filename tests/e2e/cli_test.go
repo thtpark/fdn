@@ -23,6 +23,7 @@ import (
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/foundation"
 	"github.com/thtpark/fdn/internal/local"
 	"github.com/thtpark/fdn/internal/work"
 )
@@ -243,12 +244,12 @@ func (l *lab) change(t *testing.T, w *worker, id string, req domain.TaskChange) 
 	return task
 }
 
-func newLab(t *testing.T, provider string) *lab {
+func newLab(t *testing.T, provider string, files ...foundation.FileStoreOptions) *lab {
 	t.Helper()
 	root := fixtureRoot(t)
 	l := &lab{root: root, serverConfig: filepath.Join(root, "foundation-config", "server.json")}
 	state := filepath.Join(root, "foundation")
-	l.fixture = newWorkflowAPI(t, state)
+	l.fixture = newWorkflowAPI(t, state, files...)
 	l.url = l.fixture.server.URL
 	if err := config.Write(l.serverConfig, config.Server{StateDir: state,
 		CertFile: filepath.Join(state, "server.pem"), KeyFile: filepath.Join(state, "server-key.pem"),

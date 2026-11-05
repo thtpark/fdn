@@ -161,7 +161,7 @@ func validateChange(req domain.TaskChange) error {
 		"status": "status", "assign": "agent_id provider model", "provider": "provider model",
 		"workspace": "workspace_ref", "policy": "policy", "retry-policy": "retry_policy",
 		"approve": "spec_generation", "verify": "spec_generation result_generation decision",
-		"retry-approve": "spec_generation run_id attempt", "withdraw": "",
+		"retry-approve": "spec_generation run_id attempt", "recovery-review": "spec_generation run_id attempt", "withdraw": "",
 		"clarity": "spec_generation answer_ids", "waiting": "spec_generation waiting",
 		"revert": "history_sequence", "archive": "", "stop": "", "release": "run_id stopped_acknowledged",
 	}
@@ -210,7 +210,7 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 		if p.ID == domain.AdhocProjectID && (t.CreatedBy != a.ID || t.AssigneeID != a.ID) && !authority(a, p) {
 			return t, domain.Fail(domain.Denied, "only an Adhoc task's creator/assignee or current project authority may change it")
 		}
-		administrative := slices.Contains([]string{"assign", "provider", "retry-approve", "release"}, req.Kind)
+		administrative := slices.Contains([]string{"assign", "provider", "retry-approve", "recovery-review", "release"}, req.Kind)
 		if administrative {
 			if err := requireAuthority(a, p); err != nil {
 				return t, err
@@ -364,6 +364,10 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 				t.Status = domain.Todo
 			default:
 				return t, domain.Fail(domain.Invalid, "verification decision must be accept or rework")
+			}
+		case "recovery-review":
+			if err := s.authorizeRecoveryReview(ctx, tx, a, p, &t, req); err != nil {
+				return t, err
 			}
 		case "retry-approve":
 			if !eligibleApprover(a, p, t, false) {

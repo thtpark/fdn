@@ -762,6 +762,7 @@ human readiness prompt. See [automatic task reconciliation](#automatic-task-reco
 | `withdraw` | Withdraw current decisions; stop-request active work rather than stealing ownership |
 | `verify` | spec_generation, result_generation, decision accept/rework; current completed evidence and eligible verifier |
 | `retry-approve` | spec_generation, run_id, attempt; exact prior run and next otherwise-unsafe attempt |
+| `recovery-review` | spec_generation, run_id of the settled recovery, next recovery attempt; current project authority, one corrective inspection per interrupted execution; retains all spent counts and execution fences |
 | `clarity` | spec_generation, answer_ids; assignee's current understanding after recorded blockers resolved |
 | `waiting` | spec_generation, waiting object; stopped assignee with published questions |
 | `revert` | history_sequence; restore retained ordinary content, never resurrect authority |
@@ -1692,14 +1693,16 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 | `agent-cli work status` | Read-only local state, live `health` phase/deadline/progress/authentication observations and safe timestamped component diagnostics, blockers, pending invocations/reports, session fence and durable authentication request/delivery references |
 | `agent-cli work run` | One bounded manual controller step; same prompt/authority/slot as service |
 | `agent-cli work recover` | Exactly one `--journal INVOCATION` or `--session SESSION`, plus `--acknowledge-stopped` after confirming owned processes stopped; an exact rejected text journal authorizes a fresh review, never an execution retry |
+| `agent-cli work recovery-inspect` | `--input FILE`; exact invoking recovery only; bounded local file/directory reads and expected-output absence with a private source-bound inspection receipt |
 
 ### Automatic task reconciliation
 
 The controller can inspect a proven joined interruption under the existing
 task's readiness, scope, source, workspace, provider/model and serial slot.
 This is a separate `recovery` run, not replay of the interrupted action.
-There is one invoked reconciliation per interrupted execution and at most
-three per specification; existing failure budgets/backoff still apply.
+There is one automatic reconciliation per interrupted execution and at most
+three invoked reconciliations per specification; existing failure budgets/backoff
+still apply. Zero retries with zero counted failures is not exhausted.
 Checked `reconciled` evidence can permit subsequent execution on the same task.
 Unknown effects, unproved cleanup, changed authority/mode, exhausted budgets
 and requested unanswered questions stay blocked with a specific next action.
@@ -1710,6 +1713,46 @@ they cannot create a replacement task or manufacture approval. An unresolved
 risk still uses the exact current `retry-approve` authority path after actual
 review. `work recover --acknowledge-stopped` remains native operator recovery,
 not authorization to replay effects.
+
+During admitted recovery, invoke the absolute `recovery.inspection_cli` supplied
+by the controller, not an arbitrary CLI on PATH or a source wrapper. Its
+`work recovery-inspect --input FILE` input is:
+
+```json
+{
+  "task_id": "task_current",
+  "source_run_id": "run_original_execution",
+  "paths": [".", "retained-input.zip", "partial-output.zip"],
+  "expected_absent": ["new-analysis.txt"]
+}
+```
+
+One to eight total paths are accepted. Relative paths use the bound workspace;
+absolute paths retain normal task/OS-user boundaries. The helper reads actual
+regular files (maximum 1 GiB each), hashes them, lists at most 128 directory
+entries and records explicit failed checks. `expected_absent` verifies a fresh
+destination, never absence of an external effect; unexpected existing output
+must be preserved. Paths and observations stay private. It grants no broader
+scope or retry authority.
+
+Copy the response's `data.inspection_id` into `recovery.inspection_id` in the
+structured provider reply; `journal_id`/`run_id` are not inspection receipts.
+Paused/failed replies also include `recovery.blocker` with `kind`, `reference`,
+`observation` and `next_action`. Supported kinds are `input-unavailable`,
+`access-denied`, `integrity-mismatch`, `unresolved-effect` and `tool-failure`.
+Task flags are not observations. Metadata-only refusals or invalid evidence
+remain fenced and are reported as rejected reviews, not genuine inspected
+blockers. Ordinary missing tools may be installed within existing permission;
+the matched Foundation helper itself must not be built/replaced during recovery.
+
+For a settled inadequate review, current project authority may deliberately use
+`task change TASK --input FILE` with `kind:"recovery-review"`, current
+`spec_generation`, `run_id` of that recovery, next recovery `attempt`, reason
+and exact revision/operation. This admits one corrective inspection under
+unchanged readiness/source, not another execution. Prior results, unsafe fence,
+failure counts and spent recovery counts remain. A second corrective review is
+denied; messages/polling do not renew it. This repair path is not a routine human
+readiness prompt, budget reset or force-clear.
 
 `task runs` retains recovery provenance; the task exposes `recovery_run_id` and
 `recovery_attempts`, and agent activity reports "Reconciling interrupted work".

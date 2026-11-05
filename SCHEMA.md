@@ -1274,7 +1274,7 @@ journal; missing, uncertain, operator-asserted or changed evidence is not adopte
 The claim shares normal task/computer/input admission and cannot bypass Founder
 pause, grant revocation, backoff or the existing failure budget.
 
-`Task.recovery_run_id` and `recovery_attempts` retain at most one reconciliation
+`Task.recovery_run_id` and `recovery_attempts` retain one automatic reconciliation
 for each interrupted execution and three invoked reconciliations per current
 specification. Recovery does not advance `last_run_id`, execution attempts,
 failure count or result generation. A report with `outcome:"reconciled"`,
@@ -1291,10 +1291,40 @@ or failure budget. This is not a provider-declared result. Prepared
 claims/reports/replies retain their original operation and never repeat inference
 after a lost acknowledgement.
 
+Recovery admission authorizes inspection, not execution replay. The controller
+supplies verified native cleanup and available failure budget; `max_retries:0`
+with `failures:0` is not exhausted. Private `work recovery-inspect` receipts bind
+the invoking journal, run, task/specification, original execution and current
+workspace. The helper uses current mode/ownership/project checks before and after
+bounded local reads. It records file sizes/hashes, directory entries and explicit
+failed checks; optional `expected_absent` paths prove fresh output destinations.
+Successful file/absence observations are rechecked before reconciliation. These
+receipts establish local observations, not the outcome of an external mutation.
+Provider results reference `data.inspection_id`, never a journal/run ID.
+Paused/failed reviews require an observed input/access/integrity/effect/tool
+blocker, its affected reference and next action. Missing or foreign receipts,
+failed checks claimed safe and changed inputs remain fenced; rejected replies
+are retained privately rather than reported as valid inspected blockers.
+
+`TaskChange.kind:"recovery-review"` uses existing `spec_generation`, `run_id`
+(the exact settled recovery), `attempt` (the next recovery count), revision and
+reason. Current project authority satisfying readiness policy may authorize
+one corrective inspection per interrupted execution. The previous recovery must
+be non-stale paused/failed under unchanged specification, discussion and project
+epoch, with current readiness and available failure/recovery budgets. Both the
+old snapshot and run remain retained; only the current recovery pointer/clarity
+is released for a fresh inspected claim. No execution fence, readiness, failure
+or spent recovery count is reset, no retry approval is created, and no inference
+starts in this mutation. Ordinary messages cannot authorize it. Replaying its
+original operation cannot alter a newer run. A second blocked corrective review
+cannot be renewed with another operation or new message.
+
 These optional fields append to the native protobuf ledger; no shipped SQL
 migration or application-schema version changes. Deploy compatible source-bound
 components before enabling recovery; database compatibility is not permission
-to downgrade an active run.
+to downgrade an active run. The inspection/corrective-review refinement adds no
+native payload fields or SQL migration; its receipts/provider fields stay local
+and the task change uses the existing wire shape.
 
 ### Autonomous delegated verification
 

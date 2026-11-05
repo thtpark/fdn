@@ -328,6 +328,33 @@ provider-declared completion proxy. Unused native claims consume no inference;
 unknown effects/new message IDs never renew a spent recovery budget.
 These tests use isolated local TLS/storage and deterministic providers, not
 private production file bytes, paid inference or full-host qualification.
+
+`RecoveryInspection`, `RecoveryResult`, `RecoveryPrompt`, `RecoveryContinuation`
+and `RecoveryReview` unit selectors check bounded real reads, missing/symlink/FIFO
+failures, explicit tool-enabled admission, preparation-versus-execution sandbox
+semantics, structured blockers and exact source-bound corrective authority.
+`TestMetadataOnlyRecoveryCannotPassAsInspectionAndCorrectiveReviewKeepsAccounting`
+rejects the live-style zero-retry refusal, preserves its reply/count and completes
+the same ZIP task only after an exact corrective authorization.
+`TestRecoveryInspectionCannotForgeOrReuseChangedEvidence` rejects missing/foreign
+receipts, changed bytes, failed input checks, unexpected existing outputs and
+new outputs appearing after an absence check. Native fixtures call the actual
+paired CLI rather than manufacturing receipt IDs.
+
+An opt-in `e2e && liveprovider` test,
+`TestLiveCodexRecoveryInspectsZeroRetryZIP`, requires explicit
+`FDN_LIVE_CODEX_AUTHORIZED=yes`, absolute `FDN_LIVE_CODEX_PATH` and owner-private
+`FDN_LIVE_API_KEY_FILE` references. Obtain a current bounded spending
+authorization before running it; normal suites neither enable it nor use keys.
+It uses synthetic exact-size bytes, fresh fixture identities/state, a joined
+controlled interruption and actual Codex recovery/preflight/execution. Assertions
+require native inspection, actual nested workbook output bytes, one task,
+two execution attempts, zero failures/retries and one recovery. Provider calls
+and command/token totals are measured; at most six controller steps and bounded
+native invocation time/output are allowed. Optional absolute
+`FDN_LIVE_EVIDENCE_DIR` retains only owner-private synthetic invocation evidence.
+Synthetic UID file permissions and same-user fixture proxies do not qualify
+real multi-user ACLs, physical hosts, transport cutovers or deployed providers.
 Authority-interruption fixtures install their immutable HTTP transport before
 starting any controller feed; changing `http.Client.Transport` while a feed is
 running is a data race, not a transport-failure injection. Tests retain one

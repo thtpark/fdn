@@ -36,6 +36,8 @@ The checkout's root documents are canonical; no old source tree is required.
    recipient ownership and the one-slot rule. Distinguish
    task reconciliation from replay: retain the exact interrupted run, native
    joined proof, scope/provider/budgets and source-bound continuation receipts.
+   Recovery needs native inspection receipts, not metadata-only refusal; test
+   exact corrective-review authority without resetting spent counts or fences.
    Identity tests distinguish separate-HOME business fixtures from actual
    Unix peer-UID/mTLS checks. Prove
    different live non-Founder owner keys plus fresh incumbent binary ping before
