@@ -35,6 +35,14 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    eligible unexplained queued reply 120s. Pause, ordinary idle, no requested
    response and in-deadline work are not stuck failures. Handled receipt is not
    proof of an AI reply. Foundation-down detection needs native/outside monitoring.
+   Compare local `preferences show` with `agent preferences AGENT`: Founder
+   defaults override local settings and task preferences override those defaults.
+   An unavailable model/catalog uses the same provider's selection, with a
+   fallback log and optional provider-status `model_catalog_error`. Empty
+   run/health model means unobserved provider selection, not a known actual model.
+   Defaults have their own revision and do not invalidate running work. Ordinary
+   help delivery excludes the requester; a local Founder with no other recipient
+   must inspect the retained local help request rather than send a self message.
 2. Classify the blocker: transport/trust, login, current approval/specification,
    workspace permission/identity, occupied slot, retry/backoff, journal/outbox,
    maintenance or unproven interactive cleanup. Do not replace it with a default

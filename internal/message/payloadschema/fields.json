@@ -146,6 +146,10 @@
       "id": 2,
       "name": "name"
     },
+    "Preferences": {
+      "id": 17,
+      "name": "preferences"
+    },
     "Revision": {
       "id": 10,
       "name": "revision"
@@ -447,6 +451,28 @@
     "Observation": {
       "id": 5,
       "name": "observation"
+    }
+  },
+  "AgentPreferencesRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Model": {
+      "id": 4,
+      "name": "model"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Provider": {
+      "id": 3,
+      "name": "provider"
+    },
+    "Reason": {
+      "id": 5,
+      "name": "reason"
     }
   },
   "AgentRequest": {
@@ -2573,6 +2599,32 @@
       "name": "version"
     }
   },
+  "ProviderPreferences": {
+    "Model": {
+      "id": 2,
+      "name": "model"
+    },
+    "Provider": {
+      "id": 1,
+      "name": "provider"
+    },
+    "Reason": {
+      "id": 6,
+      "name": "reason"
+    },
+    "Revision": {
+      "id": 3,
+      "name": "revision"
+    },
+    "UpdatedAt": {
+      "id": 5,
+      "name": "updated_at"
+    },
+    "UpdatedBy": {
+      "id": 4,
+      "name": "updated_by"
+    }
+  },
   "PublicIdentity": {
     "AuthKey": {
       "id": 5,
@@ -3780,6 +3832,10 @@
       "id": 10,
       "name": "importance"
     },
+    "Model": {
+      "id": 13,
+      "name": "model"
+    },
     "OperationID": {
       "id": 1,
       "name": "operation_id"
@@ -3795,6 +3851,10 @@
     "ProjectID": {
       "id": 3,
       "name": "project_id"
+    },
+    "Provider": {
+      "id": 12,
+      "name": "provider"
     },
     "Repetitive": {
       "id": 8,

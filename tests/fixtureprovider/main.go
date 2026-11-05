@@ -1,11 +1,15 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -40,6 +44,10 @@ func main() {
 		serveRPC()
 		return
 	}
+	if len(args) != 0 && args[0] == "app-server" {
+		serveCodexCatalog()
+		return
+	}
 	if slices.Contains(args, "login") {
 		if slices.Contains(args, "status") {
 			if fixtureNeedsLogin() {
@@ -72,8 +80,11 @@ func main() {
 		reply.Summary = "fixture scoped reply"
 		if launch.Message != nil && strings.HasPrefix(launch.Message.Body, "fixture-conversation-action ") {
 			reply.Action = &provider.ConversationAction{
-				Instructions: "Read the matching fixture skill and relevant thread context, perform the local action, and report actual checks.",
-				WorkspaceRef: strings.TrimPrefix(launch.Message.Body, "fixture-conversation-action "),
+				Title:              "Write and verify the requested fixture result",
+				Description:        "Read the applicable skill and relevant context, write the requested result, and check the saved contents.",
+				AcceptanceCriteria: "Verify the actual output and deliver checked results to the source conversation.",
+				Instructions:       "Read the matching fixture skill and relevant thread context, perform the local action, and report actual checks.",
+				WorkspaceRef:       strings.TrimPrefix(launch.Message.Body, "fixture-conversation-action "),
 			}
 		}
 	case "research":
@@ -96,6 +107,9 @@ func main() {
 		reply.Outcome = "paused"
 		reply.Summary = "The failed provider has no final effect result; retained evidence needs review before another execution."
 		reply.Evidence = []string{"Original invocation count inspected; no execution repeated."}
+		request := work.RecoveryInspectionRequest{
+			TaskID: launch.Task.ID, SourceRunID: launch.Recovery.SourceRun.ID, Paths: []string{"invocations.count"},
+		}
 		if launch.Task.Title == "recoverable" {
 			content, err := os.ReadFile("partial.txt")
 			check(err)
@@ -105,6 +119,34 @@ func main() {
 			reply.Outcome, reply.SafeToRetry = "reconciled", true
 			reply.Summary = "Verified retained local output; original fixture work can continue without repeating an external effect."
 			reply.Evidence = []string{"partial.txt bytes matched the retained fixture", "Original invocation count inspected"}
+			request.Paths = append(request.Paths, "partial.txt")
+		}
+		executable, err := os.Executable()
+		check(err)
+		input, err := json.Marshal(request)
+		check(err)
+		command := exec.CommandContext(context.Background(), filepath.Join(filepath.Dir(executable), "agent-cli"),
+			"work", "recovery-inspect", "--input", "-")
+		command.Stdin = bytes.NewReader(input)
+		output, err := command.CombinedOutput()
+		if err != nil {
+			panic("native fixture recovery inspection failed: " + string(output))
+		}
+		var result struct {
+			OK   bool                    `json:"ok"`
+			Data work.RecoveryInspection `json:"data"`
+		}
+		check(json.Unmarshal(output, &result))
+		if !result.OK || result.Data.InspectionID == "" {
+			panic("native fixture recovery inspection returned no receipt")
+		}
+		reply.Recovery = &provider.RecoveryResult{InspectionID: result.Data.InspectionID}
+		if reply.Outcome == "paused" {
+			reply.Recovery.Blocker = &provider.RecoveryBlocker{
+				Kind: "unresolved-effect", Reference: "fixture-provider-operation",
+				Observation: "The started provider has no authoritative final effect result.",
+				NextAction:  "Inspect the original external operation result before continuing.",
+			}
 		}
 	case "scope", "acceptance", "preflight":
 		if launch.Task != nil && launch.Task.Waiting != nil && launch.Task.Waiting.Kind == "clarification" {
@@ -129,6 +171,28 @@ func main() {
 		check(err)
 		check(count.Close())
 		check(os.WriteFile("started", []byte(strconv.Itoa(os.Getpid())), 0600))
+		if launch.Task.Title == "recoverable-stopped" {
+			archive, err := zip.OpenReader("source.zip")
+			check(err)
+			found := false
+			for _, entry := range archive.File {
+				if entry.Name != "nested.zip" {
+					continue
+				}
+				reader, err := entry.Open()
+				check(err)
+				content, err := io.ReadAll(io.LimitReader(reader, 1<<20))
+				check(err)
+				check(reader.Close())
+				check(os.WriteFile("nested.zip", content, 0600))
+				found = true
+			}
+			check(archive.Close())
+			if !found {
+				panic("stopped fixture omitted its actual nested archive")
+			}
+			time.Sleep(60 * time.Second)
+		}
 		if launch.Task.Title == "recoverable" {
 			invocations, err := os.ReadFile("invocations.count")
 			check(err)
@@ -164,6 +228,8 @@ func main() {
 				panic("conversation action did not verify its actual effect")
 			}
 			reply.Evidence = append(reply.Evidence, "fixture-action skill read", "source message: "+launch.Message.ID)
+			reply.PublicReport = &provider.PublicReport{Summary: "Wrote the requested fixture result and checked its contents.",
+				Evidence: []string{"Applicable skill reviewed", "Saved result matched the expected content"}}
 		}
 		if launch.Task.Title == "pause" {
 			reply.Questions = []provider.Question{{Body: "Confirm the remaining scope before continuing.", RespondentIDs: []string{launch.Project.OwnerID}}}
@@ -252,13 +318,7 @@ func serveRPC() {
 		case "auth.getStatus":
 			result = map[string]any{"isAuthenticated": !fixtureNeedsLogin()}
 		case "models.list":
-			models := []string{"fixture-model"}
-			if plan, present, err := scenario.ReadPlan(os.Getenv("HOME")); present {
-				check(err)
-				if len(plan.Models) != 0 {
-					models = plan.Models
-				}
-			}
+			models := fixtureModels()
 			catalog := make([]map[string]string, 0, len(models))
 			for _, model := range models {
 				catalog = append(catalog, map[string]string{"id": model})
@@ -272,4 +332,44 @@ func serveRPC() {
 		_, err = fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(response), response)
 		check(err)
 	}
+}
+
+func fixtureModels() []string {
+	if plan, present, err := scenario.ReadPlan(os.Getenv("HOME")); present {
+		check(err)
+		if len(plan.Models) != 0 {
+			return plan.Models
+		}
+	} else {
+		check(err)
+	}
+	return []string{"fixture-model"}
+}
+
+func serveCodexCatalog() {
+	reader := bufio.NewScanner(os.Stdin)
+	for reader.Scan() {
+		var request struct {
+			ID     *int   `json:"id"`
+			Method string `json:"method"`
+		}
+		check(json.Unmarshal(reader.Bytes(), &request))
+		var result any
+		switch request.Method {
+		case "initialize":
+			result = map[string]any{"userAgent": "fdn-fixture"}
+		case "initialized":
+			continue
+		case "model/list":
+			catalog := []map[string]string{}
+			for _, model := range fixtureModels() {
+				catalog = append(catalog, map[string]string{"id": model, "model": model})
+			}
+			result = map[string]any{"data": catalog, "nextCursor": nil}
+		default:
+			panic("unapproved Codex RPC")
+		}
+		check(json.NewEncoder(os.Stdout).Encode(map[string]any{"id": request.ID, "result": result}))
+	}
+	check(reader.Err())
 }

@@ -77,7 +77,11 @@ func (x *fileRequestExecutor) Invoke(ctx context.Context, invocation provider.In
 			x.t.Fatal("file request did not supply the exact private file reference", launch.Message)
 		}
 		return provider.Reply{Outcome: "responded", Summary: "Read and analyze the authorized private file before reporting a result.",
-			Action: &provider.ConversationAction{Instructions: "Read the referenced file, answer the exact source questions using actual content, and verify the saved analysis."}}, nil
+			Action: &provider.ConversationAction{
+				Title:              "Analyze the requested file",
+				Description:        "Inspect the verified input, perform the requested analysis, and save the checked output without publishing private contents.",
+				AcceptanceCriteria: "Verify input bytes and saved analysis, then deliver findings to the private source.",
+				Instructions:       "Read the referenced file, answer the exact source questions using actual content, and verify the saved analysis."}}, nil
 	}
 	x.executions++
 	if launch.Phase != domain.ExecutionRun || launch.Task == nil || launch.Task.AssigneeID != launch.AgentID ||
@@ -130,6 +134,8 @@ func (x *fileRequestExecutor) Invoke(ctx context.Context, invocation provider.In
 	if launch.ConversationID != "" {
 		noResponse := false
 		reply.ResponseRequested = &noResponse
+		reply.PublicReport = &provider.PublicReport{Summary: "Inspected the verified input and saved the requested analysis; detailed findings were delivered privately.",
+			Evidence: []string{"Verified input bytes", "Verified the saved analysis"}}
 	}
 	return reply, nil
 }

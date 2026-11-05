@@ -128,7 +128,7 @@ func requireArgs(args []string, count int) error {
 
 func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, reset, repair, operation, environment, environment-report, add, add-status, register, recover, identity, revoke, mode or request-sign-in")
+		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, reset, repair, operation, environment, environment-report, add, add-status, register, recover, identity, revoke, mode, preferences or request-sign-in")
 	}
 	if args[0] == "add" || args[0] == "add-status" {
 		return a.agentAddition(ctx, r, args)
@@ -261,6 +261,24 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 			return nil, err
 		}
 		return a.write(ctx, r, api.Path("agents", id, "mode"), req, api.Path("agents", id))
+	}
+	if args[0] == "preferences" {
+		id, tail, err := idArgs(args[1:])
+		if err != nil {
+			return nil, err
+		}
+		path := api.Path("agents", id, "preferences")
+		if len(tail) == 0 {
+			return api.Call[domain.ProviderPreferences](ctx, r.client, "GET", path, nil)
+		}
+		var req domain.AgentPreferencesRequest
+		if err := a.input(tail, &req); err != nil {
+			return nil, err
+		}
+		if err := a.metadata(&req.Command); err != nil {
+			return nil, err
+		}
+		return a.write(ctx, r, path, req, path)
 	}
 	if args[0] == "revoke" {
 		if err := requireArgs(args, 2); err != nil {
@@ -589,6 +607,9 @@ func (a *app) messageCommand(ctx context.Context, r *resources, args []string) (
 		var req domain.MessageRequest
 		if err := a.input(args[1:], &req); err != nil {
 			return nil, err
+		}
+		if req.RecipientID == r.client.Credential.AgentID && !a.explicitOperation {
+			return nil, domain.Fail(domain.Invalid, "messages to yourself are not allowed; choose another recipient")
 		}
 		if req.Origin == "" {
 			req.Origin = "human"

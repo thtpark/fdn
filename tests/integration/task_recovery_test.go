@@ -102,6 +102,8 @@ type taskRecoveryExecutor struct {
 	ref                           string
 	cancel                        context.CancelFunc
 	blockRecovery, unproved       bool
+	metadataOnly                  bool
+	inspectionCase                string
 	omitTaskID                    bool
 	pid                           int
 	planning, recovery, execution int
@@ -125,7 +127,11 @@ func (x *taskRecoveryExecutor) Invoke(ctx context.Context, invocation provider.I
 	}
 	if !invocation.Coding {
 		x.planning++
-		action := &provider.ConversationAction{Instructions: "Unzip the shared file and inspect its nested workbook.", WorkspaceRef: x.ref}
+		action := &provider.ConversationAction{
+			Title:              "Inspect the nested workbook",
+			Description:        "Inspect the verified archive and its nested workbook, retaining checked input and partial outputs.",
+			AcceptanceCriteria: "Verify archive bytes and workbook results without repeating uncertain external effects.",
+			Instructions:       "Unzip the shared file and inspect its nested workbook.", WorkspaceRef: x.ref}
 		if x.execution != 0 {
 			if len(launch.Message.Attachments) != 0 || len(launch.ReferencedTasks) != 1 {
 				x.t.Fatal("plain follow-up did not resolve the existing task from its thread", launch.ReferencedTasks)
@@ -144,12 +150,19 @@ func (x *taskRecoveryExecutor) Invoke(ctx context.Context, invocation provider.I
 	if launch.Phase == domain.RecoveryRun {
 		x.recovery++
 		if launch.Recovery == nil || launch.Recovery.SourceRun.ID != launch.Task.LastRunID ||
+			!launch.Recovery.InspectionAuthorized || !launch.Recovery.JoinedProcessVerified ||
+			launch.Recovery.FailuresRemaining != launch.Task.RetryPolicy.MaxRetries+1-launch.Task.Failures ||
 			!strings.Contains(invocation.Prompt, "not execution replay") {
 			x.t.Fatal("recovery did not pin the exact interrupted execution")
 		}
 		if invocation.Started != nil {
 			if err := invocation.Started(654321); err != nil {
 				return provider.Reply{}, err
+			}
+			if x.metadataOnly {
+				return provider.Reply{Outcome: "paused",
+					Summary:  "The task has max_retries zero and unsafe_retry true, so I cannot investigate.",
+					Evidence: []string{"Task metadata says paused; the original execution stopped."}}, nil
 			}
 		}
 		input, err := os.ReadFile(destination)
@@ -175,14 +188,58 @@ func (x *taskRecoveryExecutor) Invoke(ctx context.Context, invocation provider.I
 		if err != nil || !found || !receipt.Complete || receipt.Receipt == nil || receipt.Receipt.SHA256 != x.file.SHA256 {
 			x.t.Fatal("recovery ignored the original verified receipt", found, err)
 		}
+		paths := []string{x.file.Name, "nested.zip"}
+		if x.inspectionCase == "missing-check" {
+			paths = append(paths, "missing-retained-output")
+		}
+		inspectionRequest := work.RecoveryInspectionRequest{
+			TaskID: launch.Task.ID, SourceRunID: launch.Recovery.SourceRun.ID,
+			Paths: paths, ExpectedAbsent: []string{"fresh-output.txt"},
+		}
+		if x.inspectionCase == "unexpected-presence" {
+			inspectionRequest.ExpectedAbsent = []string{"nested.zip"}
+		}
+		operation := domain.NewID("inspect")
+		inspection, err := x.engine.InspectRecovery(ctx, operation, inspectionRequest)
+		if err != nil {
+			return provider.Reply{}, err
+		}
+		replayed, err := x.engine.InspectRecovery(ctx, operation, inspectionRequest)
+		if err != nil || replayed.InspectionID != inspection.InspectionID || len(replayed.Checks) != len(inspection.Checks) {
+			x.t.Fatal("lost inspection acknowledgement did not replay its exact receipt", err)
+		}
+		result := &provider.RecoveryResult{InspectionID: inspection.InspectionID}
+		switch x.inspectionCase {
+		case "forged-receipt":
+			result.InspectionID = "inspection_never_recorded"
+		case "other-invocation":
+			inspection.InspectionID, inspection.JournalID = domain.NewID("inspect"), "invocation_other"
+			if err := x.engine.State.Put(ctx, "recovery-inspection:"+inspection.InspectionID, inspection); err != nil {
+				return provider.Reply{}, err
+			}
+			result.InspectionID = inspection.InspectionID
+		case "changed-input":
+			if err := os.WriteFile(partial, []byte("changed after native inspection"), 0600); err != nil {
+				return provider.Reply{}, err
+			}
+		case "appeared-output":
+			if err := os.WriteFile(filepath.Join(invocation.Workspace, "fresh-output.txt"), []byte("newer output"), 0600); err != nil {
+				return provider.Reply{}, err
+			}
+		}
 		if x.blockRecovery {
+			result.Blocker = &provider.RecoveryBlocker{Kind: "unresolved-effect", Reference: "operation_external_fixture",
+				Observation: "Retained input and output inspected; the external operation has no authoritative result.",
+				NextAction:  "Read the authoritative result for the original external operation without resubmitting it."}
 			return provider.Reply{Outcome: "paused",
 				Summary:  "A prior external operation has no authoritative result; reconcile that operation before continuing.",
-				Evidence: []string{"Retained local input/output checked; external result remains unknown."}}, nil
+				Evidence: []string{"Retained local input/output checked; external result remains unknown."}, Recovery: result}, nil
 		}
 		return provider.Reply{Outcome: "reconciled", SafeToRetry: true,
-			Summary:  "Verified the original input and partial nested archive; local inspection can continue without repeating an uncertain external action.",
-			Evidence: []string{"Verified original receipt and SHA-256", "Compared actual retained nested archive bytes"}}, nil
+			Summary: "Verified the original input and partial nested archive; local inspection can continue without repeating an uncertain external action.",
+			PublicReport: &provider.PublicReport{Summary: "Reconciled the retained input and partial archive without repeating external effects.",
+				Evidence: []string{"Verified original receipt and SHA-256", "Compared retained partial output"}},
+			Evidence: []string{"Verified original receipt and SHA-256", "Compared actual retained nested archive bytes"}, Recovery: result}, nil
 	}
 	if launch.Phase != domain.ExecutionRun {
 		x.t.Fatal("unexpected tool-enabled continuation phase", launch.Phase)
@@ -264,6 +321,8 @@ func (x *taskRecoveryExecutor) Invoke(ctx context.Context, invocation provider.I
 	}
 	noResponse := false
 	return provider.Reply{Outcome: "completed", Summary: result,
+		PublicReport: &provider.PublicReport{Summary: "Inspected the nested workbook and verified the requested analysis; findings were delivered privately.",
+			Evidence: []string{"Retained archive inspected", "Requested workbook cell checked"}},
 		Evidence: []string{"Retained nested archive inspected; workbook cell A1 read"}, ResponseRequested: &noResponse}, nil
 }
 
@@ -335,7 +394,8 @@ func TestInterruptedZIPReconcilesAndContinuesSameTaskAutomaticallyAfterRestart(t
 	h, engine, x, source, workspace := prepareTaskRecovery(t, 20_210_825)
 	interruptTaskRecovery(t, engine, x)
 	before := recoveryTasks(t, h)
-	if len(before) != 1 || before[0].Attempts != 1 || !before[0].UnsafeRetry {
+	if len(before) != 1 || before[0].Attempts != 1 || !before[0].UnsafeRetry ||
+		before[0].RetryPolicy.MaxRetries != 0 || before[0].Failures != 0 {
 		t.Fatal("original interruption lost its exact task/retry fence", before)
 	}
 	engine = restartAuthenticationEngine(t, engine)
@@ -352,7 +412,7 @@ func TestInterruptedZIPReconcilesAndContinuesSameTaskAutomaticallyAfterRestart(t
 	tasks := recoveryTasks(t, h)
 	if len(tasks) != 1 || tasks[0].ID != before[0].ID || tasks[0].Status != domain.Completed ||
 		tasks[0].Attempts != 2 || tasks[0].RecoveryAttempts != 1 || tasks[0].UnsafeRetry || tasks[0].RetryApproval != nil ||
-		x.planning != 1 || x.execution != 2 || x.recovery != 1 {
+		tasks[0].RetryPolicy.MaxRetries != 0 || tasks[0].Failures != 0 || x.planning != 1 || x.execution != 2 || x.recovery != 1 {
 		t.Fatal("recovery requested approval, created a new task or repeated work", tasks, x.planning, x.execution, x.recovery)
 	}
 	result, err := os.ReadFile(filepath.Join(workspace, "analysis.txt"))
@@ -462,6 +522,122 @@ func TestBlockedRecoveryExplainsActualRiskAndFollowupDoesNotResetTask(t *testing
 	}
 	if !found {
 		t.Fatal("follow-up refusal did not retain the actual risk instead of an unspecified guard")
+	}
+}
+
+func TestMetadataOnlyRecoveryCannotPassAsInspectionAndCorrectiveReviewKeepsAccounting(t *testing.T) {
+	h, engine, x, source, workspace := prepareTaskRecovery(t, 0)
+	x.metadataOnly = true
+	interruptTaskRecovery(t, engine, x)
+	var recoveryErr error
+	for range 5 {
+		_, recoveryErr = engine.Step(context.Background(), false)
+		if x.recovery == 1 {
+			break
+		}
+		if recoveryErr != nil {
+			t.Fatal("controller failed before the recovery invocation", recoveryErr)
+		}
+	}
+	if x.recovery != 1 || recoveryErr == nil || domain.AsFault(recoveryErr).Code != domain.Provider {
+		t.Fatal("metadata-only refusal was accepted as an investigated recovery", x.recovery, recoveryErr)
+	}
+	tasks := recoveryTasks(t, h)
+	task := tasks[0]
+	if task.Attempts != 1 || task.Failures != 0 || task.RecoveryAttempts != 1 || !task.UnsafeRetry ||
+		x.execution != 1 || x.recovery != 1 {
+		t.Fatal("rejected recovery changed execution accounting", task)
+	}
+	runs, err := api.Call[[]domain.Run](context.Background(), h.worker, "GET", api.Path("tasks", task.ID, "runs"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rejected domain.Run
+	for _, run := range runs {
+		if run.ID == task.RecoveryRunID {
+			rejected = run
+		}
+	}
+	journal, err := engine.State.Journal(context.Background(), rejected.Checkpoint)
+	if err != nil || rejected.State != "failed" || journal.Problem == "" || !bytes.Contains(journal.Reply, []byte("max_retries zero")) {
+		t.Fatal("rejected reply or native failure evidence was discarded", rejected, journal.Problem, err)
+	}
+	for range 2 {
+		if _, err := engine.Step(context.Background(), false); err != nil && domain.AsFault(err).Code != domain.Prerequisite {
+			t.Fatal(err)
+		}
+	}
+	if x.recovery != 1 || x.execution != 1 {
+		t.Fatal("polling renewed an invalid recovery")
+	}
+	thread, err := api.Call[[]domain.Message](context.Background(), h.founder, "GET", api.Path("messages", source.ID, "thread"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reported := false
+	for _, message := range thread {
+		if message.SenderID == h.workerAgent.ID && strings.Contains(message.Body, "did not establish a native inspection") {
+			reported = true
+		}
+		if message.SenderID == h.workerAgent.ID && strings.Contains(message.Body, "max_retries zero") {
+			t.Fatal("rejected metadata-only model claim was delivered as a valid blocker")
+		}
+	}
+	if !reported {
+		t.Fatal("native inspection failure was not delivered to its source")
+	}
+	task = recoveryTasks(t, h)[0]
+	authorized, err := api.Call[domain.Task](context.Background(), h.founder, "POST", api.Path("tasks", task.ID, "change"), domain.TaskChange{
+		Command: domain.Command{OperationID: domain.NewID("corrective"), ExpectedRevision: task.Revision},
+		Kind:    "recovery-review", Reason: "Correct the native-recorded metadata-only review without resetting any spent budget.",
+		SpecGeneration: task.SpecGeneration, RunID: task.RecoveryRunID, Attempt: 2,
+	})
+	if err != nil || authorized.RecoveryAttempts != 1 || !authorized.UnsafeRetry || authorized.RecoveryRunID != "" {
+		t.Fatal("exact corrective authorization did not preserve the fence and counts", authorized, err)
+	}
+	x.metadataOnly = false
+	for range 8 {
+		if _, err := engine.Step(context.Background(), false); err != nil {
+			t.Fatal(err)
+		}
+		if recoveryTasks(t, h)[0].Status == domain.Completed {
+			break
+		}
+	}
+	current := recoveryTasks(t, h)[0]
+	result, err := os.ReadFile(filepath.Join(workspace, "analysis.txt"))
+	if err != nil || string(result) != "Nested workbook A1: 42" || current.ID != task.ID ||
+		current.Attempts != 2 || current.Failures != 0 || current.RecoveryAttempts != 2 || current.UnsafeRetry ||
+		x.execution != 2 || x.recovery != 2 {
+		t.Fatal("corrective review did not inspect and continue the original work with retained accounting", current, err)
+	}
+}
+
+func TestRecoveryInspectionCannotForgeOrReuseChangedEvidence(t *testing.T) {
+	for _, invalid := range []string{"forged-receipt", "other-invocation", "changed-input", "missing-check", "unexpected-presence", "appeared-output"} {
+		t.Run(invalid, func(t *testing.T) {
+			h, engine, x, _, workspace := prepareTaskRecovery(t, 0)
+			x.inspectionCase = invalid
+			interruptTaskRecovery(t, engine, x)
+			var recoveryErr error
+			for range 5 {
+				_, recoveryErr = engine.Step(context.Background(), false)
+				if x.recovery == 1 {
+					break
+				}
+				if recoveryErr != nil {
+					t.Fatal(recoveryErr)
+				}
+			}
+			current := recoveryTasks(t, h)[0]
+			if recoveryErr == nil || x.recovery != 1 || x.execution != 1 || current.Attempts != 1 ||
+				current.Failures != 0 || current.RecoveryAttempts != 1 || !current.UnsafeRetry {
+				t.Fatal("invalid native evidence retired the fence or repeated execution", current, recoveryErr)
+			}
+			if _, err := os.Stat(filepath.Join(workspace, "analysis.txt")); !os.IsNotExist(err) {
+				t.Fatal("invalid native evidence produced a completed analysis", err)
+			}
+		})
 	}
 }
 

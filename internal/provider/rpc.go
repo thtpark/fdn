@@ -9,6 +9,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/process"
@@ -92,7 +93,7 @@ func rpc(reader *bufio.Reader, writer io.Writer, id int, method string, params a
 	return nil, domain.Fail(domain.Provider, "too many unsolicited provider RPC frames")
 }
 
-func (m *Manager) copilotAuthentication(ctx context.Context, path string) (authenticated bool, models []string, err error) {
+func (m *Manager) statusProcess(ctx context.Context, path string, args []string, exchange func(io.Reader, io.Writer) error) (err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	stdinReader, stdinWriter := io.Pipe()
@@ -105,7 +106,7 @@ func (m *Manager) copilotAuthentication(ctx context.Context, path string) (authe
 	done := make(chan error, 1)
 	diagnostic := process.NewBuffer(8192)
 	go func() {
-		runErr := m.Runner.Run(ctx, process.Spec{Path: path, Args: []string{"--headless", "--stdio", "--no-auto-update", "--log-level", "none"}, Env: process.Environment(),
+		runErr := m.Runner.Run(ctx, process.Spec{Path: path, Args: args, Env: process.Environment(),
 			Stdin: stdinReader, Stdout: stdoutWriter, Stderr: diagnostic})
 		stdinReader.CloseWithError(runErr)
 		stdoutWriter.CloseWithError(runErr)
@@ -118,61 +119,74 @@ func (m *Manager) copilotAuthentication(ctx context.Context, path string) (authe
 		closePipes()
 		runErr := <-done
 		err = errors.Join(err, contextErr)
-		if runErr != nil && !errors.Is(runErr, context.Canceled) && !errors.Is(runErr, context.DeadlineExceeded) {
-			err = errors.Join(err, domain.Fail(domain.Unavailable, "provider status process failed"))
+		_, diagnosticErr := diagnostic.Bytes()
+		err = errors.Join(err, diagnosticErr)
+		var cleanup *process.CleanupError
+		if errors.As(runErr, &cleanup) || (runErr != nil && !errors.Is(runErr, context.Canceled) && !errors.Is(runErr, context.DeadlineExceeded)) {
+			err = errors.Join(err, domain.Fail(domain.Unavailable, "provider status process failed"), runErr)
 		}
 	}()
-	reader := bufio.NewReaderSize(stdoutReader, 4096)
-	connected, err := rpc(reader, stdinWriter, 1, "connect", map[string]any{"clientInfo": map[string]string{"editorName": "fdn", "editorVersion": domain.Version}})
-	if err != nil {
-		return false, nil, err
-	}
-	var protocol struct {
-		Version int `json:"protocolVersion"`
-	}
-	if err := json.Unmarshal(connected, &protocol); err != nil {
-		return false, nil, err
-	}
-	if protocol.Version < 3 || protocol.Version > 20 {
-		return false, nil, domain.Fail(domain.Prerequisite, "unsupported Copilot SDK protocol version")
-	}
-	status, err := rpc(reader, stdinWriter, 2, "auth.getStatus", map[string]any{})
-	if err != nil {
-		return false, nil, err
-	}
-	var auth struct {
-		Authenticated *bool `json:"isAuthenticated"`
-	}
-	if err := json.Unmarshal(status, &auth); err != nil {
-		return false, nil, err
-	}
-	if auth.Authenticated == nil {
-		return false, nil, domain.Fail(domain.Provider, "provider omitted authentication state")
-	}
-	if !*auth.Authenticated {
-		return false, []string{}, nil
-	}
-	catalog, err := rpc(reader, stdinWriter, 3, "models.list", map[string]any{})
-	if err != nil {
-		return false, nil, err
-	}
-	var result struct {
-		Models []struct {
-			ID string `json:"id"`
-		} `json:"models"`
-	}
-	if err := json.Unmarshal(catalog, &result); err != nil {
-		return false, nil, err
-	}
-	if len(result.Models) == 0 || len(result.Models) > 1000 {
-		return false, nil, domain.Fail(domain.Provider, "invalid provider model catalog")
-	}
-	models = []string{}
-	for _, model := range result.Models {
-		if err := domain.CheckText(model.ID, "model ID", 256, true); err != nil {
-			return false, nil, err
+	return exchange(stdoutReader, stdinWriter)
+}
+
+func (m *Manager) copilotAuthentication(ctx context.Context, path string) (authenticated bool, models []string, err error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	err = m.statusProcess(ctx, path, []string{"--headless", "--stdio", "--no-auto-update", "--log-level", "none"}, func(input io.Reader, output io.Writer) error {
+		reader := bufio.NewReaderSize(input, 4096)
+		connected, err := rpc(reader, output, 1, "connect", map[string]any{"clientInfo": map[string]string{"editorName": "fdn", "editorVersion": domain.Version}})
+		if err != nil {
+			return err
 		}
-		models = append(models, model.ID)
-	}
-	return true, models, nil
+		var protocol struct {
+			Version int `json:"protocolVersion"`
+		}
+		if err := json.Unmarshal(connected, &protocol); err != nil {
+			return err
+		}
+		if protocol.Version < 3 || protocol.Version > 20 {
+			return domain.Fail(domain.Prerequisite, "unsupported Copilot SDK protocol version")
+		}
+		status, err := rpc(reader, output, 2, "auth.getStatus", map[string]any{})
+		if err != nil {
+			return err
+		}
+		var auth struct {
+			Authenticated *bool `json:"isAuthenticated"`
+		}
+		if err := json.Unmarshal(status, &auth); err != nil {
+			return err
+		}
+		if auth.Authenticated == nil {
+			return domain.Fail(domain.Provider, "provider omitted authentication state")
+		}
+		authenticated = *auth.Authenticated
+		if !authenticated {
+			models = []string{}
+			return nil
+		}
+		catalog, err := rpc(reader, output, 3, "models.list", map[string]any{})
+		if err != nil {
+			return err
+		}
+		var result struct {
+			Models []struct {
+				ID string `json:"id"`
+			} `json:"models"`
+		}
+		if err := json.Unmarshal(catalog, &result); err != nil {
+			return err
+		}
+		if len(result.Models) == 0 || len(result.Models) > 1000 {
+			return domain.Fail(domain.Provider, "invalid provider model catalog")
+		}
+		for _, model := range result.Models {
+			if err := domain.CheckText(model.ID, "model ID", 256, true); err != nil {
+				return err
+			}
+			models = append(models, model.ID)
+		}
+		return nil
+	})
+	return
 }

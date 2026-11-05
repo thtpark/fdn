@@ -44,9 +44,9 @@ func (s *Store) recoveryReady(ctx context.Context, tx *sql.Tx, actor domain.Agen
 		source.Checkpoint == "" || source.FinishedAt == 0 || (source.ProjectEpoch != 0 && source.ProjectEpoch != project.Epoch) {
 		return domain.Fail(domain.Prerequisite, "the exact interrupted execution and its retained native checkpoint are required")
 	}
-	if request.Provider != source.Provider || request.Model != source.Model ||
-		(task.Provider != "" && request.Provider != task.Provider) || (task.Model != "" && request.Model != task.Model) {
-		return domain.Fail(domain.Prerequisite, "recovery must retain the original authorized provider and model")
+	if request.Provider != source.Provider || (request.Model != "" && request.Model != source.Model) ||
+		(task.Provider != "" && request.Provider != task.Provider) || (task.Model != "" && request.Model != "" && request.Model != task.Model) {
+		return domain.Fail(domain.Prerequisite, "recovery must retain the original provider and model preference or delegate unavailable model selection to that provider")
 	}
 	if task.RecoveryRunID != "" {
 		previous, err := get[domain.Run](ctx, tx, "runs", task.RecoveryRunID)
@@ -57,6 +57,56 @@ func (s *Store) recoveryReady(ctx context.Context, tx *sql.Tx, actor domain.Agen
 			return domain.Fail(domain.Prerequisite, "this interrupted execution already has a recovery result; inspect it instead of repeating inference")
 		}
 	}
+	return nil
+}
+
+func (s *Store) authorizeRecoveryReview(ctx context.Context, tx *sql.Tx, actor domain.Agent, project domain.Project, task *domain.Task, request domain.TaskChange) error {
+	if !eligibleApprover(actor, project, *task, false) {
+		return domain.Fail(domain.Denied, "actor does not satisfy current recovery-review authority")
+	}
+	if request.SpecGeneration != task.SpecGeneration || request.RunID == "" || request.RunID != task.RecoveryRunID ||
+		request.Attempt != task.RecoveryAttempts+1 {
+		return domain.Fail(domain.Conflict, "corrective review must identify the exact settled recovery, specification and next recovery attempt")
+	}
+	if task.Status != domain.Paused || !task.UnsafeRetry || task.ActiveRun != nil || task.Waiting == nil ||
+		task.Waiting.Kind != "retry" || task.RetryApproval != nil || task.RecoveryAttempts >= domain.MaxTaskRecoveries {
+		return domain.Fail(domain.Prerequisite, "corrective review requires stopped uncertain work and available recovery budget")
+	}
+	approved, err := s.validApproval(ctx, tx, project, *task, task.Readiness, false)
+	if err != nil {
+		return err
+	}
+	if !approved || task.WorkspaceRef == "" {
+		return domain.Fail(domain.Prerequisite, "corrective review requires unchanged current readiness and workspace authority")
+	}
+	if err := s.retryBudget(*task); err != nil {
+		return err
+	}
+	previous, err := get[domain.Run](ctx, tx, "runs", request.RunID)
+	if err != nil {
+		return err
+	}
+	if previous.Kind != domain.RecoveryRun || previous.TaskID != task.ID || previous.SourceRunID != task.LastRunID ||
+		previous.AgentID != task.AssigneeID || previous.SpecGeneration != task.SpecGeneration ||
+		previous.ProjectEpoch != project.Epoch || previous.DiscussionGeneration != task.DiscussionGeneration ||
+		!slices.Contains([]string{"paused", "failed"}, previous.State) || previous.FinishedAt == 0 || previous.Checkpoint == "" {
+		return domain.Fail(domain.Prerequisite, "only the exact settled non-stale recovery can receive a corrective review")
+	}
+	var invoked int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM runs WHERE task_id=?
+AND json_extract(data,'$.kind')=? AND json_extract(data,'$.source_run_id')=?
+AND json_extract(data,'$.state')<>?`, task.ID, domain.RecoveryRun, task.LastRunID, domain.RecoveryNotStarted).Scan(&invoked); err != nil {
+		return err
+	}
+	if invoked != 1 {
+		return domain.Fail(domain.Prerequisite, "only one corrective recovery review is allowed per interrupted execution")
+	}
+	if err := s.history(ctx, tx, task.ID, actor.ID, "recovery-review-authorized", *task, request.Reason); err != nil {
+		return err
+	}
+	// Retain the prior run and spent count; this authorizes inspection, never execution.
+	task.RecoveryRunID, task.Clarity = "", nil
+	task.Waiting = &domain.Waiting{Kind: "retry", Reason: "A corrective inspection was authorized; the previous recovery result and original execution uncertainty remain retained.", Since: s.timestamp()}
 	return nil
 }
 
@@ -113,6 +163,9 @@ func (s *Store) reportRecovery(ctx context.Context, tx *sql.Tx, actor domain.Age
 		return domain.ReportOutcome{}, err
 	}
 	if err := s.saveTask(ctx, tx, &task, actor.ID, "recovery-report"); err != nil {
+		return domain.ReportOutcome{}, err
+	}
+	if err := s.adhocRunWorklog(ctx, tx, task, run); err != nil {
 		return domain.ReportOutcome{}, err
 	}
 	return domain.ReportOutcome{Accepted: !stale, Stale: stale, Task: task, Run: run}, nil

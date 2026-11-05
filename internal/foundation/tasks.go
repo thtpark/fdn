@@ -20,8 +20,8 @@ func validateContent(t domain.Task) error {
 		required bool
 	}{
 		{t.Title, "title", 512, true},
-		{t.Description, "description", 65536, false},
-		{t.AcceptanceCriteria, "acceptance criteria", 32768, false},
+		{t.Description, "description", 65536, t.ProjectID == domain.AdhocProjectID},
+		{t.AcceptanceCriteria, "acceptance criteria", 32768, t.ProjectID == domain.AdhocProjectID},
 	} {
 		if err := domain.CheckText(field.value, field.name, field.max, field.required); err != nil {
 			return err
@@ -29,6 +29,9 @@ func validateContent(t domain.Task) error {
 	}
 	if t.Priority < 1 || t.Priority > 4 || t.Importance < 1 || t.Importance > 3 {
 		return domain.Fail(domain.Invalid, "priority must be 1-4 and importance 1-3")
+	}
+	if err := domain.ValidateProviderModel(t.Provider, t.Model); err != nil {
+		return err
 	}
 	return t.RetryPolicy.Validate()
 }
@@ -68,6 +71,9 @@ func (s *Store) CreateTask(ctx context.Context, actor string, req domain.TaskReq
 		if p.Archived {
 			return domain.Task{}, domain.Fail(domain.Prerequisite, "project is archived")
 		}
+		if (req.Provider != "" || req.Model != "") && !authority(a, p) {
+			return domain.Task{}, domain.Fail(domain.Denied, "task provider/model preferences require current project authority")
+		}
 		if req.Priority == 0 {
 			req.Priority = 2
 		}
@@ -76,6 +82,7 @@ func (s *Store) CreateTask(ctx context.Context, actor string, req domain.TaskReq
 		}
 		t := domain.Task{ID: domain.NewID("task"), ProjectID: req.ProjectID, Title: req.Title,
 			Description: req.Description, AcceptanceCriteria: req.AcceptanceCriteria, ParentID: req.ParentID,
+			Provider: req.Provider, Model: req.Model,
 			Repetitive: req.Repetitive, Status: domain.Draft, Priority: req.Priority, Importance: req.Importance,
 			SpecGeneration: 1, CreatedBy: a.ID, CreatedAt: s.timestamp(),
 			Policy:      domain.ApprovalPolicy{RequiredActors: []string{}},
@@ -108,6 +115,9 @@ func (s *Store) CreateTask(ctx context.Context, actor string, req domain.TaskReq
 			}
 		}
 		err = s.saveTask(ctx, tx, &t, a.ID, "create")
+		if err == nil && t.ProjectID == domain.AdhocProjectID {
+			err = s.adhocCreationWorklog(ctx, tx, t, a.ID)
+		}
 		return t, err
 	})
 }
@@ -161,7 +171,7 @@ func validateChange(req domain.TaskChange) error {
 		"status": "status", "assign": "agent_id provider model", "provider": "provider model",
 		"workspace": "workspace_ref", "policy": "policy", "retry-policy": "retry_policy",
 		"approve": "spec_generation", "verify": "spec_generation result_generation decision",
-		"retry-approve": "spec_generation run_id attempt", "withdraw": "",
+		"retry-approve": "spec_generation run_id attempt", "recovery-review": "spec_generation run_id attempt", "withdraw": "",
 		"clarity": "spec_generation answer_ids", "waiting": "spec_generation waiting",
 		"revert": "history_sequence", "archive": "", "stop": "", "release": "run_id stopped_acknowledged",
 	}
@@ -210,7 +220,7 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 		if p.ID == domain.AdhocProjectID && (t.CreatedBy != a.ID || t.AssigneeID != a.ID) && !authority(a, p) {
 			return t, domain.Fail(domain.Denied, "only an Adhoc task's creator/assignee or current project authority may change it")
 		}
-		administrative := slices.Contains([]string{"assign", "provider", "retry-approve", "release"}, req.Kind)
+		administrative := slices.Contains([]string{"assign", "provider", "retry-approve", "recovery-review", "release"}, req.Kind)
 		if administrative {
 			if err := requireAuthority(a, p); err != nil {
 				return t, err
@@ -247,13 +257,7 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 			}
 			invalidate(&t)
 		case "assign", "provider":
-			if req.Provider != "" && !domain.ValidProvider(req.Provider) {
-				return t, domain.Fail(domain.Invalid, "provider must be codex, copilot, or empty to inherit")
-			}
-			if req.Model != "" && req.Provider == "" {
-				return t, domain.Fail(domain.Invalid, "model requires an explicit provider")
-			}
-			if err := domain.CheckText(req.Model, "required model", 256, false); err != nil {
+			if err := domain.ValidateProviderModel(req.Provider, req.Model); err != nil {
 				return t, err
 			}
 			if req.Kind == "assign" {
@@ -364,6 +368,10 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 				t.Status = domain.Todo
 			default:
 				return t, domain.Fail(domain.Invalid, "verification decision must be accept or rework")
+			}
+		case "recovery-review":
+			if err := s.authorizeRecoveryReview(ctx, tx, a, p, &t, req); err != nil {
+				return t, err
 			}
 		case "retry-approve":
 			if !eligibleApprover(a, p, t, false) {

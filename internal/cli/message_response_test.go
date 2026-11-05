@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 )
 
@@ -35,6 +36,7 @@ func TestMessageSendDefaultsResponseButKeepsExplicitOptOut(t *testing.T) {
 				if r.Method != http.MethodPost || r.URL.Path != "/v1/messages" {
 					t.Error("unexpected send route", r.Method, r.URL.Path)
 				}
+
 				var request domain.MessageRequest
 				if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 					t.Error(err)
@@ -59,6 +61,21 @@ func TestMessageSendDefaultsResponseButKeepsExplicitOptOut(t *testing.T) {
 				t.Fatal("message send failed", envelope, code, sent)
 			}
 		})
+	}
+}
+
+func TestMessageSendRejectsSelfBeforePreparingOrSending(t *testing.T) {
+	worker, file, _ := operationCLIFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("self message reached the transport", r.Method, r.URL.Path)
+	})
+	var credential config.Credential
+	if err := config.Read(worker.CredentialFile, &credential); err != nil {
+		t.Fatal(err)
+	}
+	response, code := invoke(t, "agent", []string{"--config", file, "message", "send", "--input", "-"},
+		map[string]any{"recipient_id": credential.AgentID, "body": "Do not send this."})
+	if code != 2 || response.OK || response.Error == nil || response.Error.Code != domain.Invalid {
+		t.Fatal("CLI did not explicitly reject self messaging", response, code)
 	}
 }
 

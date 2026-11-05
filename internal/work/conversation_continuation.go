@@ -244,10 +244,10 @@ func (e *Engine) prepareConversationContinuation(ctx context.Context, c config.W
 	return task, err
 }
 
-func (e *Engine) recoveryReply(ctx context.Context, task domain.Task) (domain.Run, provider.Reply, error) {
+func (e *Engine) recoveryReply(ctx context.Context, task domain.Task) (domain.Run, provider.Reply, bool, error) {
 	runs, err := api.Call[[]domain.Run](ctx, e.Client, "GET", api.Path("tasks", task.ID, "runs"), nil)
 	if err != nil {
-		return domain.Run{}, provider.Reply{}, err
+		return domain.Run{}, provider.Reply{}, false, err
 	}
 	for _, run := range runs {
 		if run.ID != task.RecoveryRunID || run.SourceRunID != task.LastRunID || run.State == "running" {
@@ -255,25 +255,31 @@ func (e *Engine) recoveryReply(ctx context.Context, task domain.Task) (domain.Ru
 		}
 		journal, err := e.State.Journal(ctx, run.Checkpoint)
 		if err != nil {
-			return run, provider.Reply{}, err
+			return run, provider.Reply{}, false, err
 		}
 		if journal.State != "done" || journal.Kind != domain.RecoveryRun || journal.RunID != run.ID {
-			return run, provider.Reply{}, domain.Fail(domain.Prerequisite, "the exact recovery result is not durably acknowledged")
+			return run, provider.Reply{}, false, domain.Fail(domain.Prerequisite, "the exact recovery result is not durably acknowledged")
+		}
+		var launch Launch
+		if err := json.Unmarshal(journal.Context, &launch); err != nil {
+			return run, provider.Reply{}, false, err
 		}
 		reply := provider.Reply{Outcome: "paused", Summary: run.Summary, Evidence: run.Evidence}
-		if len(journal.Reply) != 0 {
+		if len(journal.Reply) != 0 && journal.Problem == "" {
 			if err := json.Unmarshal(journal.Reply, &reply); err != nil {
-				return run, reply, err
+				return run, reply, false, err
 			}
+		} else if journal.Problem != "" {
+			reply.Summary = journal.Problem
 		}
 		reply.Outcome = "paused"
-		return run, reply, nil
+		return run, reply, launch.Recovery != nil && launch.Recovery.CorrectiveReviewOf != "", nil
 	}
-	return domain.Run{}, provider.Reply{}, domain.Fail(domain.Prerequisite, "no settled recovery result exists for the current interrupted run")
+	return domain.Run{}, provider.Reply{}, false, domain.Fail(domain.Prerequisite, "no settled recovery result exists for the current interrupted run")
 }
 
 func (e *Engine) retainBlockedContinuation(ctx context.Context, action *conversationAction, task domain.Task) error {
-	run, reply, err := e.recoveryReply(ctx, task)
+	run, reply, _, err := e.recoveryReply(ctx, task)
 	if err != nil {
 		return err
 	}
@@ -343,12 +349,16 @@ func (e *Engine) continueManagedTask(ctx context.Context, c config.Worker, task 
 			return true, nil
 		}
 		if task.RecoveryRunID != "" {
-			_, reply, readErr := e.recoveryReply(ctx, task)
+			run, reply, corrective, readErr := e.recoveryReply(ctx, task)
 			if readErr != nil {
 				return false, errors.Join(err, readErr)
 			}
 			if action.Source.Message != nil {
-				operation := action.ID + ".recovery." + domain.Hash(task.LastRunID)[:32] + ".reply"
+				reference := task.LastRunID
+				if corrective {
+					reference = run.ID
+				}
+				operation := action.ID + ".recovery." + domain.Hash(reference)[:32] + ".reply"
 				if sendErr := e.sendConversationReply(ctx, operation, *action.Source.Message, reply); sendErr != nil {
 					return false, errors.Join(err, sendErr)
 				}

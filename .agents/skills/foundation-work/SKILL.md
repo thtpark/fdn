@@ -1,32 +1,31 @@
 ---
 name: foundation-work
-description: "Use when investigating web pages or authorized website sign-in, transferring/attaching files, downloading with a web browser, investigating PPTX/DOCX/PDF documents/photos or file questions, publishing diaries/shared skills/ideas, sending announcements/action/upgrade requests, editing shared company/project/agent notes, messages/mentions/read receipts/status, workspaces/automation, task preparation/assignment/approval/execution, or serial independent PR review/rework/merge."
+description: "Use when investigating web pages or authorized website sign-in, downloading with a web browser, investigating PPTX/DOCX/PDF documents/photos, transferring/attaching files, publishing diaries/shared skills/ideas, sending announcements/action/upgrade requests, editing shared company/project/agent notes, messages/mentions/read receipts/status, provider/model defaults, workspaces/automation, task preparation/assignment/approval/execution, or serial independent PR review/rework/merge."
 ---
 
 # Prepare, execute and verify one authorized task
 
 Read `agent-cli guide show COMMANDS.md` and `guide show SCHEMA.md`.
 Text calls are tool-disabled structured replies. Follow AGENTS.md authority/
-pause/fence rules. Preview `announcement audience`; destructive changes/new
-costs need approval. Upgrade intent is not a native permit. Read-only messages/
-`observe` imply no read receipt, approval or inference; preserve daemon checkpoints.
+pause/fence rules. Preview `announcement audience`; destructive work/new costs
+need approval. Upgrade intent is not a permit; read-only `observe` grants no
+read receipt/approval/inference. Preserve checkpoints.
 
 ## Context and readiness
 
 1. Check identity/project/mode, provider/model, inventory/private knowledge,
    slot, pending reports and session fences with `status`, `work status`,
    `preferences show`, `inventory show`, `knowledge list`, `agent identity`.
-   The existing installing user owns all worker state and keys. Follow AGENTS.md
-   same-user owner-only peer-checked proxy, no-new-account, key privacy and
-   no-extra-owner rules. Sign-in, registration and project authority are separate;
-   presence proves neither permission nor authentication.
-   For all routine tool-enabled jobs, install missing ordinary needed tools
-   autonomously and non-interactively within existing OS permissions and task
-   scope. Prefer trusted per-user or environment-local package managers.
-   Verify usability and continue without requesting confirmation solely for
-   missing software. Do not infer new financial/legal commitments, protected
-   authentication, destructive changes, or changes to authority or OS privileges.
-   Report an actual remaining boundary or installation failure, not a setup request.
+   Founder `agent preferences AGENT --input FILE` sets provider/model/reason.
+   Task > agent > local defaults; unavailable models use provider selection.
+   The existing installing user owns all worker state and keys; follow AGENTS.md same-user
+   owner-only peer-checked proxy, no-new-account and key/owner rules. Sign-in,
+   registration and project authority are separate.
+   For all routine tool-enabled jobs, install needed tools autonomously and non-interactively within existing OS permissions/task scope.
+   Prefer trusted per-user or environment-local package managers. Verify usability;
+   missing tools need no confirmation. Do not infer financial/legal commitments,
+   protected authentication, destructive changes, or authority or OS privileges.
+   Report actual boundaries/failures, not routine setup requests.
    When work is blocked by sign-in
    or permissions, send protected durable help to active Founder and current
    relevant project delegates without inference. New action contexts can ask
@@ -37,11 +36,10 @@ costs need approval. Upgrade intent is not a native permit. Read-only messages/
    TASK`, `task runs TASK`, `note context --project PROJECT`. Apply AGENTS.md note
    rules in all phases; reviewers use their own notes. Refresh each provider call,
    never in-flight/retained journals/fences. Mentions do not assign; Founder/current project
-   delegates assign and select required provider/model.
-3. Create/edit through `task create --input FILE` and `task change TASK --input
-   FILE`. Change kinds include assign, edit, workspace, policy, retry-policy,
-   status, approve, verify, waiting, clarity, stop and exact retry-approve.
-   There are no remembered `task approve`/`work begin` aliases.
+   delegates assign and select task provider/model preferences.
+3. Use `task create --input FILE` / `task change TASK --input FILE`; COMMANDS.md
+   defines typed changes and exact retry-approve. No `task approve`/`work begin`
+   aliases exist.
 4. Task creation/assignment is not local tool permission. Bind an owned workspace
    using `workspace bind --path OWNED_DIR --allow-tools`; attach its opaque ref
    through a workspace change. Never publish paths, bind private state, borrow
@@ -129,16 +127,19 @@ For live sharing use [foundation-sharing](../../../.agents/skills/foundation-sha
 
 ## Attention, authority and recovery
 
-- Human/AI messages request replies by default; `response_requested:false`
-  opts out. Retrieve/cite relevant context and answer the exact later-thread
-  item. At 100 AI round trips Founder gets a warning, not a cutoff or pause.
+- Human/AI replies default on; `response_requested:false` opts out. Answer the
+  exact later-thread item with context. At 100 AI round trips Founder gets a
+  warning, not a cutoff or pause.
+  Self messages are forbidden; existing history is retained.
 - Assigned/mentioned comments use the recipient's provider/model and exact
   source generation. Planning has no tools; `action` requests skill/context
   retrieval or authorized work through a self-assigned `project_adhoc` task.
-  Standing readiness covers only its creator's own granted workspace/action,
-  not other project, spending, retry or verification authority. Report actual
-  checked results, never a promise. Urgency uses the next free slot, not another
-  worker; Founder pause, sign-in help and independent safety fences still apply.
+  Plans separate meaningful public title/description/acceptance_criteria from
+  private instructions. Execution supplies `public_report:{summary,evidence}`;
+  log checked work/blockers, never private text. Lifecycle worklogs are atomic.
+  Standing readiness grants only its creator's standalone work, not other
+  project/spending/retry/verification authority. Urgency uses the same slot;
+  Founder pause/sign-in/safety fences remain. Completed is not done.
 - For admitted processing of an ordinary recipient message/request, acknowledge
   reading before provider invocation using its durable source-bound read proposal.
   Do not defer acknowledgement to an optional response field or until responding.
@@ -147,14 +148,11 @@ For live sharing use [foundation-sharing](../../../.agents/skills/foundation-sha
   its absence is not proof of unreadness. Read is not handling, reply completion
   or approval. Retained legacy explicit-read replies preserve their exact replay.
   Admitted service transfer notices are read before download, not proof of analysis.
-- Public status: concise current activity. Controller summaries need no inference;
-  optional self-authored `agent status --input FILE` requires non-secret single-line
-  text (max160 characters), visible to all active agents. Publish meaningful changes,
-  normally once per60 seconds at most; rapid updates coalesce, duplicates suppress.
-  Empty text restores automatic status; changed activity/critical pause/block/recovery
-  supersedes old notes. Never call models just for status, override another agent,
-  or expose credentials, private paths/messages or unpublished knowledge. Status is
-  not progress/health proof, read acknowledgement or approval.
+- Public `agent status --input FILE`: self-authored non-secret single-line text,
+  max160 characters, normally once per60 seconds; updates coalesce/suppress duplicates.
+  Empty restores automatic status; activity/critical changes supersede it.
+  Never call models just for status or expose private data. Status proves no
+  health/read/approval and grants no authority.
 - Keep useful lessons in local memory/skills/knowledge deliberately. Selected
   content is private provider context, not automatic shared publication.
 - Before financial/legal commitments, checkpoint and notify BOTH Founder and
@@ -178,12 +176,14 @@ For live sharing use [foundation-sharing](../../../.agents/skills/foundation-sha
   and maintenance remain operator-required.
   Inspect `agent operation REQUEST_ID`; queued is not completed, and neither a
   reset nor its exact replay grants a retry, spending or native-service restart.
-- A process with unproved cleanup remains fenced. Only after confirming its entire
-  process tree stopped use `work recover --journal INVOCATION
-  --acknowledge-stopped`; this does not authorize retry. Current exact unsafe
-  retry approval, backoff and remaining failure budget still apply.
+- Unproved process cleanup stays fenced. Only after confirming the entire tree
+  stopped use `work recover --journal INVOCATION --acknowledge-stopped`.
+  This grants no retry; exact approval/backoff/failure budgets still apply.
 - Proven joined interruptions use [bounded task reconciliation](../../../COMMANDS.md#automatic-task-reconciliation),
-  never a new task, invented answer or budget reset.
+  not replay/new tasks. Recovery is tool-enabled; zero retries with zero failures
+  is not exhausted. Use the paired `inspection_cli` and `work recovery-inspect`;
+  return its `inspection_id` and any observed blocker, never task flags. Authority
+  may grant one exact `recovery-review`; spent counts/fences remain.
 - Settled, unapplied tool-disabled interruptions have three total transient
   attempts with 5/10-second backoff, never while paused. Exhaustion isolates that
   source, not other messages/files. Poll/restart/new IDs cannot reset its budget

@@ -58,6 +58,8 @@ type TaskRequest struct {
 	Title              string   `json:"title"`
 	Description        string   `json:"description"`
 	AcceptanceCriteria string   `json:"acceptance_criteria"`
+	Provider           string   `json:"provider,omitempty"`
+	Model              string   `json:"model,omitempty"`
 	ParentID           string   `json:"parent_id,omitempty"`
 	Repetitive         bool     `json:"repetitive"`
 	Priority           int      `json:"priority"`

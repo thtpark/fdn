@@ -351,7 +351,11 @@ func (x *unavailableBrowserExecutor) Invoke(ctx context.Context, invocation prov
 			x.t.Fatal("browser request bypassed tool-disabled message planning", launch)
 		}
 		return provider.Reply{Outcome: "responded", Summary: "The requested browser download and inspection need tools.",
-			Action: &provider.ConversationAction{Instructions: launch.Message.Body}}, nil
+			Action: &provider.ConversationAction{
+				Title:              "Inspect the requested presentation using a browser",
+				Description:        "Download the authorized presentation with the requested browser method and inspect its contents.",
+				AcceptanceCriteria: "Verify the completed download and answer from inspected slides, or report a concrete blocker.",
+				Instructions:       launch.Message.Body}}, nil
 	}
 	x.executions++
 	x.workspace = invocation.Workspace
@@ -360,7 +364,9 @@ func (x *unavailableBrowserExecutor) Invoke(ctx context.Context, invocation prov
 		x.t.Fatal("browser method or exact source was lost before claimed execution", launch)
 	}
 	return provider.Reply{Outcome: "paused", Summary: "Cannot start the requested download: no local browser automation tool is available.",
-		Questions: []provider.Question{{Body: "Please arrange an available browser tool, or explicitly permit a direct HTTP download."}}}, nil
+		Questions: []provider.Question{{Body: "Please arrange an available browser tool, or explicitly permit a direct HTTP download."}},
+		PublicReport: &provider.PublicReport{Summary: "Presentation inspection is paused because the required browser tool is unavailable.",
+			Evidence: []string{"No download or analysis was performed; the source was notified of the blocker."}}}, nil
 }
 
 func TestBrowserInvestigationReportsUnavailableToolWithoutRetry(t *testing.T) {

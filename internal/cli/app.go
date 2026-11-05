@@ -38,6 +38,7 @@ var AgentCommands = []string{
 	"agent list", "agent status", "agent diagnose", "agent reset", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"device list", "device register", "device revoke",
 	"agent add", "agent add-status",
+	"agent preferences",
 	"agent environment", "agent environment-report", "announcement audience", "announcement send",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "discussion show", "mention list", "mention acknowledge", "watch", "observe",
@@ -48,7 +49,7 @@ var AgentCommands = []string{
 	"publication create", "publication change", "publication list", "publication show", "publication versions", "publication version",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
-	"work prompt", "work status", "work run", "work recover", "service plan", "service install", "service status",
+	"work prompt", "work status", "work run", "work recover", "work recovery-inspect", "service plan", "service install", "service status",
 	"upgrade check", "upgrade plan", "upgrade apply", "upgrade status",
 	"upgrade-lease", "message-worker",
 	"share show", "share sessions", "share publish", "share terminal", "share select", "share approve", "share revoke", "share request", "share open", "share stream", "share input", "share release-input", "share help",
@@ -129,6 +130,10 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			}
 			usage := "see README command reference; JSON changes require a reason and current generations"
 			switch key {
+			case "work recovery-inspect":
+				usage = "work recovery-inspect --input FILE; exact invoking recovery only. Input: task_id, source_run_id, paths and optional expected_absent (1-8 total local paths; relative paths use the bound workspace). Read files/directories or verify expected output absence and retain a private source-bound inspection receipt, including explicit failed checks. Repeat the same operation/input after uncertainty. Does not repeat execution, clear fences or grant authority."
+			case "task change":
+				usage = "task change ID --input FILE; narrow kind, reason, current revision and required generations. recovery-review requires spec_generation, run_id of the settled recovery and attempt of the next recovery; current project authority may authorize one corrective inspection without clearing execution uncertainty or resetting counts."
 			case "file transfer", "file upload":
 				usage = "file upload --path FILE [--media-type MIME --to AGENT --delete-after-download]; file transfer requires --to and defaults to automatic deletion after verified receipt. Private, staged, immutable, 1 GiB maximum, 256 KiB chunks. Retain operation-id and original source for explicit resumable replay; never auto-publish."
 			case "file download":
@@ -195,6 +200,8 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 				usage = "agent operation REQUEST_ID; read-only common state/outcome for diagnostic refresh and session recovery, visible to requester Founder or target; queued/checking is not fresh success; no leaf flags"
 			case "agent status":
 				usage = "agent status --input FILE; publish your own concise non-secret team-visible text (max160 characters), or explicit empty text to restore automatic activity;60-second normal coalescing, unchanged text suppressed, important controller transitions immediate; no target, priority, mode or timestamp override"
+			case "agent preferences":
+				usage = "agent preferences AGENT_ID [--input FILE]; read agent defaults or Founder-only set provider/model with a reason; changing provider clears the prior model, empty provider restores local defaults; task preferences override, unavailable models use provider selection; applies to new sessions without changing mode or in-flight journals"
 			case "comment add", "comment edit", "worklog add":
 				usage = key + " ID --input FILE; body mentions accept @{NAME} (case-insensitive active agent name) or @{AGENT_ID}; names must be unambiguous, recipients are stored as agent IDs, and self/duplicate mentions are excluded; only comments create attention; edits require the creator and current revision"
 			case "mention list":

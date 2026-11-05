@@ -96,5 +96,8 @@ func (s *Store) reportVerification(ctx context.Context, tx *sql.Tx, a domain.Age
 	if err := s.saveTask(ctx, tx, &t, a.ID, "verification-report", req.Summary); err != nil {
 		return outcome, err
 	}
+	if err := s.adhocRunWorklog(ctx, tx, t, run); err != nil {
+		return outcome, err
+	}
 	return domain.ReportOutcome{Accepted: !stale, Stale: stale, Task: t, Run: run}, nil
 }

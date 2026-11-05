@@ -207,6 +207,8 @@ func (x *websiteExecutor) Check(ctx context.Context, name string) (provider.Heal
 
 func websiteBlocked(reason string) provider.Reply {
 	return provider.Reply{Outcome: "paused", Summary: reason,
+		PublicReport: &provider.PublicReport{Summary: "Website inspection is paused at an observed access or authorization boundary.",
+			Evidence: []string{"No account changes or repeated credential submission performed; exact blocker reported privately."}},
 		Questions: []provider.Question{{Body: "Ask Founder and current relevant delegates to resolve this website access blocker without sending credentials in messages."}}}
 }
 
@@ -245,7 +247,11 @@ func (x *websiteExecutor) Invoke(ctx context.Context, invocation provider.Invoca
 			}
 		}
 		return provider.Reply{Outcome: "responded", Summary: "Inspect the actual website within its current authorized account scope.",
-			Action: &provider.ConversationAction{Instructions: instructions}}, nil
+			Action: &provider.ConversationAction{
+				Title:              "Inspect the requested website content",
+				Description:        "Inspect the requested page sections under current website/account authority without changing account data.",
+				AcceptanceCriteria: "Verify actual page access and cite inspected content, or report a specific observed boundary.",
+				Instructions:       instructions}}, nil
 	}
 	x.executions++
 	if launch.Phase != domain.ExecutionRun || launch.ConversationID == "" || launch.Task == nil ||
@@ -312,7 +318,9 @@ func (x *websiteExecutor) Invoke(ctx context.Context, invocation provider.Invoca
 	}
 	noResponse := false
 	return provider.Reply{Outcome: "completed", Summary: "Inspected page content: " + page.answer,
-		Evidence:          []string{"Source: " + x.site.server.URL + path + "#answer; actual requested page access checked."},
+		Evidence: []string{"Source: " + x.site.server.URL + path + "#answer; actual requested page access checked."},
+		PublicReport: &provider.PublicReport{Summary: "Inspected the requested page sections and delivered checked findings privately.",
+			Evidence: []string{"Authorized website scope checked", "Actual requested page access verified"}},
 		ResponseRequested: &noResponse}, nil
 }
 

@@ -54,6 +54,29 @@ func TestAuthenticationExpiryProjectsLegacyRequestsWithoutRenewal(t *testing.T) 
 	}
 }
 
+func TestAuthenticationAndPermissionHelpNeverSendToTheRequestingActor(t *testing.T) {
+	f := newPermissionFixture(t)
+	ctx := context.Background()
+	f.project.Delegates = append(f.project.Delegates, f.engine.Client.Credential.AgentID)
+	request := AuthenticationRequest{AgentID: f.engine.Client.Credential.AgentID, ProjectID: f.project.ID}
+	recipients, err := f.engine.authenticationRecipients(ctx, &request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, recipient := range recipients {
+		if recipient == request.AgentID {
+			t.Fatal("self-delegation created a self help message", recipients)
+		}
+	}
+	request.AgentID, request.ProjectID = f.agents[0].ID, ""
+	if _, err := f.engine.authenticationRecipients(ctx, &request); domain.AsFault(err).Code != domain.Prerequisite {
+		t.Fatal("an unavailable external recipient was reported as delivered self-help", err)
+	}
+	if len(f.attempts) != 0 {
+		t.Fatal("recipient discovery sent messages", f.attempts)
+	}
+}
+
 func TestAuthenticationNoticeHasDeadlineAndExplicitFounderRefresh(t *testing.T) {
 	request := AuthenticationRequest{ID: "auth_request_fixture", AgentID: "agent_fixture", AgentName: "Fixture", Provider: "copilot", ModeAtRequest: "manual",
 		CreatedAt: 1800000000, ExpiresAt: 1800000900, Supersedes: "auth_request_old"}
@@ -62,6 +85,7 @@ func TestAuthenticationNoticeHasDeadlineAndExplicitFounderRefresh(t *testing.T) 
 		if !strings.Contains(body, text) {
 			t.Fatal("notice omitted its expiry/refresh boundary", text, body)
 		}
+
 	}
 	if strings.Contains(body, "No timed expiry") || strings.Contains(body, "%!") {
 		t.Fatal("notice has obsolete expiry or invalid formatting", body)

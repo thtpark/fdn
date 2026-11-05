@@ -85,6 +85,7 @@ func (e *Embedded) Snapshot(ctx context.Context, q observe.Query) (json.RawMessa
 
 var embeddedWrites = []string{
 	"agent status", "agent mode", "project create", "project change", "task create", "task change",
+	"agent preferences",
 	"comment add", "comment edit", "worklog add", "message send", "message read", "message receipt",
 	"message request-report", "note set", "mention acknowledge", "knowledge put",
 	"announcement send",
@@ -106,6 +107,7 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 	}
 	targeted := slices.Contains([]string{
 		"agent mode", "project change", "task change", "comment add", "comment edit", "worklog add",
+		"agent preferences",
 		"message read", "message receipt", "message request-report", "mention acknowledge",
 		"file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded", "publication change",
 		"assistance revoke", "session change",

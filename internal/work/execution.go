@@ -152,30 +152,45 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 		}
 		return errors.Join(domain.Fail(failureCode, "provider failed or stopped; a fenced failure report was recorded, not completion"), helpErr)
 	}
-	validReply := reply.Decision == "" && reply.RequestDecision == "" && !reply.MessageRead && reply.Action == nil &&
+	validReply := reply.Decision == "" && reply.RequestDecision == "" && !reply.MessageRead && reply.Action == nil && reply.Recovery == nil &&
 		(launch.ConversationID != "" || reply.ResponseRequested == nil) && validExecutionOutcome(reply.Outcome)
+	if launch.ConversationID != "" {
+		validReply = validReply && reply.PublicReport != nil
+	} else {
+		validReply = validReply && reply.PublicReport == nil
+	}
 	if verification {
 		decision := reply.Outcome == "reviewed" && (reply.Decision == "accept" || reply.Decision == "rework") && len(reply.Evidence) > 0
 		stopped := (reply.Outcome == "paused" || reply.Outcome == "failed") && reply.Decision == ""
 		validReply = (decision || stopped) && len(reply.Questions) == 0 && len(reply.AnswerIDs) == 0 && !reply.SafeToRetry &&
-			!reply.MessageRead && reply.RequestDecision == "" && reply.Action == nil && reply.ResponseRequested == nil
+			!reply.MessageRead && reply.RequestDecision == "" && reply.Action == nil && reply.Recovery == nil && reply.ResponseRequested == nil && reply.PublicReport == nil
 	} else if recovery {
 		validReply = reply.Decision == "" && reply.RequestDecision == "" && !reply.MessageRead && reply.Action == nil &&
 			reply.ResponseRequested == nil && len(reply.Questions) == 0 && len(reply.AnswerIDs) == 0 &&
 			((reply.Outcome == "reconciled" && reply.SafeToRetry && len(reply.Evidence) != 0) ||
 				((reply.Outcome == "paused" || reply.Outcome == "failed") && !reply.SafeToRetry))
 	}
-	if reply.Description != nil || reply.AcceptanceCriteria != nil || !validReply {
-		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
-			SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(j), Outcome: "failed", Summary: "provider returned an invalid coding contract; private evidence retained", Checkpoint: j.ID}
-		if err := e.queueReport(saveCtx, &j); err != nil {
-			return err
-		}
-		return errors.Join(domain.Fail(domain.Provider, "invalid coding result was recorded as failure, not acceptance"), e.flushReports(saveCtx))
+	var inspectionErr error
+	if recovery && validReply {
+		inspectionErr = e.validateRecoveryResult(saveCtx, j, launch, reply)
+		validReply = inspectionErr == nil
 	}
 	j.Reply, err = json.Marshal(reply)
 	if err != nil {
 		return err
+	}
+	if reply.Description != nil || reply.AcceptanceCriteria != nil || !validReply {
+		summary := "provider returned an invalid coding contract; private evidence retained"
+		if recovery {
+			summary = "Recovery did not establish a native inspection and valid observed outcome; rejected reply retained privately. No execution was retried."
+		}
+		j.Problem = summary
+		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,
+			SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(j), Outcome: "failed", Summary: summary, Checkpoint: j.ID}
+		if err := e.queueReport(saveCtx, &j); err != nil {
+			return err
+		}
+		return errors.Join(domain.Fail(domain.Provider, "invalid coding result was recorded as failure, not acceptance"), inspectionErr, e.flushReports(saveCtx))
 	}
 	j.State = "reply-prepared"
 	if err := e.State.SaveJournal(saveCtx, j); err != nil {

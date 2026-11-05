@@ -25,9 +25,32 @@ type Question struct {
 }
 
 type ConversationAction struct {
-	Instructions string `json:"instructions"`
-	WorkspaceRef string `json:"workspace_ref,omitempty"`
-	TaskID       string `json:"task_id,omitempty"`
+	Title              string `json:"title,omitempty"`
+	Description        string `json:"description,omitempty"`
+	AcceptanceCriteria string `json:"acceptance_criteria,omitempty"`
+	Instructions       string `json:"instructions"`
+	WorkspaceRef       string `json:"workspace_ref,omitempty"`
+	TaskID             string `json:"task_id,omitempty"`
+}
+
+type PublicReport struct {
+	Summary  string   `json:"summary"`
+	Evidence []string `json:"evidence"`
+}
+
+func (r PublicReport) Validate() error {
+	if err := domain.CheckText(r.Summary, "public task report summary", 32768, true); err != nil {
+		return err
+	}
+	if len(r.Evidence) > 64 {
+		return domain.Fail(domain.Provider, "public task report exceeds its evidence budget")
+	}
+	for _, evidence := range r.Evidence {
+		if err := domain.CheckText(evidence, "public task report evidence", 8192, true); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type Reply struct {
@@ -45,6 +68,8 @@ type Reply struct {
 	RequestDecision    string              `json:"request_decision,omitempty"`
 	ResponseRequested  *bool               `json:"response_requested,omitempty"`
 	Action             *ConversationAction `json:"action,omitempty"`
+	Recovery           *RecoveryResult     `json:"recovery,omitempty"`
+	PublicReport       *PublicReport       `json:"public_report,omitempty"`
 }
 
 func (r Reply) RequestsResponse() bool {
@@ -52,12 +77,35 @@ func (r Reply) RequestsResponse() bool {
 }
 
 func (r Reply) Validate() error {
+	if r.PublicReport != nil {
+		if err := r.PublicReport.Validate(); err != nil {
+			return err
+		}
+	}
+	if r.Recovery != nil {
+		if err := r.Recovery.Validate(r.Outcome); err != nil {
+			return err
+		}
+	}
 	if r.Action != nil {
 		if r.Outcome != "responded" {
 			return domain.Fail(domain.Provider, "a conversation action requires a responded planning reply")
 		}
 		if err := domain.CheckText(r.Action.Instructions, "conversation action instructions", 32768, true); err != nil {
 			return err
+		}
+		for _, field := range []struct {
+			text string
+			name string
+			max  int
+		}{
+			{r.Action.Title, "public action title", 512},
+			{r.Action.Description, "public action description", 65536},
+			{r.Action.AcceptanceCriteria, "public action acceptance criteria", 32768},
+		} {
+			if err := domain.CheckText(field.text, field.name, field.max, r.Action.TaskID == ""); err != nil {
+				return err
+			}
 		}
 		if r.Action.WorkspaceRef != "" && !domain.ValidOperation(r.Action.WorkspaceRef) {
 			return domain.Fail(domain.Provider, "conversation action workspace must be an existing opaque reference")
@@ -108,11 +156,12 @@ func (r Reply) Validate() error {
 }
 
 type Health struct {
-	Provider       string   `json:"provider"`
-	Version        string   `json:"version"`
-	Path           string   `json:"path"`
-	Authentication string   `json:"authentication"`
-	Models         []string `json:"models"`
+	Provider          string   `json:"provider"`
+	Version           string   `json:"version"`
+	Path              string   `json:"path"`
+	Authentication    string   `json:"authentication"`
+	Models            []string `json:"models"`
+	ModelCatalogError string   `json:"model_catalog_error,omitempty"`
 }
 
 type Invocation struct {
@@ -237,12 +286,17 @@ func (m *Manager) Check(ctx context.Context, name string) (Health, error) {
 	}
 	if name == "copilot" {
 		authenticated, models, err := m.copilotAuthentication(ctx, path)
-		if err != nil {
+		var cleanup *process.CleanupError
+		if err != nil && (!authenticated || ctx.Err() != nil || errors.As(err, &cleanup)) {
 			return health, err
 		}
 		if authenticated {
 			health.Authentication = "authenticated"
-			health.Models = models
+			if err != nil {
+				health.ModelCatalogError = "read-only model catalog unavailable; session model selection will be delegated to the provider"
+			} else {
+				health.Models = models
+			}
 		} else {
 			health.Authentication = "login-required"
 		}
@@ -251,6 +305,15 @@ func (m *Manager) Check(ctx context.Context, name string) (Health, error) {
 	_, err = m.capture(ctx, path, "", "login", "status")
 	if err == nil {
 		health.Authentication = "credentials-present-unverified"
+		health.Models, err = m.codexModels(ctx, path)
+		var cleanup *process.CleanupError
+		if err != nil {
+			if ctx.Err() != nil || errors.As(err, &cleanup) {
+				return health, err
+			}
+			health.Models = []string{}
+			health.ModelCatalogError = "read-only model catalog unavailable; session model selection will be delegated to the provider"
+		}
 		return health, nil
 	}
 	var exit *exec.ExitError

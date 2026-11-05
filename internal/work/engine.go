@@ -48,6 +48,7 @@ func invocationPrompt(context []byte) (string, error) {
 	}
 	if launch.ConversationID != "" && launch.Phase != domain.RecoveryRun {
 		contract += "This is the tool-enabled execution of a recorded Adhoc conversation action, not a text acknowledgement. Inspect applicable local/project skills and retrieve relevant current thread, task, notes, knowledge and workspace context before acting or answering. Reference actual records and checks in evidence. Perform the retained action only within the recipient's current authority and existing workspace/OS permissions; an Adhoc record does not authorize another project's unapproved work, root changes, protected consent, spending, contracts or disclosure. Report actual results or concrete blockers, never a promise or invented success. Do not retry prior uncertain effects. response_requested defaults to true; set false only when a further response is unnecessary.\n"
+		contract += "Include public_report={summary,evidence} with a detailed team-safe account of the actual work, checks, outcome, blockers and next steps for the shared task and worklog. Keep the private reply in summary/evidence separate: never copy private conversation text, credentials, private paths or raw transcripts into public_report. Publish significant in-scope progress through worklog add using intentional team-safe summaries, not terminal dumps. A completed outcome still awaits independent verification.\n"
 	}
 	if launch.Message != nil && launch.Message.Announcement != nil {
 		contract += "This is an authenticated scoped announcement. Action requests use the same autonomous source-bound action workflow: act within current authority and granted OS/workspace permissions, then report actual results or blockers. Do not add per-message approval for already permitted nondestructive work. Destructive changes, new resource costs and native software replacement require explicit Founder approval; an upgrade request is not an exact native installation permit. Never bypass native upgrade policy, pause, work-slot, retry, identity or uncertainty fences.\n"
@@ -648,22 +649,38 @@ func (e *Engine) launch(ctx context.Context, phase string, task *domain.Task) (L
 }
 
 func (e *Engine) selected(ctx context.Context, c config.Worker, launch Launch) (provider.Health, string, error) {
-	name, model := c.Provider, c.Model
+	me, err := api.Call[domain.Agent](ctx, e.Client, "GET", "/v1/me", nil)
+	if err != nil {
+		return provider.Health{}, "", err
+	}
+	name, model := preferredSelection(c, me)
+	if err := e.changeHealth(ctx, func(state *workerHealthState) {
+		state.Health.PreferredProvider = name
+	}); err != nil {
+		return provider.Health{}, "", err
+	}
 	if launch.Recovery != nil {
 		return e.selectProvider(ctx, c, launch.Recovery.SourceRun.Provider, launch.Recovery.SourceRun.Model, launch.Task)
 	}
 	if task := launch.Task; task != nil && launch.Attention == nil && launch.Phase != domain.VerificationRun {
 		if task.Provider != "" {
-			name = task.Provider
-			if name != c.Provider {
+			if task.Provider != name {
 				model = ""
 			}
+			name = task.Provider
 		}
 		if task.Model != "" {
 			model = task.Model
 		}
 	}
 	return e.selectProvider(ctx, c, name, model, launch.Task)
+}
+
+func preferredSelection(c config.Worker, agent domain.Agent) (string, string) {
+	if agent.Preferences != nil && agent.Preferences.Provider != "" {
+		return agent.Preferences.Provider, agent.Preferences.Model
+	}
+	return c.Provider, c.Model
 }
 
 func (e *Engine) selectProvider(ctx context.Context, c config.Worker, name, model string, task *domain.Task) (provider.Health, string, error) {
@@ -706,8 +723,16 @@ func (e *Engine) selectProvider(ctx context.Context, c config.Worker, name, mode
 	if err := e.resolveAuthentication(ctx, name); err != nil {
 		return health, model, err
 	}
-	if model != "" && len(health.Models) > 0 && !slices.Contains(health.Models, model) {
-		return health, model, errors.Join(domain.Fail(domain.Prerequisite, "configured required model is absent from the fresh provider catalog"), e.blockHealth(ctx, "provider-model-unavailable"))
+	if model != "" && !slices.Contains(health.Models, model) {
+		reason := "not-in-provider-catalog"
+		if len(health.Models) == 0 {
+			reason = "provider-catalog-unavailable"
+		}
+		e.Log.Warn("preferred model unavailable; delegating this session's model selection to the provider", "provider", name, "reason", reason)
+		model = ""
+		if err := e.providerHealth(ctx, name, model, health, nil); err != nil {
+			return health, model, err
+		}
 	}
 	return health, model, nil
 }

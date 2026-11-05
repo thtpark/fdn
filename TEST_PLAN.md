@@ -24,6 +24,39 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Model defaults, Adhoc reporting and self messages
+
+```sh
+go test -race -count=1 ./internal/foundation ./internal/work ./internal/provider ./internal/cli ./internal/api ./internal/identityservice -run 'Preference|ModelCatalog|Adhoc|Self|ConversationActionsRequire|PublicTaskReport'
+go test -tags=e2e -count=1 ./tests/e2e -run 'NativePreferredModels|NativeConversationAction'
+```
+
+Founder defaults have independent revision/provenance and exact value receipts;
+worker/delegate writes, stale revisions and protected fields are denied. Changing
+defaults does not change mode/authority generations or overwrite local settings.
+Check agent defaults, task overrides, verifier/attention defaults, source-bound
+recovery and empty-model fallback for absent/unknown catalogs. Both native
+provider fixtures verify actual CLI model arguments and resulting checked files,
+not merely configured strings or a stored preference. Missing authentication and
+unproved native cleanup must not become model fallback.
+
+Read-only Codex catalog tests cover initialization, JSON-lines framing,
+pagination, bounded parsing, unavailable catalogs and joined cancellation;
+Copilot preserves authenticated status when only catalog discovery fails.
+No test starts login, a real provider turn or paid inference.
+
+Adhoc tests require meaningful title/scope/criteria and separate team-safe reports.
+Private instruction/result markers must remain only in the private source, never
+shared tasks or worklogs. Creation/claim/report logs are transactional and
+duplicate-free on exact replay. Full 65,536-byte descriptions, 32,768-byte
+summaries and 64 evidence entries of 8,192 bytes must survive bounded splitting.
+Logs do not create attention or advance discussion/approval generations.
+Raw/native/CLI self-message tests cover Founder and workers. Shared Swift tests
+cover recipient exclusion, restored/direct mutation guards, historical self
+threads, consecutive replies, task/default editors and exact proposal replay.
+App builds and these fixtures do not qualify live provider availability,
+physical iOS devices, a deployment or production security/capacity.
+
 ### CI timing and process-exit regressions
 
 The race-checked unit runner has an explicit 15-minute aggregate per-package
@@ -328,6 +361,33 @@ provider-declared completion proxy. Unused native claims consume no inference;
 unknown effects/new message IDs never renew a spent recovery budget.
 These tests use isolated local TLS/storage and deterministic providers, not
 private production file bytes, paid inference or full-host qualification.
+
+`RecoveryInspection`, `RecoveryResult`, `RecoveryPrompt`, `RecoveryContinuation`
+and `RecoveryReview` unit selectors check bounded real reads, missing/symlink/FIFO
+failures, explicit tool-enabled admission, preparation-versus-execution sandbox
+semantics, structured blockers and exact source-bound corrective authority.
+`TestMetadataOnlyRecoveryCannotPassAsInspectionAndCorrectiveReviewKeepsAccounting`
+rejects the live-style zero-retry refusal, preserves its reply/count and completes
+the same ZIP task only after an exact corrective authorization.
+`TestRecoveryInspectionCannotForgeOrReuseChangedEvidence` rejects missing/foreign
+receipts, changed bytes, failed input checks, unexpected existing outputs and
+new outputs appearing after an absence check. Native fixtures call the actual
+paired CLI rather than manufacturing receipt IDs.
+
+An opt-in `e2e && liveprovider` test,
+`TestLiveCodexRecoveryInspectsZeroRetryZIP`, requires explicit
+`FDN_LIVE_CODEX_AUTHORIZED=yes`, absolute `FDN_LIVE_CODEX_PATH` and owner-private
+`FDN_LIVE_API_KEY_FILE` references. Obtain a current bounded spending
+authorization before running it; normal suites neither enable it nor use keys.
+It uses synthetic exact-size bytes, fresh fixture identities/state, a joined
+controlled interruption and actual Codex recovery/preflight/execution. Assertions
+require native inspection, actual nested workbook output bytes, one task,
+two execution attempts, zero failures/retries and one recovery. Provider calls
+and command/token totals are measured; at most six controller steps and bounded
+native invocation time/output are allowed. Optional absolute
+`FDN_LIVE_EVIDENCE_DIR` retains only owner-private synthetic invocation evidence.
+Synthetic UID file permissions and same-user fixture proxies do not qualify
+real multi-user ACLs, physical hosts, transport cutovers or deployed providers.
 Authority-interruption fixtures install their immutable HTTP transport before
 starting any controller feed; changing `http.Client.Transport` while a feed is
 running is a data race, not a transport-failure injection. Tests retain one

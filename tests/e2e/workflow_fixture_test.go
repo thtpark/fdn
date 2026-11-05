@@ -35,9 +35,16 @@ type workflowAPI struct {
 	root    string
 }
 
-func newWorkflowAPI(t *testing.T, root string) *workflowAPI {
+func newWorkflowAPI(t *testing.T, root string, files ...foundation.FileStoreOptions) *workflowAPI {
 	t.Helper()
-	store, err := foundation.Open(context.Background(), filepath.Join(root, "foundation.sqlite"))
+	if len(files) > 1 {
+		t.Fatal("workflow fixture accepts at most one explicit file-store configuration")
+	}
+	var options foundation.FileStoreOptions
+	if len(files) == 1 {
+		options = files[0]
+	}
+	store, err := foundation.OpenWithFiles(context.Background(), filepath.Join(root, "foundation.sqlite"), options)
 	if err != nil {
 		t.Fatal(err)
 	}

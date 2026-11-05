@@ -231,6 +231,12 @@ func (a *app) localCommand(ctx context.Context, r *resources, group string, args
 		}
 	case "work":
 		switch args[0] {
+		case "recovery-inspect":
+			var request work.RecoveryInspectionRequest
+			if err := a.input(args[1:], &request); err != nil {
+				return nil, err
+			}
+			return a.engine(r).InspectRecovery(ctx, a.operation, request)
 		case "status":
 			if err := requireArgs(args, 1); err != nil {
 				return nil, err

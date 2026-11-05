@@ -83,7 +83,7 @@ func (e *Engine) authenticationRecipients(ctx context.Context, request *Authenti
 		if agent.ID == request.AgentID && request.AgentName == "" {
 			request.AgentName = agent.Name
 		}
-		if agent.Founder || slices.Contains(delegates, agent.ID) {
+		if agent.ID != request.AgentID && (agent.Founder || slices.Contains(delegates, agent.ID)) {
 			recipients = append(recipients, agent.ID)
 		}
 		if agent.Founder {
@@ -93,6 +93,9 @@ func (e *Engine) authenticationRecipients(ctx context.Context, request *Authenti
 	slices.Sort(recipients)
 	if !founderAvailable {
 		return nil, domain.Fail(domain.Prerequisite, "no active Founder can receive human-help escalation; an AI delegate is not a replacement human")
+	}
+	if len(recipients) == 0 {
+		return nil, domain.Fail(domain.Prerequisite, "human help is required on this Founder's computer; self-messages are disabled and no other authority recipient is available; inspect the retained local help request")
 	}
 	return recipients, nil
 }

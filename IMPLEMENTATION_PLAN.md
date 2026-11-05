@@ -6,6 +6,24 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Preferred models, useful Adhoc evidence and self-message prevention (0.3.35)
+
+Founder can read/set agent provider/model defaults through the CLI and both
+apps. Defaults have independent revisions and exact receipts, apply to new
+invocations without changing mode/authority or local configuration, and yield
+to task preferences. Bounded read-only Codex/Copilot catalogs permit a logged
+provider-selected model when a preference cannot be used; provider/authentication
+and uncertain-invocation fences remain.
+New Adhoc plans carry team-safe meaningful titles, detailed descriptions and
+criteria, with separate public reports and transactional lifecycle worklogs.
+Private instructions/results remain private, legacy proposals replay unchanged,
+and completion still needs independent verification. Ordinary self-message
+sends are rejected server-side and in the apps without deleting history.
+Additive native DTOs require compatible binaries but no SQL migration.
+Deterministic local/native/app tests are source evidence, not live-provider,
+physical-device or rollout qualification. A Jira-style task-board redesign is
+not part of this source change.
+
 ### Bounded task reconciliation and conversation continuation (0.3.34)
 
 Proven joined interruptions enter a distinct bounded recovery run under current
@@ -20,6 +38,17 @@ acknowledgement. Synthetic exact-size nested ZIP/XLSX and native process-join
 tests verify actual output and conservative blocked states. Optional protobuf
 fields are additive; no SQL migration, live task retry, publication or rollout
 is implied by source acceptance.
+
+The unreleased inspection refinement supplies controller-verified inspection
+admission/budget and a paired CLI, requires native source-bound inspection
+receipts and observed blockers, distinguishes expected new-output absence from
+missing inputs, and keeps preparation's sandbox separate from later coding.
+An exact authority-bound `recovery-review` permits one corrective review without
+resetting spent counts or clearing execution uncertainty. Metadata-only refusals,
+foreign receipts, changed files and unresolved effects remain fenced. This
+refinement uses the existing native task-change/report shapes; no new native
+payload fields or SQL migration are added. Opt-in real-provider synthetic
+validation remains separate from default deterministic suites and deployment.
 
 ### Renewal-safe authority watches (0.3.33)
 
