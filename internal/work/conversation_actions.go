@@ -234,12 +234,17 @@ func (e *Engine) prepareConversationTask(ctx context.Context, c config.Worker, a
 	if action.Plan.TaskID != "" || action.ResumeFrom != "" {
 		return e.prepareConversationContinuation(ctx, c, action, manual)
 	}
-	task, err := commit[domain.Task](ctx, e, "POST", "/v1/tasks", domain.TaskRequest{
+	request := domain.TaskRequest{
 		Command: domain.Command{OperationID: action.ID + ".task"}, ProjectID: domain.AdhocProjectID,
-		Title:              "Adhoc conversation action",
-		Description:        "Perform the authorized standalone action in the retained message/comment context. Private request text, workspace paths and raw evidence remain in the private controller journal.",
-		AcceptanceCriteria: "Retrieve relevant context and matching skills, perform only authorized work, verify actual effects, and report results or blockers to the source conversation. This record grants no other project's authority or spending permission.",
-	})
+		Title: action.Plan.Title, Description: action.Plan.Description, AcceptanceCriteria: action.Plan.AcceptanceCriteria,
+	}
+	if request.Title == "" && request.Description == "" && request.AcceptanceCriteria == "" {
+		// Preserve the exact proposal of actions queued before public task metadata.
+		request.Title = "Adhoc conversation action"
+		request.Description = "Perform the authorized standalone action in the retained message/comment context. Private request text, workspace paths and raw evidence remain in the private controller journal."
+		request.AcceptanceCriteria = "Retrieve relevant context and matching skills, perform only authorized work, verify actual effects, and report results or blockers to the source conversation. This record grants no other project's authority or spending permission."
+	}
+	task, err := commit[domain.Task](ctx, e, "POST", "/v1/tasks", request)
 	if err != nil {
 		return task, err
 	}
@@ -313,8 +318,18 @@ func (e *Engine) retainConversationReport(ctx context.Context, journal *local.Jo
 	}
 	if journal.Kind == domain.RecoveryRun {
 		if launch.Task != nil && launch.Task.ProjectID == domain.AdhocProjectID {
-			journal.Report.Summary = "Adhoc recovery: " + journal.Report.Outcome + ". Exact checked evidence remains in the private controller journal."
-			journal.Report.Evidence = []string{"Exact interrupted execution and native reconciliation journal retained; this is not execution completion."}
+			var reply provider.Reply
+			if len(journal.Reply) != 0 {
+				if err := json.Unmarshal(journal.Reply, &reply); err != nil {
+					return err
+				}
+			}
+			if reply.PublicReport != nil && reply.Outcome == journal.Report.Outcome {
+				journal.Report.Summary, journal.Report.Evidence = reply.PublicReport.Summary, reply.PublicReport.Evidence
+			} else {
+				journal.Report.Summary = "Reconciliation " + journal.Report.Outcome + ": " + launch.Task.Title + ". Exact checked evidence remains in the private controller journal; execution has not completed."
+				journal.Report.Evidence = []string{"Exact interrupted execution and native reconciliation journal retained; this is not execution completion."}
+			}
 		}
 		return nil
 	}
@@ -335,6 +350,10 @@ func (e *Engine) retainConversationReport(ctx context.Context, journal *local.Jo
 			result.ResponseRequested = action.ResponseRequested
 		}
 	}
+	public := result.PublicReport
+	if result.Outcome != journal.Report.Outcome {
+		public = nil
+	}
 	result.Outcome = journal.Report.Outcome
 	if result.Outcome != "completed" {
 		result.Summary = "Action " + result.Outcome + ": " + result.Summary
@@ -344,8 +363,12 @@ func (e *Engine) retainConversationReport(ctx context.Context, journal *local.Jo
 	if err := e.State.Put(ctx, "conversation-action:"+action.ID, action); err != nil {
 		return err
 	}
-	journal.Report.Summary = "Adhoc conversation action: " + journal.Report.Outcome + ". Detailed results and checks remain in the source conversation and private journal."
-	journal.Report.Evidence = []string{"Exact controller journal and source-generation references retained; independent verification remains separate."}
+	if public != nil {
+		journal.Report.Summary, journal.Report.Evidence = public.Summary, public.Evidence
+	} else {
+		journal.Report.Summary = "Action " + journal.Report.Outcome + ": " + launch.Task.Title + ". Detailed results and checks remain in the source conversation and private journal."
+		journal.Report.Evidence = []string{"Exact controller journal and source-generation references retained; independent verification remains separate."}
+	}
 	return nil
 }
 

@@ -127,7 +127,11 @@ func (x *taskRecoveryExecutor) Invoke(ctx context.Context, invocation provider.I
 	}
 	if !invocation.Coding {
 		x.planning++
-		action := &provider.ConversationAction{Instructions: "Unzip the shared file and inspect its nested workbook.", WorkspaceRef: x.ref}
+		action := &provider.ConversationAction{
+			Title:              "Inspect the nested workbook",
+			Description:        "Inspect the verified archive and its nested workbook, retaining checked input and partial outputs.",
+			AcceptanceCriteria: "Verify archive bytes and workbook results without repeating uncertain external effects.",
+			Instructions:       "Unzip the shared file and inspect its nested workbook.", WorkspaceRef: x.ref}
 		if x.execution != 0 {
 			if len(launch.Message.Attachments) != 0 || len(launch.ReferencedTasks) != 1 {
 				x.t.Fatal("plain follow-up did not resolve the existing task from its thread", launch.ReferencedTasks)
@@ -232,7 +236,9 @@ func (x *taskRecoveryExecutor) Invoke(ctx context.Context, invocation provider.I
 				Evidence: []string{"Retained local input/output checked; external result remains unknown."}, Recovery: result}, nil
 		}
 		return provider.Reply{Outcome: "reconciled", SafeToRetry: true,
-			Summary:  "Verified the original input and partial nested archive; local inspection can continue without repeating an uncertain external action.",
+			Summary: "Verified the original input and partial nested archive; local inspection can continue without repeating an uncertain external action.",
+			PublicReport: &provider.PublicReport{Summary: "Reconciled the retained input and partial archive without repeating external effects.",
+				Evidence: []string{"Verified original receipt and SHA-256", "Compared retained partial output"}},
 			Evidence: []string{"Verified original receipt and SHA-256", "Compared actual retained nested archive bytes"}, Recovery: result}, nil
 	}
 	if launch.Phase != domain.ExecutionRun {
@@ -315,6 +321,8 @@ func (x *taskRecoveryExecutor) Invoke(ctx context.Context, invocation provider.I
 	}
 	noResponse := false
 	return provider.Reply{Outcome: "completed", Summary: result,
+		PublicReport: &provider.PublicReport{Summary: "Inspected the nested workbook and verified the requested analysis; findings were delivered privately.",
+			Evidence: []string{"Retained archive inspected", "Requested workbook cell checked"}},
 		Evidence: []string{"Retained nested archive inspected; workbook cell A1 read"}, ResponseRequested: &noResponse}, nil
 }
 

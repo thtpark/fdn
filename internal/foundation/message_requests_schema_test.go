@@ -81,9 +81,18 @@ VALUES(17,'message','message_z_first','','',0,103)`); err != nil {
 			t.Fatal("mailbox migration accepted an unknown party or ordinary Foundation message", parties)
 		}
 	}
+	_, err = s.SendMessage(ctx, agent.ID, domain.MessageRequest{
+		Command: op(), RecipientID: agent.ID, Body: "A new post-migration message.", Kind: "direct", Origin: "human"})
+	assertCode(t, err, domain.Invalid)
+	keys := securityPublic(t, "PostMigrationRecipient")
+	recipient, err := s.RegisterIdentity(ctx, agent.ID, domain.RegisterIdentityRequest{Command: op(), Identity: keys.public})
+	if err != nil {
+		t.Fatal("could not enroll a distinct post-migration recipient", err)
+	}
+	recipient, _ = securityActivate(t, s, recipient, keys, 4101)
 	since := updateWatermark(t, s, agent.ID)
 	sent, err := s.SendMessage(ctx, agent.ID, domain.MessageRequest{
-		Command: op(), RecipientID: agent.ID, Body: "A new post-migration message.", Kind: "direct", Origin: "human"})
+		Command: op(), RecipientID: recipient.AgentID, Body: "A new post-migration message.", Kind: "direct", Origin: "human"})
 	if err != nil || !updateContains(updateReplay(t, s, agent.ID, since), "message", sent.ID) {
 		t.Fatal("mailbox migration lost transactional private update triggers", sent, err)
 	}

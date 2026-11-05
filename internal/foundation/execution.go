@@ -104,8 +104,8 @@ func (s *Store) Claim(ctx context.Context, actor, id string, req domain.ClaimReq
 			if t.Clarity == nil || t.Clarity.ActorID != a.ID || t.Clarity.SpecGeneration != t.SpecGeneration || t.Clarity.DiscussionGeneration != t.DiscussionGeneration || t.Clarity.ProjectEpoch != p.Epoch {
 				return domain.Run{}, domain.Fail(domain.Prerequisite, "assigned worker must review the latest specification and discussion")
 			}
-			if (t.Provider != "" && t.Provider != req.Provider) || (t.Model != "" && t.Model != req.Model) {
-				return domain.Run{}, domain.Fail(domain.Prerequisite, "provider/model does not match the approved task")
+			if (t.Provider != "" && t.Provider != req.Provider) || (t.Model != "" && req.Model != "" && t.Model != req.Model) {
+				return domain.Run{}, domain.Fail(domain.Prerequisite, "provider/model preference does not match the approved task; an empty model delegates selection to the provider")
 			}
 			if err := s.retryReady(ctx, tx, p, t); err != nil {
 				return domain.Run{}, err
@@ -152,7 +152,10 @@ OR (json_extract(data,'$.purpose')='sharing' AND COALESCE(json_extract(data,'$.i
 		} else if kind == domain.RecoveryRun {
 			t.RecoveryRunID, t.RecoveryAttempts = run.ID, run.Attempt
 		}
-		return run, s.saveTask(ctx, tx, &t, a.ID, "claim")
+		if err := s.saveTask(ctx, tx, &t, a.ID, "claim"); err != nil {
+			return run, err
+		}
+		return run, s.adhocRunWorklog(ctx, tx, t, run)
 	})
 }
 
@@ -268,6 +271,9 @@ func (s *Store) Report(ctx context.Context, actor, taskID string, req domain.Rep
 			return outcome, err
 		}
 		if err := s.saveTask(ctx, tx, &t, a.ID, "report"); err != nil {
+			return outcome, err
+		}
+		if err := s.adhocRunWorklog(ctx, tx, t, run); err != nil {
 			return outcome, err
 		}
 		return domain.ReportOutcome{Accepted: !stale, Stale: stale, Task: t, Run: run}, nil

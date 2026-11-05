@@ -143,8 +143,8 @@ over another user's files. It never enrolls/authenticates or enables work.
 | `agent-cli doctor` | Read-only configuration, TLS/API authentication and service version |
 | `agent-cli mode show` | Offline local mirror of authoritative `ai`/`manual`; work status includes the last Founder control reference |
 | `agent-cli mode set` | `ai` or `manual`; authenticated Founder changes its own mode only; non-Founder callers are denied |
-| `agent-cli preferences show` | Preferred provider/model |
-| `agent-cli preferences set` | `--input FILE`, optional `provider`/`model`; provider change clears old model |
+| `agent-cli preferences show` | This computer's local provider/model defaults; Founder agent defaults can override them |
+| `agent-cli preferences set` | `--input FILE`, optional `provider`/`model`; provider change clears old model; does not replace Founder-controlled agent defaults |
 | `agent-cli service plan` | `--input OPTIONS`; render native worker definition |
 | `agent-cli service install` | `--input OPTIONS --apply`; own-account native registration/start |
 | `agent-cli service status` | Same local status, including `health`, without requiring network |
@@ -288,6 +288,7 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent repair` | `AGENT_ID --input FILE`; Founder-only `SessionRecoveryRequest` for one exact closed session and fresh observed fence SHA256; returns `AgentOperation`, never accepts caller cleanup proof |
 | `agent-cli agent operation` | Exactly `REQUEST_ID` from `data.id`; bodyless GET of the common diagnostic-refresh/session-recovery state and safe result, visible only to its requester Founder or target |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
+| `agent-cli agent preferences` | `AGENT [--input FILE]`; read agent defaults, or Founder-only set optional `provider`/`model` with required `reason`; independent preference revision, exact replay, no mode or running-session changes |
 | `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban applies only to non-Founders |
 | `agent-cli agent register` | `--input SIGNED_PUBLIC [--output PUBLIC_PROFILE]`; Founder-only new signed public-key registration |
@@ -725,7 +726,7 @@ authority or forward caller-supplied identity headers.
 
 | Command | Arguments/input |
 | --- | --- |
-| `agent-cli task create` | `--input FILE`: project_id, title, description, acceptance_criteria, optional parent_id/repetitive/priority/importance |
+| `agent-cli task create` | `--input FILE`: project_id, title, description, acceptance_criteria, optional parent_id/repetitive/priority/importance/provider/model; setting provider/model requires current project authority |
 | `agent-cli task list` | `[--project ID --assignee ID --status STATUS --limit N --cursor CURSOR --include-archived]` |
 | `agent-cli task show` | `TASK`; current protected/ordinary context |
 | `agent-cli task change` | `TASK --input FILE`; typed mutation kinds below, reason required |
@@ -745,6 +746,15 @@ This grants neither project delegation nor permission to execute another
 project's unapproved task, change OS privileges, spend, or verify its own result.
 Independent verification, one-slot admission, Founder pause and uncertainty
 fences remain. Adhoc actions have no automatic failure retry.
+Adhoc descriptions and acceptance criteria must be nonempty and describe the
+actual scope, intended output and checks. Conversation plans supply a meaningful
+team-safe title, description and acceptance criteria separately from private
+execution instructions. New tasks are not titled "Adhoc conversation action".
+Creation, claim and execution/recovery/verification reports append transactional
+worklogs with task/run/specification, actual provider/model selection, outcomes
+and checked evidence. A claim is not proof of provider invocation; completion
+still awaits independent verification. Exact operation replay does not duplicate
+worklogs. Long valid reports are split into bounded entries without truncation.
 Proven joined interruptions may use bounded reconciliation and same-task
 continuation within that unchanged failure budget; they do not need another
 human readiness prompt. See [automatic task reconciliation](#automatic-task-reconciliation).
@@ -753,8 +763,8 @@ human readiness prompt. See [automatic task reconciliation](#automatic-task-reco
 | --- | --- |
 | `edit` | title, description, acceptance_criteria, priority, importance; execution-affecting change invalidates old approval |
 | `status` | status; cannot synthesize in-progress/completed/done |
-| `assign` | agent_id, provider, model; project authority; changed worker clears workspace |
-| `provider` | provider, model; explicit provider required for a required model |
+| `assign` | agent_id, provider, model preferences; project authority; changed worker clears workspace |
+| `provider` | provider, model preferences; explicit provider required for a model; empty selection inherits agent defaults |
 | `workspace` | workspace_ref; assignee only, opaque authorized local binding reference |
 | `policy` | policy object; narrowing may be proposed, weakening requires authority |
 | `retry-policy` | retry_policy object; project authority, invalidates readiness |
@@ -1052,6 +1062,13 @@ codes and secret-bearing sign-in state must not enter an AI context.
 | `agent-cli message thread` | `MESSAGE`; bounded sender/recipient-private conversation including target decisions/results |
 | `agent-cli message request-report` | `MESSAGE --input FILE`: exact revision, state and nonempty reason; recipient-only accepted/deferred/declined/executing/completed/failed lifecycle |
 
+`message send` rejects the authenticated sender as recipient, including requests
+and replies. The server enforces this independently of CLI/app checks. Both apps
+exclude the current actor from recipient selection, reject restored self-targeted
+drafts, and do not offer replies on historical self-threads. Existing history is
+not deleted; exact receipts remain inspectable without creating another message.
+Protected server-generated control/incident notices keep their dedicated APIs.
+
 New ordinary messages and human replies request a response by default. Omit
 `response_requested` or set it to `true`; set it explicitly to `false` when no
 response is needed. `null` is invalid. In `ai` mode the recipient's controller
@@ -1069,7 +1086,13 @@ the model returns a structured `action` plan. The controller creates a
 self-assigned Adhoc task, uses matching skills and authorized tools, then
 reports actual checked results to the exact source item. Planning is not
 completion, and private requests/transcripts are not copied into public task
-records.
+records. A new standalone `action` includes `title`, `description`,
+`acceptance_criteria` and private `instructions`, with optional `workspace_ref`.
+Tool-enabled conversation execution returns `public_report:{summary,evidence}`
+for the shared task, run and worklog, separately from its private reply.
+Summaries must explain actual work, checks, outcome and blockers, without private
+request/result text, credentials, private paths or raw transcripts. Already
+retained legacy task proposals keep their exact original metadata.
 
 Consecutive human replies retain the other private party as recipient, including
 when replying to the sender's own previous message. Each new reply independently
@@ -1873,12 +1896,54 @@ authentication. A later successful readiness observation resolves the episode;
 a subsequent confirmed sign-out can create a new one. Founder must remain an
 active human-help recipient; an AI delegate is not a replacement.
 
-Preferred provider/model apply unless the assigned execution task requires its
-own selection. Independent verification always uses the verifier's own preferred
-provider/model, not the assignee's required selection.
-Missing/unsupported provider/model never silently falls back. Current Codex
-status may be credentials-present-unverified; do not report live authentication
-from that alone. Copilot has bounded read-only authentication/model RPC.
+### Agent and task model preferences
+
+Selection for each new invocation is: task preference, then Founder-controlled
+agent defaults, then the computer's local `preferences` configuration.
+Independent verification, private replies and comment attention use the
+recipient/verifier's own defaults, not another assignee's task selection.
+A task model overrides an agent model. A matching task provider with no model
+inherits that agent model; switching providers drops the mismatched model.
+
+Founder can inspect or set any active agent's defaults without sending a message:
+
+```sh
+agent-cli agent preferences AGENT_ID
+agent-cli agent preferences AGENT_ID --input defaults.json
+```
+
+```json
+{"provider":"copilot","model":"MODEL_ID","reason":"Use this model by default for new sessions"}
+```
+
+Changing the provider clears the previous model unless a new model is supplied.
+An empty model delegates selection to the provider. An empty provider clears
+the server override and restores local defaults; a nonempty model needs an
+explicit provider on the first update. Preferences have their own revision
+(1 when unset), provenance and exact operation receipt. They do not change
+automation mode, task readiness, authority generations, local configuration or
+in-flight journals. Reuse the same operation/input after an uncertain response.
+Task-specific preferences can be supplied on `task create` or through the
+existing `assign`/`provider` task changes; those changes still require current
+project authority and fresh specification approval.
+
+Models are best-effort preferences, not hard availability gates. Before inference,
+a fresh bounded read-only catalog check selects a listed model. If the preferred
+model is absent, or its catalog cannot be obtained or validated, Foundation logs
+the fallback and omits the model option so the same provider chooses the session
+model. It does not choose an alternative model itself, fall back to the agent's
+model after a missing task preference, or overwrite the saved preference.
+An empty run/health model means provider-selected, not an observed actual model.
+Missing/unsupported providers, unknown/missing authentication, cancellation and
+unproved process cleanup still fail explicitly. An invocation failure is not
+blindly replayed with another model.
+
+Current Codex status may be credentials-present-unverified; do not report live
+authentication from that alone. Codex `app-server` model listing uses only
+`initialize`, `initialized` and paginated `model/list`; it creates no thread or
+turn. Copilot has bounded read-only authentication/model RPC. Catalog failures
+are exposed as `model_catalog_error` in provider status, not as successful model
+discovery or permission for paid probes.
 Managed Codex exec uses capability-checked `--json` event output and the exact
 `--output-last-message` file for its final structured reply. Human-format prompt/
 tool diagnostics must not unnecessarily fill stderr. Existing stdout/stderr
@@ -1931,7 +1996,7 @@ current exact retry authority; recovery is not permission to rerun.
 ## API map for development
 
 Application/schema contract version is **2**, native message protocol **2**,
-server SQLite migration **9** (existing-state floor **5**), local SQLite **1**. Native processes exchange
+server SQLite migration **11** (existing-state floor **5**), local SQLite **1**. Native processes exchange
 bounded protobuf frames over pinned SSH stdio/inner mTLS and peer-checked local
 Unix sockets. There is no internal HTTP/gRPC listener or HTTP downgrade.
 JSON envelopes remain CLI output and local evidence, not native wire payloads.
@@ -1959,6 +2024,13 @@ Founder recovery is root-only private Unix maintenance, never one of these
 agent routes. Entity changes use dedicated POST suffixes; claims/reports are
 controller operations, not generic CLI write escapes. Relays recheck current
 identity/owner, party/side, scope, consent/open and expiry.
+
+`GET /v1/agents/{id}/preferences` reads current agent defaults;
+`POST /v1/agents/{id}/preferences` accepts a Founder-only
+`AgentPreferencesRequest` and returns `ProviderPreferences`. The additive DTOs
+change the locked native payload fingerprint, not API/schema 2, native protocol
+2 or server SQL11. Deploy compatible server/proxies/clients/receivers together
+in server-first order; this is not an automatic installation or downgrade path.
 
 Only different live non-Founder owner keys with valid possession proofs and a
 fresh incumbent binary control ping cause the **entire identity** ban, original

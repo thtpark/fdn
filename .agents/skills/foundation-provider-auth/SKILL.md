@@ -1,6 +1,6 @@
 ---
 name: foundation-provider-auth
-description: "Use when installing/updating Codex or Copilot, checking provider readiness or post-login stalls, arranging headless/device-code human sign-in, displaying authorized sign-in screens/public verification links, renewing expired sign-in requests through Founder, preparing an authorized tmux/VNC assistance session, or diagnosing expired consent without exposing credentials or starting inference."
+description: "Use when installing/updating Codex or Copilot, checking provider readiness, preferred models, catalog fallback or post-login stalls, arranging headless/device-code human sign-in, displaying authorized sign-in screens/public verification links, renewing expired sign-in requests through Founder, preparing an authorized tmux/VNC assistance session, or diagnosing expired consent without exposing credentials or starting inference."
 ---
 
 # Provider readiness and protected authentication
@@ -27,7 +27,8 @@ notice/control is durable context, not successful sign-in or permission to start
 login, inference, a session, or another worker.
 
 1. Resolve the worker's actual account/HOME/configuration/identity and mode.
-   Inspect `provider status --provider NAME`, `preferences show`, `work status`
+   Inspect `provider status --provider NAME`, `preferences show`, `agent
+   preferences AGENT`, `work status`
    and session state. These probes do not authorize paid inference. To read saved
    observations without another probe, use `agent diagnose AGENT_ID` as Founder/
    self, or `message diagnose MESSAGE_ID` as that message's sender/recipient only.
@@ -63,7 +64,10 @@ login, inference, a session, or another worker.
    exact provider version, then `provider install --provider NAME --version
    EXACT`; explicit `provider update --provider NAME` chooses latest. Keep
    integrity/signature/non-prompting checks; never force an unsupported adapter
-   or silently select another provider/model.
+   or silently select another provider. Model preferences are best effort:
+   missing models or unavailable/invalid catalogs cause a logged pre-invocation
+   provider-selected model, not an alternate-provider or inference retry.
+   Inspect `model_catalog_error`; it is not successful catalog discovery.
    Managed executables are private, with stable shell launchers in `.foundation/bin`.
    Verify actual login-shell `command -v codex/copilot` and bare `--version`;
    absolute-path success alone does not prove shell usability. Repair an older
@@ -140,8 +144,10 @@ login, inference, a session, or another worker.
    actions. Confirm cleanup and preserve unproven fences for exact recovery.
 10. After the human completes login, recheck provider status without inference.
     A finished login command and Codex credentials-present-unverified do not
-    prove live vendor usability. Respect task-required provider/model; unknown
-    cost/catalog quality is not permission for paid probes or guessed ranking.
+    prove live vendor usability. Respect task provider/model preferences over
+    Founder agent defaults over local defaults. Unknown cost/catalog quality
+    is not permission for paid probes or guessed ranking; unavailable models
+    delegate selection to the same provider before invocation.
     Keep Founder pause, shared-slot/open/uncertain session, uncertain invocation,
     different selected/required provider and permission/pending-report blockers
     visible after login. Idle polls/heartbeats are not task progress. Server-created

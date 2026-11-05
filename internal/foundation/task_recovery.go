@@ -44,9 +44,9 @@ func (s *Store) recoveryReady(ctx context.Context, tx *sql.Tx, actor domain.Agen
 		source.Checkpoint == "" || source.FinishedAt == 0 || (source.ProjectEpoch != 0 && source.ProjectEpoch != project.Epoch) {
 		return domain.Fail(domain.Prerequisite, "the exact interrupted execution and its retained native checkpoint are required")
 	}
-	if request.Provider != source.Provider || request.Model != source.Model ||
-		(task.Provider != "" && request.Provider != task.Provider) || (task.Model != "" && request.Model != task.Model) {
-		return domain.Fail(domain.Prerequisite, "recovery must retain the original authorized provider and model")
+	if request.Provider != source.Provider || (request.Model != "" && request.Model != source.Model) ||
+		(task.Provider != "" && request.Provider != task.Provider) || (task.Model != "" && request.Model != "" && request.Model != task.Model) {
+		return domain.Fail(domain.Prerequisite, "recovery must retain the original provider and model preference or delegate unavailable model selection to that provider")
 	}
 	if task.RecoveryRunID != "" {
 		previous, err := get[domain.Run](ctx, tx, "runs", task.RecoveryRunID)
@@ -163,6 +163,9 @@ func (s *Store) reportRecovery(ctx context.Context, tx *sql.Tx, actor domain.Age
 		return domain.ReportOutcome{}, err
 	}
 	if err := s.saveTask(ctx, tx, &task, actor.ID, "recovery-report"); err != nil {
+		return domain.ReportOutcome{}, err
+	}
+	if err := s.adhocRunWorklog(ctx, tx, task, run); err != nil {
 		return domain.ReportOutcome{}, err
 	}
 	return domain.ReportOutcome{Accepted: !stale, Stale: stale, Task: task, Run: run}, nil

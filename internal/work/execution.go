@@ -154,11 +154,16 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	}
 	validReply := reply.Decision == "" && reply.RequestDecision == "" && !reply.MessageRead && reply.Action == nil && reply.Recovery == nil &&
 		(launch.ConversationID != "" || reply.ResponseRequested == nil) && validExecutionOutcome(reply.Outcome)
+	if launch.ConversationID != "" {
+		validReply = validReply && reply.PublicReport != nil
+	} else {
+		validReply = validReply && reply.PublicReport == nil
+	}
 	if verification {
 		decision := reply.Outcome == "reviewed" && (reply.Decision == "accept" || reply.Decision == "rework") && len(reply.Evidence) > 0
 		stopped := (reply.Outcome == "paused" || reply.Outcome == "failed") && reply.Decision == ""
 		validReply = (decision || stopped) && len(reply.Questions) == 0 && len(reply.AnswerIDs) == 0 && !reply.SafeToRetry &&
-			!reply.MessageRead && reply.RequestDecision == "" && reply.Action == nil && reply.Recovery == nil && reply.ResponseRequested == nil
+			!reply.MessageRead && reply.RequestDecision == "" && reply.Action == nil && reply.Recovery == nil && reply.ResponseRequested == nil && reply.PublicReport == nil
 	} else if recovery {
 		validReply = reply.Decision == "" && reply.RequestDecision == "" && !reply.MessageRead && reply.Action == nil &&
 			reply.ResponseRequested == nil && len(reply.Questions) == 0 && len(reply.AnswerIDs) == 0 &&

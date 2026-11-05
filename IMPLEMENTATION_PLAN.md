@@ -6,6 +6,24 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Preferred models, useful Adhoc evidence and self-message prevention (0.3.35)
+
+Founder can read/set agent provider/model defaults through the CLI and both
+apps. Defaults have independent revisions and exact receipts, apply to new
+invocations without changing mode/authority or local configuration, and yield
+to task preferences. Bounded read-only Codex/Copilot catalogs permit a logged
+provider-selected model when a preference cannot be used; provider/authentication
+and uncertain-invocation fences remain.
+New Adhoc plans carry team-safe meaningful titles, detailed descriptions and
+criteria, with separate public reports and transactional lifecycle worklogs.
+Private instructions/results remain private, legacy proposals replay unchanged,
+and completion still needs independent verification. Ordinary self-message
+sends are rejected server-side and in the apps without deleting history.
+Additive native DTOs require compatible binaries but no SQL migration.
+Deterministic local/native/app tests are source evidence, not live-provider,
+physical-device or rollout qualification. A Jira-style task-board redesign is
+not part of this source change.
+
 ### Bounded task reconciliation and conversation continuation (0.3.34)
 
 Proven joined interruptions enter a distinct bounded recovery run under current

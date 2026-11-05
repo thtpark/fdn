@@ -238,6 +238,12 @@ func (s *Server) routes() {
 	body(s, "POST /v1/agents/{id}/mode", false, func(r *operationRequest, a domain.Agent, q domain.ModeRequest) (domain.Agent, error) {
 		return s.Store.SetMode(r.Context(), a.ID, r.PathValue("id"), q)
 	})
+	read(s, "GET /v1/agents/{id}/preferences", func(r *operationRequest, a domain.Agent) (domain.ProviderPreferences, error) {
+		return s.Store.AgentPreferences(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/agents/{id}/preferences", false, func(r *operationRequest, a domain.Agent, q domain.AgentPreferencesRequest) (domain.ProviderPreferences, error) {
+		return s.Store.SetAgentPreferences(r.Context(), a.ID, r.PathValue("id"), q)
+	})
 	body(s, "POST /v1/agents/{id}/status", false, func(r *operationRequest, a domain.Agent, q domain.AgentStatusRequest) (domain.AgentStatusReceipt, error) {
 		return s.Store.PublishAgentStatus(r.Context(), a.ID, r.PathValue("id"), q)
 	})

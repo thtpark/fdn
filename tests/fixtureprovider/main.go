@@ -44,6 +44,10 @@ func main() {
 		serveRPC()
 		return
 	}
+	if len(args) != 0 && args[0] == "app-server" {
+		serveCodexCatalog()
+		return
+	}
 	if slices.Contains(args, "login") {
 		if slices.Contains(args, "status") {
 			if fixtureNeedsLogin() {
@@ -76,8 +80,11 @@ func main() {
 		reply.Summary = "fixture scoped reply"
 		if launch.Message != nil && strings.HasPrefix(launch.Message.Body, "fixture-conversation-action ") {
 			reply.Action = &provider.ConversationAction{
-				Instructions: "Read the matching fixture skill and relevant thread context, perform the local action, and report actual checks.",
-				WorkspaceRef: strings.TrimPrefix(launch.Message.Body, "fixture-conversation-action "),
+				Title:              "Write and verify the requested fixture result",
+				Description:        "Read the applicable skill and relevant context, write the requested result, and check the saved contents.",
+				AcceptanceCriteria: "Verify the actual output and deliver checked results to the source conversation.",
+				Instructions:       "Read the matching fixture skill and relevant thread context, perform the local action, and report actual checks.",
+				WorkspaceRef:       strings.TrimPrefix(launch.Message.Body, "fixture-conversation-action "),
 			}
 		}
 	case "research":
@@ -221,6 +228,8 @@ func main() {
 				panic("conversation action did not verify its actual effect")
 			}
 			reply.Evidence = append(reply.Evidence, "fixture-action skill read", "source message: "+launch.Message.ID)
+			reply.PublicReport = &provider.PublicReport{Summary: "Wrote the requested fixture result and checked its contents.",
+				Evidence: []string{"Applicable skill reviewed", "Saved result matched the expected content"}}
 		}
 		if launch.Task.Title == "pause" {
 			reply.Questions = []provider.Question{{Body: "Confirm the remaining scope before continuing.", RespondentIDs: []string{launch.Project.OwnerID}}}
@@ -309,13 +318,7 @@ func serveRPC() {
 		case "auth.getStatus":
 			result = map[string]any{"isAuthenticated": !fixtureNeedsLogin()}
 		case "models.list":
-			models := []string{"fixture-model"}
-			if plan, present, err := scenario.ReadPlan(os.Getenv("HOME")); present {
-				check(err)
-				if len(plan.Models) != 0 {
-					models = plan.Models
-				}
-			}
+			models := fixtureModels()
 			catalog := make([]map[string]string, 0, len(models))
 			for _, model := range models {
 				catalog = append(catalog, map[string]string{"id": model})
@@ -329,4 +332,44 @@ func serveRPC() {
 		_, err = fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(response), response)
 		check(err)
 	}
+}
+
+func fixtureModels() []string {
+	if plan, present, err := scenario.ReadPlan(os.Getenv("HOME")); present {
+		check(err)
+		if len(plan.Models) != 0 {
+			return plan.Models
+		}
+	} else {
+		check(err)
+	}
+	return []string{"fixture-model"}
+}
+
+func serveCodexCatalog() {
+	reader := bufio.NewScanner(os.Stdin)
+	for reader.Scan() {
+		var request struct {
+			ID     *int   `json:"id"`
+			Method string `json:"method"`
+		}
+		check(json.Unmarshal(reader.Bytes(), &request))
+		var result any
+		switch request.Method {
+		case "initialize":
+			result = map[string]any{"userAgent": "fdn-fixture"}
+		case "initialized":
+			continue
+		case "model/list":
+			catalog := []map[string]string{}
+			for _, model := range fixtureModels() {
+				catalog = append(catalog, map[string]string{"id": model, "model": model})
+			}
+			result = map[string]any{"data": catalog, "nextCursor": nil}
+		default:
+			panic("unapproved Codex RPC")
+		}
+		check(json.NewEncoder(os.Stdout).Encode(map[string]any{"id": request.ID, "result": result}))
+	}
+	check(reader.Err())
 }

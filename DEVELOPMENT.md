@@ -133,6 +133,19 @@ of a future need.
 
 ## Making a behavior change
 
+Provider/model defaults use the existing agent JSON record and independent
+preference revisions/receipts, not the authority revision or a new SQL schema.
+Wire Founder CLI/native/proxy/mobile controls, per-invocation selection and
+pre-onboarding requested-auth checks together. Task preferences override agent
+defaults; unavailable models delegate to the same provider before invocation,
+without replaying uncertain inference or changing pinned journals. Read-only
+Codex/Copilot catalogs need bounded framing/pagination and joined cancellation.
+Adhoc action plans separate public title/scope/criteria and public reports from
+private instructions/results. Lifecycle worklogs commit with the corresponding
+task/run mutation and preserve full bounded evidence without advancing discussion.
+Block self-message sends transactionally and in shared/native app composers;
+do not erase history or turn protected server controls into ordinary messages.
+
 Native capacity discovery uses `internal/local/system_capabilities.go` and the
 existing private inventory. Onboarding receives that snapshot and its original
 observations; computer reporting projects the same static OS/CPU/total-resource

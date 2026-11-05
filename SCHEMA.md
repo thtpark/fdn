@@ -81,7 +81,7 @@ creates a whole-desktop profile or screen authorization.
 
 | Table | Contract |
 | --- | --- |
-| `agents` | Immutable identity, display name, Founder/active/banned state, sponsor, timestamps, mode/revision and Founder mode-request attribution; the historical credential-hash column is unused by authentication |
+| `agents` | Immutable identity, display name, Founder/active/banned state, sponsor, timestamps, mode/revision, Founder mode-request attribution and optional independently revisioned Founder provider/model defaults; the historical credential-hash column is unused by authentication |
 | `invitations` | Historical SQL storage retained by immutable schema definitions; no input type, runtime operation or receipt adapter exists |
 | `agent_identities` | Original agent binding plus Founder-only additional `device_id` bindings, each with independent request, SSH user/UID, approved keys, generations and state; generated `agent_id` retains the owning actor foreign key |
 | `identity_accounts` | Durable one-enrollment/one-UID/one-SSH-user reservation; historical `agent_id` column identifies the original agent binding or additional device binding, never another actor |
@@ -1228,6 +1228,38 @@ compatible server/proxies/clients/receivers must be deployed together.
 membership is not OS privilege, spending permission, another machine's consent,
 or proof a human participated.
 
+## Provider and model defaults
+
+Optional `agents.data.preferences` holds Founder-controlled provider/model,
+its own revision, author, server time and intentional reason. Unset preferences
+read as empty provider/model at revision 1. Only Founder may update them;
+ordinary active agents may inspect them. Provider changes clear an old model,
+empty model requests provider selection, and empty provider clears the override.
+Updates have bounded immutable value receipts and history, but do not advance
+the agent's mode/authority revision, invalidate in-flight verification/recovery,
+change local configuration, alter task approval or reset retry accounting.
+No SQL migration or rewrite of existing agent/task/journal records is required.
+
+Each new provider invocation refreshes current agent defaults. Task selection
+overrides them for that task's preparation/execution; messages, attention and
+independent verification use their recipient/verifier's own defaults. Local
+configuration is used when no Founder override exists. A task model supersedes
+the agent model; switching providers drops a model from the other provider.
+Fresh read-only provider catalogs are bounded and non-inferencing. Absent models
+and unavailable/invalid catalogs cause a logged, pre-invocation empty-model
+selection: the same provider chooses, rather than Foundation guessing another
+model or reverting to a lower-priority preference. Saved preferences and task
+generations are unchanged. Claims accept the preferred model or an empty
+provider-selected model, never a different nonempty task model. Recovery keeps
+its source provider/model preference, permitting empty-model fallback on
+unavailability without changing source runs or budgets. An empty run/health
+model is not proof of which model the provider ultimately used.
+
+Provider absence, authentication uncertainty, cancellation and unproved cleanup
+remain explicit blockers. Catalog failure is separately visible in provider
+status. Native invocation failures retain their existing uncertainty/replay
+rules; no automatic inference retry is introduced.
+
 ## Tasks and execution
 
 Ordinary fields are title, description, acceptance criteria, priority 1-4 and
@@ -1254,7 +1286,8 @@ Resolution references replies from requested respondents to all blocking
 questions; the AI must still judge sufficiency and incorporate changed decisions.
 
 A claim atomically checks revision, assignment, candidate status, readiness,
-clarity, project epoch, workspace ref, provider/model, retry budget/backoff and
+clarity, project epoch, workspace ref, provider/model preference (including
+provider-selected model fallback), retry budget/backoff and
 one active server ownership per agent. The worker separately checks the actual
 private workspace/tool grant and local serial slot. Active ownership does not
 expire into automatic takeover.
@@ -1441,6 +1474,12 @@ changes global mode, task approval/project authority, budgets or OS permissions.
 
 ## Privacy, sessions and future data
 
+New ordinary message sends cannot address their own authenticated actor, even
+through raw API calls or reply/request forms. CLI/apps reject self recipients;
+apps also exclude them from pickers and suppress replies on historical self
+threads. Existing private history and immutable receipts are preserved.
+Dedicated server-generated protected notices are not ordinary message sends.
+
 Shared application context is team-readable. Messages are sender/recipient
 private; origin labels are provenance, not human attestation. Protected
 authentication/session notices cannot request automatic AI replies. Urgency gets
@@ -1470,9 +1509,22 @@ non-repetitive task in the fixed-ID Adhoc project, and uses the existing claimed
 tool-enabled execution path under creator-only standing readiness. Workspace
 permission, current source generation/assignment, one slot, independent
 verification and all non-project OS/spending/consent boundaries remain.
-Results are delivered to the precise message/comment only after the actual run
-report is acknowledged. Private source text and raw results remain in private
-journals/conversations rather than shared Adhoc descriptions/run evidence.
+New plans separately supply a meaningful team-safe task title, detailed
+description and measurable acceptance criteria; private instructions remain
+in the retained action journal. Adhoc descriptions/criteria cannot be empty.
+Already retained legacy proposals are replayed unchanged, not renamed or
+rewritten. Tool-enabled conversation results include a separate bounded
+`public_report` summary/evidence for the shared task and run, while exact private
+results are delivered to the precise source only after the report is acknowledged.
+Private source text and raw results remain in private journals/conversations,
+not shared Adhoc descriptions/run evidence.
+Adhoc creation, claims and execution/recovery/verification reports append
+worklogs within their existing authority transactions. Logs distinguish a claim
+from an actual invocation, completed from independently done, and observed model
+requests from provider-selected unknown models. Detailed valid evidence is
+split into bounded entries, not truncated. Automatic worklog text is literal
+context, not a new mention/attention source, and does not advance discussion or
+invalidate clarity/readiness. Lost acknowledgements cannot duplicate logs.
 Restart/lost acknowledgement replays the same proposal, not inference/actions;
 changed sources become stale records, not permission to rerun.
 

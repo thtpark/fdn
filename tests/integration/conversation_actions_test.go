@@ -61,7 +61,11 @@ func (x *conversationExecutor) Invoke(ctx context.Context, invocation provider.I
 		}
 		return provider.Reply{
 			Outcome: "responded", Summary: "Need to inspect the matching skill and authorized workspace before answering.",
-			Action: &provider.ConversationAction{Instructions: "Read the matching fixture skill, retrieve relevant context, write the requested result, and check its contents.", WorkspaceRef: x.ref},
+			Action: &provider.ConversationAction{
+				Title:              "Write and verify the grounded answer",
+				Description:        "Read the applicable skill, inspect the authorized context, and write the requested answer in the existing workspace.",
+				AcceptanceCriteria: "Verify the saved answer against the inspected context and report the actual checks.",
+				Instructions:       "Read the matching fixture skill, retrieve relevant context, write the requested result, and check its contents. PRIVATE_PLAN_CONTEXT", WorkspaceRef: x.ref},
 		}, nil
 	}
 	x.executions++
@@ -82,8 +86,10 @@ func (x *conversationExecutor) Invoke(ctx context.Context, invocation provider.I
 		x.t.Fatal("actual action result was not verified", err)
 	}
 	return provider.Reply{
-		Outcome: "completed", Summary: "Wrote and checked the requested result after reading the relevant skill.",
+		Outcome: "completed", Summary: "Wrote and checked the requested result after reading the relevant skill. PRIVATE_RESULT_FOR_SOURCE",
 		Evidence: []string{"fixture-action skill read", "grounded-answer.txt contents checked"}, ResponseRequested: x.requestNext,
+		PublicReport: &provider.PublicReport{Summary: "Created the grounded answer after reviewing the applicable skill and context.",
+			Evidence: []string{"Applicable skill read", "Saved answer contents verified"}},
 	}, nil
 }
 
@@ -156,6 +162,25 @@ func TestLaterThreadActionRetrievesContextExecutesRecordedAdhocAndReportsActualR
 		task.Result == nil || strings.Contains(task.Description+task.Result.Summary, "PRIVATE_REQUEST_CONTEXT") {
 		t.Fatal("task record was not completed, self-assigned or privacy-preserving", task)
 	}
+	if task.Title != "Write and verify the grounded answer" || !strings.Contains(task.Description, "inspect the authorized context") ||
+		!strings.Contains(task.Result.Summary, "Created the grounded answer") ||
+		strings.Contains(task.Description+task.Result.Summary, "PRIVATE_") {
+		t.Fatal("shared task lost its meaningful title, detailed scope or team-safe result", task)
+	}
+	worklogs, err := api.Call[domain.Page[domain.Entry]](ctx, h.worker, "GET", api.Path("tasks", task.ID, "entries")+"?limit=200", nil)
+	if err != nil || len(worklogs.Items) != 3 {
+		t.Fatal("Adhoc lifecycle worklogs were not recorded", worklogs, err)
+	}
+	foundResult := false
+	for _, entry := range worklogs.Items {
+		if entry.Kind != "worklog" || strings.Contains(entry.Body, "PRIVATE_") {
+			t.Fatal("Adhoc worklog leaked private context or had the wrong kind", entry)
+		}
+		foundResult = foundResult || strings.Contains(entry.Body, "Saved answer contents verified")
+	}
+	if !foundResult {
+		t.Fatal("detailed actual checks were absent from the shared worklogs", worklogs)
+	}
 	thread, err := api.Call[[]domain.Message](ctx, h.founder, "GET", api.Path("messages", followup.ID, "thread"), nil)
 	if err != nil || len(thread) != 4 {
 		t.Fatal("actual action result was not delivered to the existing thread", thread, err)
@@ -168,6 +193,9 @@ func TestLaterThreadActionRetrievesContextExecutesRecordedAdhocAndReportsActualR
 	}
 	if result.Origin != "ai" || !result.ResponseRequest || !strings.Contains(result.Body, "contents checked") || !strings.Contains(result.Body, task.ID) {
 		t.Fatal("reply omitted actual checks, task reference or conversational continuation", result)
+	}
+	if !strings.Contains(result.Body, "PRIVATE_RESULT_FOR_SOURCE") {
+		t.Fatal("team-safe reporting replaced the exact private result", result)
 	}
 	if _, err := engine.Step(ctx, false); err != nil || x.executions != 1 || x.planning != 1 {
 		t.Fatal("finished action was executed or planned again", err, x.executions, x.planning)

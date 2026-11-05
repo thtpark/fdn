@@ -11,6 +11,9 @@ import (
 
 func (s *Store) SendMessage(ctx context.Context, actor string, req domain.MessageRequest) (domain.Message, error) {
 	return mutate(ctx, s, actor, "message.send", req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.Message, error) {
+		if req.RecipientID == a.ID {
+			return domain.Message{}, domain.Fail(domain.Invalid, "messages to yourself are not allowed; choose another recipient")
+		}
 		if err := domain.CheckText(req.Body, "message body", 32768, len(req.AttachmentIDs) == 0); err != nil {
 			return domain.Message{}, err
 		}

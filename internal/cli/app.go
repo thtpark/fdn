@@ -38,6 +38,7 @@ var AgentCommands = []string{
 	"agent list", "agent status", "agent diagnose", "agent reset", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"device list", "device register", "device revoke",
 	"agent add", "agent add-status",
+	"agent preferences",
 	"agent environment", "agent environment-report", "announcement audience", "announcement send",
 	"task list", "task show", "task create", "task change", "task history", "task runs",
 	"comment add", "comment edit", "worklog add", "discussion list", "discussion show", "mention list", "mention acknowledge", "watch", "observe",
@@ -199,6 +200,8 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 				usage = "agent operation REQUEST_ID; read-only common state/outcome for diagnostic refresh and session recovery, visible to requester Founder or target; queued/checking is not fresh success; no leaf flags"
 			case "agent status":
 				usage = "agent status --input FILE; publish your own concise non-secret team-visible text (max160 characters), or explicit empty text to restore automatic activity;60-second normal coalescing, unchanged text suppressed, important controller transitions immediate; no target, priority, mode or timestamp override"
+			case "agent preferences":
+				usage = "agent preferences AGENT_ID [--input FILE]; read agent defaults or Founder-only set provider/model with a reason; changing provider clears the prior model, empty provider restores local defaults; task preferences override, unavailable models use provider selection; applies to new sessions without changing mode or in-flight journals"
 			case "comment add", "comment edit", "worklog add":
 				usage = key + " ID --input FILE; body mentions accept @{NAME} (case-insensitive active agent name) or @{AGENT_ID}; names must be unambiguous, recipients are stored as agent IDs, and self/duplicate mentions are excluded; only comments create attention; edits require the creator and current revision"
 			case "mention list":

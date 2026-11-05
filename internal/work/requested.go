@@ -105,13 +105,14 @@ func (e *Engine) requestedAuthentication(ctx context.Context, c config.Worker, m
 		launches = append(launches, Launch{Task: &reviews[index], Phase: domain.VerificationRun})
 	}
 	var blocked error
+	preferred, _ := preferredSelection(c, me)
 	for _, launch := range launches {
 		actionCtx, launch := actionContext(ctx, launch)
 		if err := e.phaseHealth(actionCtx, "preparing", &launch, "", 120, false); err != nil {
 			return err
 		}
-		providers := []string{c.Provider}
-		if launch.Attention == nil && launch.Phase != domain.VerificationRun && launch.Task != nil && launch.Task.Provider != "" && launch.Task.Provider != c.Provider {
+		providers := []string{preferred}
+		if launch.Attention == nil && launch.Phase != domain.VerificationRun && launch.Task != nil && launch.Task.Provider != "" && launch.Task.Provider != preferred {
 			providers = append(providers, launch.Task.Provider)
 		}
 		for _, name := range providers {

@@ -59,6 +59,10 @@ func (s *Store) saveEntry(ctx context.Context, tx *sql.Tx, entry *domain.Entry, 
 		return err
 	}
 	entry.Mentions = mentions
+	return s.persistEntry(ctx, tx, entry, actor, action)
+}
+
+func (s *Store) persistEntry(ctx context.Context, tx *sql.Tx, entry *domain.Entry, actor, action string) error {
 	data, err := encode(entry)
 	if err != nil {
 		return err

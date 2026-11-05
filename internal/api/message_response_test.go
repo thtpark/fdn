@@ -41,3 +41,17 @@ func TestNativeMessageResponseDefaultsAndExplicitFalse(t *testing.T) {
 }
 
 func boolPointer(value bool) *bool { return &value }
+
+func TestNativeMessageSendRejectsSelf(t *testing.T) {
+	f := newAuthenticationAPIFixture(t)
+	for _, actor := range []domain.Agent{f.founder, f.target} {
+		client := messageFixtureClient(t, f.server, actor.ID)
+		_, err := Call[domain.Message](context.Background(), client, "POST", "/v1/messages", domain.MessageRequest{
+			Command: domain.Command{OperationID: domain.NewID("op")}, RecipientID: actor.ID,
+			Body: "This must not be delivered.", Origin: "human", Kind: "direct",
+		})
+		if domain.AsFault(err).Code != domain.Invalid {
+			t.Fatal("native transport admitted a self message", actor.ID, err)
+		}
+	}
+}
