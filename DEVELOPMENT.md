@@ -53,6 +53,13 @@ project with XcodeGen, and builds an unsigned simulator app. These are developme
 artifacts, not Foundation release packages or device/distribution qualification.
 The Swift app shares the macOS `FoundationCore` DTOs, editors, thread projections,
 manual policy, paging and durable exact proposals.
+Entity parsing, name resolution and strict `foundation://entity/ID` routes are
+shared as well. Both apps resolve visible references through existing read
+queries, never message-read mutations or provider calls. Exact message/entry/run
+pages work outside loaded list pages. The additive `run` observer query and
+`task run RUN` command require compatible Foundation 0.3.36 CLI/server/proxies;
+the mobile embedded read allowlist must include it. Preserve structured IDs,
+code, unsafe-link rejection and exact write proposals when changing rendering.
 
 Use temporary keys/state, native loopback fixtures, and a dedicated simulator.
 Physical phone enrollment, Developer signing, protected-data/network/kill

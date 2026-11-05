@@ -33,7 +33,8 @@ read receipt/approval/inference. Preserve checkpoints.
    authentication_requests/permission_requests and delivery. Provider sign-out
    needs a fresh check/help, never retry across uncertain effects or lost approval.
 2. Read `task show TASK`, project/parent, `discussion list TASK`, `task history
-   TASK`, `task runs TASK`, `note context --project PROJECT`. Apply AGENTS.md note
+   TASK`, `task runs TASK`, `task run RUN` for an exact run, and
+   `note context --project PROJECT`. Apply AGENTS.md note
    rules in all phases; reviewers use their own notes. Refresh each provider call,
    never in-flight/retained journals/fences. Mentions do not assign; Founder/current project
    delegates assign and select task provider/model preferences.

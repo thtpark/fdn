@@ -27,7 +27,7 @@ type Query struct {
 	PublicationKind string `json:"publication_kind,omitempty"`
 }
 
-var kinds = strings.Fields("version help status identity work agents agent environment announcementAudience projects project tasks task taskHistory runs discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens sharing sharingSessions sharingStatus devices diagnostics operation upgrade configuration guides guide doctor events")
+var kinds = strings.Fields("version help status identity work agents agent environment announcementAudience projects project tasks task taskHistory runs run discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens sharing sharingSessions sharingStatus devices diagnostics operation upgrade configuration guides guide doctor events")
 
 func (q Query) Validate() error {
 	if !slices.Contains(kinds, q.Kind) || q.Limit < 0 || q.Limit > 200 || len(q.Cursor) > 512 || q.Offset < 0 || q.Offset > domain.MaxFileSize {
@@ -87,6 +87,8 @@ func (q Query) Matches(u domain.Update, actor string) bool {
 		return u.TaskID == q.ID && slices.Contains([]string{"task", "run", "comment", "worklog", "attention"}, u.Topic)
 	case "runs":
 		return u.TaskID == q.ID && (u.Topic == "run" || u.Topic == "task")
+	case "run":
+		return u.SourceID == q.ID && u.Topic == "run"
 	case "discussion":
 		return u.TaskID == q.ID && (u.Topic == "comment" || u.Topic == "worklog")
 	case "entry":
@@ -152,7 +154,7 @@ func Filters(queries []Query, actor string) (domain.UpdateFilter, domain.UpdateF
 			private.Topics = append(private.Topics, "attention")
 		case "task", "taskHistory", "discussion", "runs":
 			public.Tasks = append(public.Tasks, q.ID)
-		case "entry":
+		case "entry", "run":
 			public.Sources = append(public.Sources, q.ID)
 		case "tasks":
 			if q.Project != "" {

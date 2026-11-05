@@ -40,7 +40,7 @@ var AgentCommands = []string{
 	"agent add", "agent add-status",
 	"agent preferences",
 	"agent environment", "agent environment-report", "announcement audience", "announcement send",
-	"task list", "task show", "task create", "task change", "task history", "task runs",
+	"task list", "task show", "task create", "task change", "task history", "task runs", "task run",
 	"comment add", "comment edit", "worklog add", "discussion list", "discussion show", "mention list", "mention acknowledge", "watch", "observe",
 	"message send", "message show", "message read", "message diagnose", "message inbox", "message list", "message receipt", "message thread", "message thread-page", "message request-report", "session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",

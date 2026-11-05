@@ -233,10 +233,11 @@ security or 1,000-agent capacity.
 
 ## Completion report
 
-Write human-facing messages, reports and document content as readable Markdown
-or plain text with real spaces and newlines, not literal escape sequences or
-double-encoded text. Required JSON transport envelopes remain valid JSON;
-after decoding, their human-facing string values must contain real whitespace.
+Write readable human-facing Markdown/plain text with real spaces and newlines
+after JSON decoding, never literal escapes or double-encoded text; preserve JSON
+transport envelopes. Use `@ID` for complete entity references (named native links),
+not structured IDs, CLI/code/URLs/checkpoints. Agent attention retains
+`@{NAME}`/`@{AGENT_ID}` and grants no authority.
 
 Report actual version/source, machine/role and non-secret identity references,
 observed final states, checks, remaining blockers, and the next authorized

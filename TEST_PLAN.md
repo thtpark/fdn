@@ -24,6 +24,24 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Native named entity links
+
+```sh
+go test -race -count=1 . ./internal/foundation ./internal/api ./internal/cli ./internal/identityservice ./internal/observe ./internal/work -run 'RunRead|RunCLI|RunObservation|RunLookup|HumanFacing|Guidance'
+```
+
+Shared Swift `EntityReferenceTests` and `EntityLinkTests` cover exact route/ID
+validation, names instead of raw IDs, Markdown/Unicode/punctuation, legacy bare
+and braced references, safe external links, literal code and malformed links,
+off-page lookups, visible failures, deduplicated reads, unchanged read receipts
+and desktop back navigation. Mobile navigation tests retain the originating
+stack and resolve exact record queries without relying on loaded pages.
+Native run API/CLI/proxy/observer tests preserve task/claim state and source
+scope; every provider phase requests `@ID` only in human-facing text while
+retaining exact structured context. Build both apps and the source-bound mobile
+runtime. These checks do not qualify installed CLI/server upgrades, signed app
+distribution, physical devices or live providers.
+
 ## Model defaults, Adhoc reporting and self messages
 
 ```sh

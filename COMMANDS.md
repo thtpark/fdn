@@ -732,6 +732,7 @@ authority or forward caller-supplied identity headers.
 | `agent-cli task change` | `TASK --input FILE`; typed mutation kinds below, reason required |
 | `agent-cli task history` | `TASK`; latest three retained snapshots with action/reason |
 | `agent-cli task runs` | `TASK`; execution/verification/recovery kinds, source execution, actor/provider and evidence projections, not a claim/approval shortcut |
+| `agent-cli task run` | `RUN`; read one exact shared run and its task reference without claiming, acknowledging or changing work |
 
 Every change supplies `kind`, nonempty `reason`, operation metadata, and only
 fields allowed for that kind. The API also enforces all authority/preconditions.

@@ -397,7 +397,7 @@ func (a *app) taskCommand(ctx context.Context, r *resources, args []string) (any
 		}
 		query := url.Values{"project": {*project}, "assignee": {*assignee}, "status": {*status}, "limit": {strconv.Itoa(*limit)}, "cursor": {*cursor}, "include_archived": {strconv.FormatBool(*archived)}}
 		return api.Call[domain.Page[domain.Task]](ctx, r.client, "GET", "/v1/tasks?"+query.Encode(), nil)
-	case "show", "history", "runs":
+	case "show", "history", "runs", "run":
 		if err := requireArgs(args, 2); err != nil {
 			return nil, err
 		}
@@ -407,6 +407,9 @@ func (a *app) taskCommand(ctx context.Context, r *resources, args []string) (any
 		}
 		if args[0] == "runs" {
 			path = api.Path("tasks", args[1], "runs")
+		}
+		if args[0] == "run" {
+			path = api.Path("runs", args[1])
 		}
 		return api.Call[json.RawMessage](ctx, r.client, "GET", path, nil)
 	case "create":

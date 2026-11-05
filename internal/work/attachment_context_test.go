@@ -80,6 +80,37 @@ func TestHumanFacingPromptUsesReadableTextWithoutGrantingToolsToPlanning(t *test
 	}
 }
 
+func TestHumanFacingEntityReferencesUseAtPrefixWithoutChangingStructuredIDs(t *testing.T) {
+	for _, phase := range []string{"onboarding", "scope", "acceptance", "preflight", "request", "message", "attention", "research", domain.ExecutionRun, domain.VerificationRun, domain.RecoveryRun} {
+		launch := Launch{Phase: phase, AgentID: "agent_0123456789abcdef0123456789abcdef",
+			Message: &domain.Message{ID: "message_0123456789abcdef0123456789abcdef", Body: "Original source text."}}
+		data, err := json.Marshal(launch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prompt, err := invocationPrompt(data)
+		if err != nil {
+			t.Fatal(phase, err)
+		}
+		for _, fragment := range []string{
+			"prefix every referenced Foundation entity's complete existing ID with @",
+			"@message_0123456789abcdef0123456789abcdef", "@task_0123456789abcdef0123456789abcdef",
+			"@run_0123456789abcdef0123456789abcdef", "@comment_0123456789abcdef0123456789abcdef",
+			"Keep structured JSON ID fields", "opaque checkpoint values unchanged, without @",
+			"Do not wrap entity links in backticks or code fences",
+			"Agent attention still requires literal @{NAME} or @{AGENT_ID}",
+		} {
+			if !strings.Contains(prompt, fragment) {
+				t.Fatal(phase, "missing entity reference contract", fragment)
+			}
+		}
+		_, context, found := strings.Cut(prompt, "\nFDN_CONTEXT_JSON\n")
+		if !found || context != string(data) {
+			t.Fatal(phase, "reference display instructions changed the immutable context")
+		}
+	}
+}
+
 func TestAttachmentContextBudgetsMetadataWithoutFetchingPrivateBytes(t *testing.T) {
 	message := domain.Message{Body: "original"}
 	size, err := messageContextSize(message)
