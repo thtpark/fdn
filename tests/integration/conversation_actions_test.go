@@ -249,9 +249,8 @@ func TestAdhocActionLostReceiptAndRestartReplaysWithoutRepeatingWork(t *testing.
 	if _, err := engine.Step(ctx, false); err != nil {
 		t.Fatal(err)
 	}
-	transport := &lostConversationReceiptAck{base: h.worker.HTTP.Transport}
-	h.worker.HTTP.Transport = transport
-	defer func() { h.worker.HTTP.Transport = transport.base }()
+	transport := &lostConversationReceiptAck{base: fixtureTransport(t, h.worker)}
+	setFixtureTransport(t, h.worker, transport)
 	if _, err := engine.Step(ctx, false); err == nil || !transport.lost.Load() {
 		t.Fatal("fixture did not lose the actual committed receipt acknowledgement", err)
 	}

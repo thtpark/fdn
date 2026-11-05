@@ -515,8 +515,8 @@ func TestTaskRecoveryLostAcknowledgementsPreserveOneActualReconciliationAndResul
 		t.Run(mode, func(t *testing.T) {
 			h, engine, x, source, _ := prepareTaskRecovery(t, 0)
 			interruptTaskRecovery(t, engine, x)
-			transport := &lostTaskRecoveryAck{base: h.worker.HTTP.Transport, mode: mode}
-			h.worker.HTTP.Transport = transport
+			transport := &lostTaskRecoveryAck{base: fixtureTransport(t, h.worker), mode: mode}
+			setFixtureTransport(t, h.worker, transport)
 			restarted := false
 			for range 14 {
 				if _, err := engine.Step(context.Background(), false); err != nil && domain.AsFault(err).Code != domain.Unavailable {

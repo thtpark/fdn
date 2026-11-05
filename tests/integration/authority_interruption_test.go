@@ -47,7 +47,7 @@ func TestInterruptedExecutionReportsAuthorityChannelInsteadOfProviderFailure(t *
 	task := readyForEngine(t, h, engine)
 	skipHealthOnboarding(t, engine)
 	interrupted := make(chan struct{})
-	h.worker.HTTP.Transport = interruptedAuthorityTransport{h.worker.HTTP.Transport, interrupted}
+	setFixtureTransport(t, h.worker, interruptedAuthorityTransport{fixtureTransport(t, h.worker), interrupted})
 	if _, err := engine.Step(context.Background(), false); err != nil {
 		t.Fatal(err)
 	}

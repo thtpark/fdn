@@ -58,7 +58,12 @@ changed process is signalled or adopted.
 
 Linux process inspection treats both ENOENT and ESRCH during `/proc` reads as
 an exited PID, while cleanup still proves process-group disappearance and
-preserves permission/I/O failures. Sharing input recovery rechecks the exact
+preserves permission/I/O failures.
+Kernel effective UID comes from `/proc/PID/status`, not mutable procfs directory
+ownership; non-dumpable/closing processes can have root-owned procfs files.
+The start/group recheck rejects replacement between those reads. Synthetic
+owner-change and replacement cases retain the genuine UID/PID/group fences.
+Sharing input recovery rechecks the exact
 fence after acquiring `work.lock`, never cleans a retired/replaced lease and
 does not repeat native cleanup after durable proof. CI repeats these real-tmux
 lifecycle/kernel cases 20 times and the complete task-safe handoff 10 times;
@@ -325,7 +330,10 @@ These tests use isolated local TLS/storage and deterministic providers, not
 private production file bytes, paid inference or full-host qualification.
 Authority-interruption fixtures install their immutable HTTP transport before
 starting any controller feed; changing `http.Client.Transport` while a feed is
-running is a data race, not a transport-failure injection. The joined-interruption
+running is a data race, not a transport-failure injection. Tests retain one
+immutable client transport and synchronize injected handler changes through
+fixture teardown. Restoring the client field while a feed is closing is the
+same race. The joined-interruption
 fixture uses one bounded native process, while the separate unproved-cleanup
 case deliberately retains its fence. Repeat the exact interruption/risk cases
 with `-race -count=20`; do not rerun failed CI as a substitute for fixing races.

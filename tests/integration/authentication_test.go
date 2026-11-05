@@ -209,10 +209,9 @@ func TestAuthenticationDeliveryFailureAndLostAckRemainDurableWithoutDuplicates(t
 			h := newHarness(t)
 			x := &authenticationExecutor{authentication: "login-required"}
 			engine := authenticationEngine(t, h, x)
-			original := h.worker.HTTP.Transport
+			original := fixtureTransport(t, h.worker)
 			transport := &authenticationTransport{base: original, mode: mode}
-			h.worker.HTTP.Transport = transport
-			defer func() { h.worker.HTTP.Transport = original }()
+			setFixtureTransport(t, h.worker, transport)
 			first := requireAuthenticationBlock(t, engine, domain.Unavailable).AuthenticationRequests[0]
 			if first.State != "delivery-pending" || first.Error == nil || first.Deliveries[0].MessageID != "" {
 				t.Fatal("uncertain delivery was presented as success", first)
@@ -315,9 +314,8 @@ func TestMissingAuthenticationAuthorityRemainsExplicitlyPending(t *testing.T) {
 	h := newHarness(t)
 	x := &authenticationExecutor{authentication: "login-required"}
 	engine := authenticationEngine(t, h, x)
-	original := h.worker.HTTP.Transport
-	h.worker.HTTP.Transport = &authenticationTransport{base: original, mode: "no-authority"}
-	defer func() { h.worker.HTTP.Transport = original }()
+	original := fixtureTransport(t, h.worker)
+	setFixtureTransport(t, h.worker, &authenticationTransport{base: original, mode: "no-authority"})
 	request := requireAuthenticationBlock(t, engine, domain.Prerequisite).AuthenticationRequests[0]
 	if request.State != "delivery-pending" || request.Error == nil || len(request.Deliveries) != 0 ||
 		!strings.Contains(request.Error.Message, "no active Founder") || x.invocations != 0 {
