@@ -323,6 +323,12 @@ provider-declared completion proxy. Unused native claims consume no inference;
 unknown effects/new message IDs never renew a spent recovery budget.
 These tests use isolated local TLS/storage and deterministic providers, not
 private production file bytes, paid inference or full-host qualification.
+Authority-interruption fixtures install their immutable HTTP transport before
+starting any controller feed; changing `http.Client.Transport` while a feed is
+running is a data race, not a transport-failure injection. The joined-interruption
+fixture uses one bounded native process, while the separate unproved-cleanup
+case deliberately retains its fence. Repeat the exact interruption/risk cases
+with `-race -count=20`; do not rerun failed CI as a substitute for fixing races.
 
 `go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeConversationAction'`
 also drives the actual compiled CLI, identity proxy, daemon and both scripted

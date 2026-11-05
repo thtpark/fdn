@@ -204,7 +204,7 @@ func (x *taskRecoveryExecutor) Invoke(ctx context.Context, invocation provider.I
 			return provider.Reply{}, err
 		}
 		err = (process.Native{}).Run(ctx, process.Spec{
-			Path: "/bin/sh", Args: []string{"-c", "while :; do sleep 1; done"}, Dir: invocation.Workspace,
+			Path: "/bin/sleep", Args: []string{"60"}, Dir: invocation.Workspace,
 			Env: []string{"PATH=/usr/bin:/bin", "HOME=" + invocation.Workspace}, Stdout: io.Discard, Stderr: io.Discard,
 			Started: func(pid int) error {
 				x.pid = pid
@@ -309,8 +309,13 @@ func interruptTaskRecovery(t *testing.T, engine *work.Engine, x *taskRecoveryExe
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	x.cancel = cancel
-	if _, err := engine.Step(ctx, false); err == nil || x.execution != 1 || x.pid == 0 {
+	_, err := engine.Step(ctx, false)
+	if err == nil || x.execution != 1 || x.pid == 0 {
 		t.Fatal("fixture did not interrupt an actual started provider process", err)
+	}
+	var cleanup *process.CleanupError
+	if !x.unproved && errors.As(err, &cleanup) {
+		t.Fatal("fixture interruption did not establish native joined cleanup", cleanup)
 	}
 	if err := syscall.Kill(-x.pid, 0); !errors.Is(err, syscall.ESRCH) {
 		t.Fatal("native interrupted process group was not joined", err)
