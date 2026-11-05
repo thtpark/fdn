@@ -174,9 +174,8 @@ func TestLostReportAcknowledgmentReplaysWithoutInference(t *testing.T) {
 	e := newEngine(t, h, x)
 	task := readyForEngine(t, h, e)
 	ctx := context.Background()
-	original := h.worker.HTTP.Transport
-	h.worker.HTTP.Transport = &lostAck{base: original}
-	defer func() { h.worker.HTTP.Transport = original }()
+	original := fixtureTransport(t, h.worker)
+	setFixtureTransport(t, h.worker, &lostAck{base: original})
 	for range 2 {
 		if _, err := e.Step(ctx, true); err != nil {
 			t.Fatal(err)

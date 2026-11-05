@@ -112,10 +112,9 @@ func TestEarlyReadLostAckReplaysBeforeFirstModelCall(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := h.worker.HTTP.Transport
+	base := fixtureTransport(t, h.worker)
 	transport := &lostReadAcknowledgement{base: base}
-	h.worker.HTTP.Transport = transport
-	defer func() { h.worker.HTTP.Transport = base }()
+	setFixtureTransport(t, h.worker, transport)
 	if status, err := e.Step(ctx, false); err == nil || domain.AsFault(err).Code != domain.Prerequisite || status.State != "blocked" {
 		t.Fatal("lost read acknowledgement did not block processing", status, err)
 	}

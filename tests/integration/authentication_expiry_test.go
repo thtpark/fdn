@@ -120,10 +120,9 @@ func TestFounderAuthenticationRefreshDeliveryLostAckReusesPreparedEpisode(t *tes
 			x := &authenticationExecutor{authentication: "login-required"}
 			engine := authenticationEngine(t, h, x)
 			control := founderAuthenticationRefresh(t, h, "codex", "")
-			original := h.worker.HTTP.Transport
+			original := fixtureTransport(t, h.worker)
 			transport := &authenticationTransport{base: original, mode: mode}
-			h.worker.HTTP.Transport = transport
-			defer func() { h.worker.HTTP.Transport = original }()
+			setFixtureTransport(t, h.worker, transport)
 			first := requireAuthenticationBlock(t, engine, domain.Unavailable).AuthenticationRequests[0]
 			if first.RefreshID != control.ID || first.State != "delivery-pending" {
 				t.Fatal("failed refreshed notice lost its exact control binding", first)
@@ -158,9 +157,8 @@ func TestFounderAuthenticationRefreshReceiptLostAckDoesNotRepeatNotification(t *
 	x := &authenticationExecutor{authentication: "login-required"}
 	engine := authenticationEngine(t, h, x)
 	founderAuthenticationRefresh(t, h, "codex", "")
-	original := h.worker.HTTP.Transport
-	h.worker.HTTP.Transport = &authenticationReceiptLoss{base: original}
-	defer func() { h.worker.HTTP.Transport = original }()
+	original := fixtureTransport(t, h.worker)
+	setFixtureTransport(t, h.worker, &authenticationReceiptLoss{base: original})
 	first := requireAuthenticationBlock(t, engine, domain.Unavailable).AuthenticationRequests[0]
 	engine = restartAuthenticationEngine(t, engine)
 	second := requireAuthenticationBlock(t, engine, domain.Prerequisite).AuthenticationRequests[0]

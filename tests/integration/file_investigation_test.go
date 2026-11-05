@@ -200,9 +200,8 @@ func TestOfficeAndPhotoQuestionsUseActualPrivateBytes(t *testing.T) {
 						t.Fatal(err)
 					}
 					x.file = file
-					transport := &investigationDownloads{base: h.worker.HTTP.Transport}
-					h.worker.HTTP.Transport = transport
-					t.Cleanup(func() { h.worker.HTTP.Transport = transport.base })
+					transport := &investigationDownloads{base: fixtureTransport(t, h.worker)}
+					setFixtureTransport(t, h.worker, transport)
 					source, err := api.Call[domain.Message](ctx, sender, "POST", "/v1/messages", map[string]any{
 						"operation_id": command().OperationID, "recipient_id": h.workerAgent.ID, "kind": "direct",
 						"origin": origin, "body": fixture.question, "attachment_ids": []string{file.ID},

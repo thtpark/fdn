@@ -6,7 +6,7 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
-### Bounded task reconciliation and conversation continuation (current source)
+### Bounded task reconciliation and conversation continuation (0.3.34)
 
 Proven joined interruptions enter a distinct bounded recovery run under current
 task readiness. Checked retained progress can permit same-task continuation;

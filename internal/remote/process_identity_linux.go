@@ -24,7 +24,7 @@ func inspectProcProcess(pid int, stat func(string) (os.FileInfo, error), readFil
 	if err != nil {
 		return nil, 0, err
 	}
-	owner, ok := info.Sys().(*syscall.Stat_t)
+	_, ok := info.Sys().(*syscall.Stat_t)
 	if !ok {
 		return nil, 0, domain.Fail(domain.Prerequisite, "kernel process ownership is unavailable")
 	}
@@ -51,5 +51,36 @@ func inspectProcProcess(pid int, stat func(string) (os.FileInfo, error), readFil
 	if err != nil {
 		return nil, 0, err
 	}
-	return &ownedProcess{PID: pid, Group: group, UID: owner.Uid, Started: fields[19]}, parent, nil
+	status, err := readFile(filepath.Join(path, "status"))
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ESRCH) {
+		return nil, 0, nil
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	// procfs ownership becomes root for nondumpable/exiting processes.
+	// The kernel status supplies the process's actual effective UID.
+	uid, err := processEffectiveUID(status)
+	if err != nil {
+		return nil, 0, err
+	}
+	again, err := readFile(filepath.Join(path, "stat"))
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ESRCH) {
+		return nil, 0, nil
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	againEnd := strings.LastIndexByte(string(again), ')')
+	if againEnd < 0 {
+		return nil, 0, domain.Fail(domain.Prerequisite, "kernel process identity recheck is malformed")
+	}
+	againFields := strings.Fields(string(again[againEnd+1:]))
+	if len(againFields) < 20 {
+		return nil, 0, domain.Fail(domain.Prerequisite, "kernel process identity recheck is incomplete")
+	}
+	if fields[2] != againFields[2] || fields[19] != againFields[19] {
+		return nil, 0, domain.Fail(domain.Conflict, "kernel process changed during ownership inspection")
+	}
+	return &ownedProcess{PID: pid, Group: group, UID: uid, Started: fields[19]}, parent, nil
 }
