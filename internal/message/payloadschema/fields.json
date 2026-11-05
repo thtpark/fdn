@@ -1060,6 +1060,10 @@
       "id": 5,
       "name": "result_generation"
     },
+    "SourceRunID": {
+      "id": 10,
+      "name": "source_run_id"
+    },
     "SpecGeneration": {
       "id": 4,
       "name": "spec_generation"
@@ -3010,6 +3014,10 @@
       "id": 6,
       "name": "result_generation"
     },
+    "SourceRunID": {
+      "id": 20,
+      "name": "source_run_id"
+    },
     "SpecGeneration": {
       "id": 5,
       "name": "spec_generation"
@@ -3579,6 +3587,14 @@
     "Readiness": {
       "id": 25,
       "name": "readiness"
+    },
+    "RecoveryAttempts": {
+      "id": 39,
+      "name": "recovery_attempts"
+    },
+    "RecoveryRunID": {
+      "id": 38,
+      "name": "recovery_run_id"
     },
     "Repetitive": {
       "id": 14,

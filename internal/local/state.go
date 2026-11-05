@@ -121,7 +121,7 @@ ON CONFLICT(id) DO UPDATE SET data=excluded.data,state=excluded.state`, j.ID, da
 	if err != nil {
 		return err
 	}
-	if j.State == "invoking" && (j.Kind == domain.ExecutionRun || j.Kind == domain.VerificationRun) {
+	if j.State == "invoking" && domain.CodingRun(j.Kind) {
 		terminal, err := json.Marshal(domain.Terminal{ID: "execution", Name: "Current execution output", Generation: j.ID, Kind: "execution"})
 		if err != nil {
 			return err

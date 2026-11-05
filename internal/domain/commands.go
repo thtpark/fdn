@@ -166,6 +166,7 @@ type SessionChange struct {
 type ClaimRequest struct {
 	Command
 	Kind             string `json:"kind,omitempty"`
+	SourceRunID      string `json:"source_run_id,omitempty"`
 	SpecGeneration   int64  `json:"spec_generation"`
 	ResultGeneration int64  `json:"result_generation,omitempty"`
 	ProjectEpoch     int64  `json:"project_epoch,omitempty"`

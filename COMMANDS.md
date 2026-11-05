@@ -730,7 +730,7 @@ authority or forward caller-supplied identity headers.
 | `agent-cli task show` | `TASK`; current protected/ordinary context |
 | `agent-cli task change` | `TASK --input FILE`; typed mutation kinds below, reason required |
 | `agent-cli task history` | `TASK`; latest three retained snapshots with action/reason |
-| `agent-cli task runs` | `TASK`; execution/verification kinds, actor/provider and evidence projections, not a claim/approval shortcut |
+| `agent-cli task runs` | `TASK`; execution/verification/recovery kinds, source execution, actor/provider and evidence projections, not a claim/approval shortcut |
 
 Every change supplies `kind`, nonempty `reason`, operation metadata, and only
 fields allowed for that kind. The API also enforces all authority/preconditions.
@@ -745,6 +745,9 @@ This grants neither project delegation nor permission to execute another
 project's unapproved task, change OS privileges, spend, or verify its own result.
 Independent verification, one-slot admission, Founder pause and uncertainty
 fences remain. Adhoc actions have no automatic failure retry.
+Proven joined interruptions may use bounded reconciliation and same-task
+continuation within that unchanged failure budget; they do not need another
+human readiness prompt. See [automatic task reconciliation](#automatic-task-reconciliation).
 
 | Kind | Allowed decision fields / gate |
 | --- | --- |
@@ -1689,6 +1692,32 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 | `agent-cli work status` | Read-only local state, live `health` phase/deadline/progress/authentication observations and safe timestamped component diagnostics, blockers, pending invocations/reports, session fence and durable authentication request/delivery references |
 | `agent-cli work run` | One bounded manual controller step; same prompt/authority/slot as service |
 | `agent-cli work recover` | Exactly one `--journal INVOCATION` or `--session SESSION`, plus `--acknowledge-stopped` after confirming owned processes stopped; an exact rejected text journal authorizes a fresh review, never an execution retry |
+
+### Automatic task reconciliation
+
+The controller can inspect a proven joined interruption under the existing
+task's readiness, scope, source, workspace, provider/model and serial slot.
+This is a separate `recovery` run, not replay of the interrupted action.
+There is one invoked reconciliation per interrupted execution and at most
+three per specification; existing failure budgets/backoff still apply.
+Checked `reconciled` evidence can permit subsequent execution on the same task.
+Unknown effects, unproved cleanup, changed authority/mode, exhausted budgets
+and requested unanswered questions stay blocked with a specific next action.
+
+No new approval button or manual recovery command is needed for ordinary safe
+continuation. Natural follow-ups resolve the original task from the thread;
+they cannot create a replacement task or manufacture approval. An unresolved
+risk still uses the exact current `retry-approve` authority path after actual
+review. `work recover --acknowledge-stopped` remains native operator recovery,
+not authorization to replay effects.
+
+`task runs` retains recovery provenance; the task exposes `recovery_run_id` and
+`recovery_attempts`, and agent activity reports "Reconciling interrupted work".
+Reconciliation is not task completion or verification. Lost acknowledgements
+replay exact claims/reports/replies. A native claim that never invoked a
+provider releases only its unused reservation, not spent retry authority.
+Detailed field and authority rules are in
+[SCHEMA.md](SCHEMA.md#autonomous-task-reconciliation).
 
 Routine session cleanup is autonomous: the target retries the exact endpoint it
 opened with bounded native cleanup and exponential backoff (1-30 seconds).

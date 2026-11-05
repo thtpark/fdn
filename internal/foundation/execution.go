@@ -10,11 +10,8 @@ import (
 )
 
 func (s *Store) retryReady(ctx context.Context, tx *sql.Tx, p domain.Project, t domain.Task) error {
-	if t.Failures >= t.RetryPolicy.MaxRetries+1 {
-		return domain.Fail(domain.Prerequisite, "approved retry budget is exhausted; revise and reapprove the specification")
-	}
-	if t.NextAttemptAt > s.timestamp() {
-		return domain.Fail(domain.Prerequisite, "retry backoff has not elapsed")
+	if err := s.retryBudget(t); err != nil {
+		return err
 	}
 	if t.UnsafeRetry {
 		valid, err := s.validApproval(ctx, tx, p, t, t.RetryApproval, false)
@@ -24,6 +21,16 @@ func (s *Store) retryReady(ctx context.Context, tx *sql.Tx, p domain.Project, t 
 		if !valid || t.RetryApproval.RunID != t.LastRunID || t.RetryApproval.Attempt != t.Attempts+1 {
 			return domain.Fail(domain.Prerequisite, "unknown side effects require exact unsafe-retry approval")
 		}
+	}
+	return nil
+}
+
+func (s *Store) retryBudget(t domain.Task) error {
+	if t.Failures >= t.RetryPolicy.MaxRetries+1 {
+		return domain.Fail(domain.Prerequisite, "approved retry budget is exhausted; revise and reapprove the specification")
+	}
+	if t.NextAttemptAt > s.timestamp() {
+		return domain.Fail(domain.Prerequisite, "retry backoff has not elapsed")
 	}
 	return nil
 }
@@ -48,8 +55,11 @@ func (s *Store) Claim(ctx context.Context, actor, id string, req domain.ClaimReq
 		if kind == "" {
 			kind = domain.ExecutionRun
 		}
-		if kind != domain.ExecutionRun && kind != domain.VerificationRun {
-			return domain.Run{}, domain.Fail(domain.Invalid, "claim kind must be execution or verification")
+		if kind != domain.ExecutionRun && kind != domain.VerificationRun && kind != domain.RecoveryRun {
+			return domain.Run{}, domain.Fail(domain.Invalid, "claim kind must be execution, verification or recovery")
+		}
+		if kind != domain.RecoveryRun && req.SourceRunID != "" {
+			return domain.Run{}, domain.Fail(domain.Invalid, "source_run_id is only valid for a recovery claim")
 		}
 		if !domain.ValidHash(req.TokenHash) || !domain.ValidProvider(req.Provider) {
 			return domain.Run{}, domain.Fail(domain.Invalid, "claim requires an ownership-token hash and supported provider")
@@ -57,7 +67,11 @@ func (s *Store) Claim(ctx context.Context, actor, id string, req domain.ClaimReq
 		if err := domain.CheckText(req.Model, "claim model", 256, false); err != nil {
 			return domain.Run{}, err
 		}
-		if kind == domain.VerificationRun {
+		if kind == domain.RecoveryRun {
+			if err := s.recoveryReady(ctx, tx, a, p, t, req); err != nil {
+				return domain.Run{}, err
+			}
+		} else if kind == domain.VerificationRun {
 			if !eligibleApprover(a, p, t, true) || a.ID == t.AssigneeID {
 				return domain.Run{}, domain.Fail(domain.Denied, "verification runs require independent current project authority satisfying task policy")
 			}
@@ -118,6 +132,11 @@ OR (json_extract(data,'$.purpose')='sharing' AND COALESCE(json_extract(data,'$.i
 			Attempt: t.Attempts + 1, Provider: req.Provider, Model: req.Model, State: "running", Evidence: []string{}, StartedAt: s.timestamp()}
 		if kind == domain.VerificationRun {
 			run.Attempt, run.ResultGeneration, run.DiscussionGeneration, run.ProjectEpoch, run.AgentRevision = 1, t.ResultGeneration, t.DiscussionGeneration, p.Epoch, a.Revision
+		} else if kind == domain.RecoveryRun {
+			run.SourceRunID, run.Attempt = req.SourceRunID, t.RecoveryAttempts+1
+			run.DiscussionGeneration, run.ProjectEpoch, run.AgentRevision = t.DiscussionGeneration, p.Epoch, a.Revision
+		} else {
+			run.ProjectEpoch = p.Epoch
 		}
 		data, err := encode(run)
 		if err != nil {
@@ -130,6 +149,8 @@ OR (json_extract(data,'$.purpose')='sharing' AND COALESCE(json_extract(data,'$.i
 		if kind == domain.ExecutionRun {
 			t.LastRunID, t.Attempts, t.Status = run.ID, run.Attempt, domain.Running
 			t.RetryApproval = nil
+		} else if kind == domain.RecoveryRun {
+			t.RecoveryRunID, t.RecoveryAttempts = run.ID, run.Attempt
 		}
 		return run, s.saveTask(ctx, tx, &t, a.ID, "claim")
 	})
@@ -147,7 +168,7 @@ func (s *Store) saveRun(ctx context.Context, tx *sql.Tx, run domain.Run) error {
 func (s *Store) Report(ctx context.Context, actor, taskID string, req domain.ReportRequest) (domain.ReportOutcome, error) {
 	return mutate(ctx, s, actor, "task.report:"+taskID, req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.ReportOutcome, error) {
 		var outcome domain.ReportOutcome
-		if !slices.Contains([]string{"completed", "paused", "failed", "stopped", "interrupted"}, req.Outcome) {
+		if !slices.Contains([]string{"completed", "paused", "failed", "stopped", "interrupted", "reconciled", domain.RecoveryNotStarted}, req.Outcome) {
 			return outcome, domain.Fail(domain.Invalid, "unsupported report outcome")
 		}
 		if err := domain.CheckText(req.Summary, "report summary", 32768, true); err != nil {
@@ -183,8 +204,14 @@ func (s *Store) Report(ctx context.Context, actor, taskID string, req domain.Rep
 		if t.ActiveRun == nil || t.ActiveRun.ID != run.ID || run.State != "running" || req.SpecGeneration != run.SpecGeneration {
 			return outcome, domain.Fail(domain.Conflict, "run is no longer the active ownership generation")
 		}
+		if (req.Outcome == "reconciled" || req.Outcome == domain.RecoveryNotStarted) && run.Kind != domain.RecoveryRun {
+			return outcome, domain.Fail(domain.Invalid, "only a recovery run can report reconciliation")
+		}
 		if run.Kind == domain.VerificationRun {
 			return s.reportVerification(ctx, tx, a, t, run, req)
+		}
+		if run.Kind == domain.RecoveryRun {
+			return s.reportRecovery(ctx, tx, a, t, run, req)
 		}
 		if req.ResultGeneration != 0 || req.Decision != "" || req.ApproveRework {
 			return outcome, domain.Fail(domain.Invalid, "verification fields are not valid for an execution report")

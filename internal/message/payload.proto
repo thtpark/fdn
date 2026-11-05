@@ -370,6 +370,7 @@ message Go_ClaimRequest {
   String token_hash = 7;
   String provider = 8;
   String model = 9;
+  String source_run_id = 10;
 }
 
 message Go_Clarity {
@@ -1031,6 +1032,7 @@ message Go_Run {
   String checkpoint = 17;
   Signed started_at = 18;
   Signed finished_at = 19;
+  String source_run_id = 20;
 }
 
 message Go_Screen {
@@ -1215,6 +1217,8 @@ message Go_Task {
   Bool unsafe_retry = 35;
   Go_Result result = 36;
   List_Go_FileReference attachments = 37;
+  String recovery_run_id = 38;
+  Signed recovery_attempts = 39;
 }
 
 message Go_TaskChange {

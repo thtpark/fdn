@@ -104,7 +104,7 @@ func (e *Engine) reconcile(ctx context.Context, manual bool) (bool, error) {
 		case "claimed":
 			return true, e.notStarted(ctx, &j, "recovered a claim without an invocation fence")
 		case "reply-prepared", "applying":
-			if j.Kind != domain.ExecutionRun && j.Kind != domain.VerificationRun {
+			if !domain.CodingRun(j.Kind) {
 				c, err := e.currentConfig()
 				if err != nil {
 					return false, err
@@ -121,7 +121,7 @@ func (e *Engine) reconcile(ctx context.Context, manual bool) (bool, error) {
 			if err := json.Unmarshal(j.Reply, &reply); err != nil {
 				return false, err
 			}
-			if j.Kind == domain.ExecutionRun || j.Kind == domain.VerificationRun {
+			if domain.CodingRun(j.Kind) {
 				return true, e.finishExecution(ctx, &j, launch, reply)
 			}
 			return true, e.applyText(ctx, &j, launch, reply)
@@ -154,7 +154,7 @@ func (e *Engine) Recover(ctx context.Context, id string, acknowledgeStopped bool
 	if j.State != "invoking" && j.State != "uncertain" && j.State != "reply-prepared" && j.State != "applying" {
 		return domain.Fail(domain.Prerequisite, "journal is not awaiting explicit recovery")
 	}
-	if (j.Kind == domain.ExecutionRun || j.Kind == domain.VerificationRun) && j.RunID != "" {
+	if domain.CodingRun(j.Kind) && j.RunID != "" {
 		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".recovery-report"}, RunID: j.RunID, Token: j.Token, SpecGeneration: j.SpecGeneration, ResultGeneration: verificationResult(j),
 			Outcome: "interrupted", Summary: "operator explicitly acknowledged the interrupted process tree stopped; side effects remain uncertain", Checkpoint: j.ID}
 		if err := e.queueReport(ctx, &j); err != nil {

@@ -121,6 +121,7 @@ func TestTaskRequestReconciliationReportsActualProgressAndStoppedResults(t *test
 			task.Result = &domain.Result{RunID: "run_earlier_completed", SpecGeneration: task.SpecGeneration}
 		}},
 		{"verification-is-not-execution", "", func(task *domain.Task) { task.ActiveRun.Kind = domain.VerificationRun }},
+		{"recovery-is-not-execution", "", func(task *domain.Task) { task.ActiveRun.Kind = domain.RecoveryRun }},
 		{"idle", "", func(task *domain.Task) { task.ActiveRun = nil }},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {

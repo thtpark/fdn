@@ -116,6 +116,7 @@ func invalidate(t *domain.Task) {
 	t.SpecGeneration++
 	t.Readiness, t.Verification, t.RetryApproval, t.Clarity = nil, nil, nil, nil
 	t.Attempts, t.Failures, t.NextAttemptAt, t.UnsafeRetry = 0, 0, 0, false
+	t.RecoveryRunID, t.RecoveryAttempts = "", 0
 	if t.Waiting != nil && t.Waiting.Kind != "clarification" {
 		t.Waiting = nil
 	}

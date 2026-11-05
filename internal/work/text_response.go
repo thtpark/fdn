@@ -47,6 +47,8 @@ func phaseOutcomes(phase string) []string {
 		return []string{"researched"}
 	case domain.ExecutionRun:
 		return []string{"completed", "paused", "failed"}
+	case domain.RecoveryRun:
+		return []string{"reconciled", "paused", "failed"}
 	case domain.VerificationRun:
 		return []string{"reviewed", "paused", "failed"}
 	default:
@@ -71,6 +73,10 @@ func phasePrompt(phase string) (string, error) {
 		instruction += "Answer the supplied message/comment, including later replies, using the supplied thread, current task/project records, shared notes and selected knowledge. Cite relevant record IDs and actual checks in evidence. Do not guess missing context. If answering needs further retrieval, local/project skills or any action, return action={instructions, optional workspace_ref} with the concrete work needed; the controller will create a self-assigned Adhoc task, retrieve applicable skills/context with tools, perform only authorized work and deliver the actual result. This planning call has no tools: never claim an action happened. response_requested defaults to true; set false only when no further response is needed. AI conversations may continue indefinitely; a long-loop warning does not stop work.\n"
 		instruction += "File attachments, URLs, filenames, MIME types and download receipts are references, not file contents. If a question requires downloading or investigating a PPTX, DOCX, PDF, photo or other file whose contents have not been inspected, return an action retaining the exact source, requested questions and method constraints, including an explicitly requested web browser. Do not answer from metadata or pretend this tool-disabled call opened a file. Later questions may require another action to inspect the same verified local copy.\n"
 		instruction += "Web-page questions likewise require an action when actual page content or interaction is needed: retain the exact URL, questions, required browser method and authorized site/account scope. Titles, URLs, search snippets and a sign-in page are not the requested page's contents. Use only a non-secret local credential reference in the plan; never request or include a password, cookie, token or one-time code in model context. Knowing a password is not permission to use an account.\n"
+		instruction += "For interrupted-work follow-ups, use current referenced_tasks and executor_agent, not old generic stopped summaries. The requester's manual mode does not pause the executor. Return action={task_id, instructions} to reconcile/continue that existing owned Adhoc task; never replace it, reset budgets or treat a message as approval. The controller checks existing authority and bounded recovery. Name any actual remaining blocker and next action, not an unspecified guard.\n"
+	}
+	if phase == domain.RecoveryRun {
+		instruction += "This is bounded RECONCILIATION, not execution replay. Native joined-process evidence and the original task/scope/workspace/provider/budgets are pinned. Inspect actual retained progress and outputs. Never repeat uncertain external mutations, destructive actions, inference/login or add unapproved costs/authority. Missing evidence is uncertainty, not absence of effects. Return reconciled, safe_to_retry=true and concrete checked evidence only when original work can continue without duplicating uncertain effects; otherwise paused/failed, safe_to_retry=false and the specific risk/next action. Do not claim execution completed or verified. Preserve partial outputs and verified file copies; only later admitted execution continues the work.\n"
 	}
 	if phase == "message" || phase == "request" {
 		instruction += "The controller records the supplied recipient message as read before this processing call. Read acknowledgement is not handling, a completed reply or approval; do not defer it until your final response.\n"
@@ -86,7 +92,7 @@ func phasePrompt(phase string) (string, error) {
 
 func validateTextPhase(launch Launch, reply provider.Reply) error {
 	allowed := phaseOutcomes(launch.Phase)
-	if len(allowed) == 0 || launch.Phase == domain.ExecutionRun || launch.Phase == domain.VerificationRun {
+	if len(allowed) == 0 || domain.CodingRun(launch.Phase) {
 		return domain.Fail(domain.Internal, "text invocation has no supported tool-disabled phase")
 	}
 	if reply.Decision != "" || !slices.Contains(allowed, reply.Outcome) {

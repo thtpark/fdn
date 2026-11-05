@@ -25,6 +25,12 @@ type conversationAction struct {
 	TaskID            string                      `json:"task_id,omitempty"`
 	Report            *domain.ReportRequest       `json:"report,omitempty"`
 	Result            *provider.Reply             `json:"result,omitempty"`
+	ResumeFrom        string                      `json:"resume_from,omitempty"`
+	SourceHandled     bool                        `json:"source_handled,omitempty"`
+	ScopeInstructions string                      `json:"scope_instructions,omitempty"`
+	ScopeGeneration   int64                       `json:"scope_generation,omitempty"`
+	AwaitingReply     bool                        `json:"awaiting_reply,omitempty"`
+	OriginalSource    *Launch                     `json:"original_source,omitempty"`
 }
 
 func conversationActionID(launch Launch) string {
@@ -57,17 +63,29 @@ func (e *Engine) queueConversationAction(ctx context.Context, journal *local.Jou
 		return err
 	}
 	id := conversationActionID(launch)
+	plan := *reply.Action
 	var retained conversationAction
 	found, err := e.State.Get(ctx, "conversation-action:"+id, &retained)
 	if err != nil {
 		return err
 	}
 	if found {
-		if retained.Version != 1 || retained.ID != id || retained.Plan != *reply.Action {
+		if plan.TaskID == "" && retained.Plan.TaskID != "" {
+			plan.TaskID = retained.Plan.TaskID
+		}
+		if retained.Version != 1 || retained.ID != id || retained.Plan != plan {
 			return domain.Fail(domain.Conflict, "retained conversation action cannot be replaced by another plan")
 		}
 	} else {
-		retained = conversationAction{Version: 1, ID: id, State: "queued", Source: launch, Plan: *reply.Action, Read: reply.MessageRead, ResponseRequested: reply.ResponseRequested}
+		retained = conversationAction{Version: 1, ID: id, State: "queued", Source: launch, Plan: plan, Read: reply.MessageRead, ResponseRequested: reply.ResponseRequested}
+		if err := e.resolveConversationContinuation(ctx, &retained); err != nil {
+			return err
+		}
+		if retained.Plan.TaskID != "" {
+			if err := e.bindConversationContinuation(ctx, &retained); err != nil {
+				return err
+			}
+		}
 		if err := e.State.Put(ctx, "conversation-action:"+id, retained); err != nil {
 			return err
 		}
@@ -139,9 +157,9 @@ func (e *Engine) continueConversationActions(ctx context.Context, c config.Worke
 		if err != nil {
 			return false, err
 		}
-		if err := e.validateConversationSource(ctx, action.Source); err != nil && !(action.State == "reporting" && receiptPrepared) {
+		if err := e.validateActionSource(ctx, action); err != nil && !(action.State == "reporting" && receiptPrepared) {
 			if slices.Contains([]domain.Code{domain.Conflict, domain.NotFound, domain.Denied}, domain.AsFault(err).Code) {
-				if action.TaskID != "" {
+				if action.TaskID != "" && action.Plan.TaskID == "" && action.ResumeFrom == "" {
 					task, readErr := api.Call[domain.Task](ctx, e.Client, "GET", api.Path("tasks", action.TaskID), nil)
 					if readErr != nil {
 						return false, errors.Join(err, readErr)
@@ -168,8 +186,11 @@ func (e *Engine) continueConversationActions(ctx context.Context, c config.Worke
 		if action.State != "queued" && action.State != "working" {
 			return false, domain.Fail(domain.Prerequisite, "unknown retained conversation action state")
 		}
-		task, err := e.prepareConversationTask(ctx, c, &action)
+		task, err := e.prepareConversationTask(ctx, c, &action, manual)
 		if err != nil {
+			if action.State == "reporting" {
+				return true, errors.Join(err, e.deliverConversationAction(ctx, &action))
+			}
 			return true, err
 		}
 		launch, err := e.launch(ctx, domain.ExecutionRun, &task)
@@ -187,9 +208,12 @@ func (e *Engine) continueConversationActions(ctx context.Context, c config.Worke
 		if action.Source.Project != nil {
 			launch.ReferencedProjects = append(launch.ReferencedProjects, *action.Source.Project)
 		}
-		launch.ConversationID, launch.ActionInstructions = action.ID, action.Plan.Instructions
+		launch.ConversationID, launch.ActionInstructions = action.ID, conversationInstructions(action)
 		launch.ActionKey = requestedAction(ctx, action.Source)
 		launch.Discussion = action.Source.Discussion
+		if err := e.refreshActionContext(ctx, &launch, action.Source); err != nil {
+			return true, err
+		}
 		action.State = "working"
 		if err := e.State.Put(ctx, "conversation-action:"+action.ID, action); err != nil {
 			return true, err
@@ -206,7 +230,10 @@ func (e *Engine) continueConversationActions(ctx context.Context, c config.Worke
 	return false, nil
 }
 
-func (e *Engine) prepareConversationTask(ctx context.Context, c config.Worker, action *conversationAction) (domain.Task, error) {
+func (e *Engine) prepareConversationTask(ctx context.Context, c config.Worker, action *conversationAction, manual bool) (domain.Task, error) {
+	if action.Plan.TaskID != "" || action.ResumeFrom != "" {
+		return e.prepareConversationContinuation(ctx, c, action, manual)
+	}
 	task, err := commit[domain.Task](ctx, e, "POST", "/v1/tasks", domain.TaskRequest{
 		Command: domain.Command{OperationID: action.ID + ".task"}, ProjectID: domain.AdhocProjectID,
 		Title:              "Adhoc conversation action",
@@ -284,6 +311,13 @@ func (e *Engine) retainConversationReport(ctx context.Context, journal *local.Jo
 	if launch.ConversationID == "" {
 		return nil
 	}
+	if journal.Kind == domain.RecoveryRun {
+		if launch.Task != nil && launch.Task.ProjectID == domain.AdhocProjectID {
+			journal.Report.Summary = "Adhoc recovery: " + journal.Report.Outcome + ". Exact checked evidence remains in the private controller journal."
+			journal.Report.Evidence = []string{"Exact interrupted execution and native reconciliation journal retained; this is not execution completion."}
+		}
+		return nil
+	}
 	var action conversationAction
 	found, err := e.State.Get(ctx, "conversation-action:"+launch.ConversationID, &action)
 	if err != nil {
@@ -306,6 +340,7 @@ func (e *Engine) retainConversationReport(ctx context.Context, journal *local.Jo
 		result.Summary = "Action " + result.Outcome + ": " + result.Summary
 	}
 	action.Result, action.Report, action.State = &result, journal.Report, "reporting"
+	action.AwaitingReply = len(result.Questions) != 0
 	if err := e.State.Put(ctx, "conversation-action:"+action.ID, action); err != nil {
 		return err
 	}
@@ -338,19 +373,22 @@ func (e *Engine) deliverConversationAction(ctx context.Context, action *conversa
 	result := *action.Result
 	result.Evidence = append(slices.Clone(result.Evidence), "Adhoc task: "+action.TaskID, "Execution run: "+run.ID)
 	source := action.Source
+	operation := conversationOperation(*action)
 	if source.Message != nil {
-		if action.Read {
+		if action.Read && !action.SourceHandled {
 			if _, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", source.Message.ID, "read"),
-				domain.MessageReadRequest{Command: domain.Command{OperationID: action.ID + ".read"}}); err != nil {
+				domain.MessageReadRequest{Command: domain.Command{OperationID: operation + ".read"}}); err != nil {
 				return err
 			}
 		}
-		if err := e.sendConversationReply(ctx, action.ID+".reply", *source.Message, result); err != nil {
+		if err := e.sendConversationReply(ctx, operation+".reply", *source.Message, result); err != nil {
 			return err
 		}
-		if _, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", source.Message.ID, "receipt"),
-			domain.MessageReceipt{Command: domain.Command{OperationID: action.ID + ".receipt", ExpectedRevision: source.Message.Revision}, State: "handled"}); err != nil {
-			return err
+		if !action.SourceHandled {
+			if _, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", source.Message.ID, "receipt"),
+				domain.MessageReceipt{Command: domain.Command{OperationID: operation + ".receipt", ExpectedRevision: source.Message.Revision}, State: "handled"}); err != nil {
+				return err
+			}
 		}
 	} else if source.Attention != nil {
 		body, err := conversationBody(result)
@@ -358,11 +396,11 @@ func (e *Engine) deliverConversationAction(ctx context.Context, action *conversa
 			return err
 		}
 		if _, err := commit[domain.Entry](ctx, e, "POST", api.Path("tasks", source.Attention.TaskID, "entries"),
-			domain.EntryRequest{Command: domain.Command{OperationID: action.ID + ".reply"}, Kind: "comment", ParentID: source.Attention.EntryID, Body: body}); err != nil {
+			domain.EntryRequest{Command: domain.Command{OperationID: operation + ".reply"}, Kind: "comment", ParentID: source.Attention.EntryID, Body: body}); err != nil {
 			return err
 		}
 		if _, err := commit[domain.Attention](ctx, e, "POST", api.Path("attention", source.Attention.EntryID),
-			domain.AttentionRequest{Command: domain.Command{OperationID: action.ID + ".receipt"}, Generation: source.Attention.Generation, State: "handled"}); err != nil {
+			domain.AttentionRequest{Command: domain.Command{OperationID: operation + ".receipt"}, Generation: source.Attention.Generation, State: "handled"}); err != nil {
 			return err
 		}
 	} else {
@@ -384,17 +422,29 @@ func (e *Engine) guardConversationAction(ctx context.Context, cancel context.Can
 	if !found {
 		return domain.Fail(domain.Prerequisite, "conversation action source is unavailable")
 	}
-	subscription := &authoritySubscription{}
-	if source := action.Source.Message; source != nil {
-		subscription.messageID = source.ID
+	sources := []Launch{action.Source}
+	if action.OriginalSource != nil {
+		sources = append(sources, *action.OriginalSource)
 	}
-	if source := action.Source.Task; source != nil {
-		subscription.taskID, subscription.projectID = source.ID, source.ProjectID
-	}
-	return e.guardAuthority(ctx, cancel, subscription, func(ctx context.Context) error {
-		if err := e.validateConversationSource(ctx, action.Source); err != nil {
-			return fmt.Errorf("conversation action admission changed: %w", err)
+	for _, source := range sources {
+		subscription := &authoritySubscription{}
+		if source.Message != nil {
+			subscription.messageID = source.Message.ID
+			if source.Message.Announcement != nil {
+				subscription.projectID = source.Message.Announcement.ProjectID
+			}
 		}
-		return nil
-	})
+		if source.Task != nil {
+			subscription.taskID, subscription.projectID = source.Task.ID, source.Task.ProjectID
+		}
+		if err := e.guardAuthority(ctx, cancel, subscription, func(ctx context.Context) error {
+			if err := e.validateActionSource(ctx, action); err != nil {
+				return fmt.Errorf("conversation action admission changed: %w", err)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

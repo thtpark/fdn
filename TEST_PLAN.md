@@ -300,9 +300,29 @@ readiness, generation-bound assigned attention, later-thread context, actual
 fixture skill/file effects, report-before-response, lost receipt restart,
 explicit model opt-out and Founder pause/resume. These use local deterministic
 providers and temporary state, not paid/live inference.
+`go test -count=1 -tags=e2e ./tests/e2e -run 'TestNativeProviderFailureAndMidRunQuestions|TestNativeTaskRecovery'`
+also compiles the actual CLI/service and drives both scripted native provider
+adapters. Safe retained partial output continues on the same task with two
+executions and one reconciliation; a failed provider without an effect result
+stays fenced after one concrete recovery review. Neither case requires another
+human readiness decision or certifies live-provider behavior.
 `TestClarityConsumesOnlyExplicitlyReviewedCommentGenerations` preserves the
 existing productive clarification loop: incorporated answers are handled
 atomically, unrelated comments and later edits remain pending.
+
+`go test -race -count=1 ./internal/foundation ./internal/work -run 'TaskRecovery|UnusedRecovery|TaskRequestReconciliation'`
+and `go test -race -count=1 -tags=integration ./tests/integration -run 'InterruptedZIP|UnprovedProvider|BlockedRecovery|TaskRecoveryLost|AutomaticTaskReconciliation'`
+cover bounded same-task reconciliation, original provider/scope/run binding,
+no human readiness handoff, precise unresolved risks, missing/unproved cleanup,
+changed scope/Founder pause, and exact lost claim/report/reply reconciliation.
+The ZIP case uses synthetic bytes with the original report's exact 20,210,825-byte
+size, an actual verified receipt, nested ZIP/XLSX content (cell value 42), a real
+owned native process cancellation/join, runner restart, one reconciliation and
+two execution attempts on one task. It checks actual saved output, not a
+provider-declared completion proxy. Unused native claims consume no inference;
+unknown effects/new message IDs never renew a spent recovery budget.
+These tests use isolated local TLS/storage and deterministic providers, not
+private production file bytes, paid inference or full-host qualification.
 
 `go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeConversationAction'`
 also drives the actual compiled CLI, identity proxy, daemon and both scripted

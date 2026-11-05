@@ -86,6 +86,10 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
 5. Reconcile lost acknowledgements with the same operation and original input.
    Prepared reports replay without repeated inference. Unknown side effects
    stay fenced; no timeout takeover or fresh run ID resets retry authority.
+   Distinct bounded task reconciliation may inspect proven joined interruptions
+   under current readiness. Check recovery runs/results, not an old generic
+   guard; unresolved risks remain fenced. See
+   [automatic task reconciliation](../../../COMMANDS.md#automatic-task-reconciliation).
 6. Routine interactive cleanup is automatic first: the target retries its exact
    owned endpoint with bounded calls and 1-30-second backoff, using durable
    generation-bound native socket/process-start evidence after restart. Proven

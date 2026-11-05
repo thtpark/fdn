@@ -182,6 +182,8 @@ For live sharing use [foundation-sharing](../../../.agents/skills/foundation-sha
   process tree stopped use `work recover --journal INVOCATION
   --acknowledge-stopped`; this does not authorize retry. Current exact unsafe
   retry approval, backoff and remaining failure budget still apply.
+- Proven joined interruptions use [bounded task reconciliation](../../../COMMANDS.md#automatic-task-reconciliation),
+  never a new task, invented answer or budget reset.
 - Settled, unapplied tool-disabled interruptions have three total transient
   attempts with 5/10-second backoff, never while paused. Exhaustion isolates that
   source, not other messages/files. Poll/restart/new IDs cannot reset its budget
