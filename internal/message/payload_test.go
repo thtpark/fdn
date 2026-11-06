@@ -141,6 +141,7 @@ func TestPayloadTransportAndUpdateDTOs(t *testing.T) {
 		},
 		domain.MessageCommand{ExpiresAt: &maximum},
 		domain.RelayOpen{SessionID: "session_1", Side: "requester", Ticket: "test_ticket"},
+		domain.AgentAdditionRelayOpen{OperationID: "add_worker", Host: "2001:db8::1", Port: 2222, Ticket: "test_ticket"},
 		domain.RelayChunk{Data: []byte{0, 1, 255}, EOF: true},
 		domain.RelayChunk{Data: []byte{}}, domain.RelayChunk{Data: nil},
 		domain.RelayWritten{Written: 4096},

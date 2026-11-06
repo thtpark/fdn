@@ -63,6 +63,13 @@ func TestAgentAdditionSSHInputPinsAndQuoting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if target.ViaFoundation {
+		t.Fatal("direct SSH is no longer the default")
+	}
+	relayed, err := parseAdditionTarget([]string{"--host", "2001:db8::1", "--user", "existing_user", "--name", "NewAgent", "--via-foundation"})
+	if err != nil || !relayed.ViaFoundation {
+		t.Fatal("explicit via-Foundation route was not parsed", relayed, err)
+	}
 	args := strings.Join(additionSSH(target, "/private/known_hosts", false), " ")
 	for _, required := range []string{"StrictHostKeyChecking=yes", "ForwardAgent=no", "ClearAllForwardings=yes", "ControlMaster=no", "PermitLocalCommand=no", "-F /dev/null"} {
 		if !strings.Contains(args, required) {
@@ -77,19 +84,24 @@ func TestAgentAdditionSSHInputPinsAndQuoting(t *testing.T) {
 }
 
 type additionRunner struct {
-	t            *testing.T
-	public       domain.PublicIdentity
-	agentID      string
-	calls        []string
-	fail         string
-	stopped      bool
-	wrongVersion bool
+	t             *testing.T
+	public        domain.PublicIdentity
+	agentID       string
+	calls         []string
+	fail          string
+	stopped       bool
+	wrongVersion  bool
+	viaFoundation bool
 }
 
 func (f *additionRunner) Run(_ context.Context, spec process.Spec) error {
 	f.t.Helper()
 	if spec.Path != "ssh" || !strings.Contains(strings.Join(spec.Args, " "), "StrictHostKeyChecking=yes") {
 		f.t.Fatal("addition did not use pinned SSH")
+	}
+	proxied := strings.Contains(strings.Join(spec.Args, " "), "ProxyCommand=")
+	if proxied != f.viaFoundation {
+		f.t.Fatal("addition changed its explicit direct/Foundation route")
 	}
 	command := spec.Args[len(spec.Args)-1]
 	stage := ""
@@ -158,7 +170,7 @@ func additionFixture(t *testing.T) (*app, *resources, *additionRunner) {
 			t.Error("unexpected addition API call", r.URL.Path)
 		}
 	})
-	a := &app{configFile: file, operation: domain.NewID("op")}
+	a := &app{configFile: file, operation: domain.NewID("op"), timeout: 60}
 	resources, err := a.load(context.Background(), true)
 	if err != nil {
 		t.Fatal(err)
@@ -224,6 +236,85 @@ func TestAgentAdditionUncertainNativeStageNeverReruns(t *testing.T) {
 	}
 	if saved.Pending != "activated" || !saved.Enrolled || !saved.Installed || saved.Connected {
 		t.Fatal("uncertain enrollment evidence was lost")
+	}
+}
+
+func TestAgentAdditionViaFoundationPreservesRouteAndNativeFences(t *testing.T) {
+	a, r, runner := additionFixture(t)
+	ctx := context.Background()
+	var saved agentAddition
+	if _, err := r.state.Get(ctx, "agent-add:"+a.operation, &saved); err != nil {
+		t.Fatal(err)
+	}
+	saved.Target.ViaFoundation = true
+	if err := r.state.Put(ctx, "agent-add:"+a.operation, saved); err != nil {
+		t.Fatal(err)
+	}
+	runner.viaFoundation, runner.fail = true, "activate"
+	if _, err := a.addAgentWith(ctx, r, saved.Target, upgrade.NewCatalog(), runner, nil, nil); err == nil {
+		t.Fatal("uncertain relayed activation was reported as connected")
+	}
+	runner.fail = ""
+	if _, err := a.addAgentWith(ctx, r, saved.Target, upgrade.NewCatalog(), runner, nil, nil); domain.AsFault(err).Code != domain.Prerequisite {
+		t.Fatal("relayed native mutation was automatically retried", err)
+	}
+	direct := saved.Target
+	direct.ViaFoundation = false
+	if _, err := a.addAgentWith(ctx, r, direct, upgrade.NewCatalog(), runner, nil, nil); domain.AsFault(err).Code != domain.Conflict {
+		t.Fatal("addition replay silently changed to direct SSH", err)
+	}
+	if !reflect.DeepEqual(runner.calls, []string{"version", "prepare", "activate"}) {
+		t.Fatal("via-Foundation addition bypassed the native uncertainty fence", runner.calls)
+	}
+	retained, err := retainedAgentAddition(ctx, r, a.operation)
+	if err != nil || !retained.Target.ViaFoundation || retained.Pending != "activated" || !retained.Enrolled || retained.Connected {
+		t.Fatal("retained relayed addition lost its exact route or observed stages", retained, err)
+	}
+}
+
+func TestAgentAdditionViaFoundationSignedEnrollmentAndNativeVerification(t *testing.T) {
+	a, r, runner := additionFixture(t)
+	ctx := context.Background()
+	var saved agentAddition
+	if _, err := r.state.Get(ctx, "agent-add:"+a.operation, &saved); err != nil {
+		t.Fatal(err)
+	}
+	saved.Target.ViaFoundation = true
+	if err := r.state.Put(ctx, "agent-add:"+a.operation, saved); err != nil {
+		t.Fatal(err)
+	}
+	runner.viaFoundation = true
+	result, err := a.addAgentWith(ctx, r, saved.Target, upgrade.NewCatalog(), runner, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	completed := result.(agentAddition)
+	if !completed.Target.ViaFoundation || !completed.Installed || !completed.Enrolled || !completed.Connected ||
+		completed.Mode != "ai" || completed.Pending != "" || completed.Stage != "connected" {
+		t.Fatal("relayed addition did not verify native services and identity in the normal AI mode", completed)
+	}
+	if !reflect.DeepEqual(runner.calls, []string{"version", "prepare", "activate", "status"}) {
+		t.Fatal("relayed addition bypassed verification or repeated native effects", runner.calls)
+	}
+}
+
+func TestAgentAdditionRelayHelperRejectsDirectAndCompletedOperationsWithoutStdout(t *testing.T) {
+	a, r, _ := additionFixture(t)
+	for _, stage := range []string{"installed", "connected"} {
+		var saved agentAddition
+		if _, err := r.state.Get(context.Background(), "agent-add:"+a.operation, &saved); err != nil {
+			t.Fatal(err)
+		}
+		saved.Stage, saved.Target.ViaFoundation = stage, stage == "connected"
+		if err := r.state.Put(context.Background(), "agent-add:"+a.operation, saved); err != nil {
+			t.Fatal(err)
+		}
+		var output, diagnostic bytes.Buffer
+		code := RunAgent(context.Background(), []string{"--config", a.configFile, "agent", "add-relay", a.operation},
+			io.NopCloser(strings.NewReader("")), &output, &diagnostic)
+		if code == 0 || output.Len() != 0 || diagnostic.Len() == 0 {
+			t.Fatal("invalid raw SSH helper emitted success or structured stdout", code, output.String(), diagnostic.String())
+		}
 	}
 }
 

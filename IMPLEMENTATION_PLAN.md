@@ -6,6 +6,28 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Foundation-routed worker SSH onboarding (0.3.39 source)
+
+Founder can opt into `agent add --via-foundation` when the new worker IP/SSH
+port is reachable from Foundation rather than the Founder computer. Direct
+remains the default, with no automatic fallback. The exact route is retained in
+the existing local saga; old journals remain direct and route changes conflict.
+Worker SSH stays end-to-end on Founder through a narrowly typed, Founder-only
+native relay. The gateway still permits only API/join stdio, without forwarding,
+new TCP listeners, server-side operator credentials or worker OS-account changes.
+The internal raw proxy helper accepts only the original Founder's unfinished
+retained operation. Its identity proxy pins the connection-local ticket to its
+original owner transport across renewal and closes it after local disconnect.
+All existing native-stage uncertainty, signed enrollment, exact release and
+normal AI/work/spending gates remain. This is not reverse/NAT bootstrap.
+
+The macOS 0.4.8 source exposes the explicit option only with a capable local CLI.
+The new typed payload changes the locked native fingerprint; deploy compatible
+server, CLI and identity proxies together under separate authorization. SQL and
+API/schema/native version numbers remain unchanged. Deterministic authority,
+chunk/bound/cancellation, real Unix-proxy renewal/disconnect and actual OpenSSH
+host-pin regressions are source evidence, not native rollout qualification.
+
 ### Named native entity references (0.3.36 source)
 
 macOS and iOS share readable `@ID`/`@{ID}` links with exact entity routing.

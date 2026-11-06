@@ -292,8 +292,9 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban applies only to non-Founders |
 | `agent-cli agent register` | `--input SIGNED_PUBLIC [--output PUBLIC_PROFILE]`; Founder-only new signed public-key registration |
-| `agent-cli agent add` | `--host IP --user SSH_USER --name NAME [--port 22 --identity-file ABS]`; Founder-only new-worker installation and signed registration in a protected human terminal |
+| `agent-cli agent add` | `--host IP --user SSH_USER --name NAME [--port 22 --identity-file ABS --via-foundation]`; Founder-only new-worker installation and signed registration in a protected human terminal; direct SSH by default, optional authenticated Foundation-host relay |
 | `agent-cli agent add-status` | `OPERATION_ID`; read-only original Founder's retained local addition journal; no SSH, installation, key generation or retry |
+| `agent-cli agent add-relay` | `OPERATION_ID`; internal raw-stdio SSH ProxyCommand for the original Founder's unfinished `--via-foundation` addition; exact retained IP/port only, no target override, installation or native-stage retry |
 | `agent-cli agent recover` | `AGENT --input NEW_SIGNED_PUBLIC --reason REASON [--output PUBLIC_PROFILE]`; Founder-only non-Founder recovery with fresh keypairs/generation, not task-run recovery |
 | `agent-cli agent identity` | Current connection's public identity/device/account/key-generation/owner state; no private material |
 | `agent-cli device list` | Founder only; original computer and all additional device bindings, including revoked devices; no leaf flags |
@@ -333,6 +334,29 @@ agent-cli --operation-id add-agent2 agent add \
   --host 192.0.2.10 --user existing_user --name Agent2
 ```
 
+Direct SSH is the default: that IP/port must be reachable from the Founder
+computer running this command. Add `--via-foundation` when it is reachable
+from the Foundation host instead:
+
+```sh
+agent-cli --operation-id add-agent3 agent add \
+  --host 192.0.2.11 --user existing_user --name Agent3 --via-foundation
+```
+
+The route is Founder -> authenticated Foundation native transport -> worker SSH.
+Worker SSH remains end-to-end from Founder; operator keys/passwords are never
+sent to Foundation, and the worker's independently verified host pin remains
+enforced. Foundation opens only the requested literal IP/port for active Founder,
+with at most four onboarding streams per authenticated connection. The native
+identity proxy pins each raw proxy's ticket to its original owner transport
+across renewal and closes it when that local proxy disconnects. No new TCP
+listener, sshd forwarding, arbitrary gateway command or reverse/NAT bootstrap
+is introduced. There is no automatic direct/relayed fallback.
+
+The relay requires compatible 0.3.39 CLI, server and identity proxies: its new
+typed payload changes the locked native payload fingerprint, not API/schema/
+protocol numbers or SQL. Roll out compatible programs together separately.
+
 Use the target's **existing non-root installing account**. An optional absolute
 `--identity-file` selects your own operator SSH key; it is never transferred.
 SSH-agent/default-key authentication is also available. Passwords, passphrases
@@ -355,11 +379,12 @@ GUI login domain. There is no sudo, account creation, host-service/root policy
 change, direct provider installation/login or workspace-tool grant. The runner
 starts its normal AI lifecycle under existing authentication/work authority.
 
-Use `agent add-status add-agent2` after an interrupted response. Installed,
+Use `agent add-status add-agent2` (or your exact operation ID) after an interrupted response. Installed,
 enrolled and connected are separate observations. Exact acknowledged stages and
 server registration receipts are retained; an uncertain dispatched native stage
 is fenced and never rerun automatically. Keep the original operation, SSH pin,
-public request/profile and target evidence for authorized operator inspection.
+public request/profile, selected route and target evidence for authorized operator inspection.
+Changing `--via-foundation` on the same operation is a conflict, not a reconnect.
 This is not existing-worker adoption, key recovery, an upgrade command or a
 new Founder-device enrollment path. Development/unpublished server sources fail
 closed rather than installing a different release.

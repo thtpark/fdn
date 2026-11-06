@@ -64,12 +64,22 @@ provider credential or project/OS authority.
 Founder `agent add` is a client-side, current-user SSH installation saga, not
 a new authority or schema. It uses existing transactional signed registration.
 Its private local journal binds the original Founder/operation, exact target,
-server instance/release, signed public request/profile and acknowledged native
+explicit direct/`--via-foundation` route, server instance/release, signed public request/profile and acknowledged native
 stages. Unknown native effects retain a fence; receipt replay never installs a
 different source or rotates keys. `agent add-status` reads only that local
-evidence. `assistance status` reads the exact session retained by an assistance
+evidence. The optional Founder-only `relay.agent-add.open` native operation opens
+the exact literal worker IP/SSH port from Foundation, using connection-local
+bounded tickets, capability-specific read/write/close operations and existing
+relay chunks. Worker SSH authentication/encryption
+and host pins remain end-to-end from Founder, not server-side login.
+Each raw local proxy retains its admitted owner transport across renewal and
+closes its exact ticket on disconnect; owner withdrawal/expiry still stops it.
+The new typed payload changes the locked native fingerprint and requires
+compatible programs, without a SQL/API/application-schema/native-version bump.
+Existing local journals omit the route and retain the direct default.
+`assistance status` reads the exact session retained by an assistance
 open operation, with ordinary current party authorization; it never creates,
-opens or retries a session. Neither command changes SQL/API/native versions.
+opens or retries a session. Neither status command changes SQL/API/native versions.
 
 Screens require explicit current profiles with verified geometry and a matching
 local backend. Per-worker `vnc_address`/`vnc_verified` are unsupported; only their

@@ -69,6 +69,13 @@ message Go_Agent {
   Go_ProviderPreferences preferences = 17;
 }
 
+message Go_AgentAdditionRelayOpen {
+  String operation_id = 1;
+  String host = 2;
+  Signed port = 3;
+  String ticket = 4;
+}
+
 message Go_AgentDiagnostics {
   String agent_id = 1;
   String name = 2;
@@ -1507,6 +1514,11 @@ message List_Go_Agent {
   bool present = 2;
 }
 
+message List_Go_AgentAdditionRelayOpen {
+  repeated Go_AgentAdditionRelayOpen items = 1;
+  bool present = 2;
+}
+
 message List_Go_AgentDiagnostics {
   repeated Go_AgentDiagnostics items = 1;
   bool present = 2;
@@ -2239,6 +2251,11 @@ message List_Page_Go_ActivitySummary {
 
 message List_Page_Go_Agent {
   repeated Page_Go_Agent items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_AgentAdditionRelayOpen {
+  repeated Page_Go_AgentAdditionRelayOpen items = 1;
   bool present = 2;
 }
 
@@ -3035,6 +3052,16 @@ message Map_Go_ActivitySummary_Entry {
 message Map_Go_Agent {
   repeated Map_Go_Agent_Entry items = 1;
   bool present = 2;
+}
+
+message Map_Go_AgentAdditionRelayOpen {
+  repeated Map_Go_AgentAdditionRelayOpen_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AgentAdditionRelayOpen_Entry {
+  optional string key = 1;
+  Go_AgentAdditionRelayOpen value = 2;
 }
 
 message Map_Go_AgentDiagnostics {
@@ -4505,6 +4532,16 @@ message Map_Page_Go_ActivitySummary_Entry {
 message Map_Page_Go_Agent {
   repeated Map_Page_Go_Agent_Entry items = 1;
   bool present = 2;
+}
+
+message Map_Page_Go_AgentAdditionRelayOpen {
+  repeated Map_Page_Go_AgentAdditionRelayOpen_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AgentAdditionRelayOpen_Entry {
+  optional string key = 1;
+  Page_Go_AgentAdditionRelayOpen value = 2;
 }
 
 message Map_Page_Go_AgentDiagnostics {
@@ -5979,6 +6016,11 @@ message Page_Go_ActivitySummary {
 
 message Page_Go_Agent {
   List_Go_Agent items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_AgentAdditionRelayOpen {
+  List_Go_AgentAdditionRelayOpen items = 1;
   String next_cursor = 2;
 }
 

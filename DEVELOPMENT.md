@@ -277,10 +277,18 @@ real overflow remains an explicit failure, never successful truncation.
 
 Founder desktop onboarding is implemented by `internal/cli/agent_add.go`,
 reusing the published release catalog, signed registration and paired existing-
-user services. Keep operator SSH/passwords in a protected human PTY; no new API,
-native payload, identity owner or SQL migration is implied. Test uncertain
+user services. Direct SSH remains the default; explicit `--via-foundation`
+uses the Founder-only `relay.agent-add.open` native capability, not sshd forwarding.
+Its raw `agent add-relay OP` ProxyCommand is bound to the original Founder's
+unfinished exact target/route journal and keeps operator SSH/passwords in the
+protected human PTY. Keep the local proxy's ticket on its admitted owner
+transport across renewal and close it on disconnect. The typed payload changes
+the locked fingerprint and needs compatible programs, not a new identity owner,
+SQL migration or API/schema/native version number. Test uncertain
 native-stage fences and actual native service status, not merely downloaded
-files or accepted registration. The macOS wrapper's protected terminal/browser
+files or accepted registration. Exercise actual OpenSSH through the raw helper,
+including worker host-key rejection and literal percent/quote-bearing local paths.
+The macOS wrapper's protected terminal/browser
 must remain separate from captured JSON processes and durable non-secret
 proposals. Do not start a live installation or login during local development.
 

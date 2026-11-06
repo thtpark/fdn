@@ -23,16 +23,18 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/platform"
 	"github.com/thtpark/fdn/internal/process"
+	"github.com/thtpark/fdn/internal/remote"
 	"github.com/thtpark/fdn/internal/secure"
 	"github.com/thtpark/fdn/internal/upgrade"
 )
 
 type additionTarget struct {
-	Host         string `json:"host"`
-	User         string `json:"user"`
-	Name         string `json:"name"`
-	Port         int    `json:"port"`
-	IdentityFile string `json:"identity_file,omitempty"`
+	Host          string `json:"host"`
+	User          string `json:"user"`
+	Name          string `json:"name"`
+	Port          int    `json:"port"`
+	IdentityFile  string `json:"identity_file,omitempty"`
+	ViaFoundation bool   `json:"via_foundation,omitempty"`
 }
 
 type agentAddition struct {
@@ -58,29 +60,32 @@ type agentAddition struct {
 }
 
 func (a *app) agentAddition(ctx context.Context, r *resources, args []string) (any, error) {
-	if args[0] == "add-status" {
+	if args[0] == "add-status" || args[0] == "add-relay" {
 		if err := requireArgs(args, 2); err != nil {
 			return nil, err
 		}
-		if !domain.ValidOperation(args[1]) {
-			return nil, domain.Fail(domain.Invalid, "invalid addition operation ID")
-		}
-		var saved agentAddition
-		found, err := r.state.Get(ctx, "agent-add:"+args[1], &saved)
+		saved, err := retainedAgentAddition(ctx, r, args[1])
 		if err != nil {
 			return nil, err
 		}
-		var credential config.Credential
-		if err := config.Read(r.config.CredentialFile, &credential); err != nil {
+		if args[0] == "add-status" {
+			return saved, nil
+		}
+		if a.json || !saved.Target.ViaFoundation || saved.Stage == "connected" {
+			return nil, domain.Fail(domain.Prerequisite, "raw SSH relay requires an unfinished via-Foundation addition, without --json")
+		}
+		if err := additionFounder(ctx, r); err != nil {
 			return nil, err
 		}
-		if !found {
-			return nil, domain.Fail(domain.NotFound, "no retained addition exists for this operation")
+		input, ok := a.in.(io.ReadCloser)
+		if !ok {
+			return nil, domain.Fail(domain.Prerequisite, "raw SSH relay requires closable process stdin")
 		}
-		if saved.FounderID != credential.AgentID {
-			return nil, domain.Fail(domain.Denied, "addition evidence belongs to another identity")
+		conn, err := api.DialAgentAdditionRelay(ctx, r.client, saved.OperationID, saved.Target.Host, saved.Target.Port)
+		if err != nil {
+			return nil, err
 		}
-		return saved, nil
+		return nil, remote.Bridge(ctx, conn, additionProxyIO{ReadCloser: input, output: a.out})
 	}
 	target, err := parseAdditionTarget(args[1:])
 	if err != nil {
@@ -104,6 +109,7 @@ func parseAdditionTarget(args []string) (additionTarget, error) {
 	flags.StringVar(&target.Name, "name", "", "new Foundation agent name")
 	flags.IntVar(&target.Port, "port", 22, "SSH port")
 	flags.StringVar(&target.IdentityFile, "identity-file", "", "optional local SSH private-key file; never transferred")
+	flags.BoolVar(&target.ViaFoundation, "via-foundation", false, "relay worker SSH through Foundation instead of connecting directly")
 	if err := parse(flags, args); err != nil {
 		return target, err
 	}
@@ -192,12 +198,30 @@ func (a *app) addAgentWith(ctx context.Context, r *resources, target additionTar
 			return nil, err
 		}
 	}
+	proxy := ""
+	if target.ViaFoundation {
+		if !r.client.IsMessageClient() {
+			return nil, domain.Fail(domain.Prerequisite, "via-Foundation addition requires the authenticated native identity transport")
+		}
+		executable, err := os.Executable()
+		if err != nil {
+			return nil, err
+		}
+		configuration, err := filepath.Abs(a.configFile)
+		if err != nil {
+			return nil, err
+		}
+		proxy = additionProxyCommand(executable, configuration, a.operation, a.timeout)
+	}
 	call := func(script string, body io.Reader, first bool) ([]byte, error) {
 		if err := additionFounder(ctx, r); err != nil {
 			return nil, err
 		}
 		output := process.NewBuffer(domain.MaxBody)
 		args := additionSSH(target, filepath.Join(saved.Directory, "known_hosts"), first)
+		if proxy != "" {
+			args = append([]string{"-o", "ProxyCommand=" + proxy, "-o", "ProxyUseFdpass=no"}, args...)
+		}
 		args = append(args, "/bin/sh -c "+additionQuote(script))
 		env := process.Environment()
 		if socket := os.Getenv("SSH_AUTH_SOCK"); socket != "" {
@@ -425,6 +449,44 @@ printf '%s\n' "$(uname -s)" "$(uname -m)" "$(id -u)" "$(id -g)" "$(id -un)" "$HO
 	}
 	return saved, nil
 }
+
+func retainedAgentAddition(ctx context.Context, r *resources, operationID string) (agentAddition, error) {
+	var saved agentAddition
+	if !domain.ValidOperation(operationID) {
+		return saved, domain.Fail(domain.Invalid, "invalid addition operation ID")
+	}
+	found, err := r.state.Get(ctx, "agent-add:"+operationID, &saved)
+	if err != nil {
+		return saved, err
+	}
+	var credential config.Credential
+	if err := config.Read(r.config.CredentialFile, &credential); err != nil {
+		return saved, err
+	}
+	if !found {
+		return saved, domain.Fail(domain.NotFound, "no retained addition exists for this operation")
+	}
+	if saved.FounderID != credential.AgentID || saved.OperationID != operationID {
+		return saved, domain.Fail(domain.Denied, "addition evidence belongs to another identity or operation")
+	}
+	return saved, nil
+}
+
+func additionProxyCommand(executable, configuration, operationID string, timeout int) string {
+	args := []string{executable, "--config", configuration, "--timeout", strconv.Itoa(timeout), "agent", "add-relay", operationID}
+	for i := range args {
+		// OpenSSH expands percent tokens before the proxy shell parses arguments.
+		args[i] = additionQuote(strings.ReplaceAll(args[i], "%", "%%"))
+	}
+	return strings.Join(args, " ")
+}
+
+type additionProxyIO struct {
+	io.ReadCloser
+	output io.Writer
+}
+
+func (p additionProxyIO) Write(data []byte) (int, error) { return p.output.Write(data) }
 
 func (s *agentAddition) setFacts(data []byte) error {
 	fields := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")

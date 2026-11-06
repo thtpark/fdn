@@ -8,7 +8,13 @@ description: "Use when installing Foundation or a worker under the existing inst
 Fresh worker setup may be explicitly launched by Founder with `agent-cli agent
 add --host IP --user EXISTING_USER --name NAME` and a stable global
 `--operation-id`. It installs only under that existing non-root user's HOME,
-requires an already available user manager/GUI login domain, and selects the
+using direct SSH by default. Optional `--via-foundation` routes end-to-end
+worker SSH through the authenticated Foundation transport when Foundation can
+reach the worker IP/port but Founder cannot. Operator keys/passwords remain on
+Founder; no gateway forwarding, reverse bootstrap or route fallback is enabled.
+Compatible 0.3.39 server/CLI/identity proxies are required for the new native
+payload fingerprint. Preserve the selected route with the exact operation.
+It requires an already available user manager/GUI login domain, and selects the
 exact published running-server version/source. Existing state, unpublished
 sources and missing native prerequisites fail closed. Use protected human SSH
 host-key/password input; never collect those credentials through model/chat

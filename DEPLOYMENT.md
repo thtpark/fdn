@@ -547,11 +547,27 @@ Registration acceptance is not final health or native qualification.
 ### Founder-operated IP/SSH onboarding
 
 Foundation 0.3.15 adds `agent-cli agent add --host IP --user EXISTING_USER
---name NAME [--port PORT --identity-file ABS]`. Run it in an explicitly opened
+--name NAME [--port PORT --identity-file ABS --via-foundation]`. Run it in an explicitly opened
 human terminal as authenticated Founder, preserving `--operation-id` for
 inspection. The macOS app's Add agent form hosts that same command in its
 protected terminal; non-Founder clients expose no Add agent control and the
 CLI/server independently deny enrollment.
+
+Direct SSH requires this IP/port to be reachable from the Founder computer.
+From 0.3.39, `--via-foundation` instead uses the existing pinned SSH/mTLS native
+transport to relay SSH through Foundation; the Foundation host must be able to
+reach the worker. Worker SSH authentication and independent host-key checks stay
+end-to-end on Founder. Operator private keys/passwords are never transferred to
+the server. Only active Founder can open this bounded native relay; the
+root-controlled gateway still accepts only API/join stdio and forbids sshd
+forwarding. No extra TCP listener, bastion OS account or root policy change is
+required. This is not reverse bootstrap for a worker unreachable from both
+computers. New workers still need their own outbound Foundation connection.
+The selected route is retained with the operation, never automatically changed.
+
+The new typed relay payload changes the native payload fingerprint. Deploy
+compatible server/CLI/identity proxies together under separate upgrade
+authorization; API/schema/native version numbers and SQL remain unchanged.
 
 The target must have no existing `.foundation` state and must already provide
 its current user's Linux user manager or macOS GUI login domain. This is native
@@ -564,6 +580,8 @@ on the target and only signed public requests/profiles cross SSH.
 `agent add-status OPERATION_ID` distinguishes installed, enrolled and connected.
 An uncertain native stage requires retained-evidence/operator inspection, not
 restarting the wizard, adopting partial state or generating replacement keys.
+The raw `agent add-relay OP` helper transports only the original Founder's exact
+unfinished relayed operation; it never installs or retries a native stage.
 Provider readiness, sign-in, screen/desktop prerequisites, workspace permissions
 and approved work remain separate. New workers start in normal ai mode without
 an implicit pause; native startup retains the existing controller gates.

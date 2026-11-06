@@ -131,6 +131,11 @@ The checkout's root documents are canonical; no old source tree is required.
 7. Native coordination uses bounded protobuf over SSH/mTLS and Unix IPC, not
    HTTP/gRPC or a downgrade path. Preserve kernel-derived principals and
    narrow typed capabilities; UID alone is not a key-generation proof.
+   Optional `agent add --via-foundation` keeps worker SSH end-to-end through
+   the Founder-only native relay, never gateway forwarding. Preserve direct
+   defaults, immutable route journals and native-stage fences. Pin each raw
+   proxy's ticket to its admitted owner transport through renewal and close it
+   on local disconnect; test actual OpenSSH/host pins and peer-checked IPC.
    Run `go run ./tools/protocol --check` for the locked contract.
    Use the smallest related tests, then `bash scripts/test.sh all`. Independent
    selectors are static, unit, integration, e2e and stress. Tests use isolated

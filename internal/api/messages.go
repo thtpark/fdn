@@ -573,9 +573,14 @@ func ValidateOrdinaryMessage(request message.Request) error {
 	case "query.local.status", "query.local.profile", "query.identity.challenge",
 		"command.identity.activate", "command.identity.recover-founder":
 		return domain.Fail(domain.Denied, "private identity and maintenance operations are not runner capabilities")
-	case "relay.open", "relay.read", "relay.write", "relay.close":
+	case "relay.open", "relay.read", "relay.write", "relay.close", AgentAdditionRelayOperation:
 		if len(request.Target) > 128 || len(request.Query) != 0 || len(request.Payload) > 64<<10 {
 			return domain.Fail(domain.Invalid, "invalid bounded relay message")
+		}
+		return nil
+	case AgentAdditionRelayPrefix + ".read", AgentAdditionRelayPrefix + ".write", AgentAdditionRelayPrefix + ".close":
+		if !domain.ValidOperation(request.Target) || len(request.Query) != 0 || len(request.Payload) > 64<<10 {
+			return domain.Fail(domain.Invalid, "invalid bounded agent addition relay message")
 		}
 		return nil
 	}

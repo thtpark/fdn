@@ -242,6 +242,17 @@ retains the same request/identity/keys; retry it exactly rather than resetting.
 
 ## Register a worker and attach its runner
 
+For an explicitly authorized fresh worker, Founder can use the protected
+`agent-cli --operation-id OP agent add --host IP --user EXISTING_USER --name NAME`
+flow instead of the manual public-request steps below. Direct SSH is the
+default; add `--via-foundation` when only the Foundation host can reach the
+worker's IP/SSH port. The native relay keeps worker SSH end-to-end on Founder,
+including operator keys/passwords and independently verified host pins, without
+enabling gateway forwarding. It retains the exact route and native-stage fences;
+inspect `agent add-status OP` after uncertainty instead of restarting setup.
+The relay requires compatible 0.3.39 CLI/server/identity proxies and a separately
+published exact server release. See [SSH onboarding](COMMANDS.md#add-a-new-worker-over-ssh).
+
 Each computer, including Founder, uses the existing installing user for identity,
 runner and providers. Do not create another OS account/group or rename that user.
 The local username is independent of the enrolled agent name: existing `alice`

@@ -19,6 +19,8 @@ var Types = []reflect.Type{
 	reflect.TypeFor[domain.Page[domain.ActivitySummary]](),
 	reflect.TypeFor[domain.Agent](),
 	reflect.TypeFor[domain.Page[domain.Agent]](),
+	reflect.TypeFor[domain.AgentAdditionRelayOpen](),
+	reflect.TypeFor[domain.Page[domain.AgentAdditionRelayOpen]](),
 	reflect.TypeFor[domain.AgentDiagnostics](),
 	reflect.TypeFor[domain.Page[domain.AgentDiagnostics]](),
 	reflect.TypeFor[domain.AgentEnvironment](),

@@ -298,18 +298,29 @@ development builds are not live fleet, desktop/provider, upgrade or
 
 ## Founder desktop onboarding and protected clients
 
-`go test -race -count=1 ./internal/cli ./internal/upgrade -run 'AgentAddition|AssistanceStatus|ReleasePublished'`
+`go test -race -count=1 ./internal/cli ./internal/api ./internal/identityservice ./internal/message ./internal/upgrade -run 'AgentAddition|BinaryRelay|Payload|AssistanceStatus|ReleasePublished'`
 checks worker denial before SSH/terminal access, strict host pins and literal
 inputs, current-user native options, signed-public-only registration, separate
 installed/enrolled/connected observations, exact target replay, no reinstall
 after uncertain acknowledgements or stopped services, exclusive literal JSON
 writes, safe archive shape and exact server-version release selection.
+The optional Foundation route additionally checks current server-side Founder
+authority before endpoint dialing, literal IP/port and metadata bounds, four
+pending/active streams, opaque chunk transfer, connection-private tickets,
+cancelled admission cleanup and no HTTP/direct fallback. Real native OpenSSH
+uses the actual raw CLI helper against an isolated Foundation business embedding
+and loopback SSH server, preserving local operator-key authentication, percent/
+quote-bearing proxy paths and rejection of a changed worker host key.
+Real peer-checked Unix proxy tests retain the same owner transport through
+renewal and close the exact remote ticket after local disconnect.
+These fixtures are not a live installation or full-host SSH qualification.
 Assistance status must be bodyless/read-only, preserve unknown session creation
 and never open login/inference. Existing server registration/grant/relay tests
 remain authoritative for server-side policy.
 
 The sibling macOS package's `swift test --filter Administration` covers fresh
 Founder authority, absent non-Founder Add agent UI, sign-in request shape/expiry,
+explicit retained relay selection and unchanged default direct proposals,
 exact grant requester/provider scope, screen/application/desktop-fallback
 requirements, bounded private VNC bootstrap parsing, exact-origin browser policy
 and a real PTY running an isolated fake CLI without transcript files.

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,21 +20,28 @@ type RelayOpen = domain.RelayOpen
 type RelayChunk = domain.RelayChunk
 type RelayWritten = domain.RelayWritten
 
+type relayKind uint8
+
+const (
+	sessionRelay relayKind = iota
+	sharingRelay
+	additionRelay
+)
+
 type relayPeer struct {
-	server          *Server
-	ctx             context.Context
-	actor           domain.Agent
-	mu              sync.Mutex
-	streams         map[string]*relayStream
-	openings        map[string]bool
-	sharingOpenings map[string]bool
+	server   *Server
+	ctx      context.Context
+	actor    domain.Agent
+	mu       sync.Mutex
+	streams  map[string]*relayStream
+	openings map[string]relayKind
 }
 
 type relayStream struct {
 	net.Conn
 	readMu     sync.Mutex
 	writeMu    sync.Mutex
-	sharing    bool
+	kind       relayKind
 	sessionID  string
 	side       string
 	selection  int64
@@ -41,7 +49,7 @@ type relayStream struct {
 }
 
 func newRelayPeer(server *Server, ctx context.Context, actor domain.Agent) *relayPeer {
-	return &relayPeer{server: server, ctx: ctx, actor: actor, streams: map[string]*relayStream{}, openings: map[string]bool{}, sharingOpenings: map[string]bool{}}
+	return &relayPeer{server: server, ctx: ctx, actor: actor, streams: map[string]*relayStream{}, openings: map[string]relayKind{}}
 }
 
 func (p *relayPeer) close() {
@@ -57,7 +65,15 @@ func (p *relayPeer) call(ctx context.Context, request message.Request) ([]byte, 
 	if len(request.Query) != 0 || len(request.Payload) > 64<<10 {
 		return nil, domain.Fail(domain.Invalid, "relay accepts only bounded typed messages")
 	}
-	if request.Operation == "relay.open" {
+	if request.Operation == AgentAdditionRelayOperation {
+		return p.openAgentAddition(ctx, request)
+	}
+	addition := strings.HasPrefix(request.Operation, AgentAdditionRelayPrefix+".")
+	operation := request.Operation
+	if addition {
+		operation = "relay." + strings.TrimPrefix(operation, AgentAdditionRelayPrefix+".")
+	}
+	if operation == "relay.open" {
 		if request.Target != "" {
 			return nil, domain.Fail(domain.Invalid, "relay open does not accept a target override")
 		}
@@ -72,60 +88,32 @@ func (p *relayPeer) call(ctx context.Context, request message.Request) ([]byte, 
 		if err != nil {
 			return nil, err
 		}
-		limit, count := 4, 0
+		kind := sessionRelay
 		if session.Sharing() {
-			limit = 32
+			kind = sharingRelay
 		}
-		p.mu.Lock()
-		for _, stream := range p.streams {
-			if stream.sharing == session.Sharing() {
-				count++
-			}
-		}
-		for ticket := range p.openings {
-			if p.sharingOpenings[ticket] == session.Sharing() {
-				count++
-			}
-		}
-		if count >= limit || p.streams[input.Ticket] != nil || p.openings[input.Ticket] {
-			p.mu.Unlock()
-			return nil, domain.Fail(domain.Conflict, "relay admission is occupied or at its connection bound")
-		}
-		p.openings[input.Ticket] = true
-		p.sharingOpenings[input.Ticket] = session.Sharing()
-		p.mu.Unlock()
-		stream, err := p.server.Relay.Open(p.ctx, p.actor.ID, input.SessionID, input.Side)
-		p.mu.Lock()
-		delete(p.openings, input.Ticket)
-		delete(p.sharingOpenings, input.Ticket)
-		if err == nil && ctx.Err() == nil && p.ctx.Err() == nil {
-			p.streams[input.Ticket] = &relayStream{Conn: stream, sharing: session.Sharing(), sessionID: session.ID,
-				side: input.Side, selection: session.SelectionRevision, inputEpoch: session.InputEpoch}
-		} else if stream != nil {
-			_ = stream.Close()
-		}
-		p.mu.Unlock()
-		if err != nil {
-			return nil, err
-		}
-		if ctx.Err() != nil || p.ctx.Err() != nil {
-			return nil, domain.Fail(domain.Cancelled, "relay admission was cancelled")
-		}
-		return message.MarshalPayload(input.Ticket)
+		return p.open(ctx, input.Ticket, &relayStream{kind: kind, sessionID: session.ID,
+			side: input.Side, selection: session.SelectionRevision, inputEpoch: session.InputEpoch}, func() (net.Conn, error) {
+			return p.server.Relay.Open(p.ctx, p.actor.ID, input.SessionID, input.Side)
+		})
 	}
 	if !domain.ValidOperation(request.Target) {
 		return nil, domain.Fail(domain.Invalid, "relay ticket is invalid")
 	}
-	if request.Operation == "relay.close" && len(request.Payload) != 0 {
+	if operation == "relay.close" && len(request.Payload) != 0 {
 		return nil, domain.Fail(domain.Invalid, "relay close does not accept a body")
 	}
 	p.mu.Lock()
 	stream := p.streams[request.Target]
-	if request.Operation == "relay.close" {
+	if stream != nil && (stream.kind == additionRelay) != addition {
+		p.mu.Unlock()
+		return nil, domain.Fail(domain.Denied, "relay ticket belongs to another transport capability")
+	}
+	if operation == "relay.close" {
 		delete(p.streams, request.Target)
 	}
 	p.mu.Unlock()
-	if request.Operation == "relay.close" {
+	if operation == "relay.close" {
 		if stream != nil {
 			if err := stream.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 				return nil, domain.Fail(domain.Unavailable, "relay cleanup remains pending")
@@ -137,7 +125,14 @@ func (p *relayPeer) call(ctx context.Context, request message.Request) ([]byte, 
 		return nil, domain.Fail(domain.Denied, "relay ticket is not owned by this connection")
 	}
 	validate := func() error {
-		if !stream.sharing {
+		if stream.kind == additionRelay {
+			if err := p.additionFounder(ctx); err != nil {
+				_ = stream.Close()
+				return err
+			}
+			return nil
+		}
+		if stream.kind != sharingRelay {
 			return nil
 		}
 		current, err := p.server.Store.SessionAccess(ctx, p.actor.ID, stream.sessionID, stream.side)
@@ -153,7 +148,7 @@ func (p *relayPeer) call(ctx context.Context, request message.Request) ([]byte, 
 	if err := validate(); err != nil {
 		return nil, err
 	}
-	switch request.Operation {
+	switch operation {
 	case "relay.read":
 		if len(request.Payload) != 0 {
 			return nil, domain.Fail(domain.Invalid, "relay read does not accept a body")
@@ -209,6 +204,48 @@ func (p *relayPeer) call(ctx context.Context, request message.Request) ([]byte, 
 	}
 }
 
+func (p *relayPeer) open(ctx context.Context, ticket string, stream *relayStream, dial func() (net.Conn, error)) ([]byte, error) {
+	limit, count := 4, 0
+	if stream.kind == sharingRelay {
+		limit = 32
+	}
+	p.mu.Lock()
+	for _, current := range p.streams {
+		if current.kind == stream.kind {
+			count++
+		}
+	}
+	for _, kind := range p.openings {
+		if kind == stream.kind {
+			count++
+		}
+	}
+	_, opening := p.openings[ticket]
+	if count >= limit || p.streams[ticket] != nil || opening {
+		p.mu.Unlock()
+		return nil, domain.Fail(domain.Conflict, "relay admission is occupied or at its connection bound")
+	}
+	p.openings[ticket] = stream.kind
+	p.mu.Unlock()
+	conn, err := dial()
+	p.mu.Lock()
+	delete(p.openings, ticket)
+	if err == nil && ctx.Err() == nil && p.ctx.Err() == nil {
+		stream.Conn = conn
+		p.streams[ticket] = stream
+	} else if conn != nil {
+		_ = conn.Close()
+	}
+	p.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	if ctx.Err() != nil || p.ctx.Err() != nil {
+		return nil, domain.Fail(domain.Cancelled, "relay admission was cancelled")
+	}
+	return message.MarshalPayload(ticket)
+}
+
 func cancelRelayIO(ctx context.Context, cancel func()) func() {
 	done := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() {
@@ -224,6 +261,7 @@ func cancelRelayIO(ctx context.Context, cancel func()) func() {
 
 type messageRelay struct {
 	client        *Client
+	prefix        string
 	ctx           context.Context
 	cancel        context.CancelFunc
 	ticket        string
@@ -257,21 +295,32 @@ func DialMessageRelay(ctx context.Context, client *Client, sessionID, side strin
 	if side != "requester" && side != "target" {
 		return nil, domain.Fail(domain.Invalid, "relay side is invalid")
 	}
-	ctx, cancel := context.WithCancel(ctx)
 	ticket := domain.NewID("relay")
-	data, err := message.MarshalPayload(RelayOpen{SessionID: sessionID, Side: side, Ticket: ticket})
+	return dialMessageRelay(ctx, client, "relay.open", ticket, RelayOpen{SessionID: sessionID, Side: side, Ticket: ticket})
+}
+
+func dialMessageRelay(ctx context.Context, client *Client, operation, ticket string, input any) (net.Conn, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	prefix := strings.TrimSuffix(operation, ".open")
+	data, err := message.MarshalPayload(input)
 	if err == nil {
-		_, err = client.Message(ctx, message.Request{Operation: "relay.open", Payload: data})
+		data, err = client.Message(ctx, message.Request{Operation: operation, Payload: data})
+	}
+	if err == nil {
+		var acknowledged string
+		if err = message.UnmarshalPayload(data, &acknowledged); err == nil && acknowledged != ticket {
+			err = domain.Fail(domain.Denied, "relay admission acknowledged a different connection ticket")
+		}
 	}
 	if err != nil {
 		cancel()
 		cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
-		_, closeErr := client.Message(cleanup, message.Request{Operation: "relay.close", Target: ticket})
+		_, closeErr := client.Message(cleanup, message.Request{Operation: prefix + ".close", Target: ticket})
 		stop()
 		err = errors.Join(err, closeErr)
 		return nil, err
 	}
-	return &messageRelay{client: client, ctx: ctx, cancel: cancel, ticket: ticket}, nil
+	return &messageRelay{client: client, prefix: prefix, ctx: ctx, cancel: cancel, ticket: ticket}, nil
 }
 
 func (c *messageRelay) Read(output []byte) (int, error) {
@@ -302,7 +351,7 @@ func (c *messageRelay) Read(output []byte) (int, error) {
 		// A local read deadline must not discard bytes consumed by an in-flight
 		// remote read. Keep its one bounded result for the next caller.
 		go func() {
-			data, err := c.client.Message(c.ctx, message.Request{Operation: "relay.read", Target: c.ticket})
+			data, err := c.client.Message(c.ctx, message.Request{Operation: c.prefix + ".read", Target: c.ticket})
 			var chunk RelayChunk
 			if err == nil {
 				err = message.UnmarshalPayload(data, &chunk)
@@ -348,7 +397,7 @@ func (c *messageRelay) Write(input []byte) (int, error) {
 		if err != nil {
 			return written, err
 		}
-		data, err = c.client.Message(ctx, message.Request{Operation: "relay.write", Target: c.ticket, Payload: data})
+		data, err = c.client.Message(ctx, message.Request{Operation: c.prefix + ".write", Target: c.ticket, Payload: data})
 		if err != nil {
 			closeErr := c.Close()
 			if errors.Is(context.Cause(ctx), os.ErrDeadlineExceeded) {
@@ -422,7 +471,7 @@ func (c *messageRelay) Close() error {
 	c.once.Do(func() {
 		c.cancel()
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(c.ctx), time.Second)
-		_, c.closeErr = c.client.Message(ctx, message.Request{Operation: "relay.close", Target: c.ticket})
+		_, c.closeErr = c.client.Message(ctx, message.Request{Operation: c.prefix + ".close", Target: c.ticket})
 		cancel()
 	})
 	return c.closeErr

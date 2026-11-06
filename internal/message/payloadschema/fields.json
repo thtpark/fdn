@@ -167,6 +167,24 @@
       "name": "status"
     }
   },
+  "AgentAdditionRelayOpen": {
+    "Host": {
+      "id": 2,
+      "name": "host"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Port": {
+      "id": 3,
+      "name": "port"
+    },
+    "Ticket": {
+      "id": 4,
+      "name": "ticket"
+    }
+  },
   "AgentDiagnostics": {
     "AgentID": {
       "id": 1,
