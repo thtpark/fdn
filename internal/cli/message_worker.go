@@ -34,9 +34,21 @@ func (a *app) messageWorker(ctx context.Context, r *resources, args []string) (a
 	if err := message.UnmarshalPayload(raw, &request); err != nil {
 		return nil, err
 	}
+	if err := upgrade.ValidateMailboxCommand(request); err != nil {
+		return nil, err
+	}
 	reply := domain.MessageWorkerReply{Messages: []domain.Message{}}
 	var actionErr error
-	if request.Report != nil {
+	if request.Preflight {
+		reply.Preflights, actionErr = api.Call[[]domain.UpgradePreflight](ctx, r.client, "GET", "/v1/upgrades/preflight-requests", nil)
+	} else if request.PreflightReport != nil {
+		var updated domain.UpgradePreflight
+		updated, actionErr = api.Call[domain.UpgradePreflight](ctx, r.client, "POST",
+			api.Path("upgrades", "preflight", request.PreflightReport.ID, "result"), *request.PreflightReport)
+		if actionErr == nil {
+			reply.Preflight = &updated
+		}
+	} else if request.Report != nil {
 		var updated domain.Message
 		updated, actionErr = api.Call[domain.Message](ctx, r.client, "POST", api.Path("messages", request.MessageID, "request"), *request.Report)
 		if actionErr == nil {
@@ -87,9 +99,18 @@ func (a *app) requestWorker(ctx context.Context, args []string) (any, error) {
 	defer lock.Close()
 	native := upgrade.NewNative(policy)
 	for {
-		handled, err := native.MessageStep(ctx)
+		handled, err := native.ControlStep(ctx)
 		if *once {
 			return map[string]bool{"request_processed": handled}, err
+		}
+		if (handled || err != nil) && domain.Version != "dev" && !strings.HasSuffix(domain.Version, "-dev") {
+			changed, sourceErr := native.ProcessSourceChanged(ctx, domain.Version, domain.Commit)
+			if sourceErr != nil {
+				return nil, errors.Join(err, sourceErr)
+			}
+			if changed {
+				return nil, domain.Fail(domain.Unavailable, "activated native source changed; the independent supervisor must restart this receiver; exact pending reports and native receipts are retained")
+			}
 		}
 		if err != nil {
 			if ctx.Err() != nil {

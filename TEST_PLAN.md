@@ -782,6 +782,20 @@ operator inspection/challenges, Foundation-first queued dependencies, exact plan
 state, private age keys and offline native status. Target receivers, not the
 sender CLI, perform native preparation/install.
 
+`go test -race -count=5 ./internal/upgrade ./internal/api ./internal/foundation ./internal/cli ./internal/backup -run 'Preflight|PublicRecipient|FounderUpgradeCLI'`
+checks minimal-target Foundation-only check/plan/apply/status without an SSH
+runner, explicit route selection without fallback, retained plan2/control IDs,
+pending-status reads without dispatch and exact backup-key/native-operation
+replay. Store/API/native tests require active Founder/device and exact target
+privacy/generations, strict read-only actions, 32 pending controls, fixed expiry,
+root-private Foundation versus worker boundaries, explicit failures/redacted
+diagnostics, actual source/policy/platform and bounded reference receipts.
+Receiver tests prove no stop/backup/install/start lease for preflight, exact
+lost-observation replay without another probe/nonce, refusal before probing,
+original maintenance-outbox priority and installed-source supervisor handoff.
+These are deterministic source fixtures, not a live root upgrade, hardware
+attestation or remote service-supervision qualification.
+
 `TestNativeMessageReconcilesExactVerifiedReceiptWithoutRepeatingEffects`
 prepares/applies through the actual native handler before delivering its queued
 request, then requires accepted/executing/completed with the exact source/backup

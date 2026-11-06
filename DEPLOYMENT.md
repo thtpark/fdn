@@ -109,10 +109,15 @@ The normal release path is:
    agent-cli upgrade status --input /PRIVATE/plan.json
    ```
 
-`check` is read-only. Plan generates native challenges and an off-host age key
-beside the private plan, without stopping services/installing. Apply needs both
-current Founder authority and independent preprovisioned OS permission on each
-target. Updater policy is **not** installed by an ordinary agent request.
+`check` is read-only with respect to services, modes, packages and work. From
+0.3.39, native inspection/challenge/status can create durable private preflight
+records and run entirely through Foundation's authenticated connection. No
+per-target operator SSH or cloud login is needed after compatible native
+receivers/policies have been bootstrapped. Plan generates native challenges and
+an off-host age key beside its private journal, without stopping services or
+installing. Apply still needs both current Founder authority and independent
+preprovisioned OS permission on each target. Updater policy is **not** installed
+by an ordinary agent request.
 Bootstrap an upgrade-capable server/worker release once through an authorized
 operator; old binaries and the previous Actions-artifact-only channel cannot
 upgrade themselves into these capabilities. No source change implies that a
@@ -189,7 +194,37 @@ bounded protobuf `inspect`, `challenge`, `prepare`, `apply`, `status`; arbitrary
 commands, paths or package URLs cannot be supplied in that protocol.
 Inspection and status do not confer install authority.
 
-### Configure the Founder's operator targets
+### Configure Foundation-routed targets
+
+The normal private target file needs only exact enrolled references:
+
+```json
+{
+  "targets": [
+    {"role": "foundation", "target_id": "instance_ACTUAL", "platform": "linux-amd64"},
+    {"role": "agent", "target_id": "agent_ACTUAL", "platform": "linux-amd64"}
+  ]
+}
+```
+
+`upgrade check --input TARGETS`, `upgrade plan --input TARGETS --output PLAN`
+and submitted-plan `upgrade status --input PLAN` use target-owned native
+preflight. `--via-foundation` explicitly overrides an older file's operator
+route without transmitting its SSH credentials or local policy/helper paths.
+Only active Founder can create a fixed 15-minute control. It binds the issuing
+Founder computer/key generation, target generation, instance, role/platform and
+exact inspect/challenge/status ID. The native receiver uses its own fixed
+protected policy and refuses expired/revoked/wrong-target controls before
+probing. Preflight cannot prepare/apply, stop work, issue a permit/start lease,
+rotate keys or start inference.
+
+Plan2 retains the original operation, target/route fingerprint, public backup
+recipient and control IDs before awaiting remote observations. Resume only the
+same operation/targets/output/key; status on an unsubmitted plan reads those
+controls without dispatch. Queued/offline is not observed or current. Keep the
+private journal and age key after uncertainty.
+
+### Optional operator targets for bootstrap and offline recovery
 
 Example private target file, using an already opened loopback IAP tunnel to
 Foundation's SSH port (not an API listener):
@@ -281,6 +316,17 @@ agent-service request-worker --policy /etc/fdn/updater.json
 ```
 
 `--once` inspects/processes at most one available request for bounded checks.
+Compatible receivers also service the narrow private preflight inbox without
+provider/work-slot admission. Foundation uses the root-private maintenance
+socket; workers use their own peer-checked adapter. Exact preflight observations
+are persisted before acknowledgement and are replayed without another probe or
+challenge rotation. An existing installation's pending maintenance report takes
+priority over new preflight.
+
+Configure the independent supervisor to restart on failure (or always). After a
+verified activation changes its fixed service binary's source, the old receiver
+exits with its pending outbox intact; its new process completes the exact
+receipt/report. It never repeats installation to recover a lost report.
 Do not invoke this receiver as a child of the identity/runner/Foundation/account
 service it must stop. Its private `request-worker.lock` prevents duplicate
 receivers; retained `message-inflight.json` and native receipts preserve uncertain

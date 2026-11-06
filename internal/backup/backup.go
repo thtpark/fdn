@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"filippo.io/age"
@@ -41,6 +42,18 @@ func Keygen(path string) (string, error) {
 	}
 	if err := secure.Create(path, []byte(identity.String()+"\n")); err != nil {
 		return "", err
+	}
+	return identity.Recipient().String(), nil
+}
+
+func PublicRecipient(path string) (string, error) {
+	raw, err := secure.Read(path, 1024)
+	if err != nil {
+		return "", err
+	}
+	identity, err := age.ParseX25519Identity(strings.TrimSpace(string(raw)))
+	if err != nil {
+		return "", domain.Fail(domain.Invalid, "retained backup identity is not a valid private age identity")
 	}
 	return identity.Recipient().String(), nil
 }

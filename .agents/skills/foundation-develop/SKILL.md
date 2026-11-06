@@ -170,7 +170,13 @@ The checkout's root documents are canonical; no old source tree is required.
    insistence and immediate central safety controls. Test queued, not installed,
    upgrade submission plus separately supervised native target receivers.
    Test Founder-only `upgrade check/plan/apply/status`, administrator-pinned
-   native policies/operator SSH, current nonce-bound start authority, encrypted
+   native policies, Foundation-routed typed read-only preflight and optional
+   explicit operator recovery. Keep Founder-device/target generations and
+   expiry, pending plan2/control/key replay, root/worker boundaries, no caller
+   helper paths, no SSH fallback, no native effects and exact outbox delivery
+   covered. Receivers exit for independent supervisor restart after activated
+   source changes, preserving pending reports. Test current nonce-bound start
+   authority, encrypted
    cold backups, server-first order, preserved keys/journals/fences, unknown/
    expired/changed-source denial and uncertain replay without native reruns.
 10. Verify reproducible builds, safe extraction, notices/guidance, trusted

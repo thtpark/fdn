@@ -503,7 +503,15 @@ it has no fallback to expiring Actions artifacts or unsigned arbitrary URLs.
 `agent-cli upgrade check/plan/apply/status` separates release discovery, exact
 source approval and native OS effects. The API authenticates Founder and signs
 bounded permits; each native helper needs separately administrator-provisioned
-policy/operator SSH access and the pinned Foundation CA. A fresh nonce-bound
+policy and the pinned Foundation CA. Minimal targets route read-only
+inspect/challenge/status through a durable private preflight inbox; explicit
+operator targets remain a bootstrap/offline option, never an automatic fallback.
+Bind the exact Founder device/target generations, instance/platform, fixed
+server lifetime and original operation. Keep controls out of ordinary message/
+provider/work-slot processing and never accept caller helper paths or permits.
+Plan2 persists target/route fingerprints, control IDs and the same off-host
+recovery key before waiting; test lost responses and read-only pending status.
+A fresh nonce-bound
 30-second start lease rechecks current parties, key generations, pause and work
 before any stop; the accepted exact maintenance job then proceeds from its
 durable receipt under the original 15-minute authorization. These are permission
@@ -515,6 +523,13 @@ target decisions and progress/results. Upgrade submission queues exact permits;
 it must never call remote prepare/install from the sender CLI. Native consumers
 are separately supervised outside the services they stop; Foundation uses the
 root-private deterministic handler, agents their own peer-checked inbox.
+Receivers persist preflight observations before acknowledgement and prioritize
+an original pending maintenance report. Their independent supervisor must
+restart on failure/always; after activation changes the fixed installed source,
+the old receiver exits without discarding its exact pending report or repeating
+native effects. Compatible 0.3.39 programs must be bootstrapped once through an
+authorized operator; an old receiver cannot implement a new transport merely
+because a release asset exists.
 Preserve current authority/generation/project epochs, task approval/spending/
 pause/session fences, exact prepared decisions and non-forcing insistence.
 Keep immediate central safety/authority state and narrow auth/diagnostic controls.
