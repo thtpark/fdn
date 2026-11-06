@@ -357,7 +357,8 @@ changing provider stdin/non-prompting batch behavior. Do not adopt unmanaged
 terminals or treat skipped real-tmux tests as native qualification.
 Native tmux startup must verify the exact `foundation` session after recording
 its owned server, before another viewer can attach. Server discovery alone is
-not session readiness. The existing startup bound is unchanged; unready
+not session readiness. Startup uses a three-second context, bounded by any
+earlier caller deadline, including the native readiness queries. Unready
 deadlines, nonzero client exits and unexpected query failures are explicit errors,
 with exact ownership retained for cleanup.
 

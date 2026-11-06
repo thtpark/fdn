@@ -996,7 +996,8 @@ detection on Linux and macOS.
 Native startup must prove the exact `foundation` session, not merely an owned
 tmux server. A deterministic real-tmux fixture withholds session-admission proof
 after server discovery and fails if startup returns early. Missing sessions are
-queried within the unchanged startup bound; an unready deadline, unexpected
+queried within a three-second startup context that also bounds blocked queries
+and respects earlier caller deadlines; an unready deadline, unexpected
 query/cleanup failure or nonzero client exit remains explicit failure.
 Native sign-in fixtures wait for durable local delivery confirmation before
 asserting handoff state or restarting the daemon. A notice already visible in
