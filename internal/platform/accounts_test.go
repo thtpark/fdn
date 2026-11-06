@@ -685,7 +685,21 @@ func TestManagedAccountEffectiveSSHDPolicyAndNativeParser(t *testing.T) {
 	if err := checkEffectiveAccountSSH([]byte(effective.String()), policy); err != nil {
 		t.Fatal(err)
 	}
-	for _, unsafe := range []string{strings.Replace(effective.String(), "permittty no", "permittty yes", 1), effective.String() + "acceptenv BASH_ENV\n", strings.Replace(effective.String(), "forcecommand "+policy.ForcedCommand, "forcecommand none", 1)} {
+	var capitalized strings.Builder
+	for _, line := range strings.Split(strings.TrimSuffix(effective.String(), "\n"), "\n") {
+		name, value, _ := strings.Cut(line, " ")
+		fmt.Fprintf(&capitalized, "%s %s\n", strings.ToUpper(name), value)
+	}
+	if err := checkEffectiveAccountSSH([]byte(capitalized.String()), policy); err != nil {
+		t.Fatal("case-insensitive native sshd directive names changed the effective policy", err)
+	}
+	for _, unsafe := range []string{
+		strings.Replace(effective.String(), "permittty no", "permittty yes", 1),
+		effective.String() + "acceptenv BASH_ENV\n",
+		strings.Replace(effective.String(), "forcecommand "+policy.ForcedCommand, "forcecommand none", 1),
+		effective.String() + "ForceCommand " + policy.ForcedCommand + "\n",
+		strings.Replace(capitalized.String(), "FDN_GATEWAY_UNUSED", "fdn_gateway_unused", 1),
+	} {
 		if err := checkEffectiveAccountSSH([]byte(unsafe), policy); err == nil {
 			t.Fatal("unsafe effective sshd policy accepted")
 		}

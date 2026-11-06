@@ -453,6 +453,9 @@ func (s *Server) routes() {
 	read(s, "GET /v1/tasks/{id}/runs", func(r *operationRequest, a domain.Agent) ([]domain.Run, error) {
 		return s.Store.Runs(r.Context(), a.ID, r.PathValue("id"))
 	})
+	read(s, "GET /v1/runs/{id}", func(r *operationRequest, a domain.Agent) (domain.Run, error) {
+		return s.Store.Run(r.Context(), a.ID, r.PathValue("id"))
+	})
 	// Retain presence so ordinary direct/session messages cannot supply even a zero expiry.
 	body(s, "POST /v1/messages", false, func(r *operationRequest, a domain.Agent, q domain.MessageCommand) (domain.Message, error) {
 		request := q.ToRequest()

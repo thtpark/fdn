@@ -305,3 +305,17 @@ func (s *Store) Runs(ctx context.Context, actor, taskID string) ([]domain.Run, e
 	}
 	return scanJSON[domain.Run](rows)
 }
+
+func (s *Store) Run(ctx context.Context, actor, id string) (domain.Run, error) {
+	if _, err := s.actor(ctx, s.db, actor); err != nil {
+		return domain.Run{}, err
+	}
+	run, err := get[domain.Run](ctx, s.db, "runs", id)
+	if err != nil {
+		return domain.Run{}, err
+	}
+	if _, err := get[domain.Task](ctx, s.db, "tasks", run.TaskID); err != nil {
+		return domain.Run{}, err
+	}
+	return run, nil
+}

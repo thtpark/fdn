@@ -103,8 +103,8 @@ func (s observationSource) snapshot(ctx context.Context, q observe.Query) (any, 
 			args = append(args, "--include-archived")
 		}
 		return a.taskCommand(ctx, r, args)
-	case "task", "taskHistory", "runs":
-		leaf := map[string]string{"task": "show", "taskHistory": "history", "runs": "runs"}[q.Kind]
+	case "task", "taskHistory", "runs", "run":
+		leaf := map[string]string{"task": "show", "taskHistory": "history", "runs": "runs", "run": "run"}[q.Kind]
 		return a.taskCommand(ctx, r, []string{leaf, q.ID})
 	case "discussion":
 		return a.discussionCommand(ctx, r, "discussion", append([]string{"list", q.ID}, page...))

@@ -687,6 +687,20 @@ epochs fence semantic decisions independently of a revision.
 
 ### Literal agent-name and ID mentions
 
+Human-facing entity references use an `@` prefix on the complete existing ID,
+such as `@message_0123456789abcdef0123456789abcdef` or
+`@run_0123456789abcdef0123456789abcdef`. Native apps resolve `@ID` and `@{ID}`
+into named links using the connected actor's existing read permissions.
+Messages/comments/worklogs use their first nonempty Markdown block as a title;
+runs use their summary or kind/attempt when no summary exists. Tasks,
+agents, projects, files, devices and publications retain their actual names.
+This is presentation, not an identity lookup/notification/authority shortcut:
+bare `@AGENT_ID` is only a link, while the braced agent mentions below retain
+their attention semantics. Structured ID fields, CLI arguments, code, URLs,
+opaque checkpoints and stored bodies remain unchanged. Exact run lookup uses
+read-only `GET /v1/runs/{id}` with the same active-actor/shared-task policy as
+listing that task's runs; no schema migration or new work permission is added.
+
 Comment/worklog bodies accept `@{Agent1}` or `@{AGENT_ID}` with the actual name
 or complete ID substituted. Braces also support names containing spaces.
 Name lookup is case-insensitive against active registered agents and happens

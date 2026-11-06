@@ -6,6 +6,19 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Named native entity references (0.3.36 source)
+
+macOS and iOS share readable `@ID`/`@{ID}` links with exact entity routing.
+Legacy bare IDs also render as links in prose; code and technical JSON remain
+literal. Entity names come from authorized reads, with message/comment/worklog
+titles derived from their content and runs from summaries or kind/attempt.
+Messages, discussion entries and runs have exact-record pages, independent of
+list filters/pagination. Malformed routes cannot become executable actions.
+The read-only `task run RUN`, native API and observer query add no schema,
+claim, notification or work authority. Provider instructions mark human-facing
+references but preserve structured IDs, CLI arguments and retained journals.
+Source validation is separate from native upgrades, signing and deployment.
+
 ### Preferred models, useful Adhoc evidence and self-message prevention (0.3.35)
 
 Founder can read/set agent provider/model defaults through the CLI and both

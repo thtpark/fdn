@@ -39,10 +39,15 @@ func TestNativeAuthenticationPrefersAdvertisedDeviceFlow(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			terminal, err := (Native{}).Open(ctx, domain.Session{ID: "session_fixture", Mode: "tmux", Purpose: "authentication", Provider: item.name}, c)
-			if err != nil {
-				t.Fatal(err)
+			if terminal == nil || err == nil || domain.AsFault(err).Code != domain.Prerequisite ||
+				!strings.Contains(err.Error(), "native session client exited before session readiness was proven") {
+				t.Fatal("synthetic argument recorder was mistaken for a ready native login session", err)
 			}
-			defer terminal.Close()
+			defer func() {
+				if err := terminal.Close(); err != nil {
+					t.Error("synthetic native client cleanup was not proved", err)
+				}
+			}()
 			var data []byte
 			for {
 				data, err = os.ReadFile(log)

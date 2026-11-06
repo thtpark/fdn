@@ -236,6 +236,7 @@ func checkEffectiveAccountSSH(output []byte, policy AccountSSHPolicy) error {
 		if !ok || strings.ContainsAny(line, "\x00\r") {
 			return errors.New("invalid native sshd effective policy")
 		}
+		name = strings.ToLower(name)
 		values[name] = append(values[name], value)
 	}
 	expected := map[string]string{

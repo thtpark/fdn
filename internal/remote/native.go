@@ -25,6 +25,8 @@ type Native struct {
 	Directory string
 }
 
+const nativeStartupTimeout = 3 * time.Second
+
 func (n Native) Open(ctx context.Context, s domain.Session, c config.Worker) (io.ReadWriteCloser, error) {
 	return n.OpenOwned(ctx, s, c, domain.NewID("native"))
 }
@@ -101,13 +103,22 @@ func (n Native) OpenOwned(ctx context.Context, s domain.Session, c config.Worker
 	if err := writeNativeSession(path, endpoint.record); err != nil {
 		return endpoint, err
 	}
-	startup := time.NewTimer(300 * time.Millisecond)
-	defer startup.Stop()
+	startup, cancelStartup := context.WithTimeout(ctx, nativeStartupTimeout)
+	defer cancelStartup()
+	startupError := func(cause error) error {
+		if err := ctx.Err(); err != nil {
+			return errors.Join(cause, err)
+		}
+		if err := startup.Err(); err != nil {
+			return errors.Join(domain.Fail(domain.Prerequisite, "native session readiness was not proven before the startup deadline"), cause, err)
+		}
+		return cause
+	}
 	var readinessErr error
 	for {
-		server, err := n.serverIdentity(ctx, socket)
+		server, err := n.serverIdentity(startup, socket)
 		if err != nil {
-			return endpoint, err
+			return endpoint, startupError(err)
 		}
 		if server != nil {
 			if endpoint.record.Server == nil {
@@ -118,23 +129,21 @@ func (n Native) OpenOwned(ctx context.Context, s domain.Session, c config.Worker
 			} else if *server != *endpoint.record.Server {
 				return endpoint, domain.Fail(domain.Conflict, "native session server ownership changed during startup")
 			}
-			_, readinessErr = n.tmux(ctx, socket, "has-session", "-t", "=foundation")
+			_, readinessErr = n.tmux(startup, socket, "has-session", "-t", "=foundation")
 			if readinessErr == nil {
-				return endpoint, nil
+				return endpoint, startupError(nil)
 			}
 			var exit *exec.ExitError
 			var cleanup *process.CleanupError
 			if errors.As(readinessErr, &cleanup) || !errors.As(readinessErr, &exit) || exit.ExitCode() != 1 {
-				return endpoint, readinessErr
+				return endpoint, startupError(readinessErr)
 			}
 		}
 		select {
-		case <-ctx.Done():
-			return endpoint, ctx.Err()
+		case <-startup.Done():
+			return endpoint, startupError(readinessErr)
 		case <-done:
-			return endpoint, waitErr
-		case <-startup.C:
-			return endpoint, errors.Join(domain.Fail(domain.Prerequisite, "native session readiness was not proven before the startup deadline"), readinessErr)
+			return endpoint, errors.Join(domain.Fail(domain.Prerequisite, "native session client exited before session readiness was proven"), waitErr)
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
