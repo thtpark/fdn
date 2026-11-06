@@ -572,6 +572,8 @@ go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeBinariesPhaseOneThroughF
 - Username normalization checks lowercase agent names, separators, exact
   32-character bounds and rejection of root, empty, numeric-leading,
   multiline and unusable names.
+- Native sshd effective-policy parsing accepts case-insensitive directive names
+  while retaining exact policy values and rejecting mixed-case duplicates.
 - New signed registrations reserve normalized names; collisions roll back
   partial agents/keys. Explicitly reserved account names survive reopen,
   binding and fresh-key recovery without an ID-derived fallback.
