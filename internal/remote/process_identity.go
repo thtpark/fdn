@@ -43,11 +43,16 @@ func (p ownedProcess) stoppedWithProbe(inspect func(int) (*ownedProcess, error),
 		return false, groupErr
 	}
 	current, err := inspect(p.PID)
-	if err != nil {
-		return false, errors.Join(err, groupErr)
-	}
-	if current != nil && *current != p {
-		return false, domain.Fail(domain.Conflict, "session process identity changed; an unrelated process was not adopted")
+	if err != nil || current != nil && *current != p {
+		// Closing a terminal can retire the group while the PID snapshot is being read.
+		afterErr := probe(p.Group)
+		if errors.Is(afterErr, syscall.ESRCH) {
+			return true, nil
+		}
+		if err == nil {
+			err = domain.Fail(domain.Conflict, "session process identity changed; an unrelated process was not adopted")
+		}
+		return false, errors.Join(err, groupErr, afterErr)
 	}
 	return false, groupErr
 }
@@ -78,7 +83,11 @@ func (p ownedProcess) stopWithSignal(ctx context.Context, signal func(int, sysca
 	}
 	current, err := inspectProcess(p.PID)
 	if err != nil {
-		return fmt.Errorf("recheck owned session process identity before signalling: %w", err)
+		stopped, stoppedErr := p.stopped()
+		if stopped {
+			return stoppedErr
+		}
+		return errors.Join(fmt.Errorf("recheck owned session process identity before signalling: %w", err), stoppedErr)
 	}
 	if current == nil {
 		return p.waitStopped(ctx)

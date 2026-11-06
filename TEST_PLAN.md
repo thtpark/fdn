@@ -106,6 +106,12 @@ relaxed production expiry checks or platform skips.
 the exact old group before accepting cleanup despite a changed PID observation.
 Live/replaced groups, permission denial and I/O errors remain unproved; no
 changed process is signalled or adopted.
+`TestOwnedProcessGroupDisappearanceDuringInspectionRequiresFreshKernelProof`
+covers group disappearance between the first existence probe and the ownership
+snapshot. A changed start/group/UID or a failed snapshot needs a fresh ESRCH
+probe of the original group; live groups, EPERM and I/O failures retain their
+causes and fences. Pre-signal snapshot failure likewise cannot signal a changed
+PID, and can finish only after the original group is proved absent.
 
 Linux process inspection treats both ENOENT and ESRCH during `/proc` reads as
 an exited PID, while cleanup still proves process-group disappearance and
@@ -566,6 +572,8 @@ go test -count=1 -tags=e2e ./tests/e2e -run '^TestNativeBinariesPhaseOneThroughF
 - Username normalization checks lowercase agent names, separators, exact
   32-character bounds and rejection of root, empty, numeric-leading,
   multiline and unusable names.
+- Native sshd effective-policy parsing accepts case-insensitive directive names
+  while retaining exact policy values and rejecting mixed-case duplicates.
 - New signed registrations reserve normalized names; collisions roll back
   partial agents/keys. Explicitly reserved account names survive reopen,
   binding and fresh-key recovery without an ID-derived fallback.
@@ -990,7 +998,8 @@ detection on Linux and macOS.
 Native startup must prove the exact `foundation` session, not merely an owned
 tmux server. A deterministic real-tmux fixture withholds session-admission proof
 after server discovery and fails if startup returns early. Missing sessions are
-queried within the unchanged startup bound; an unready deadline, unexpected
+queried within a three-second startup context that also bounds blocked queries
+and respects earlier caller deadlines; an unready deadline, unexpected
 query/cleanup failure or nonzero client exit remains explicit failure.
 Native sign-in fixtures wait for durable local delivery confirmation before
 asserting handoff state or restarting the daemon. A notice already visible in
