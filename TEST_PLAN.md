@@ -329,6 +329,14 @@ checks pinned in-process SSH fixed commands, wrong-host denial, the private
 in-process identity attachment and unchanged proxy boundaries, offline
 independent-key exact preparation, canonical owner-only state, early
 cancellation and unsupported provider/service/file-input rejection.
+Transport regressions also cover a multi-key server with only Ed25519 pinned,
+ECDSA/RSA pins, RSA-SHA2, unrelated/hashed host entries, rotation, revoked keys
+and host-certificate CAs. Negotiation must not bypass the actual host-key check.
+Mobile observation tests cancel a blocked interest replacement, retain the
+same owned stream for the next snapshot, reject pre-cancelled dispatch and
+prove foreground close joins blocked subscriptions. Positive embedded manual
+tests cover message/comment/task routes, typed results, exact revisions and
+retained-proposal replay without provider execution.
 Container tests must distinguish Apple-managed parent permissions from private
 subtree checks, reject path/root replacement and prove native desktop ancestry
 remains unchanged. The real iOS setup test prepares only fresh simulator keys;

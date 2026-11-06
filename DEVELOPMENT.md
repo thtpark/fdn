@@ -47,6 +47,19 @@ worker-health publisher. Desktop binaries remain CGO-free; the app-linked
 C archive needs CGO, Xcode and its SDKs. There is no `os.Exit`, process-global
 HOME change, shell/CLI subprocess or HTTP relay in the mobile dispatch path.
 
+Embedded SSH negotiates host-key algorithms authorized by the configured
+endpoint's existing pins, not the library's unrelated default preference.
+Reuse the known-host verifier for hostname patterns, hashed entries and
+revocation; retain RSA-SHA2 and host-certificate CA handling. The actual
+handshake must still verify the selected host key. A transport permission
+denial alone is not proof that the enrolled device was revoked.
+
+Cancelling a superseded read-only subscription must not cancel the shared
+foreground observer. Reject already-cancelled interests before dispatch,
+remove only that request's reply waiter and retain the same stream/binding.
+Foreground shutdown still cancels and joins the owned observer. Human publishing
+continues to require healthy live observation and authoritative manual mode.
+
 From `../fdn-ui-ios`, `bash scripts/build-app.sh` builds source-bound arm64
 iOS device/simulator and macOS-test XCFramework slices, generates the native
 project with XcodeGen, and builds an unsigned simulator app. These are development

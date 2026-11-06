@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"net"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +33,10 @@ func OpenEmbeddedStream(ctx context.Context, c config.SSH, mode string) (net.Con
 	if err != nil {
 		return nil, domain.Fail(domain.Denied, "embedded SSH identity is invalid or requires interactive decryption")
 	}
+	hostPins, err := secure.ReadPublic(c.KnownHostsFile, domain.MaxBody)
+	if err != nil {
+		return nil, err
+	}
 	pinned, err := knownhosts.New(c.KnownHostsFile)
 	if err != nil {
 		return nil, domain.Fail(domain.Denied, "embedded SSH host pins are invalid")
@@ -51,8 +57,15 @@ func OpenEmbeddedStream(ctx context.Context, c config.SSH, mode string) (net.Con
 		raw.Close()
 		return nil, err
 	}
+	algorithms, err := embeddedHostKeyAlgorithms(hostPins, address, raw.RemoteAddr(), pinned)
+	if err != nil {
+		stop()
+		raw.Close()
+		return nil, err
+	}
 	connection, channels, requests, err := ssh.NewClientConn(raw, address, &ssh.ClientConfig{
 		User: c.User, Auth: []ssh.AuthMethod{ssh.PublicKeys(signer)}, HostKeyCallback: pinned,
+		HostKeyAlgorithms: algorithms,
 	})
 	if err != nil {
 		stop()
@@ -102,6 +115,65 @@ func OpenEmbeddedStream(ctx context.Context, c config.SSH, mode string) (net.Con
 		}
 	}()
 	return stream, nil
+}
+
+func embeddedHostKeyAlgorithms(pins []byte, address string, remote net.Addr, verify ssh.HostKeyCallback) ([]string, error) {
+	var algorithms []string
+	authority := false
+	add := func(algorithm string) {
+		if !slices.Contains(algorithms, algorithm) {
+			algorithms = append(algorithms, algorithm)
+		}
+	}
+	for len(pins) > 0 {
+		marker, _, key, _, rest, err := ssh.ParseKnownHosts(pins)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, domain.Fail(domain.Denied, "embedded SSH host pins are invalid")
+		}
+		pins = rest
+		if marker == "revoked" {
+			continue
+		}
+		if _, certificate := key.(*ssh.Certificate); certificate {
+			continue
+		}
+		// Reuse the verifier for hostname patterns, hashed pins and revocation.
+		if err := verify(address, remote, key); err != nil {
+			var mismatch *knownhosts.KeyError
+			var revoked *knownhosts.RevokedError
+			if errors.As(err, &mismatch) || errors.As(err, &revoked) {
+				continue
+			}
+			return nil, domain.Fail(domain.Denied, "embedded SSH host pins could not be checked")
+		}
+		switch marker {
+		case "cert-authority":
+			authority = true
+		case "":
+			if key.Type() == ssh.KeyAlgoRSA {
+				add(ssh.KeyAlgoRSASHA512)
+				add(ssh.KeyAlgoRSASHA256)
+			}
+			add(key.Type())
+		default:
+			return nil, domain.Fail(domain.Denied, "embedded SSH host pins contain an unsupported marker")
+		}
+	}
+	if authority {
+		// A trusted CA can sign host certificates with a different key type.
+		for _, algorithm := range append(ssh.SupportedAlgorithms().HostKeys, ssh.InsecureAlgorithms().HostKeys...) {
+			if strings.Contains(algorithm, "-cert-") {
+				add(algorithm)
+			}
+		}
+	}
+	if len(algorithms) == 0 {
+		return nil, domain.Fail(domain.Denied, "embedded SSH host pins do not authorize the configured endpoint")
+	}
+	return algorithms, nil
 }
 
 type embeddedStream struct {

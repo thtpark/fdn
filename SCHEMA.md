@@ -1002,6 +1002,9 @@ The development `mobile` facade reuses CLI dispatch, private exact proposals,
 identity activation/owner renewal, mTLS and native protobuf in one app package.
 Its in-process SSH boundary accepts only pinned `fdn-api`/`fdn-join` sessions,
 with public-key authentication and no shell, terminal, agent or forwarding.
+Host-key negotiation follows the endpoint's approved pins; a server offering
+additional key types cannot override them. Unknown and revoked keys still fail
+the actual handshake, including when a host-certificate CA is configured.
 Its private attachment admits only connections minted by that app-owned
 capability and still passes the identity proxy's existing method/path/principal
 checks. It is not a forged Unix peer or a configurable native-IPC downgrade.
@@ -1020,6 +1023,9 @@ No process-global HOME mutation, remote Mac CLI or public HTTP relay is added.
 Foreground/background transitions close owned connections without mode changes
 or automatic mutation/inference replay. Physical lifecycle/enrollment and
 distribution qualification remain separate from compilation and fixtures.
+Replacing read-only interests cancels only the superseded request, not the
+owned observer or its binding. A failed observer still blocks human publishing
+until live readiness and authoritative manual mode are confirmed.
 
 ### SSH stdio, OS identity and binary owner control
 
