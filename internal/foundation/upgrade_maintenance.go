@@ -199,6 +199,10 @@ func (s *Store) finishMaintenance(ctx context.Context, tx *sql.Tx, record domain
 		Body:   "Temporary upgrade " + record.ID + " " + state + ": " + reason,
 		Origin: "service", Kind: "request-update", State: "pending", Revision: 1, CreatedAt: s.timestamp(),
 		ThreadID: trigger.ThreadID, ReplyToID: trigger.ID}
+	if trigger.Request.Action.Upgrade.Proposal.Challenge.Role == "foundation" {
+		notice.RequestUpdate = &domain.MessageActionUpdate{RequestID: trigger.ID, State: trigger.Request.State,
+			Reason: reason, UpgradeResult: trigger.Request.UpgradeResult}
+	}
 	_, err := insertMessage(ctx, tx, notice)
 	return err
 }
