@@ -811,6 +811,14 @@ preflight. Blocked restoration must retain completed installation history and
 emit one non-inference Founder reason; storage failures remain explicit/atomic.
 Raw/proxy maintenance method/query/depth and non-Founder denial remain required.
 
+`TestFoundationMaintenanceFailureNoticePreservesTypedMailboxReference` covers
+Foundation-sender declined/deferred/failed native requests under the actual
+immutable SQL5 party trigger. Both target decision and blocked-maintenance
+notices must retain their typed source request/state, exact pending-report
+replay must add no duplicate notice, and authoritative manual mode remains.
+This reproduces the deployed acknowledgement failure without editing a live
+database; the 0.3.40 repair changes only notice construction.
+
 These are source fixtures, not a live privileged Linux/macOS package rollout,
 new provider login, production signing/security certification, full-host restore,
 reboot/Windows qualification or large-fleet acceptance. Full independent source

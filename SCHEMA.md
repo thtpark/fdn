@@ -838,6 +838,11 @@ instructions are not reset. No automatic task/inference retry, fence clearing,
 provider sign-in, provider update, release publication or cloud action is implied.
 Native receipts distinguish stopped/prepared/installing/verified;
 interrupted mutating phases become operator-required, not success.
+Foundation-origin blocked/failure notices retain the exact typed
+`request_update.request_id`, target decision and native result reference.
+SQL5's immutable party trigger admits only this bounded service update from the
+deterministic maintenance mailbox; a plain system-sender notice is invalid.
+The 0.3.40 notice-construction repair changes no SQL or native payload contract.
 After verified source activation, independent supervision restarts an old
 receiver that exits on source mismatch; exact pending native reports survive
 without another stop/backup/install.
