@@ -298,18 +298,29 @@ development builds are not live fleet, desktop/provider, upgrade or
 
 ## Founder desktop onboarding and protected clients
 
-`go test -race -count=1 ./internal/cli ./internal/upgrade -run 'AgentAddition|AssistanceStatus|ReleasePublished'`
+`go test -race -count=1 ./internal/cli ./internal/api ./internal/identityservice ./internal/message ./internal/upgrade -run 'AgentAddition|BinaryRelay|Payload|AssistanceStatus|ReleasePublished'`
 checks worker denial before SSH/terminal access, strict host pins and literal
 inputs, current-user native options, signed-public-only registration, separate
 installed/enrolled/connected observations, exact target replay, no reinstall
 after uncertain acknowledgements or stopped services, exclusive literal JSON
 writes, safe archive shape and exact server-version release selection.
+The optional Foundation route additionally checks current server-side Founder
+authority before endpoint dialing, literal IP/port and metadata bounds, four
+pending/active streams, opaque chunk transfer, connection-private tickets,
+cancelled admission cleanup and no HTTP/direct fallback. Real native OpenSSH
+uses the actual raw CLI helper against an isolated Foundation business embedding
+and loopback SSH server, preserving local operator-key authentication, percent/
+quote-bearing proxy paths and rejection of a changed worker host key.
+Real peer-checked Unix proxy tests retain the same owner transport through
+renewal and close the exact remote ticket after local disconnect.
+These fixtures are not a live installation or full-host SSH qualification.
 Assistance status must be bodyless/read-only, preserve unknown session creation
 and never open login/inference. Existing server registration/grant/relay tests
 remain authoritative for server-side policy.
 
 The sibling macOS package's `swift test --filter Administration` covers fresh
 Founder authority, absent non-Founder Add agent UI, sign-in request shape/expiry,
+explicit retained relay selection and unchanged default direct proposals,
 exact grant requester/provider scope, screen/application/desktop-fallback
 requirements, bounded private VNC bootstrap parsing, exact-origin browser policy
 and a real PTY running an isolated fake CLI without transcript files.
@@ -329,6 +340,14 @@ checks pinned in-process SSH fixed commands, wrong-host denial, the private
 in-process identity attachment and unchanged proxy boundaries, offline
 independent-key exact preparation, canonical owner-only state, early
 cancellation and unsupported provider/service/file-input rejection.
+Transport regressions also cover a multi-key server with only Ed25519 pinned,
+ECDSA/RSA pins, RSA-SHA2, unrelated/hashed host entries, rotation, revoked keys
+and host-certificate CAs. Negotiation must not bypass the actual host-key check.
+Mobile observation tests cancel a blocked interest replacement, retain the
+same owned stream for the next snapshot, reject pre-cancelled dispatch and
+prove foreground close joins blocked subscriptions. Positive embedded manual
+tests cover message/comment/task routes, typed results, exact revisions and
+retained-proposal replay without provider execution.
 Container tests must distinguish Apple-managed parent permissions from private
 subtree checks, reject path/root replacement and prove native desktop ancestry
 remains unchanged. The real iOS setup test prepares only fresh simulator keys;
@@ -762,6 +781,20 @@ Founder CLI tests exercise actual typed local API calls and bounded protobuf
 operator inspection/challenges, Foundation-first queued dependencies, exact plan
 state, private age keys and offline native status. Target receivers, not the
 sender CLI, perform native preparation/install.
+
+`go test -race -count=5 ./internal/upgrade ./internal/api ./internal/foundation ./internal/cli ./internal/backup -run 'Preflight|PublicRecipient|FounderUpgradeCLI'`
+checks minimal-target Foundation-only check/plan/apply/status without an SSH
+runner, explicit route selection without fallback, retained plan2/control IDs,
+pending-status reads without dispatch and exact backup-key/native-operation
+replay. Store/API/native tests require active Founder/device and exact target
+privacy/generations, strict read-only actions, 32 pending controls, fixed expiry,
+root-private Foundation versus worker boundaries, explicit failures/redacted
+diagnostics, actual source/policy/platform and bounded reference receipts.
+Receiver tests prove no stop/backup/install/start lease for preflight, exact
+lost-observation replay without another probe/nonce, refusal before probing,
+original maintenance-outbox priority and installed-source supervisor handoff.
+These are deterministic source fixtures, not a live root upgrade, hardware
+attestation or remote service-supervision qualification.
 
 `TestNativeMessageReconcilesExactVerifiedReceiptWithoutRepeatingEffects`
 prepares/applies through the actual native handler before delivering its queued

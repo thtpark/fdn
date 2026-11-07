@@ -36,12 +36,16 @@ type MessageActionUpdate struct {
 }
 
 type MessageWorkerCommand struct {
-	MessageID string               `json:"message_id,omitempty"`
-	Report    *MessageActionReport `json:"report,omitempty"`
+	MessageID       string                  `json:"message_id,omitempty"`
+	Report          *MessageActionReport    `json:"report,omitempty"`
+	Preflight       bool                    `json:"preflight,omitempty"`
+	PreflightReport *UpgradePreflightReport `json:"preflight_report,omitempty"`
 }
 
 type MessageWorkerReply struct {
-	Messages []Message `json:"messages"`
-	Message  *Message  `json:"message,omitempty"`
-	Error    *Fault    `json:"error,omitempty"`
+	Messages   []Message          `json:"messages"`
+	Message    *Message           `json:"message,omitempty"`
+	Error      *Fault             `json:"error,omitempty"`
+	Preflights []UpgradePreflight `json:"preflights,omitempty"`
+	Preflight  *UpgradePreflight  `json:"preflight,omitempty"`
 }

@@ -112,6 +112,13 @@ type RelayOpen struct {
 	Ticket    string `json:"ticket"`
 }
 
+type AgentAdditionRelayOpen struct {
+	OperationID string `json:"operation_id"`
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
+	Ticket      string `json:"ticket"`
+}
+
 type RelayChunk struct {
 	Data []byte `json:"data"`
 	EOF  bool   `json:"eof,omitempty"`

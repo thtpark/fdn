@@ -70,12 +70,48 @@ func (f *upgradeOperatorFixture) Run(_ context.Context, spec process.Spec) error
 	return err
 }
 
-func upgradeCLIFixture(t *testing.T) (*app, *resources, upgrade.Catalog, string) {
+func upgradeCLIFixture(t *testing.T, controls ...*upgradePreflightFixture) (*app, *resources, upgrade.Catalog, string) {
 	t.Helper()
 	var founder string
 	var maintenance domain.UpgradeMaintenanceRequest
+	preflight := &upgradePreflightFixture{}
+	if len(controls) != 0 {
+		preflight = controls[0]
+	}
+	preflight.records = map[string]domain.UpgradePreflight{}
 	_, file, _ := operationCLIFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		switch {
+		case r.URL.Path == "/v1/upgrades/preflight" && r.Method == "POST":
+			var request domain.UpgradePreflightRequest
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Error(err)
+			}
+			preflight.posts = append(preflight.posts, request)
+			record, found := preflight.records[request.OperationID]
+			if !found {
+				now := time.Now().Unix()
+				record = domain.UpgradePreflight{ID: domain.NewID("preflight"), Request: request,
+					FounderID: founder, FounderBindingID: founder, FounderGeneration: 1, TargetGeneration: 1,
+					State: "queued", Revision: 1, CreatedAt: now, ExpiresAt: now + 900}
+				preflight.records[request.OperationID] = record
+			}
+			diagnosticsEnvelope(t, w, record, nil)
+		case strings.HasPrefix(r.URL.Path, "/v1/upgrades/preflight/") && r.Method == "GET":
+			var record domain.UpgradePreflight
+			for key, saved := range preflight.records {
+				if strings.HasSuffix(r.URL.Path, "/"+saved.ID) {
+					record = saved
+					if !preflight.pending && record.State == "queued" {
+						record = preflight.complete(record)
+						preflight.records[key] = record
+					}
+					break
+				}
+			}
+			if record.ID == "" {
+				t.Error("CLI requested another preflight operation")
+			}
+			diagnosticsEnvelope(t, w, record, nil)
 		case r.URL.Path == "/v1/upgrades/context":
 			diagnosticsEnvelope(t, w, domain.UpgradeContext{InstanceID: "instance_fixture", Version: "0.3.2", Commit: strings.Repeat("a", 40),
 				Agents: []domain.Agent{{ID: founder, Founder: true, Active: true, Mode: "manual", Revision: 1},

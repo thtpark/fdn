@@ -47,6 +47,19 @@ worker-health publisher. Desktop binaries remain CGO-free; the app-linked
 C archive needs CGO, Xcode and its SDKs. There is no `os.Exit`, process-global
 HOME change, shell/CLI subprocess or HTTP relay in the mobile dispatch path.
 
+Embedded SSH negotiates host-key algorithms authorized by the configured
+endpoint's existing pins, not the library's unrelated default preference.
+Reuse the known-host verifier for hostname patterns, hashed entries and
+revocation; retain RSA-SHA2 and host-certificate CA handling. The actual
+handshake must still verify the selected host key. A transport permission
+denial alone is not proof that the enrolled device was revoked.
+
+Cancelling a superseded read-only subscription must not cancel the shared
+foreground observer. Reject already-cancelled interests before dispatch,
+remove only that request's reply waiter and retain the same stream/binding.
+Foreground shutdown still cancels and joins the owned observer. Human publishing
+continues to require healthy live observation and authoritative manual mode.
+
 From `../fdn-ui-ios`, `bash scripts/build-app.sh` builds source-bound arm64
 iOS device/simulator and macOS-test XCFramework slices, generates the native
 project with XcodeGen, and builds an unsigned simulator app. These are development
@@ -264,10 +277,18 @@ real overflow remains an explicit failure, never successful truncation.
 
 Founder desktop onboarding is implemented by `internal/cli/agent_add.go`,
 reusing the published release catalog, signed registration and paired existing-
-user services. Keep operator SSH/passwords in a protected human PTY; no new API,
-native payload, identity owner or SQL migration is implied. Test uncertain
+user services. Direct SSH remains the default; explicit `--via-foundation`
+uses the Founder-only `relay.agent-add.open` native capability, not sshd forwarding.
+Its raw `agent add-relay OP` ProxyCommand is bound to the original Founder's
+unfinished exact target/route journal and keeps operator SSH/passwords in the
+protected human PTY. Keep the local proxy's ticket on its admitted owner
+transport across renewal and close it on disconnect. The typed payload changes
+the locked fingerprint and needs compatible programs, not a new identity owner,
+SQL migration or API/schema/native version number. Test uncertain
 native-stage fences and actual native service status, not merely downloaded
-files or accepted registration. The macOS wrapper's protected terminal/browser
+files or accepted registration. Exercise actual OpenSSH through the raw helper,
+including worker host-key rejection and literal percent/quote-bearing local paths.
+The macOS wrapper's protected terminal/browser
 must remain separate from captured JSON processes and durable non-secret
 proposals. Do not start a live installation or login during local development.
 
@@ -482,7 +503,15 @@ it has no fallback to expiring Actions artifacts or unsigned arbitrary URLs.
 `agent-cli upgrade check/plan/apply/status` separates release discovery, exact
 source approval and native OS effects. The API authenticates Founder and signs
 bounded permits; each native helper needs separately administrator-provisioned
-policy/operator SSH access and the pinned Foundation CA. A fresh nonce-bound
+policy and the pinned Foundation CA. Minimal targets route read-only
+inspect/challenge/status through a durable private preflight inbox; explicit
+operator targets remain a bootstrap/offline option, never an automatic fallback.
+Bind the exact Founder device/target generations, instance/platform, fixed
+server lifetime and original operation. Keep controls out of ordinary message/
+provider/work-slot processing and never accept caller helper paths or permits.
+Plan2 persists target/route fingerprints, control IDs and the same off-host
+recovery key before waiting; test lost responses and read-only pending status.
+A fresh nonce-bound
 30-second start lease rechecks current parties, key generations, pause and work
 before any stop; the accepted exact maintenance job then proceeds from its
 durable receipt under the original 15-minute authorization. These are permission
@@ -494,6 +523,13 @@ target decisions and progress/results. Upgrade submission queues exact permits;
 it must never call remote prepare/install from the sender CLI. Native consumers
 are separately supervised outside the services they stop; Foundation uses the
 root-private deterministic handler, agents their own peer-checked inbox.
+Receivers persist preflight observations before acknowledgement and prioritize
+an original pending maintenance report. Their independent supervisor must
+restart on failure/always; after activation changes the fixed installed source,
+the old receiver exits without discarding its exact pending report or repeating
+native effects. Compatible 0.3.39 programs must be bootstrapped once through an
+authorized operator; an old receiver cannot implement a new transport merely
+because a release asset exists.
 Preserve current authority/generation/project epochs, task approval/spending/
 pause/session fences, exact prepared decisions and non-forcing insistence.
 Keep immediate central safety/authority state and narrow auth/diagnostic controls.

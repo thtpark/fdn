@@ -1,6 +1,6 @@
 ---
 name: foundation-enroll
-description: "Use when preparing signed public identity requests, enrolling or revoking additional Founder devices with independent keys and concurrent connections, registering a worker computer, attaching its identity proxy, recovering fresh keys, or granting project authority with pinned SSH and mutual TLS."
+description: "Use when onboarding fresh workers over direct or Foundation-relayed SSH, preparing signed public identity requests, enrolling or revoking additional Founder devices with independent keys and concurrent connections, registering a worker computer, attaching its identity proxy, recovering fresh keys, or granting project authority with pinned SSH and mutual TLS."
 ---
 
 # Register and recover the correct identity
@@ -11,6 +11,14 @@ protected human terminal (or the macOS app's Founder-only Add agent form).
 Optional `--port`/absolute `--identity-file` select operator SSH, not the
 worker's application identity. Independently confirm the host key; passwords
 and passphrases stay in that human terminal, never model input. The command
+uses direct SSH by default. Add `--via-foundation` when only the Foundation
+host can reach the target IP/SSH port; the authenticated native relay keeps
+worker SSH and operator credentials end-to-end on Founder, without sshd
+forwarding or automatic route fallback. It requires compatible 0.3.39
+CLI/server/identity proxies. The exact route is retained with the operation;
+changing it on replay is a conflict. The internal `agent add-relay OP` raw
+helper only transports that unfinished retained operation and never installs
+or retries a native stage. The command
 checks the existing non-root user/native manager, refuses existing Foundation
 state, verifies the exact published server release, prepares keys on the target
 and uses the signed registration/profile steps below. New workers retain the

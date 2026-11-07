@@ -33,6 +33,8 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 	if args[0] == "status" {
 		fs := flag.NewFlagSet("upgrade status", flag.ContinueOnError)
 		input := fs.String("input", "", "private retained native upgrade plan")
+		viaFoundation := fs.Bool("via-foundation", false, "request fresh target-owned status through Foundation")
+		operator := fs.Bool("operator", false, "use only the retained independently pinned operator route, including while Foundation is offline")
 		if err := parse(fs, args[1:]); err != nil {
 			return nil, err
 		}
@@ -47,20 +49,87 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 		if err := config.Read(r.config.CredentialFile, &credential); err != nil {
 			return nil, err
 		}
-		if plan.Version != 1 || plan.FounderID != credential.AgentID || len(plan.Items) == 0 || len(plan.Items) > 32 {
+		if (plan.Version != 1 && plan.Version != 2) || plan.FounderID != credential.AgentID || len(plan.Items) == 0 || len(plan.Items) > 32 || *viaFoundation && *operator {
 			return nil, domain.Fail(domain.Denied, "status requires the original Founder's retained private plan; it grants no upgrade authority")
+		}
+		client := r.client
+		validated := false
+		ensureFounder := func() error {
+			if client == nil {
+				var err error
+				client, err = api.NewLocalClient(r.config)
+				if err != nil {
+					return err
+				}
+				client.Credential = credential
+			}
+			if !validated {
+				founder, err := api.Call[domain.Agent](ctx, client, "GET", "/v1/me", nil)
+				if err != nil {
+					return err
+				}
+				if founder.ID != plan.FounderID || !founder.Founder {
+					return domain.Fail(domain.Denied, "native status requires the plan's current authenticated Founder")
+				}
+				validated = true
+			}
+			return nil
+		}
+		if r.client == nil {
+			defer func() {
+				if client != nil {
+					client.Close()
+				}
+			}()
+		}
+		if plan.Version == 2 && (plan.State == "planning" || plan.State == "planned") && !*operator {
+			observations := []domain.UpgradePreflight{}
+			notRequested := []string{}
+			for _, item := range plan.Items {
+				if item.PreflightID == "" {
+					notRequested = append(notRequested, item.Target.TargetID)
+					continue
+				}
+				if err := ensureFounder(); err != nil {
+					return nil, err
+				}
+				record, err := api.Call[domain.UpgradePreflight](ctx, client, "GET", api.Path("upgrades", "preflight", item.PreflightID), nil)
+				if err != nil {
+					return nil, err
+				}
+				if record.Request.TargetID != item.Target.TargetID || record.Request.InstanceID != plan.InstanceID ||
+					record.Request.Role != item.Target.Role || record.Request.Platform != item.Target.Platform {
+					return nil, domain.Fail(domain.Denied, "retained native preflight belongs to another exact target")
+				}
+				observations = append(observations, record)
+			}
+			return map[string]any{"plan_state": plan.State, "preflight_results": observations, "not_requested_targets": notRequested,
+				"authority": "retained planning observations only; no target action was requested by this status read"}, nil
 		}
 		var results []domain.UpgradeNativeReply
 		for _, item := range plan.Items {
-			reply, err := upgrade.CallNative(ctx, runner, item.Target,
-				domain.UpgradeNativeRequest{Action: "status", ID: item.Proposal.Challenge.ID})
+			target := item.Target
+			if *viaFoundation {
+				target.ViaFoundation = true
+			}
+			native := domain.UpgradeNativeRequest{Action: "status", ID: item.Proposal.Challenge.ID}
+			var reply domain.UpgradeNativeReply
+			var err error
+			if *operator || !target.FoundationRoute() {
+				reply, err = upgrade.CallNative(ctx, runner, target, native)
+			} else {
+				if err := ensureFounder(); err != nil {
+					return nil, err
+				}
+				reply, err = a.callUpgradeNative(ctx, client, plan.InstanceID, target, native, runner, nil)
+			}
 			if err != nil {
 				return nil, err
 			}
 			results = append(results, reply)
 		}
 		return map[string]any{"plan_state": plan.State, "native_results": results,
-			"authority": "retained local evidence only; no live Founder authority or installation is inferred"}, nil
+			"authority": "native observations and retained plan only; inspection never grants installation or retry authority"}, nil
 	}
 	authority, err := api.Call[domain.UpgradeContext](ctx, r.client, "GET", "/v1/upgrades/context", nil)
 	if err != nil {
@@ -76,7 +145,14 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 		fs.StringVar(&output, "output", "", "new private immutable-source plan")
 	}
 	platform := ""
+	viaFoundation := false
+	if args[0] == "check" || args[0] == "plan" {
+		fs.BoolVar(&viaFoundation, "via-foundation", false, "request target-owned preflight through Foundation without per-target operator SSH")
+	}
 	if args[0] == "check" {
+		if viaFoundation && *input == "" {
+			return nil, domain.Fail(domain.Invalid, "Foundation-routed inventory requires an explicit --input TARGETS")
+		}
 		fs.StringVar(&platform, "platform", runtime.GOOS+"-"+runtime.GOARCH, "native release platform")
 	}
 	if err := parse(fs, args[1:]); err != nil {
@@ -104,10 +180,13 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 				return nil, err
 			}
 			if len(targets.Targets) == 0 || len(targets.Targets) > 32 {
-				return nil, domain.Fail(domain.Invalid, "software inventory requires 1-32 explicitly configured operator targets")
+				return nil, domain.Fail(domain.Invalid, "software inventory requires 1-32 exact Foundation-routed or explicit operator targets")
 			}
 			candidates := map[string]domain.UpgradeRelease{platform: release}
 			for i, target := range targets.Targets {
+				if viaFoundation {
+					target.ViaFoundation = true
+				}
 				candidate, ok := candidates[target.Platform]
 				if !ok {
 					candidate, err = catalog.Latest(ctx, target.Platform)
@@ -116,8 +195,8 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 					}
 					candidates[target.Platform] = candidate
 				}
-				reply, err := upgrade.CallNative(ctx, runner, target,
-					domain.UpgradeNativeRequest{Action: "inspect", ID: a.operation + "." + strconv.Itoa(i)})
+				reply, err := a.callUpgradeNative(ctx, r.client, authority.InstanceID, target,
+					domain.UpgradeNativeRequest{Action: "inspect", ID: a.operation + "." + strconv.Itoa(i)}, runner, nil)
 				if err != nil {
 					return nil, err
 				}
@@ -163,15 +242,25 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 		if err != nil {
 			return nil, err
 		}
-		if _, err := os.Lstat(path); !os.IsNotExist(err) {
-			return nil, domain.Fail(domain.Conflict, "upgrade plan output already exists or cannot be inspected; it was not overwritten")
-		}
 		var targets upgrade.Targets
 		if err := config.Read(inputPath, &targets); err != nil {
 			return nil, err
 		}
 		if len(targets.Targets) == 0 || len(targets.Targets) > 32 {
 			return nil, domain.Fail(domain.Invalid, "one explicit rollout contains 1-32 native targets")
+		}
+		foundationRoute := false
+		for i := range targets.Targets {
+			if viaFoundation {
+				targets.Targets[i].ViaFoundation = true
+			}
+			foundationRoute = foundationRoute || targets.Targets[i].FoundationRoute()
+		}
+		if foundationRoute {
+			return a.planUpgradeViaFoundation(ctx, r, authority, targets, path, catalog, runner)
+		}
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			return nil, domain.Fail(domain.Conflict, "upgrade plan output already exists or cannot be inspected; it was not overwritten")
 		}
 		plan := upgrade.Plan{Version: 1, ID: domain.NewID("upgrade"), InstanceID: authority.InstanceID,
 			FounderID: founder, State: "planned", RecoveryKey: path + ".agekey", Items: []upgrade.PlanItem{}}
@@ -241,7 +330,7 @@ func (a *app) upgradeWith(ctx context.Context, r *resources, args []string, cata
 	if err := config.Read(inputPath, &plan); err != nil {
 		return nil, err
 	}
-	if plan.Version != 1 || !domain.ValidOperation(plan.ID) || plan.InstanceID != authority.InstanceID ||
+	if (plan.Version != 1 && plan.Version != 2) || !domain.ValidOperation(plan.ID) || plan.InstanceID != authority.InstanceID ||
 		plan.FounderID != founder || len(plan.Items) == 0 || len(plan.Items) > 32 {
 		return nil, domain.Fail(domain.Denied, "upgrade plan does not belong to this current Founder/Foundation")
 	}

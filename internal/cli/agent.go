@@ -18,6 +18,9 @@ import (
 func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 	group := args[0]
 	tail := args[1:]
+	if group == "agent" && len(tail) > 0 && tail[0] == "add-relay" {
+		a.nativeOutput = true
+	}
 	if group == "config" && len(tail) > 0 && tail[0] == "init" {
 		return a.initWorker(tail[1:])
 	}
@@ -130,7 +133,7 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 	if len(args) == 0 {
 		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, reset, repair, operation, environment, environment-report, add, add-status, register, recover, identity, revoke, mode, preferences or request-sign-in")
 	}
-	if args[0] == "add" || args[0] == "add-status" {
+	if args[0] == "add" || args[0] == "add-status" || args[0] == "add-relay" {
 		return a.agentAddition(ctx, r, args)
 	}
 	if args[0] == "environment" {

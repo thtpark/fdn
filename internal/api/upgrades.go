@@ -6,6 +6,30 @@ import (
 )
 
 func (s *Server) upgradeRoutes() {
+	body(s, "POST /v1/upgrades/preflight", false, func(r *operationRequest, a domain.Agent, req domain.UpgradePreflightRequest) (domain.UpgradePreflight, error) {
+		if r.URL.RawQuery != "" {
+			return domain.UpgradePreflight{}, domain.Fail(domain.Invalid, "native preflight does not accept query parameters")
+		}
+		return s.Store.RequestUpgradePreflight(r.Context(), a.ID, req)
+	})
+	read(s, "GET /v1/upgrades/preflight/{id}", func(r *operationRequest, a domain.Agent) (domain.UpgradePreflight, error) {
+		if err := agentOperationRead(r, true); err != nil {
+			return domain.UpgradePreflight{}, err
+		}
+		return s.Store.UpgradePreflight(r.Context(), a.ID, r.PathValue("id"))
+	})
+	read(s, "GET /v1/upgrades/preflight-requests", func(r *operationRequest, a domain.Agent) ([]domain.UpgradePreflight, error) {
+		if err := agentOperationRead(r, false); err != nil {
+			return nil, err
+		}
+		return s.Store.NativeUpgradePreflights(r.Context(), a.ID)
+	})
+	body(s, "POST /v1/upgrades/preflight/{id}/result", false, func(r *operationRequest, a domain.Agent, req domain.UpgradePreflightReport) (domain.UpgradePreflight, error) {
+		if r.URL.RawQuery != "" || req.ID != r.PathValue("id") {
+			return domain.UpgradePreflight{}, domain.Fail(domain.Invalid, "native preflight result requires its exact request ID without query overrides")
+		}
+		return s.Store.ReportUpgradePreflight(r.Context(), a.ID, req)
+	})
 	body(s, "POST /v1/upgrades/maintenance", false, func(r *operationRequest, a domain.Agent, req domain.UpgradeMaintenanceRequest) (domain.UpgradeMaintenance, error) {
 		if r.URL.RawQuery != "" {
 			return domain.UpgradeMaintenance{}, domain.Fail(domain.Invalid, "temporary upgrade maintenance does not accept query parameters")

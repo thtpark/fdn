@@ -131,6 +131,11 @@ The checkout's root documents are canonical; no old source tree is required.
 7. Native coordination uses bounded protobuf over SSH/mTLS and Unix IPC, not
    HTTP/gRPC or a downgrade path. Preserve kernel-derived principals and
    narrow typed capabilities; UID alone is not a key-generation proof.
+   Optional `agent add --via-foundation` keeps worker SSH end-to-end through
+   the Founder-only native relay, never gateway forwarding. Preserve direct
+   defaults, immutable route journals and native-stage fences. Pin each raw
+   proxy's ticket to its admitted owner transport through renewal and close it
+   on local disconnect; test actual OpenSSH/host pins and peer-checked IPC.
    Run `go run ./tools/protocol --check` for the locked contract.
    Use the smallest related tests, then `bash scripts/test.sh all`. Independent
    selectors are static, unit, integration, e2e and stress. Tests use isolated
@@ -165,7 +170,13 @@ The checkout's root documents are canonical; no old source tree is required.
    insistence and immediate central safety controls. Test queued, not installed,
    upgrade submission plus separately supervised native target receivers.
    Test Founder-only `upgrade check/plan/apply/status`, administrator-pinned
-   native policies/operator SSH, current nonce-bound start authority, encrypted
+   native policies, Foundation-routed typed read-only preflight and optional
+   explicit operator recovery. Keep Founder-device/target generations and
+   expiry, pending plan2/control/key replay, root/worker boundaries, no caller
+   helper paths, no SSH fallback, no native effects and exact outbox delivery
+   covered. Receivers exit for independent supervisor restart after activated
+   source changes, preserving pending reports. Test current nonce-bound start
+   authority, encrypted
    cold backups, server-first order, preserved keys/journals/fences, unknown/
    expired/changed-source denial and uncertain replay without native reruns.
 10. Verify reproducible builds, safe extraction, notices/guidance, trusted

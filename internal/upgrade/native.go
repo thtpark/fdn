@@ -59,6 +59,14 @@ func NewNative(policy Policy) *Native {
 	return native
 }
 
+func (n *Native) ProcessSourceChanged(ctx context.Context, version, commit string) (bool, error) {
+	installedVersion, installedCommit, err := n.installed(ctx)
+	if err != nil {
+		return false, err
+	}
+	return installedVersion != version || installedCommit != commit, nil
+}
+
 func (n *Native) checkServices(ctx context.Context) error {
 	if n.Policy.Role == "agent" {
 		var status struct {

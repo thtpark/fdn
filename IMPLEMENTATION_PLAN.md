@@ -6,6 +6,55 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Foundation-routed native upgrade preflight (0.3.39 source)
+
+Founder `upgrade check/plan/status` supports exact minimal role/identity/platform
+targets through the existing authenticated Foundation connection, without
+per-target SSH or a cloud login. `--via-foundation` explicitly selects that
+route for retained operator configurations. Independent preprovisioned native
+receivers handle only typed inspect/challenge/status; ordinary worker ingress
+cannot impersonate Foundation's root-private maintenance receiver or supply
+helper/policy paths. The original signed install/start-lease and target-owned
+GitHub verification/backup flow remains unchanged.
+
+Durable private preflight controls use existing settings/reference receipts,
+bind Founder device/target generations and a fixed 15-minute server lifetime,
+and report explicit actual observations or failure. They are not ordinary
+messages, task/provider calls, work slots, mode changes or install authority.
+Plan2 journals retain exact operations/routes/control IDs and the same off-host
+recovery key across uncertainty. Unsubmitted status reads dispatch nothing.
+Receivers preserve pending observations, prioritize original maintenance outbox
+delivery and exit for independent supervisor restart after activated source
+changes. No native effect is repeated for receipt delivery.
+
+Compatible binaries/policies/receivers require an authorized initial bootstrap;
+old 0.3.36 installations cannot acquire a new control protocol from GitHub
+metadata alone. Explicit operator plan1/offline recovery remains supported.
+The new typed payload changes the locked fingerprint, not SQL or API/schema/
+native version numbers. Source tests are not live service/OS qualification.
+
+### Foundation-routed worker SSH onboarding (0.3.39 source)
+
+Founder can opt into `agent add --via-foundation` when the new worker IP/SSH
+port is reachable from Foundation rather than the Founder computer. Direct
+remains the default, with no automatic fallback. The exact route is retained in
+the existing local saga; old journals remain direct and route changes conflict.
+Worker SSH stays end-to-end on Founder through a narrowly typed, Founder-only
+native relay. The gateway still permits only API/join stdio, without forwarding,
+new TCP listeners, server-side operator credentials or worker OS-account changes.
+The internal raw proxy helper accepts only the original Founder's unfinished
+retained operation. Its identity proxy pins the connection-local ticket to its
+original owner transport across renewal and closes it after local disconnect.
+All existing native-stage uncertainty, signed enrollment, exact release and
+normal AI/work/spending gates remain. This is not reverse/NAT bootstrap.
+
+The macOS 0.4.8 source exposes the explicit option only with a capable local CLI.
+The new typed payload changes the locked native fingerprint; deploy compatible
+server, CLI and identity proxies together under separate authorization. SQL and
+API/schema/native version numbers remain unchanged. Deterministic authority,
+chunk/bound/cancellation, real Unix-proxy renewal/disconnect and actual OpenSSH
+host-pin regressions are source evidence, not native rollout qualification.
+
 ### Named native entity references (0.3.36 source)
 
 macOS and iOS share readable `@ID`/`@{ID}` links with exact entity routing.

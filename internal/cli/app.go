@@ -37,7 +37,7 @@ var AgentCommands = []string{
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
 	"agent list", "agent status", "agent diagnose", "agent reset", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"device list", "device register", "device revoke",
-	"agent add", "agent add-status",
+	"agent add", "agent add-status", "agent add-relay",
 	"agent preferences",
 	"agent environment", "agent environment-report", "announcement audience", "announcement send",
 	"task list", "task show", "task create", "task change", "task history", "task runs", "task run",
@@ -157,9 +157,11 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			case "announcement send":
 				usage = "announcement send --input FILE; exact reviewed scope/project epoch/recipient_ids, title/body and kind notice|request|upgrade-request; private durable fan-out and normal autonomous action gates; no native installation permit or destructive/spending approval is inferred"
 			case "agent add":
-				usage = "agent add --host IP --user SSH_USER --name AGENT [--port 22 --identity-file ABS]; Founder-only explicit new-worker installation/enrollment under the existing non-root SSH user; protected human terminal required for host-key/password prompts; exact published server release and normal AI-mode worker startup, no sudo, existing-state adoption or direct provider login; preserve operation-id after uncertainty"
+				usage = "agent add --host IP --user SSH_USER --name AGENT [--port 22 --identity-file ABS --via-foundation]; Founder-only explicit new-worker installation/enrollment under the existing non-root SSH user; optional authenticated Foundation-host SSH relay, otherwise direct; protected human terminal required for host-key/password prompts; exact published server release and normal AI-mode worker startup, no sudo, existing-state adoption or direct provider login; preserve operation-id and route after uncertainty"
 			case "agent add-status":
 				usage = "agent add-status OPERATION_ID; read-only original Founder's local installation/enrollment journal, including uncertain native stages; never retries SSH or installation"
+			case "agent add-relay":
+				usage = "agent add-relay OPERATION_ID; internal raw-stdio SSH ProxyCommand for the original Founder's unfinished --via-foundation addition; uses only the exact retained target, never installs, changes route or retries native stages"
 			case "observe":
 				usage = "observe; long-lived read-only protocol-1 JSON lines over stdin/stdout; get/subscribe/cancel, at most32 queries; uses existing identity and scoped feeds; no mutation, inference, controller or new owner; see COMMANDS.md"
 			case "message list":
@@ -179,13 +181,13 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 			case "note context":
 				usage = "note context [--project PROJECT_ID]; read-only current company, optional project, and own agent notes in that order; no file/website/repository fetching or inference; each new task invocation pins its own snapshot"
 			case "upgrade check":
-				usage = "upgrade check [--platform linux-amd64|linux-arm64|darwin-arm64] [--input TARGETS]; Founder-only read-only published-release discovery and optional actual native inventory; no mode, package, service or inference changes"
+				usage = "upgrade check [--platform linux-amd64|linux-arm64|darwin-arm64] [--input TARGETS --via-foundation]; Founder-only published-release discovery and target-owned read-only inventory; minimal targets route over Foundation, explicit operator targets remain supported; durable preflight metadata, no mode, package, service or inference changes"
 			case "upgrade plan":
-				usage = "upgrade plan --input TARGETS --output PLAN; Founder-only native target challenges, exact version/commit/hash and off-host age recovery key; no service stop or installation"
+				usage = "upgrade plan --input TARGETS --output PLAN [--via-foundation]; Founder-only target-owned challenges, exact published source and off-host recovery key; minimal targets need no operator SSH; pending plan2 resumes only with the same operation/targets/output/key, no service stop or installation"
 			case "upgrade apply":
 				usage = "upgrade apply --input PLAN; authorize and queue exact private recipient-owned maintenance request messages; no direct remote installation; queued is not executed, targets decide and report in message threads; preserve pause, OS policy and work fences"
 			case "upgrade status":
-				usage = "upgrade status --input PLAN; inspect exact native receipts after an uncertain rollout; never repeats installation"
+				usage = "upgrade status --input PLAN [--via-foundation|--operator]; read retained pending preflight without dispatch, otherwise request target-owned status; explicit retained operator recovery remains available while Foundation is offline; never repeats installation or changes route automatically"
 			case "upgrade-helper":
 				usage = "upgrade-helper --policy FILE; separately provisioned native OS updater, bounded protobuf stdin/stdout only; requires pinned Foundation-signed authorization and fixed local policy, not an ordinary agent message or generic root command"
 			case "upgrade-lease":

@@ -29,6 +29,7 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/agents/*/sharing", "/v1/agents/*/sharing/sessions",
 		"/v1/sessions/*/access",
 		"/v1/agents/*/preferences",
+		"/v1/upgrades/preflight/*", "/v1/upgrades/preflight-requests",
 	},
 	http.MethodPost: {
 		"/v1/identity/register", "/v1/identity/*/recover", "/v1/identity/devices", "/v1/identity/devices/*/revoke",
@@ -41,6 +42,7 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/publications", "/v1/publications/*/change",
 		"/v1/agents/*/sharing", "/v1/agents/*/sharing/select",
 		"/v1/agents/*/preferences",
+		"/v1/upgrades/preflight", "/v1/upgrades/preflight/*/result",
 	},
 }
 
@@ -108,6 +110,8 @@ func ordinaryPath(method string, u *url.URL) bool {
 			case "/v1/sessions/*/access":
 				return u.RawQuery == ""
 			case "/v1/agents/*/preferences":
+				return u.RawQuery == ""
+			case "/v1/upgrades/preflight", "/v1/upgrades/preflight/*", "/v1/upgrades/preflight-requests", "/v1/upgrades/preflight/*/result":
 				return u.RawQuery == ""
 			case "/v1/notes", "/v1/note-context":
 				query, err := url.ParseQuery(u.RawQuery)

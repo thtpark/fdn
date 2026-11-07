@@ -89,6 +89,9 @@ func (o *observation) Write(data []byte) (int, error) {
 }
 
 func (o *observation) subscribe(ctx context.Context, queries []observe.Query) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	id := domain.NewID("mobile")
 	waiter := make(chan observe.Frame, 1)
 	o.mu.Lock()
@@ -104,6 +107,10 @@ func (o *observation) subscribe(ctx context.Context, queries []observe.Query) er
 		return err
 	}
 	o.send.Lock()
+	if err := ctx.Err(); err != nil {
+		o.send.Unlock()
+		return err
+	}
 	_, err = o.input.Write(append(data, '\n'))
 	o.send.Unlock()
 	if err != nil {
@@ -116,8 +123,6 @@ func (o *observation) subscribe(ctx context.Context, queries []observe.Query) er
 		}
 		return nil
 	case <-ctx.Done():
-		o.cancel()
-		o.input.CloseWithError(ctx.Err())
 		return ctx.Err()
 	case <-o.done:
 		if o.err != nil {

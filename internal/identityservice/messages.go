@@ -10,11 +10,13 @@ import (
 	"github.com/thtpark/fdn/internal/message"
 )
 
-func (s *Service) serveMessagePeer(ctx context.Context, conn net.Conn) error {
+func (s *Service) serveMessagePeer(ctx context.Context, conn net.Conn) (err error) {
 	peer, ok := conn.(*peerConnection)
 	if !ok || peer.peer.UID != s.config.WorkerUID || peer.peer.GID != s.config.WorkerGID {
 		return domain.Fail(domain.Denied, "local identity IPC peer is not the configured tool-runner")
 	}
+	relays := additionRelayProxy{service: s}
+	defer func() { err = errors.Join(err, relays.close()) }()
 	session, err := message.NewSession(ctx, conn, func(call context.Context, request message.Request) ([]byte, error) {
 		switch request.Operation {
 		case "query.local.status", "query.local.profile":
@@ -31,6 +33,9 @@ func (s *Service) serveMessagePeer(ctx context.Context, conn net.Conn) error {
 		}
 		if err := api.ValidateOrdinaryMessage(request); err != nil {
 			return nil, err
+		}
+		if result, handled, err := relays.call(call, request); handled {
+			return result, message.PublicError(err)
 		}
 		return s.forwardOwnerMessage(call, request)
 	})
@@ -77,6 +82,10 @@ func (s *Service) forwardOwnerMessage(call context.Context, request message.Requ
 
 func forwardOwnerCall(call context.Context, lease *ownerLease, request message.Request) ([]byte, error, bool) {
 	defer lease.release()
+	return callOwnerMessage(call, lease, request)
+}
+
+func callOwnerMessage(call context.Context, lease *ownerLease, request message.Request) ([]byte, error, bool) {
 	forward, cancel := context.WithCancelCause(call)
 	defer cancel(nil)
 	stopOwner := context.AfterFunc(lease.context, func() { cancel(context.Cause(lease.context)) })

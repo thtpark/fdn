@@ -16,13 +16,14 @@ import (
 )
 
 type Target struct {
-	Role       string     `json:"role"`
-	TargetID   string     `json:"target_id"`
-	Platform   string     `json:"platform"`
-	SSH        config.SSH `json:"ssh"`
-	Helper     string     `json:"helper"`
-	PolicyFile string     `json:"policy_file"`
-	Sudo       bool       `json:"sudo"`
+	Role          string     `json:"role"`
+	TargetID      string     `json:"target_id"`
+	Platform      string     `json:"platform"`
+	SSH           config.SSH `json:"ssh"`
+	Helper        string     `json:"helper"`
+	PolicyFile    string     `json:"policy_file"`
+	Sudo          bool       `json:"sudo"`
+	ViaFoundation bool       `json:"via_foundation,omitempty"`
 }
 
 type Targets struct {
@@ -30,28 +31,48 @@ type Targets struct {
 }
 
 type PlanItem struct {
-	Target    Target                     `json:"target"`
-	Proposal  domain.UpgradeProposal     `json:"proposal"`
-	Permit    *domain.UpgradePermit      `json:"permit,omitempty"`
-	Result    *domain.UpgradeNativeReply `json:"result,omitempty"`
-	MessageID string                     `json:"message_id,omitempty"`
+	Target      Target                     `json:"target"`
+	Proposal    domain.UpgradeProposal     `json:"proposal"`
+	Permit      *domain.UpgradePermit      `json:"permit,omitempty"`
+	Result      *domain.UpgradeNativeReply `json:"result,omitempty"`
+	MessageID   string                     `json:"message_id,omitempty"`
+	PreflightID string                     `json:"preflight_id,omitempty"`
 }
 
 type Plan struct {
-	Version     int        `json:"version"`
-	ID          string     `json:"id"`
-	InstanceID  string     `json:"instance_id"`
-	FounderID   string     `json:"founder_id"`
-	State       string     `json:"state"`
-	RecoveryKey string     `json:"recovery_key"`
-	Items       []PlanItem `json:"items"`
+	Version         int        `json:"version"`
+	ID              string     `json:"id"`
+	InstanceID      string     `json:"instance_id"`
+	FounderID       string     `json:"founder_id"`
+	State           string     `json:"state"`
+	RecoveryKey     string     `json:"recovery_key"`
+	Items           []PlanItem `json:"items"`
+	OperationID     string     `json:"operation_id,omitempty"`
+	TargetsSHA256   string     `json:"targets_sha256,omitempty"`
+	BackupRecipient string     `json:"backup_recipient,omitempty"`
 }
 
 var operatorHost = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.:-]{0,252}$`)
 var operatorUser = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}$`)
 
+func (t Target) FoundationRoute() bool {
+	return t.ViaFoundation || (t.SSH == (config.SSH{}) && t.Helper == "" && t.PolicyFile == "" && !t.Sudo)
+}
+
 func ValidateTarget(t Target) error {
-	if (t.Role != "foundation" && t.Role != "agent") || t.TargetID == "" || !operatorHost.MatchString(t.SSH.Host) ||
+	if (t.Role != "foundation" && t.Role != "agent") || !domain.ValidOperation(t.TargetID) ||
+		(t.Platform != "linux-amd64" && t.Platform != "linux-arm64" && t.Platform != "darwin-arm64") ||
+		t.Role == "foundation" && !strings.HasPrefix(t.Platform, "linux-") {
+		return domain.Fail(domain.Invalid, "upgrade target requires its exact role, enrolled identity and native platform")
+	}
+	if t.FoundationRoute() && t.SSH == (config.SSH{}) && t.Helper == "" && t.PolicyFile == "" && !t.Sudo {
+		return nil
+	}
+	return ValidateOperatorTarget(t)
+}
+
+func ValidateOperatorTarget(t Target) error {
+	if (t.Role != "foundation" && t.Role != "agent") || !domain.ValidOperation(t.TargetID) || !operatorHost.MatchString(t.SSH.Host) ||
 		!operatorUser.MatchString(t.SSH.User) || t.SSH.Port < 1 || t.SSH.Port > 65535 ||
 		(t.Platform != "linux-amd64" && t.Platform != "linux-arm64" && t.Platform != "darwin-arm64") ||
 		t.Role == "foundation" && !strings.HasPrefix(t.Platform, "linux-") {
@@ -78,7 +99,7 @@ func ValidateTarget(t Target) error {
 func operatorQuote(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
 
 func OperatorArguments(t Target) ([]string, error) {
-	if err := ValidateTarget(t); err != nil {
+	if err := ValidateOperatorTarget(t); err != nil {
 		return nil, err
 	}
 	if _, err := secure.Read(t.SSH.IdentityFile, domain.MaxBody); err != nil {

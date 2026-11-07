@@ -292,8 +292,9 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban applies only to non-Founders |
 | `agent-cli agent register` | `--input SIGNED_PUBLIC [--output PUBLIC_PROFILE]`; Founder-only new signed public-key registration |
-| `agent-cli agent add` | `--host IP --user SSH_USER --name NAME [--port 22 --identity-file ABS]`; Founder-only new-worker installation and signed registration in a protected human terminal |
+| `agent-cli agent add` | `--host IP --user SSH_USER --name NAME [--port 22 --identity-file ABS --via-foundation]`; Founder-only new-worker installation and signed registration in a protected human terminal; direct SSH by default, optional authenticated Foundation-host relay |
 | `agent-cli agent add-status` | `OPERATION_ID`; read-only original Founder's retained local addition journal; no SSH, installation, key generation or retry |
+| `agent-cli agent add-relay` | `OPERATION_ID`; internal raw-stdio SSH ProxyCommand for the original Founder's unfinished `--via-foundation` addition; exact retained IP/port only, no target override, installation or native-stage retry |
 | `agent-cli agent recover` | `AGENT --input NEW_SIGNED_PUBLIC --reason REASON [--output PUBLIC_PROFILE]`; Founder-only non-Founder recovery with fresh keypairs/generation, not task-run recovery |
 | `agent-cli agent identity` | Current connection's public identity/device/account/key-generation/owner state; no private material |
 | `agent-cli device list` | Founder only; original computer and all additional device bindings, including revoked devices; no leaf flags |
@@ -333,6 +334,29 @@ agent-cli --operation-id add-agent2 agent add \
   --host 192.0.2.10 --user existing_user --name Agent2
 ```
 
+Direct SSH is the default: that IP/port must be reachable from the Founder
+computer running this command. Add `--via-foundation` when it is reachable
+from the Foundation host instead:
+
+```sh
+agent-cli --operation-id add-agent3 agent add \
+  --host 192.0.2.11 --user existing_user --name Agent3 --via-foundation
+```
+
+The route is Founder -> authenticated Foundation native transport -> worker SSH.
+Worker SSH remains end-to-end from Founder; operator keys/passwords are never
+sent to Foundation, and the worker's independently verified host pin remains
+enforced. Foundation opens only the requested literal IP/port for active Founder,
+with at most four onboarding streams per authenticated connection. The native
+identity proxy pins each raw proxy's ticket to its original owner transport
+across renewal and closes it when that local proxy disconnects. No new TCP
+listener, sshd forwarding, arbitrary gateway command or reverse/NAT bootstrap
+is introduced. There is no automatic direct/relayed fallback.
+
+The relay requires compatible 0.3.39 CLI, server and identity proxies: its new
+typed payload changes the locked native payload fingerprint, not API/schema/
+protocol numbers or SQL. Roll out compatible programs together separately.
+
 Use the target's **existing non-root installing account**. An optional absolute
 `--identity-file` selects your own operator SSH key; it is never transferred.
 SSH-agent/default-key authentication is also available. Passwords, passphrases
@@ -355,11 +379,12 @@ GUI login domain. There is no sudo, account creation, host-service/root policy
 change, direct provider installation/login or workspace-tool grant. The runner
 starts its normal AI lifecycle under existing authentication/work authority.
 
-Use `agent add-status add-agent2` after an interrupted response. Installed,
+Use `agent add-status add-agent2` (or your exact operation ID) after an interrupted response. Installed,
 enrolled and connected are separate observations. Exact acknowledged stages and
 server registration receipts are retained; an uncertain dispatched native stage
 is fenced and never rerun automatically. Keep the original operation, SSH pin,
-public request/profile and target evidence for authorized operator inspection.
+public request/profile, selected route and target evidence for authorized operator inspection.
+Changing `--via-foundation` on the same operation is a conflict, not a reconnect.
 This is not existing-worker adoption, key recovery, an upgrade command or a
 new Founder-device enrollment path. Development/unpublished server sources fail
 closed rather than installing a different release.
@@ -368,10 +393,10 @@ closed rather than installing a different release.
 
 | Command | Arguments / effect |
 | --- | --- |
-| `agent-cli upgrade check` | `[--platform linux-amd64\|linux-arm64\|darwin-arm64] [--input TARGETS]`; Founder-only latest published release and optional actual native inventory; no mode/package/service changes |
-| `agent-cli upgrade plan` | `--input TARGETS --output PLAN`; private exact target/source/nonce/hash plan and off-host `PLAN.agekey`; no installation; output must be new |
+| `agent-cli upgrade check` | `[--platform linux-amd64\|linux-arm64\|darwin-arm64] [--input TARGETS --via-foundation]`; Founder-only published release and actual target-owned inventory; durable inspection metadata, no mode/package/service changes |
+| `agent-cli upgrade plan` | `--input TARGETS --output PLAN [--via-foundation]`; private exact target/source/nonce/hash plan and off-host `PLAN.agekey`; no installation; a pending plan2 resumes only with the same operation/targets/output/key |
 | `agent-cli upgrade apply` | `--input PLAN`; record a scoped temporary pause, authorize exact permits and queue private target-owned maintenance requests; returns queued, never installed |
-| `agent-cli upgrade status` | `--input PLAN`; original Founder's retained local evidence and native receipts, including when Foundation is offline; no installation/renewed authority |
+| `agent-cli upgrade status` | `--input PLAN [--via-foundation\|--operator]`; read retained planning/preflight without dispatch, or request target-owned native status; explicit retained operator recovery works while Foundation is offline; no install/retry authority |
 | `agent-cli upgrade-lease` | Internal native-helper command, bounded protobuf stdin/stdout only; exact issuer/target requests a fresh server nonce proof; no installer/inference |
 | `agent-service upgrade-helper` | `--policy FILE`; administrator-provisioned worker updater, bounded protobuf stdin/stdout only |
 | `fdn-service upgrade-helper` | `--policy FILE`; administrator-provisioned Foundation updater, bounded protobuf stdin/stdout only; not the ordinary SSH agent gateway |
@@ -388,6 +413,31 @@ Without TARGETS, `check` reports the latest native bundle, Foundation's actual
 version/source and the local CLI development stamp. TARGETS adds actual remote
 helper observations and per-target `upgrade_available`.
 
+From 0.3.39, normal target-owned preflight requires no per-target SSH connection,
+cloud login or operator key. Use a private TARGETS file containing only exact
+role/identity/platform references:
+
+```json
+{
+  "targets": [
+    {"role": "foundation", "target_id": "instance_ACTUAL", "platform": "linux-amd64"},
+    {"role": "agent", "target_id": "agent_ACTUAL", "platform": "linux-amd64"}
+  ]
+}
+```
+
+These minimal targets route through the authenticated Foundation connection.
+`--via-foundation` explicitly selects that route for older target files that
+also retain operator endpoints. The independently supervised receiver uses only
+its own preprovisioned policy; no helper path, shell command, credentials or
+install permit is sent by preflight. It handles only inspect/challenge/status.
+Founder/device and target generations, fixed 15-minute server expiry, actual
+platform/source/policy and exact operation are checked. Queued/offline/failed
+controls never become an observed or "up to date" result. Inspection creates
+durable private control/evidence records, not an ordinary recipient message,
+provider call, work slot, pause, backup, installation or start authorization.
+
+The original operator format remains explicit for bootstrap/offline recovery:
 TARGETS is a private JSON file with `targets` (1-32 exact entries): `role`
 (`foundation`/`agent`), `target_id` (Foundation instance ID or stable agent ID),
 `platform`, `ssh` (host, user, port, identity_file, known_hosts_file), fixed
@@ -405,6 +455,26 @@ The key file is never transmitted. Plan/apply never choose another version or
 renew a challenge after expiry: prepare a new plan before any native admission.
 An already-current target needs no upgrade and must be omitted from a rollout.
 All targets in one plan must resolve to one release version and source commit.
+
+Foundation-routed planning writes a private version-2 journal before dispatch,
+including the original operation, exact target/route fingerprint, off-host
+recovery-key recipient and each preflight ID. After a lost response, repeat only
+the same `--operation-id`, targets, output path and retained key. Existing
+`planned`/submitted output is never overwritten. `status` on a planning/planned
+plan2 reads its recorded controls without requesting new target actions.
+`status --operator` requires complete independently pinned operator metadata in
+that retained plan; no route falls back automatically. Original version-1
+operator plans remain supported.
+
+All server, CLI, identity proxies and independently supervised receivers must be
+compatible with 0.3.39's new typed payload fingerprint. Existing 0.3.36 programs
+cannot bootstrap this new control transport by themselves: use an authorized
+operator once to install compatible programs/policies/receivers. Receiver
+supervision must restart on failure (or always). After verified binary
+activation, an old receiver exits when its fixed installed source changes,
+retaining exact pending reports for the new process rather than repeating
+installation. These permission controls do not grant OS privilege or publish
+the release.
 
 `apply` authenticates Founder on the server, pauses affected agents (all agents
 for a Foundation upgrade), signs immutable 15-minute exact permits and persists

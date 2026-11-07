@@ -101,6 +101,40 @@ type UpgradeNativeReply struct {
 	Lease        *UpgradeLease     `json:"lease,omitempty"`
 	Code         string            `json:"code,omitempty"`
 	ResumeSafe   bool              `json:"resume_safe"`
+	Platform     string            `json:"platform,omitempty"`
+}
+
+const UpgradePreflightTTL = 900
+
+type UpgradePreflightRequest struct {
+	Command
+	InstanceID string               `json:"instance_id"`
+	TargetID   string               `json:"target_id"`
+	Role       string               `json:"role"`
+	Platform   string               `json:"platform"`
+	Native     UpgradeNativeRequest `json:"native"`
+}
+
+type UpgradePreflight struct {
+	ID                string                  `json:"id"`
+	Request           UpgradePreflightRequest `json:"request"`
+	FounderID         string                  `json:"founder_id"`
+	FounderBindingID  string                  `json:"founder_binding_id"`
+	FounderGeneration int64                   `json:"founder_generation"`
+	TargetGeneration  int64                   `json:"target_generation"`
+	State             string                  `json:"state"`
+	Revision          int64                   `json:"revision"`
+	CreatedAt         int64                   `json:"created_at"`
+	ExpiresAt         int64                   `json:"expires_at"`
+	CompletedAt       int64                   `json:"completed_at,omitempty"`
+	Result            *UpgradeNativeReply     `json:"result,omitempty"`
+	Problem           *Fault                  `json:"problem,omitempty"`
+}
+
+type UpgradePreflightReport struct {
+	Command
+	ID     string             `json:"id"`
+	Result UpgradeNativeReply `json:"result"`
 }
 
 type UpgradeLeaseRequest struct {
