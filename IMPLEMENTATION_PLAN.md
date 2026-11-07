@@ -6,6 +6,17 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Typed Foundation maintenance failure notices (0.3.40 source)
+
+Foundation-origin blocked/refused maintenance notices include the existing
+typed request-update source/state/result descriptor. This preserves the SQL5
+maintenance-party guard instead of relaxing or rewriting immutable schema.
+Previously a plain system-sender notice violated that guard and left an exact
+native decline report pending. Isolated declined/deferred/failed regressions
+require both notices, idempotent acknowledgement and unchanged manual mode.
+No SQL/API/native payload change or retry/resumption authority is added;
+0.3.39 clients/receivers remain protocol-compatible with the patch.
+
 ### Foundation-routed native upgrade preflight (0.3.39 source)
 
 Founder `upgrade check/plan/status` supports exact minimal role/identity/platform
