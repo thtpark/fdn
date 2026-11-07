@@ -68,7 +68,20 @@ func (n *Native) maintenanceMessage(ctx context.Context, operation string, input
 
 func (n *Native) messageMailbox(ctx context.Context, request domain.MessageWorkerCommand) (domain.MessageWorkerReply, error) {
 	reply := domain.MessageWorkerReply{Messages: []domain.Message{}}
+	if err := ValidateMailboxCommand(request); err != nil {
+		return reply, err
+	}
 	if n.Policy.Role == "foundation" {
+		if request.Preflight {
+			err := n.maintenanceMessage(ctx, "query.maintenance.upgrade-preflights", nil, &reply.Preflights)
+			return reply, err
+		}
+		if request.PreflightReport != nil {
+			var updated domain.UpgradePreflight
+			err := n.maintenanceMessage(ctx, "command.maintenance.upgrade-preflight-result", request.PreflightReport, &updated)
+			reply.Preflight = &updated
+			return reply, err
+		}
 		if request.Report == nil {
 			err := n.maintenanceMessage(ctx, "query.maintenance.requests", nil, &reply.Messages)
 			return reply, err

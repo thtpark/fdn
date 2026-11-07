@@ -493,6 +493,30 @@ func (s *Server) updateMessageRoutes() {
 
 func (s *Server) serveMaintenanceMessages(ctx context.Context, conn net.Conn) error {
 	session, err := message.NewSession(ctx, conn, func(call context.Context, request message.Request) ([]byte, error) {
+		if request.Operation == "query.maintenance.upgrade-preflights" {
+			if request.Target != "" || len(request.Query) != 0 || len(request.Payload) != 0 {
+				return nil, domain.Fail(domain.Denied, "Foundation preflight inbox accepts no caller scope or body")
+			}
+			items, err := s.Store.SystemUpgradePreflights(call)
+			if err != nil {
+				return nil, err
+			}
+			return message.MarshalPayload(items)
+		}
+		if request.Operation == "command.maintenance.upgrade-preflight-result" {
+			if request.Target != "" || len(request.Query) != 0 {
+				return nil, domain.Fail(domain.Denied, "Foundation preflight result accepts no caller scope")
+			}
+			var input domain.UpgradePreflightReport
+			if err := message.UnmarshalPayload(request.Payload, &input); err != nil {
+				return nil, err
+			}
+			result, err := s.Store.ReportSystemUpgradePreflight(call, input)
+			if err != nil {
+				return nil, err
+			}
+			return message.MarshalPayload(result)
+		}
 		if request.Operation == "query.maintenance.requests" {
 			if request.Target != "" || len(request.Query) != 0 || len(request.Payload) != 0 {
 				return nil, domain.Fail(domain.Denied, "Foundation maintenance inbox accepts no caller scope or body")

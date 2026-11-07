@@ -807,12 +807,16 @@ message Go_MessageRequest {
 message Go_MessageWorkerCommand {
   String message_id = 1;
   Go_MessageActionReport report = 2;
+  Bool preflight = 3;
+  Go_UpgradePreflightReport preflight_report = 4;
 }
 
 message Go_MessageWorkerReply {
   List_Go_Message messages = 1;
   Go_Message message = 2;
   Go_Fault error = 3;
+  List_Go_UpgradePreflight preflights = 4;
+  Go_UpgradePreflight preflight = 5;
 }
 
 message Go_ModeRequest {
@@ -1386,6 +1390,7 @@ message Go_UpgradeNativeReply {
   Go_UpgradeLease lease = 7;
   String code = 8;
   Bool resume_safe = 9;
+  String platform = 10;
 }
 
 message Go_UpgradeNativeRequest {
@@ -1408,6 +1413,39 @@ message Go_UpgradePermit {
   Signed issued_at = 4;
   Signed expires_at = 5;
   String signature = 6;
+}
+
+message Go_UpgradePreflight {
+  String id = 1;
+  Go_UpgradePreflightRequest request = 2;
+  String founder_id = 3;
+  Signed founder_generation = 4;
+  Signed target_generation = 5;
+  String state = 6;
+  Signed revision = 7;
+  Signed created_at = 8;
+  Signed expires_at = 9;
+  Signed completed_at = 10;
+  Go_UpgradeNativeReply result = 11;
+  Go_Fault problem = 12;
+  String founder_binding_id = 13;
+}
+
+message Go_UpgradePreflightReport {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String id = 3;
+  Go_UpgradeNativeReply result = 4;
+}
+
+message Go_UpgradePreflightRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String instance_id = 3;
+  String target_id = 4;
+  String role = 5;
+  String platform = 6;
+  Go_UpgradeNativeRequest native = 7;
 }
 
 message Go_UpgradeProposal {
@@ -2199,6 +2237,21 @@ message List_Go_UpgradePermit {
   bool present = 2;
 }
 
+message List_Go_UpgradePreflight {
+  repeated Go_UpgradePreflight items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradePreflightReport {
+  repeated Go_UpgradePreflightReport items = 1;
+  bool present = 2;
+}
+
+message List_Go_UpgradePreflightRequest {
+  repeated Go_UpgradePreflightRequest items = 1;
+  bool present = 2;
+}
+
 message List_Go_UpgradeProposal {
   repeated Go_UpgradeProposal items = 1;
   bool present = 2;
@@ -2936,6 +2989,21 @@ message List_Page_Go_UpgradePausedMode {
 
 message List_Page_Go_UpgradePermit {
   repeated Page_Go_UpgradePermit items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradePreflight {
+  repeated Page_Go_UpgradePreflight items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradePreflightReport {
+  repeated Page_Go_UpgradePreflightReport items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_UpgradePreflightRequest {
+  repeated Page_Go_UpgradePreflightRequest items = 1;
   bool present = 2;
 }
 
@@ -4429,6 +4497,36 @@ message Map_Go_UpgradePermit_Entry {
   Go_UpgradePermit value = 2;
 }
 
+message Map_Go_UpgradePreflight {
+  repeated Map_Go_UpgradePreflight_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradePreflightReport {
+  repeated Map_Go_UpgradePreflightReport_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradePreflightReport_Entry {
+  optional string key = 1;
+  Go_UpgradePreflightReport value = 2;
+}
+
+message Map_Go_UpgradePreflightRequest {
+  repeated Map_Go_UpgradePreflightRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_UpgradePreflightRequest_Entry {
+  optional string key = 1;
+  Go_UpgradePreflightRequest value = 2;
+}
+
+message Map_Go_UpgradePreflight_Entry {
+  optional string key = 1;
+  Go_UpgradePreflight value = 2;
+}
+
 message Map_Go_UpgradeProposal {
   repeated Map_Go_UpgradeProposal_Entry items = 1;
   bool present = 2;
@@ -5909,6 +6007,36 @@ message Map_Page_Go_UpgradePermit_Entry {
   Page_Go_UpgradePermit value = 2;
 }
 
+message Map_Page_Go_UpgradePreflight {
+  repeated Map_Page_Go_UpgradePreflight_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradePreflightReport {
+  repeated Map_Page_Go_UpgradePreflightReport_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradePreflightReport_Entry {
+  optional string key = 1;
+  Page_Go_UpgradePreflightReport value = 2;
+}
+
+message Map_Page_Go_UpgradePreflightRequest {
+  repeated Map_Page_Go_UpgradePreflightRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_UpgradePreflightRequest_Entry {
+  optional string key = 1;
+  Page_Go_UpgradePreflightRequest value = 2;
+}
+
+message Map_Page_Go_UpgradePreflight_Entry {
+  optional string key = 1;
+  Page_Go_UpgradePreflight value = 2;
+}
+
 message Map_Page_Go_UpgradeProposal {
   repeated Map_Page_Go_UpgradeProposal_Entry items = 1;
   bool present = 2;
@@ -6701,6 +6829,21 @@ message Page_Go_UpgradePausedMode {
 
 message Page_Go_UpgradePermit {
   List_Go_UpgradePermit items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradePreflight {
+  List_Go_UpgradePreflight items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradePreflightReport {
+  List_Go_UpgradePreflightReport items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_UpgradePreflightRequest {
+  List_Go_UpgradePreflightRequest items = 1;
   String next_cursor = 2;
 }
 

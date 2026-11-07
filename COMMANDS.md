@@ -393,10 +393,10 @@ closed rather than installing a different release.
 
 | Command | Arguments / effect |
 | --- | --- |
-| `agent-cli upgrade check` | `[--platform linux-amd64\|linux-arm64\|darwin-arm64] [--input TARGETS]`; Founder-only latest published release and optional actual native inventory; no mode/package/service changes |
-| `agent-cli upgrade plan` | `--input TARGETS --output PLAN`; private exact target/source/nonce/hash plan and off-host `PLAN.agekey`; no installation; output must be new |
+| `agent-cli upgrade check` | `[--platform linux-amd64\|linux-arm64\|darwin-arm64] [--input TARGETS --via-foundation]`; Founder-only published release and actual target-owned inventory; durable inspection metadata, no mode/package/service changes |
+| `agent-cli upgrade plan` | `--input TARGETS --output PLAN [--via-foundation]`; private exact target/source/nonce/hash plan and off-host `PLAN.agekey`; no installation; a pending plan2 resumes only with the same operation/targets/output/key |
 | `agent-cli upgrade apply` | `--input PLAN`; record a scoped temporary pause, authorize exact permits and queue private target-owned maintenance requests; returns queued, never installed |
-| `agent-cli upgrade status` | `--input PLAN`; original Founder's retained local evidence and native receipts, including when Foundation is offline; no installation/renewed authority |
+| `agent-cli upgrade status` | `--input PLAN [--via-foundation\|--operator]`; read retained planning/preflight without dispatch, or request target-owned native status; explicit retained operator recovery works while Foundation is offline; no install/retry authority |
 | `agent-cli upgrade-lease` | Internal native-helper command, bounded protobuf stdin/stdout only; exact issuer/target requests a fresh server nonce proof; no installer/inference |
 | `agent-service upgrade-helper` | `--policy FILE`; administrator-provisioned worker updater, bounded protobuf stdin/stdout only |
 | `fdn-service upgrade-helper` | `--policy FILE`; administrator-provisioned Foundation updater, bounded protobuf stdin/stdout only; not the ordinary SSH agent gateway |
@@ -413,6 +413,31 @@ Without TARGETS, `check` reports the latest native bundle, Foundation's actual
 version/source and the local CLI development stamp. TARGETS adds actual remote
 helper observations and per-target `upgrade_available`.
 
+From 0.3.39, normal target-owned preflight requires no per-target SSH connection,
+cloud login or operator key. Use a private TARGETS file containing only exact
+role/identity/platform references:
+
+```json
+{
+  "targets": [
+    {"role": "foundation", "target_id": "instance_ACTUAL", "platform": "linux-amd64"},
+    {"role": "agent", "target_id": "agent_ACTUAL", "platform": "linux-amd64"}
+  ]
+}
+```
+
+These minimal targets route through the authenticated Foundation connection.
+`--via-foundation` explicitly selects that route for older target files that
+also retain operator endpoints. The independently supervised receiver uses only
+its own preprovisioned policy; no helper path, shell command, credentials or
+install permit is sent by preflight. It handles only inspect/challenge/status.
+Founder/device and target generations, fixed 15-minute server expiry, actual
+platform/source/policy and exact operation are checked. Queued/offline/failed
+controls never become an observed or "up to date" result. Inspection creates
+durable private control/evidence records, not an ordinary recipient message,
+provider call, work slot, pause, backup, installation or start authorization.
+
+The original operator format remains explicit for bootstrap/offline recovery:
 TARGETS is a private JSON file with `targets` (1-32 exact entries): `role`
 (`foundation`/`agent`), `target_id` (Foundation instance ID or stable agent ID),
 `platform`, `ssh` (host, user, port, identity_file, known_hosts_file), fixed
@@ -430,6 +455,26 @@ The key file is never transmitted. Plan/apply never choose another version or
 renew a challenge after expiry: prepare a new plan before any native admission.
 An already-current target needs no upgrade and must be omitted from a rollout.
 All targets in one plan must resolve to one release version and source commit.
+
+Foundation-routed planning writes a private version-2 journal before dispatch,
+including the original operation, exact target/route fingerprint, off-host
+recovery-key recipient and each preflight ID. After a lost response, repeat only
+the same `--operation-id`, targets, output path and retained key. Existing
+`planned`/submitted output is never overwritten. `status` on a planning/planned
+plan2 reads its recorded controls without requesting new target actions.
+`status --operator` requires complete independently pinned operator metadata in
+that retained plan; no route falls back automatically. Original version-1
+operator plans remain supported.
+
+All server, CLI, identity proxies and independently supervised receivers must be
+compatible with 0.3.39's new typed payload fingerprint. Existing 0.3.36 programs
+cannot bootstrap this new control transport by themselves: use an authorized
+operator once to install compatible programs/policies/receivers. Receiver
+supervision must restart on failure (or always). After verified binary
+activation, an old receiver exits when its fixed installed source changes,
+retaining exact pending reports for the new process rather than repeating
+installation. These permission controls do not grant OS privilege or publish
+the release.
 
 `apply` authenticates Founder on the server, pauses affected agents (all agents
 for a Foundation upgrade), signs immutable 15-minute exact permits and persists

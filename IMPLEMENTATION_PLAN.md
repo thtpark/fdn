@@ -6,6 +6,33 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Foundation-routed native upgrade preflight (0.3.39 source)
+
+Founder `upgrade check/plan/status` supports exact minimal role/identity/platform
+targets through the existing authenticated Foundation connection, without
+per-target SSH or a cloud login. `--via-foundation` explicitly selects that
+route for retained operator configurations. Independent preprovisioned native
+receivers handle only typed inspect/challenge/status; ordinary worker ingress
+cannot impersonate Foundation's root-private maintenance receiver or supply
+helper/policy paths. The original signed install/start-lease and target-owned
+GitHub verification/backup flow remains unchanged.
+
+Durable private preflight controls use existing settings/reference receipts,
+bind Founder device/target generations and a fixed 15-minute server lifetime,
+and report explicit actual observations or failure. They are not ordinary
+messages, task/provider calls, work slots, mode changes or install authority.
+Plan2 journals retain exact operations/routes/control IDs and the same off-host
+recovery key across uncertainty. Unsubmitted status reads dispatch nothing.
+Receivers preserve pending observations, prioritize original maintenance outbox
+delivery and exit for independent supervisor restart after activated source
+changes. No native effect is repeated for receipt delivery.
+
+Compatible binaries/policies/receivers require an authorized initial bootstrap;
+old 0.3.36 installations cannot acquire a new control protocol from GitHub
+metadata alone. Explicit operator plan1/offline recovery remains supported.
+The new typed payload changes the locked fingerprint, not SQL or API/schema/
+native version numbers. Source tests are not live service/OS qualification.
+
 ### Foundation-routed worker SSH onboarding (0.3.39 source)
 
 Founder can opt into `agent add --via-foundation` when the new worker IP/SSH

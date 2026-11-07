@@ -74,7 +74,15 @@ commands.
    edits or hidden force-clear command exists. Founder can explicitly use
    `upgrade check`, `upgrade plan --input TARGETS --output PLAN`, `upgrade apply
    --input PLAN` and `upgrade status --input PLAN` after an operator bootstraps
-   upgrade-capable binaries and each protected native policy/CA/operator key.
+   upgrade-capable binaries and each protected native policy/CA/receiver.
+   From 0.3.39, exact minimal role/target/platform entries use Foundation-routed
+   inspect/challenge/status without per-target SSH or cloud login; an explicit
+   `--via-foundation` overrides older operator target files. Native policies
+   remain target-owned, never caller paths. These read-only controls retain
+   private evidence, not service/work/mode changes or installation authority.
+   New plan2 journals resume only the same operation/targets/output/key; use
+   status to read pending controls without dispatch. Preserve original operator
+   plans and `status --operator` for separately configured offline recovery.
    Founder authority alone is not OS privilege. The helper accepts only exact
    bounded protobuf operations, validates the signed 15-minute proposal and
    fresh 30-second nonce start proof. Upgrade apply queues exact-permit private
@@ -82,6 +90,11 @@ commands.
    request-worker receivers decide and snapshot/stop their own services, then
    install/verify and post actual results; Foundation completes before dependent
    agents. Provision those receivers outside the units they stop. Queued or
+   preflight-pending is not a fresh observation. Their supervisor must restart
+   on failure/always; after activated source changes, the old receiver exits
+   with its exact pending outbox retained for the new process, never reinstalling.
+   Compatible native programs/receivers still need an operator bootstrap once.
+   Queued or
    accepted messages are not installation success; plain body text is not authority.
    Keep PLAN and its off-host age key private; native backups can include CA/
    identity/provider keys. Retain all original work fences. From 0.3.19, only

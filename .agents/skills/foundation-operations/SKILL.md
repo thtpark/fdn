@@ -156,10 +156,18 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
      compatible schema and recovery point; stop/join actual work; preserve mode,
      identity, auth, knowledge, bindings, workspaces, journals/outbox and HOME
      instructions; start and verify exact binary and guide versions.
-     Founder `upgrade check [--input TARGETS]` is read-only. Plan pins current
+     Founder `upgrade check [--input TARGETS]` changes no packages/services/modes.
+     With compatible 0.3.39 receivers, minimal role/target/platform references
+     route private inspect/challenge/status through Foundation; optional
+     `--via-foundation` explicitly overrides a retained operator route. No
+     per-target SSH or cloud login is needed after initial native bootstrap.
+     A queued control is not observed health. Pending plan2 status reads its
+     retained controls without dispatch; resume planning with the exact original
+     operation/targets/output/key. Plan pins current
      identity/generation/policy/source, exact greater release/hash, native nonce
      and public age recipient; it does not install. `upgrade apply --input PLAN`
-     also needs separately administrator-provisioned helper policy/operator SSH.
+     also needs separately administrator-provisioned helper policy and an
+     independent native receiver, not new OS privilege from Founder authority.
      It pauses, obtains current signed authority and queues private target-owned
      requests. Independent native receivers decide, create encrypted cold backups,
      install/verify and reply with actual results; Foundation completes before
@@ -172,7 +180,8 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
      Founder; legacy/operator cutovers need explicit Founder reconciliation.
      Native phases and evidence remain private. An interrupted mutation projects
      operator-required with its original phase code; inspect the same plan with
-     `upgrade status --input PLAN`, even while Foundation is offline, without
+     `upgrade status --input PLAN` (explicit retained `--operator` recovery is
+     available while Foundation is offline), without
      pretending a fresh authorization or repeating installation. Never reset
      retry/fence state, auto-renew permits or assume binary rollback restores SQL.
 11. Inspect `agent identity` and the protected identity-service/Unix proxy

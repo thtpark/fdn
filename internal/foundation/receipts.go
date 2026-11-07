@@ -57,6 +57,8 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "agent-operation", ID: v.ID}
 	case domain.UpgradePermit:
 		ref = storedResult{Kind: "upgrade-permit", ID: domain.Hash(v.Signature)}
+	case domain.UpgradePreflight:
+		ref = storedResult{Kind: "upgrade-preflight", ID: v.ID}
 	case domain.Session:
 		ref = storedResult{Kind: "sessions", ID: v.ID}
 	case domain.AssistanceGrant:
@@ -139,6 +141,15 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, actor string, data []b
 			}
 			value = permit
 		}
+	case "upgrade-preflight":
+		var record domain.UpgradePreflight
+		record, err = readUpgradePreflight(ctx, tx, ref.ID)
+		if err == nil && actor != record.FounderID &&
+			!(record.Request.Role == "agent" && actor == record.Request.TargetID) &&
+			!(record.Request.Role == "foundation" && actor == "native-maintenance") {
+			err = domain.Fail(domain.Denied, "native preflight receipt belongs to another exact party")
+		}
+		value = record
 	case "sessions":
 		value, err = get[domain.Session](ctx, tx, ref.Kind, ref.ID)
 	case "assistance_grants":

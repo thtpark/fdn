@@ -743,8 +743,29 @@ ordinary messages, provider updates, identity recovery and financial authority.
 `GET /v1/upgrades/context` is bodyless/queryless and Founder-only. It reports the
 actual Foundation source/version, instance ID and registry. Public release
 discovery uses the stable versioned `thtpark/fdn` GitHub release channel; optional
-native inventory is read-only and requires separately configured operator SSH.
+native inventory is target-owned read-only preflight over Foundation, or an
+explicitly retained independent operator channel.
 No missing/unknown observation becomes "up to date".
+
+`POST /v1/upgrades/preflight` is Founder-only and accepts only exact instance/
+target/role/platform plus inspect/challenge/status and a bounded native ID.
+No install permit, shell command, helper/policy path or transport credentials
+are accepted. Private `settings` records under `upgrade-preflight:` bind the
+requesting Founder device/key generation, target generation, 900-second server
+lifetime, revision and actual typed observation. Operation receipts store only
+bounded record references; exact replay never renews authority or rotates a
+native challenge. No SQL migration or ordinary self-message exception is added.
+
+`GET /v1/upgrades/preflight/ID` is current requesting-Founder-only. The ordinary
+`preflight-requests`/result routes bind only the authenticated worker target.
+Foundation's corresponding native inbox/result operations exist only under the
+kernel peer-checked root-private maintenance socket. Additional Founder devices
+do not gain a worker-maintenance inbox. The receiver refuses stale/expired
+controls before probing and retains exact replies until acknowledged. Failure
+codes are explicit; private raw diagnostics never become server observations.
+These controls grant no install/start lease, work slot, mode or spending
+authority. The new payload changes the locked native fingerprint, not API/
+schema/native version numbers or SQL.
 
 `POST /v1/upgrades/maintenance` is Founder-only and queryless. Its exact ID and
 1-32 same-source, distinct, server-first proposals record a temporary pause and
@@ -785,8 +806,10 @@ nonce and 30-second validity. The native requester also bounds the request using
 monotonic elapsed time. This is a current-authority permission proof, not release
 code signing/attestation, identity enrollment or an arbitrary root capability.
 
-Native OS permission is separately preprovisioned in a protected updater policy,
-operator SSH account and pinned CA. The one-shot `upgrade-helper` accepts only
+Native OS permission is separately preprovisioned in a protected updater policy
+and pinned CA, with independent native receivers. Operator SSH is optional for
+normal preflight and remains separate bootstrap/offline recovery access.
+The one-shot `upgrade-helper` accepts only
 bounded protobuf inspect/challenge/prepare/apply/status. Worker start proofs use
 that worker's same-user identity proxy via the internal bounded-protobuf
 `upgrade-lease` CLI, never another owner or copied credentials. The account
@@ -798,6 +821,10 @@ stopping; pending/uncertain local invocations/reports deny admission. Under the
 existing application work/server lock it writes an age-encrypted cold snapshot
 to separate updater state; only the public recipient reaches targets.
 The Founder's private plan and off-host age key are owner-only.
+New Foundation-routed plan2 journals retain the exact operation, target/route
+fingerprint, public backup recipient and control IDs before dispatch. Planning
+resumes only that exact retained journal/key; unsubmitted status reads create no
+new controls. Existing operator plan1 records remain supported unchanged.
 Admitted stopped maintenance completes from its exact receipt and original fixed
 permit expiry; it does not create ongoing authority or a new automation mode.
 
@@ -811,6 +838,9 @@ instructions are not reset. No automatic task/inference retry, fence clearing,
 provider sign-in, provider update, release publication or cloud action is implied.
 Native receipts distinguish stopped/prepared/installing/verified;
 interrupted mutating phases become operator-required, not success.
+After verified source activation, independent supervision restarts an old
+receiver that exits on source mismatch; exact pending native reports survive
+without another stop/backup/install.
 Read-only status can inspect retained original-Founder evidence over the separate
 operator channel while Foundation is offline. Repeating apply or automatically
 rolling back SQL after an uncertain install is forbidden.
