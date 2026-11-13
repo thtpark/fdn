@@ -44,7 +44,7 @@ func restartFixture(t *testing.T) (*Native, *restartRecorder, domain.AgentRestar
 		t.Fatal(err)
 	}
 	if err := config.Write(filepath.Join(identity.StateDir, "connection.json"), config.ConnectionProfile{
-		Identity: domain.AgentIdentity{AgentID: native.Policy.TargetID, InstanceID: native.Policy.InstanceID, Generation: 1, State: "active"}}); err != nil {
+		Identity: domain.AgentIdentity{AgentID: native.Policy.TargetID, InstanceID: native.Policy.InstanceID, Generation: 1, State: "provisioned"}}); err != nil {
 		t.Fatal(err)
 	}
 	permit := domain.AgentRestartPermit{ID: "restart_fixture", InstanceID: native.Policy.InstanceID,
