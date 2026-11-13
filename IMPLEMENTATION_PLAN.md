@@ -6,6 +6,25 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Per-agent app diagnostics and supervised native restart (0.3.41 source)
+
+Both apps expose readable per-agent diagnostics at any time, including explicit
+private saved snapshots when disconnected. Complete health/clocks/problems and
+operation states replace generic field-count views. Founder-only fresh inspection,
+exact proven closed-session recovery and runtime reset reuse durable proposal/
+replay and server authority; other roles retain only self diagnostics.
+
+A distinct signed native restart reaches a dead target identity/worker via the
+independent Foundation root maintenance receiver and administrator-pinned worker
+routes. It verifies fixed policy/source/generations, fresh nonce admission,
+joined manager stop/shared slot and restarted services/current identity. Keys,
+sign-in, state, journals, history, budgets and uncertain fences remain.
+Only unchanged verified temporary pauses may restore prior AI; preexisting
+manual/newer intent and independent pending-work/report/session fences win.
+Lost responses/results reuse native receipts/outbox, not another restart.
+Typed payload additions require a compatible coordinated release and explicit
+native policy provisioning, not SQL migration or automatic deployment.
+
 ### Typed Foundation maintenance failure notices (0.3.40 source)
 
 Foundation-origin blocked/refused maintenance notices include the existing

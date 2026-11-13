@@ -136,6 +136,7 @@ func (s *Store) ListAgentOperations(ctx context.Context, actor, cursor string, l
 	for len(page.Items) <= limit {
 		rows, err := tx.QueryContext(ctx, `SELECT data FROM messages WHERE recipient_id=? AND state='pending' AND id>?
 AND json_extract(data,'$.kind')='agent-operation' AND json_extract(data,'$.origin')='service'
+AND json_extract(data,'$.agent_operation.kind') IN ('diagnostics','session-recovery','runtime-reset')
 AND json_extract(data,'$.agent_operation.state') IN ('queued','checking')
 AND json_extract(data,'$.agent_operation.target_generation')=? AND json_extract(data,'$.agent_operation.expires_at')>?
 ORDER BY id LIMIT ?`, actor, last, generation, now, limit+1)
@@ -182,6 +183,9 @@ func (s *Store) ReportAgentOperation(ctx context.Context, actor, id string, req 
 		}
 		if operation.TargetID != a.ID {
 			return domain.AgentOperation{}, domain.Fail(domain.Denied, "only the exact target may report this agent operation")
+		}
+		if operation.Kind == "native-restart" {
+			return domain.AgentOperation{}, domain.Fail(domain.Denied, "native service restart results require the independent root maintenance receiver")
 		}
 		target, allowed, err := agentOperationParties(ctx, tx, operation)
 		if err != nil {

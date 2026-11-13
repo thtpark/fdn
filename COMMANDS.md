@@ -285,6 +285,7 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent status` | `--input FILE`: required `text` (single line, max160 characters), intentional non-secret self-publication; explicit empty text restores automatic activity; no target/priority/time/mode override |
 | `agent-cli agent diagnose` | `AGENT_ID [--refresh]`; default is saved read-only `AgentDiagnostics` for Founder/self; `--refresh` submits a durable Founder-only diagnostic `AgentOperation` |
 | `agent-cli agent reset` | `AGENT_ID --input FILE`: required non-secret `reason`; Founder-only identity-preserving runtime reset, including Founder itself; inspect actual result with `agent operation` |
+| `agent-cli agent restart` | `AGENT_ID --input FILE`: required non-secret `reason`; Founder-only signed native identity/worker service restart through independently provisioned Foundation maintenance routes; queued is not restarted |
 | `agent-cli agent repair` | `AGENT_ID --input FILE`; Founder-only `SessionRecoveryRequest` for one exact closed session and fresh observed fence SHA256; returns `AgentOperation`, never accepts caller cleanup proof |
 | `agent-cli agent operation` | Exactly `REQUEST_ID` from `data.id`; bodyless GET of the common diagnostic-refresh/session-recovery state and safe result, visible only to its requester Founder or target |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
@@ -399,6 +400,7 @@ closed rather than installing a different release.
 | `agent-cli upgrade status` | `--input PLAN [--via-foundation\|--operator]`; read retained planning/preflight without dispatch, or request target-owned native status; explicit retained operator recovery works while Foundation is offline; no install/retry authority |
 | `agent-cli upgrade-lease` | Internal native-helper command, bounded protobuf stdin/stdout only; exact issuer/target requests a fresh server nonce proof; no installer/inference |
 | `agent-service upgrade-helper` | `--policy FILE`; administrator-provisioned worker updater, bounded protobuf stdin/stdout only |
+| `agent-service restart-helper` | `--policy FILE`; explicitly administrator-enabled fixed worker restart helper, bounded protobuf inspect/apply/status with signed permit and fresh nonce lease; no arbitrary commands |
 | `fdn-service upgrade-helper` | `--policy FILE`; administrator-provisioned Foundation updater, bounded protobuf stdin/stdout only; not the ordinary SSH agent gateway |
 | `agent-cli message-worker` | Internal same-user native maintenance inbox/result adapter, bounded protobuf stdin/stdout; not an agent owner or model call |
 | `agent-service request-worker` | `--policy FILE [--once]`; independently supervised native receiver for exact queued maintenance requests |
@@ -608,6 +610,77 @@ Manual pause, no requested response, ordinary idle and work inside its declared
 deadline are not stuck failures. A Foundation outage still needs native/outside
 monitoring. See [SCHEMA.md](SCHEMA.md#observed-worker-health-and-reply-diagnostics)
 and [DEPLOYMENT.md](DEPLOYMENT.md#read-only-worker-and-reply-diagnostics).
+
+## Per-agent app diagnostics and Founder controls
+
+Both apps expose **Agent diagnostics** from agent details and their diagnostics/
+More navigation. Select an agent by name or complete ID. Reading saved diagnosis
+is Founder/self only and needs no manual mode, target cooperation, provider call
+or acknowledgement. Safe snapshots are retained in owner-only app storage,
+bound to the original connection, identity/device and key generation. Offline
+views label saved data and never grant control authority.
+
+The view shows server-received heartbeat/report times, stale/offline state,
+reason/next action, target-reported phase/progress/deadline, provider/authentication
+observations, pending counts, component problems and full safe records. Current
+health, liveness, real progress and provider sign-in are separate facts.
+Missing or stale observations are not healthy defaults.
+
+Founder can request fresh diagnostics, recover an exact proven closed session,
+reset the responsive runtime, or request a separately supervised native restart.
+Controls work in Founder AI or manual mode but still require live authenticated
+authority; recovery/reset/restart need explicit reasoned confirmation.
+The app persists exact proposals and operation IDs and observes their results.
+An uncertain submission is reconciled with the original operation, not a new
+reason/request. Opening, `queued`, `checking` and expired controls never imply
+fresh success or recovery. New app controls require compatible 0.3.41 source.
+
+## Founder-only supervised native restart
+
+`agent restart` is distinct from `agent reset`, `agent repair` and fresh-key
+`agent recover`. It reaches a dead worker/identity service through the independently
+supervised **Foundation-host** maintenance receiver and administrator-pinned
+worker SSH/helper routes, not through the dead target's identity proxy.
+The apps send only the exact agent ID and non-secret reason:
+
+```sh
+agent-cli --operation-id native-restart-001 agent restart AGENT_ID --input /PRIVATE/restart.json
+agent-cli agent operation REQUEST_ID
+```
+
+The reason-only JSON shape is the same as reset below. No caller host, helper,
+policy/key path, shell command, force flag, cleanup assertion or mode override
+is accepted. Only the original active computer binding is addressed, not a
+second Founder device or another work slot.
+
+The server binds current Founder device/target generations, records the exact
+prior mode and temporary pause, and signs a fixed 15-minute permit. Only its
+root-private maintenance boundary can request an unused 30-second nonce-bound
+start lease or report native results. Ordinary Founder/target traffic cannot
+impersonate that receiver. The native helper additionally requires explicit
+`allow_native_restart:true` in its protected fixed-worker policy.
+
+At admission, the helper verifies the pinned CA, target generation, policy,
+source and lease. It records native start evidence before effects, stops/joins
+the fixed worker then identity manager units, proves the existing shared slot
+is unoccupied, starts the same units, and verifies native services plus the
+same authenticated identity. It changes no package, keys, provider sign-in,
+notes, workspaces, history, journals, approval or retry budgets.
+Newer mode decisions and uncertain work/session/report fences are preserved.
+Prior AI is restored only for the exact unchanged temporary pause and verified
+services without independent pending-work/report/session blockers; otherwise
+the prior intent remains recorded and the agent stays paused for Founder review.
+
+Success is `AgentOperation.state:"restarted"` with
+`result.code:"native-services-restarted"` and safe `native_runtime` source/
+generation/service/pending-count evidence. Interrupted or unprovable effects
+remain `operator-required`; lost responses query the same native receipt and
+deliver the same report without repeating restart or renewing authority.
+Missing routes are explicit failures, not an SSH fallback or fabricated success.
+
+See [native restart policy provisioning](DEPLOYMENT.md#supervised-worker-restart-policy).
+Both sides and their native supervisors need a compatible 0.3.41 release.
+Source changes do not provision policies, deploy programs or restart Agent1.
 
 ## Founder-only runtime reset
 

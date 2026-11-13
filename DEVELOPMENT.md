@@ -294,6 +294,25 @@ proposals. Do not start a live installation or login during local development.
 
 ### Saved diagnostics and bounded Founder controls
 
+The shared Swift diagnostics view shows complete safe per-agent health,
+stale/offline/missing state, separate clocks, provider observations and component
+problems. Persist safe snapshots only in original connection/identity/device/
+generation-scoped private app storage. Cache reads never grant authority.
+Wire protected refresh/repair/reset/restart through the existing exact proposal
+path in both apps and the narrow in-memory mobile dispatch; Founder controls
+work in AI or manual mode, ordinary publication does not gain that exemption.
+Recovery re-reads the exact unexpired diagnostic with monotonic request timing.
+Queued/unknown submissions remain explicit and reuse their original operation.
+
+Native restart is a separate 0.3.41 policy-bound operation. Its Foundation root
+receiver uses administrator-pinned worker helper routes independently of dead
+target identity services. Retain exact signatures, device/target generations,
+nonce lease, native start/result receipts, slot/join proof and original outbox.
+Never route it through ordinary worker report ingress or make reset/repair a
+service restart. Only unchanged verified temporary pauses may restore prior AI;
+newer/manual intent and pending work/report/session fences win. Add typed locked
+payloads without rewriting shipped SQL, and require compatible supervisors.
+
 Worker health piggybacks version 1 on the existing heartbeat; it does not grant
 mode/work/retry/recovery authority or require a new SQLite migration. Keep phase
 transition sequence, fresh snapshot time, loop liveness and real work progress

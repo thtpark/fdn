@@ -35,7 +35,7 @@ type app struct {
 
 var AgentCommands = []string{
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
-	"agent list", "agent status", "agent diagnose", "agent reset", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
+	"agent list", "agent status", "agent diagnose", "agent reset", "agent restart", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"device list", "device register", "device revoke",
 	"agent add", "agent add-status", "agent add-relay",
 	"agent preferences",
@@ -57,7 +57,7 @@ var AgentCommands = []string{
 }
 
 var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install", "upgrade-helper", "request-worker"}
-var ServiceCommands = []string{"serve", "status", "upgrade-helper", "request-worker"}
+var ServiceCommands = []string{"serve", "status", "upgrade-helper", "restart-helper", "request-worker"}
 var GuideCommands = []string{"guide list", "guide show", "guide install"}
 var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance request", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open", "assistance status"}
 
@@ -198,6 +198,10 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 				usage = "agent diagnose AGENT_ID [--refresh]; default is read-only latest saved observations for Founder or self; --refresh queues a Founder-only check with a fixed 15-minute lifespan, not fresh success; inspect agent operation REQUEST_ID; no login, inference or mode change"
 			case "agent repair":
 				usage = "agent repair AGENT_ID --input FILE; Founder-only exact closed-session recovery using session_id, expected_fence SHA256 from a fresh diagnostic operation and a nonsecret reason; target independently requires durable native cleanup proof; no acknowledge-stopped, journal retry, native restart or mode change; inspect agent operation REQUEST_ID"
+			case "agent restart":
+				usage = "agent restart AGENT_ID --input FILE; Founder-only signed native identity/worker service restart through independently provisioned Foundation maintenance routes; preserves keys/state/fences and only restores unchanged verified prior mode; queued is not restarted; inspect agent operation REQUEST_ID"
+			case "restart-helper":
+				usage = "restart-helper --policy FILE; administrator-enabled fixed worker service helper; bounded protobuf inspect/apply/status with signed Founder permit and fresh nonce lease, no arbitrary commands or key/state erasure"
 			case "agent operation":
 				usage = "agent operation REQUEST_ID; read-only common state/outcome for diagnostic refresh and session recovery, visible to requester Founder or target; queued/checking is not fresh success; no leaf flags"
 			case "agent status":
@@ -221,7 +225,7 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 	if a.configFile == "" && tail[0] != "guide" {
 		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "default configuration unavailable; specify --config"), homeErr))
 	}
-	longRunning := tail[0] == "observe" || tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" || tail[0] == "request-worker" ||
+	longRunning := tail[0] == "observe" || tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" || tail[0] == "restart-helper" || tail[0] == "request-worker" ||
 		(tail[0] == "upgrade" && len(tail) > 1 && tail[1] == "apply") ||
 		(tail[0] == "accounts" && len(tail) > 1 && tail[1] == "serve") || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
 	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open") ||

@@ -93,6 +93,9 @@ func (a *app) engine(r *resources) *work.Engine {
 }
 
 func (a *app) service(ctx context.Context, args []string) (value any, err error) {
+	if len(args) > 0 && args[0] == "restart-helper" {
+		return a.restartHelper(ctx, args[1:])
+	}
 	if len(args) > 0 && args[0] == "request-worker" {
 		return a.requestWorker(ctx, args[1:])
 	}

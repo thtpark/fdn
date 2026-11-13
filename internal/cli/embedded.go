@@ -86,6 +86,7 @@ func (e *Embedded) Snapshot(ctx context.Context, q observe.Query) (json.RawMessa
 var embeddedWrites = []string{
 	"agent status", "agent mode", "project create", "project change", "task create", "task change",
 	"agent preferences",
+	"agent diagnose", "agent reset", "agent repair", "agent restart",
 	"comment add", "comment edit", "worklog add", "message send", "message read", "message receipt",
 	"message request-report", "note set", "mention acknowledge", "knowledge put",
 	"announcement send",
@@ -108,6 +109,7 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 	targeted := slices.Contains([]string{
 		"agent mode", "project change", "task change", "comment add", "comment edit", "worklog add",
 		"agent preferences",
+		"agent diagnose", "agent reset", "agent repair", "agent restart",
 		"message read", "message receipt", "message request-report", "mention acknowledge",
 		"file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded", "publication change",
 		"assistance revoke", "session change",
@@ -123,7 +125,24 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 			return nil, domain.Fail(domain.Invalid, "mobile file receipt requires its verified app-local copy")
 		}
 	}
-	if args[0] == "message" && args[1] == "read" {
+	diagnosticRefresh := args[0] == "agent" && args[1] == "diagnose"
+	if diagnosticRefresh {
+		expected = 4
+		var input struct {
+			Reason string `json:"reason"`
+		}
+		decoder := json.NewDecoder(bytes.NewReader(body))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil {
+			return nil, err
+		}
+		if len(args) != expected || args[3] != "--refresh" || input.Reason != "Founder requested fresh diagnostics" {
+			return nil, domain.Fail(domain.Invalid, "mobile diagnostic refresh uses only its exact target and fixed nonsecret reason")
+		}
+		if err := decoder.Decode(new(any)); err != io.EOF {
+			return nil, domain.Fail(domain.Invalid, "mobile diagnostic input must contain exactly one JSON object")
+		}
+	} else if args[0] == "message" && args[1] == "read" {
 		expected = 3
 	} else if len(args) < 2 || args[len(args)-2] != "--input" || args[len(args)-1] != "-" {
 		return nil, domain.Fail(domain.Denied, "mobile inputs must be bounded in-memory JSON, never file paths")
@@ -140,7 +159,8 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 	}
 	pause := args[0] == "agent" && args[1] == "mode"
 	sharing := args[0] == "share"
-	if me.Mode != "manual" && !pause && !sharing {
+	agentControl := args[0] == "agent" && slices.Contains([]string{"diagnose", "reset", "repair", "restart"}, args[1])
+	if me.Mode != "manual" && !pause && !sharing && !agentControl {
 		return nil, domain.Fail(domain.Prerequisite, "human publishing requires freshly confirmed manual mode")
 	}
 	a := &app{in: bytes.NewReader(body), out: io.Discard, diagnostic: io.Discard, json: true,

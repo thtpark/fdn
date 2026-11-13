@@ -36,16 +36,22 @@ type MessageActionUpdate struct {
 }
 
 type MessageWorkerCommand struct {
-	MessageID       string                  `json:"message_id,omitempty"`
-	Report          *MessageActionReport    `json:"report,omitempty"`
-	Preflight       bool                    `json:"preflight,omitempty"`
-	PreflightReport *UpgradePreflightReport `json:"preflight_report,omitempty"`
+	MessageID       string                    `json:"message_id,omitempty"`
+	Report          *MessageActionReport      `json:"report,omitempty"`
+	Preflight       bool                      `json:"preflight,omitempty"`
+	PreflightReport *UpgradePreflightReport   `json:"preflight_report,omitempty"`
+	Restarts        bool                      `json:"restarts,omitempty"`
+	RestartReport   *AgentRestartReport       `json:"restart_report,omitempty"`
+	RestartLease    *AgentRestartLeaseRequest `json:"restart_lease,omitempty"`
 }
 
 type MessageWorkerReply struct {
-	Messages   []Message          `json:"messages"`
-	Message    *Message           `json:"message,omitempty"`
-	Error      *Fault             `json:"error,omitempty"`
-	Preflights []UpgradePreflight `json:"preflights,omitempty"`
-	Preflight  *UpgradePreflight  `json:"preflight,omitempty"`
+	Messages     []Message            `json:"messages"`
+	Message      *Message             `json:"message,omitempty"`
+	Error        *Fault               `json:"error,omitempty"`
+	Preflights   []UpgradePreflight   `json:"preflights,omitempty"`
+	Preflight    *UpgradePreflight    `json:"preflight,omitempty"`
+	Restarts     []AgentRestartPermit `json:"restarts,omitempty"`
+	Restart      *AgentOperation      `json:"restart,omitempty"`
+	RestartLease *UpgradeLease        `json:"restart_lease,omitempty"`
 }

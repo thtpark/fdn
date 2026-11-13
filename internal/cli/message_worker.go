@@ -37,6 +37,9 @@ func (a *app) messageWorker(ctx context.Context, r *resources, args []string) (a
 	if err := upgrade.ValidateMailboxCommand(request); err != nil {
 		return nil, err
 	}
+	if request.Restarts || request.RestartReport != nil || request.RestartLease != nil {
+		return nil, domain.Fail(domain.Denied, "worker identity ingress cannot coordinate native restarts")
+	}
 	reply := domain.MessageWorkerReply{Messages: []domain.Message{}}
 	var actionErr error
 	if request.Preflight {

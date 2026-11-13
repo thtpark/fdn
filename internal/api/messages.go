@@ -493,6 +493,46 @@ func (s *Server) updateMessageRoutes() {
 
 func (s *Server) serveMaintenanceMessages(ctx context.Context, conn net.Conn) error {
 	session, err := message.NewSession(ctx, conn, func(call context.Context, request message.Request) ([]byte, error) {
+		if request.Operation == "query.maintenance.agent-restarts" {
+			if request.Target != "" || len(request.Query) != 0 || len(request.Payload) != 0 {
+				return nil, domain.Fail(domain.Denied, "native restart inbox accepts no caller scope or body")
+			}
+			items, err := s.Store.NativeAgentRestarts(call)
+			if err != nil {
+				return nil, err
+			}
+			return message.MarshalPayload(items)
+		}
+		if request.Operation == "command.maintenance.agent-restart-result" {
+			if request.Target != "" || len(request.Query) != 0 {
+				return nil, domain.Fail(domain.Denied, "native restart result accepts no caller scope")
+			}
+			var input domain.AgentRestartReport
+			if err := message.UnmarshalPayload(request.Payload, &input); err != nil {
+				return nil, err
+			}
+			result, err := s.Store.ReportNativeAgentRestart(call, input)
+			if err != nil {
+				return nil, err
+			}
+			return message.MarshalPayload(result)
+		}
+		if request.Operation == "command.maintenance.agent-restart-lease" {
+			if request.Target != "" || len(request.Query) != 0 {
+				return nil, domain.Fail(domain.Denied, "native restart lease accepts no caller scope")
+			}
+			var input domain.AgentRestartLeaseRequest
+			if err := message.UnmarshalPayload(request.Payload, &input); err != nil {
+				return nil, err
+			}
+			lease, err := s.Store.LeaseAgentRestart(call, input, func(lease domain.UpgradeLease) (string, error) {
+				return upgrade.SignRestartLease(lease, s.identity.key)
+			})
+			if err != nil {
+				return nil, err
+			}
+			return message.MarshalPayload(lease)
+		}
 		if request.Operation == "query.maintenance.upgrade-preflights" {
 			if request.Target != "" || len(request.Query) != 0 || len(request.Payload) != 0 {
 				return nil, domain.Fail(domain.Denied, "Foundation preflight inbox accepts no caller scope or body")

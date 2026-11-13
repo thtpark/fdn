@@ -7,6 +7,35 @@ import (
 const PreflightFailureMessage = "Native preflight failed on the target; inspect its private evidence before retrying"
 
 func ValidateMailboxCommand(request domain.MessageWorkerCommand) error {
+	nativeRestart := request.Restarts || request.RestartReport != nil || request.RestartLease != nil
+	if nativeRestart {
+		count := 0
+		if request.Restarts {
+			count++
+		}
+		if request.RestartReport != nil {
+			count++
+		}
+		if request.RestartLease != nil {
+			count++
+		}
+		if count != 1 || request.MessageID != "" || request.Report != nil || request.Preflight || request.PreflightReport != nil {
+			return domain.Fail(domain.Invalid, "native restart mailbox accepts exactly one root-only typed control")
+		}
+		if r := request.RestartReport; r != nil {
+			if !domain.ValidOperation(r.ID) {
+				return domain.Fail(domain.Invalid, "native restart report requires its exact operation")
+			}
+			return domain.ValidateAgentOperationReport(domain.AgentOperationReport{Command: r.Command, State: r.State, Result: r.Result})
+		}
+		if r := request.RestartLease; r != nil {
+			if !domain.ValidOperation(r.ID) || !domain.ValidOperation(r.OperationID) || r.ExpectedRevision != 0 ||
+				len(r.Nonce) != 43 || !domain.ValidHash(r.PermitSHA256) {
+				return domain.Fail(domain.Invalid, "native restart lease requires exact immutable scope")
+			}
+		}
+		return nil
+	}
 	if !request.Preflight && request.PreflightReport == nil {
 		return nil
 	}

@@ -28,7 +28,7 @@ func validateAgentOperationRequest(command Command, reason string) error {
 }
 
 func AgentOperationTerminal(state string) bool {
-	return slices.Contains([]string{"refreshed", "recovered", "reset", "rejected", "operator-required", "expired"}, state)
+	return slices.Contains([]string{"refreshed", "recovered", "reset", "restarted", "rejected", "operator-required", "expired"}, state)
 }
 
 func TerminalSessionState(state string) bool {
@@ -41,6 +41,7 @@ func ValidAgentOperationCode(code string) bool {
 		"session-unavailable", "fence-mismatch", "cleanup-unproven", "session-recovered",
 		"operation-expired", "authority-changed", "unsupported-operation", "inspection-unavailable", "recovery-unavailable",
 		"runtime-reset", "reset-interrupted", "invocation-uncertain", "work-pending", "report-pending", "maintenance-active", "runtime-unavailable",
+		"native-services-restarted", "native-restart-unavailable", "native-restart-interrupted",
 	}, code)
 }
 
@@ -116,7 +117,13 @@ func ValidateAgentOperationReport(req AgentOperationReport) error {
 			return err
 		}
 	}
-	if r.AutomationMayResume && (!slices.Contains([]string{"recovered", "reset"}, req.State) || r.ModeAtCheck != "ai") {
+	if n := r.NativeRuntime; n != nil {
+		if n.Version == "" || !ValidHealthVersion(n.Version) || !ValidSourceCommit(n.Commit) ||
+			n.IdentityGeneration <= 0 || n.PendingInvocations < 0 || n.PendingReports < 0 {
+			return Fail(Invalid, "native runtime requires exact source, identity generation and bounded pending counts")
+		}
+	}
+	if r.AutomationMayResume && (!slices.Contains([]string{"recovered", "reset", "restarted"}, req.State) || r.ModeAtCheck != "ai") {
 		return Fail(Invalid, "only a recovered or reset runtime in ai mode may indicate automation eligibility")
 	}
 	if r.Code == "cleanup-unproven" && req.State != "operator-required" {
@@ -135,12 +142,16 @@ func ValidateAgentOperationReport(req AgentOperationReport) error {
 		if r.Code != "runtime-reset" || r.Observation == nil || r.Observation.WorkSlot != "free" || r.Observation.SessionFence != nil {
 			return Fail(Invalid, "reset requires a free runtime with no remaining session fence")
 		}
+	case "restarted":
+		if r.Code != "native-services-restarted" || r.NativeRuntime == nil || !r.NativeRuntime.ServicesRunning {
+			return Fail(Invalid, "restarted requires verified native identity and worker services")
+		}
 	case "expired":
 		if r.Code != "operation-expired" {
 			return Fail(Invalid, "expired requires operation-expired")
 		}
 	case "operator-required":
-		if !slices.Contains([]string{"cleanup-unproven", "fence-mismatch", "session-unavailable", "recovery-unavailable", "inspection-unavailable", "configuration-unavailable", "slot-occupied", "reset-interrupted", "invocation-uncertain", "work-pending", "report-pending", "maintenance-active", "runtime-unavailable"}, r.Code) {
+		if !slices.Contains([]string{"cleanup-unproven", "fence-mismatch", "session-unavailable", "recovery-unavailable", "inspection-unavailable", "configuration-unavailable", "slot-occupied", "reset-interrupted", "invocation-uncertain", "work-pending", "report-pending", "maintenance-active", "runtime-unavailable", "native-restart-unavailable", "native-restart-interrupted"}, r.Code) {
 			return Fail(Invalid, "operator-required requires a safe unresolved-evidence code")
 		}
 	case "rejected":
@@ -156,13 +167,24 @@ func ValidateAgentOperationOutcome(operation AgentOperation, req AgentOperationR
 	if err := ValidateAgentOperationReport(req); err != nil {
 		return err
 	}
-	if operation.Version != AgentOperationVersion || !slices.Contains([]string{"diagnostics", "session-recovery", "runtime-reset"}, operation.Kind) {
+	if operation.Version != AgentOperationVersion || !slices.Contains([]string{"diagnostics", "session-recovery", "runtime-reset", "native-restart"}, operation.Kind) {
 		return Fail(Invalid, "agent operation version or kind is unsupported")
 	}
 	if req.Result == nil {
 		return nil
 	}
 	r := req.Result
+	if operation.Kind == "native-restart" {
+		if !slices.Contains([]string{"restarted", "operator-required", "rejected", "expired"}, req.State) ||
+			!slices.Contains([]string{"native-services-restarted", "native-restart-unavailable", "native-restart-interrupted", "operation-expired", "authority-changed"}, r.Code) {
+			return Fail(Invalid, "native restart cannot report runtime reset, diagnostics or session repair")
+		}
+		return nil
+	}
+	if req.State == "restarted" || r.NativeRuntime != nil ||
+		slices.Contains([]string{"native-services-restarted", "native-restart-unavailable", "native-restart-interrupted"}, r.Code) {
+		return Fail(Invalid, "only a native restart may report native service observations")
+	}
 	if operation.Kind == "runtime-reset" {
 		if req.State == "refreshed" || req.State == "recovered" || slices.Contains([]string{"observations-collected", "session-recovered", "fence-mismatch", "session-live"}, r.Code) {
 			return Fail(Invalid, "runtime reset cannot report a diagnostic refresh or exact session repair")
@@ -207,7 +229,7 @@ func ValidateAgentOperation(operation AgentOperation) error {
 		return err
 	}
 	switch operation.Kind {
-	case "diagnostics", "runtime-reset":
+	case "diagnostics", "runtime-reset", "native-restart":
 		if operation.SessionID != "" || operation.ExpectedFence != "" {
 			return Fail(Invalid, "diagnostics and runtime reset cannot carry exact session-recovery authority")
 		}

@@ -196,7 +196,7 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 		}
 		return a.writeAgentOperation(ctx, r, api.Path("agents", id, "repairs"), req)
 	}
-	if args[0] == "reset" {
+	if args[0] == "reset" || args[0] == "restart" {
 		id, tail, err := idArgs(args[1:])
 		if err != nil {
 			return nil, err
@@ -211,7 +211,7 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 		if err := domain.ValidateAgentResetRequest(req); err != nil {
 			return nil, err
 		}
-		return a.writeAgentOperation(ctx, r, api.Path("agents", id, "reset"), req)
+		return a.writeAgentOperation(ctx, r, api.Path("agents", id, args[0]), req)
 	}
 	if args[0] == "operation" {
 		id, tail, err := idArgs(args[1:])

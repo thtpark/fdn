@@ -24,6 +24,29 @@ HOME directories. Tests must not register host services, change SSH/firewall
 policy, touch real skills/configuration/credentials, or use a deployed endpoint.
 Cancel only owned processes, using exact process identities/process groups.
 
+## Per-agent diagnostics and supervised restart
+
+```sh
+go test -race -count=1 ./internal/domain ./internal/foundation ./internal/api ./internal/cli ./internal/upgrade ./internal/identityservice -run 'NativeRestart|AgentNativeRestart|IndependentRestart|EmbeddedProtectedAgent|AgentOperation|AgentReset'
+```
+
+Shared Swift diagnostic/model tests cover complete stale/offline/missing shapes,
+exact agent routes, offline reopen, private connection/key-generation caches,
+Founder AI/manual versus delegate/self authority, fresh exact fence/expiry,
+unresolved reset replacement denial and exact replay. Native rendering and phone
+UI tests must show actual diagnosis content and confirmation controls, not an
+object field count or queued-success alert.
+
+Native tests require signed permits, exact policy/computer generation/source,
+fresh nonce start authority, fixed paired native effects and durable receipts.
+Root/native API fixtures deny ordinary Founder/worker access to the coordinator
+inbox/lease/results, deny caller paths/proof/force options, and verify exact
+completion. Lost apply responses use status and lost reports reuse the original
+outbox without another restart/lease. Mode tests preserve prior/newer manual
+intent and pending-work/session/report fences. Recording fixtures run without
+root services, real keys, target builds, provider calls or deployed endpoints;
+they are not live native restart or full-host restore qualification.
+
 ## Native named entity links
 
 ```sh
