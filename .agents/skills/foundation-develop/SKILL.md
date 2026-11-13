@@ -128,8 +128,16 @@ The checkout's root documents are canonical; no old source tree is required.
    retirement. Do not blanket-refuse merely missing old journals or expand
    ordinary autonomous cleanup/exact repair into unknown-resource adoption.
    This is not factory reset, native restart, force-clear or retry authority.
-7. Native coordination uses bounded protobuf over SSH/mTLS and Unix IPC, not
-   HTTP/gRPC or a downgrade path. Preserve kernel-derived principals and
+7. Native coordination uses bounded protobuf over SSH/mTLS and Unix IPC, not HTTP/gRPC or a downgrade path.
+   Native service restart is distinct from runtime reset/repair. Wire its
+   Founder-only reason-only request, independent Foundation root coordinator,
+   administrator-pinned target routes, signed generation/expiry/nonce proof,
+   exact native receipts/outbox and safe prior-mode restoration together.
+   Keep root coordination out of ordinary worker/Founder ingress and retain
+   unknown effects, pending work/report/session fences and newer/manual intent.
+   App diagnostic caches stay private to the original connection/device/key
+   generation and never grant offline control authority.
+   Preserve kernel-derived principals and
    narrow typed capabilities; UID alone is not a key-generation proof.
    Optional `agent add --via-foundation` keeps worker SSH end-to-end through
    the Founder-only native relay, never gateway forwarding. Preserve direct

@@ -72,9 +72,28 @@ func (n *Native) messageMailbox(ctx context.Context, request domain.MessageWorke
 		return reply, err
 	}
 	if n.Policy.Role == "foundation" {
+		if request.Restarts {
+			err := n.maintenanceMessage(ctx, "query.maintenance.agent-restarts", nil, &reply.Restarts)
+			return reply, err
+		}
+		if request.RestartReport != nil {
+			var updated domain.AgentOperation
+			err := n.maintenanceMessage(ctx, "command.maintenance.agent-restart-result", request.RestartReport, &updated)
+			reply.Restart = &updated
+			return reply, err
+		}
+		if request.RestartLease != nil {
+			var lease domain.UpgradeLease
+			err := n.maintenanceMessage(ctx, "command.maintenance.agent-restart-lease", request.RestartLease, &lease)
+			reply.RestartLease = &lease
+			return reply, err
+		}
 		if request.Preflight {
 			err := n.maintenanceMessage(ctx, "query.maintenance.upgrade-preflights", nil, &reply.Preflights)
 			return reply, err
+		}
+		if request.Restarts || request.RestartReport != nil || request.RestartLease != nil {
+			return reply, domain.Fail(domain.Denied, "native restart coordination requires the Foundation root maintenance boundary")
 		}
 		if request.PreflightReport != nil {
 			var updated domain.UpgradePreflight

@@ -99,6 +99,10 @@ func ValidateOperatorTarget(t Target) error {
 func operatorQuote(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
 
 func OperatorArguments(t Target) ([]string, error) {
+	return operatorArguments(t, "upgrade-helper")
+}
+
+func operatorArguments(t Target, leaf string) ([]string, error) {
 	if err := ValidateOperatorTarget(t); err != nil {
 		return nil, err
 	}
@@ -108,7 +112,7 @@ func OperatorArguments(t Target) ([]string, error) {
 	if _, err := secure.ReadPublic(t.SSH.KnownHostsFile, domain.MaxBody); err != nil {
 		return nil, err
 	}
-	command := operatorQuote(t.Helper) + " upgrade-helper --policy " + operatorQuote(t.PolicyFile)
+	command := operatorQuote(t.Helper) + " " + leaf + " --policy " + operatorQuote(t.PolicyFile)
 	if t.Sudo {
 		command = "sudo -n -- " + command
 	}

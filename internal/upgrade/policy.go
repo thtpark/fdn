@@ -16,21 +16,23 @@ import (
 )
 
 type Policy struct {
-	Role           string   `json:"role"`
-	Name           string   `json:"name"`
-	InstanceID     string   `json:"instance_id"`
-	TargetID       string   `json:"target_id"`
-	CAFile         string   `json:"ca_file"`
-	StateDir       string   `json:"state_dir"`
-	Method         string   `json:"method"`
-	Prefix         string   `json:"prefix,omitempty"`
-	BinaryDir      string   `json:"binary_dir"`
-	User           string   `json:"user"`
-	Home           string   `json:"home"`
-	ConfigFile     string   `json:"config_file"`
-	IdentityConfig string   `json:"identity_config,omitempty"`
-	ServiceOptions string   `json:"service_options,omitempty"`
-	BackupPaths    []string `json:"backup_paths"`
+	Role               string   `json:"role"`
+	Name               string   `json:"name"`
+	InstanceID         string   `json:"instance_id"`
+	TargetID           string   `json:"target_id"`
+	CAFile             string   `json:"ca_file"`
+	StateDir           string   `json:"state_dir"`
+	Method             string   `json:"method"`
+	Prefix             string   `json:"prefix,omitempty"`
+	BinaryDir          string   `json:"binary_dir"`
+	User               string   `json:"user"`
+	Home               string   `json:"home"`
+	ConfigFile         string   `json:"config_file"`
+	IdentityConfig     string   `json:"identity_config,omitempty"`
+	ServiceOptions     string   `json:"service_options,omitempty"`
+	BackupPaths        []string `json:"backup_paths"`
+	AllowNativeRestart bool     `json:"allow_native_restart,omitempty"`
+	RestartTargets     []Target `json:"restart_targets,omitempty"`
 }
 
 var nativeName = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
@@ -58,6 +60,20 @@ func protected(path string, owner uint32) error {
 }
 
 func (p Policy) Validate() error {
+	if len(p.RestartTargets) > 32 || p.Role != "foundation" && len(p.RestartTargets) != 0 ||
+		p.Role != "agent" && p.AllowNativeRestart {
+		return domain.Fail(domain.Invalid, "native restart policy must bind one worker or bounded Foundation operator routes")
+	}
+	seen := make(map[string]bool)
+	for _, target := range p.RestartTargets {
+		if err := ValidateTarget(target); err != nil {
+			return err
+		}
+		if target.Role != "agent" || seen[target.TargetID] {
+			return domain.Fail(domain.Invalid, "native restart routes must name distinct enrolled worker computers")
+		}
+		seen[target.TargetID] = true
+	}
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		return domain.Fail(domain.Prerequisite, "native upgrading is implemented only for Linux and macOS")
 	}

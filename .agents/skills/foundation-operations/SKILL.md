@@ -73,6 +73,12 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    does not prove final health. A singleton conflict is an owner to inspect,
    never a lock file to remove.
 4. Only an authenticated Founder request may pause/resume a non-Founder agent:
+   In either native app, open **Agent diagnostics** from agent details or
+   Diagnostics/More. Saved observations remain readable offline for the original
+   identity; stale/missing information is not healthy. Founder can request fresh
+   inspection, recover the exact proven closed-session fence, reset runtime, or
+   explicitly restart native services. Operations remain queued/checking until
+   actual results arrive; reconcile an uncertain original proposal, not a new one.
    use `agent mode AGENT --input FILE` with explicit mode/reason. The autonomous
    target mirrors the request and cancels/joins inference; it never waits for a
    local person or self-sets manual. Delegates may be AI agents, not humans.
@@ -91,6 +97,17 @@ Read `guide show DEPLOYMENT.md`, `guide show SCHEMA.md` and
    unprovable cleanup, uncertainty, pending work/reports and maintenance remain
    operator-required. Reuse the exact operation/input after uncertainty;
    reset-interrupted never authorizes cancelling newer work again.
+   `agent restart AGENT --input FILE` is a distinct 0.3.41 native service control
+   with a non-secret reason, not `agent reset`/`agent repair` or identity recovery.
+   Foundation's independent root maintenance receiver uses administrator-pinned
+   worker routes and explicit `allow_native_restart:true` policies, so a dead
+   target identity proxy is not needed. It still needs exact signed generation/
+   expiry/nonce authority and joined fixed native service/slot proof. Keys,
+   sign-in, history, journals, budgets and fences remain. Only unchanged verified
+   temporary pauses may restore prior AI; newer/manual intent and independent
+   pending-work/report/session blockers win. Inspect `agent operation`, never
+   rerun uncertain native effects. Provision/deploy separately; missing routes
+   are real blockers, not automatic SSH/policy/privilege fallback.
 5. Reconcile lost acknowledgements with the same operation and original input.
    Prepared reports replay without repeated inference. Unknown side effects
    stay fenced; no timeout takeover or fresh run ID resets retry authority.

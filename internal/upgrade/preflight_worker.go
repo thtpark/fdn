@@ -23,7 +23,11 @@ func (n *Native) ControlStep(ctx context.Context) (bool, error) {
 	} else if !os.IsNotExist(err) {
 		return false, err
 	}
-	handled, err := n.PreflightStep(ctx)
+	handled, err := n.RestartStep(ctx)
+	if handled || err != nil {
+		return handled, err
+	}
+	handled, err = n.PreflightStep(ctx)
 	if handled || err != nil {
 		return handled, err
 	}

@@ -91,6 +91,14 @@ func projectAgentOperation(ctx context.Context, q queryer, operation domain.Agen
 	if err != nil {
 		return domain.AgentOperation{}, err
 	}
+	if operation.Kind == "native-restart" {
+		record, readErr := readAgentRestart(ctx, q, operation.ID)
+		if readErr != nil {
+			return domain.AgentOperation{}, readErr
+		}
+		_, currentErr := agentRestartCurrent(ctx, q, record)
+		allowed = allowed && currentErr == nil
+	}
 	mode := target.Mode
 	if mode != "ai" && mode != "manual" {
 		mode = "manual"

@@ -50,11 +50,12 @@ type AgentOperationReport struct {
 }
 
 type AgentOperationResult struct {
-	Code                string           `json:"code"`
-	CapturedAt          int64            `json:"captured_at"`
-	ModeAtCheck         string           `json:"mode_at_check"`
-	AutomationMayResume bool             `json:"automation_may_resume"`
-	Observation         *AgentInspection `json:"observation,omitempty"`
+	Code                string                    `json:"code"`
+	CapturedAt          int64                     `json:"captured_at"`
+	ModeAtCheck         string                    `json:"mode_at_check"`
+	AutomationMayResume bool                      `json:"automation_may_resume"`
+	Observation         *AgentInspection          `json:"observation,omitempty"`
+	NativeRuntime       *NativeRuntimeObservation `json:"native_runtime,omitempty"`
 }
 
 type AgentInspection struct {

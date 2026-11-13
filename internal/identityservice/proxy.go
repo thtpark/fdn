@@ -32,6 +32,7 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/upgrades/preflight/*", "/v1/upgrades/preflight-requests",
 	},
 	http.MethodPost: {
+		"/v1/agents/*/restart",
 		"/v1/identity/register", "/v1/identity/*/recover", "/v1/identity/devices", "/v1/identity/devices/*/revoke",
 		"/v1/heartbeat", "/v1/agents/*/screens", "/v1/agents/*/mode", "/v1/agents/*/revoke", "/v1/agents/*/authentication", "/v1/agents/*/diagnostics", "/v1/agents/*/repairs", "/v1/agents/*/reset", "/v1/agents/*/status", "/v1/agent-operations/*/result", "/v1/projects", "/v1/projects/*/change", "/v1/project-creation-grants", "/v1/projects/*/delegates",
 		"/v1/tasks", "/v1/tasks/*/change", "/v1/tasks/*/entries", "/v1/tasks/*/claim", "/v1/tasks/*/report", "/v1/entries/*", "/v1/attention/*",

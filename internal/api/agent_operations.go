@@ -4,9 +4,18 @@ import (
 	"net/url"
 
 	"github.com/thtpark/fdn/internal/domain"
+	"github.com/thtpark/fdn/internal/upgrade"
 )
 
 func (s *Server) agentOperationRoutes() {
+	body(s, "POST /v1/agents/{id}/restart", false, func(r *operationRequest, a domain.Agent, req domain.AgentRestartRequest) (domain.AgentOperation, error) {
+		if r.URL.RawQuery != "" {
+			return domain.AgentOperation{}, domain.Fail(domain.Invalid, "native agent restart accepts no query overrides")
+		}
+		return s.Store.RequestAgentRestart(r.Context(), a.ID, r.PathValue("id"), req, func(permit domain.AgentRestartPermit) (string, error) {
+			return upgrade.SignRestartPermit(permit, s.identity.key)
+		})
+	})
 	body(s, "POST /v1/agents/{id}/reset", false, func(r *operationRequest, a domain.Agent, req domain.AgentResetRequest) (domain.AgentOperation, error) {
 		if r.URL.RawQuery != "" {
 			return domain.AgentOperation{}, domain.Fail(domain.Invalid, "agent reset does not accept query parameters")

@@ -466,6 +466,10 @@
       "id": 3,
       "name": "mode_at_check"
     },
+    "NativeRuntime": {
+      "id": 6,
+      "name": "native_runtime"
+    },
     "Observation": {
       "id": 5,
       "name": "observation"
@@ -505,6 +509,132 @@
     "OperationID": {
       "id": 1,
       "name": "operation_id"
+    }
+  },
+  "AgentRestartLeaseRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "ID": {
+      "id": 3,
+      "name": "id"
+    },
+    "Nonce": {
+      "id": 4,
+      "name": "nonce"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "PermitSHA256": {
+      "id": 5,
+      "name": "permit_sha256"
+    }
+  },
+  "AgentRestartNativeReply": {
+    "Challenge": {
+      "id": 2,
+      "name": "challenge"
+    },
+    "Error": {
+      "id": 4,
+      "name": "error"
+    },
+    "Runtime": {
+      "id": 3,
+      "name": "runtime"
+    },
+    "State": {
+      "id": 1,
+      "name": "state"
+    }
+  },
+  "AgentRestartNativeRequest": {
+    "Action": {
+      "id": 1,
+      "name": "action"
+    },
+    "Lease": {
+      "id": 3,
+      "name": "lease"
+    },
+    "Permit": {
+      "id": 2,
+      "name": "permit"
+    }
+  },
+  "AgentRestartPermit": {
+    "CreatedAt": {
+      "id": 10,
+      "name": "created_at"
+    },
+    "ExpiresAt": {
+      "id": 11,
+      "name": "expires_at"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "InstanceID": {
+      "id": 2,
+      "name": "instance_id"
+    },
+    "ModeRevision": {
+      "id": 8,
+      "name": "mode_revision"
+    },
+    "Reason": {
+      "id": 9,
+      "name": "reason"
+    },
+    "RequesterBindingID": {
+      "id": 4,
+      "name": "requester_binding_id"
+    },
+    "RequesterGeneration": {
+      "id": 5,
+      "name": "requester_generation"
+    },
+    "RequesterID": {
+      "id": 3,
+      "name": "requester_id"
+    },
+    "Signature": {
+      "id": 12,
+      "name": "signature"
+    },
+    "TargetGeneration": {
+      "id": 7,
+      "name": "target_generation"
+    },
+    "TargetID": {
+      "id": 6,
+      "name": "target_id"
+    }
+  },
+  "AgentRestartReport": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "ID": {
+      "id": 3,
+      "name": "id"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Result": {
+      "id": 5,
+      "name": "result"
+    },
+    "State": {
+      "id": 4,
+      "name": "state"
     }
   },
   "AgentStatusReceipt": {
@@ -2395,6 +2525,18 @@
     "Report": {
       "id": 2,
       "name": "report"
+    },
+    "RestartLease": {
+      "id": 7,
+      "name": "restart_lease"
+    },
+    "RestartReport": {
+      "id": 6,
+      "name": "restart_report"
+    },
+    "Restarts": {
+      "id": 5,
+      "name": "restarts"
     }
   },
   "MessageWorkerReply": {
@@ -2417,6 +2559,18 @@
     "Preflights": {
       "id": 4,
       "name": "preflights"
+    },
+    "Restart": {
+      "id": 7,
+      "name": "restart"
+    },
+    "RestartLease": {
+      "id": 8,
+      "name": "restart_lease"
+    },
+    "Restarts": {
+      "id": 6,
+      "name": "restarts"
     }
   },
   "ModeRequest": {
@@ -2435,6 +2589,36 @@
     "Reason": {
       "id": 4,
       "name": "reason"
+    }
+  },
+  "NativeRuntimeObservation": {
+    "Commit": {
+      "id": 2,
+      "name": "commit"
+    },
+    "IdentityGeneration": {
+      "id": 3,
+      "name": "identity_generation"
+    },
+    "PendingInvocations": {
+      "id": 5,
+      "name": "pending_invocations"
+    },
+    "PendingReports": {
+      "id": 6,
+      "name": "pending_reports"
+    },
+    "ServicesRunning": {
+      "id": 4,
+      "name": "services_running"
+    },
+    "SessionFenced": {
+      "id": 7,
+      "name": "session_fenced"
+    },
+    "Version": {
+      "id": 1,
+      "name": "version"
     }
   },
   "Note": {

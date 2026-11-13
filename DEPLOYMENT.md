@@ -315,6 +315,67 @@ fdn-service request-worker --policy /etc/fdn/updater.json
 agent-service request-worker --policy /etc/fdn/updater.json
 ```
 
+### Supervised worker restart policy
+
+Compatible 0.3.41 source adds a separate Founder-signed service restart, not
+upgrade/reset/repair authority. An administrator must deliberately enable
+`allow_native_restart:true` in the target's existing protected `role:"agent"`
+policy and allow only the fixed `agent-service restart-helper --policy FILE`
+operator command. The helper uses that policy's existing installing user,
+HOME, private configurations and paired native units; no new OS account,
+identity, application slot, package or provider spending is introduced.
+
+The Foundation root maintenance policy optionally pins up to 32
+`restart_targets`, using the existing `Target` shape. Example entry (replace
+with independently authorized, host-pinned native values):
+
+```json
+{
+  "role": "agent",
+  "target_id": "agent_ACTUAL",
+  "platform": "linux-amd64",
+  "helper": "/usr/bin/agent-service",
+  "policy_file": "/etc/fdn/updater.json",
+  "sudo": true,
+  "ssh": {
+    "host": "10.0.0.2",
+    "port": 22,
+    "user": "operator",
+    "identity_file": "/etc/fdn/restart/operator-key",
+    "known_hosts_file": "/etc/fdn/restart/known-hosts"
+  }
+}
+```
+
+Only Foundation's already independently supervised root receiver coordinates
+these requests. It works while the target's identity/runner are down; its
+operator keys never enter an app, request, provider prompt or public result.
+Use an authorized native operator account, never the forced `fdn-api`/`fdn-join`
+account. On macOS the fixed helper runs as the existing installing user and
+uses that user's already installed GUI LaunchAgents, not root/system services.
+No SSH password/host-key prompt, direct app-to-worker route or automatic policy
+installation is supported.
+
+The helper accepts bounded protobuf `inspect`, `apply` and `status` only.
+Signatures, target key generation, unchanged policy/source and a fresh
+nonce-bound server start lease are checked before bounded native effects.
+The existing work slot must be free after the actual paired manager stop.
+No socket, journal, database, approval or retry fence is removed.
+Native start/result receipts and original pending reports stay private and
+durable; uncertain service effects cannot be blindly rerun.
+
+The temporary pause can restore only the unchanged recorded prior AI intent
+after exact service/identity verification and no independent pending-work/
+report/session fence. Preexisting manual mode and newer Founder decisions win.
+Failed/expired/uncertain controls require explicit inspection; restarting is
+not authentication, task completion or full-host recovery.
+
+Changing either protected policy invalidates old native challenges. Update
+server, proxies, clients and independently supervised helpers compatibly;
+the additional typed payload changes the locked fingerprint but no SQL/schema/
+API/native version number. Policy provisioning and native deployment retain
+their separate administrator/Founder authorization.
+
 `--once` inspects/processes at most one available request for bounded checks.
 Compatible receivers also service the narrow private preflight inbox without
 provider/work-slot admission. Foundation uses the root-private maintenance

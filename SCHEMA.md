@@ -562,12 +562,31 @@ remain visible after login; authentication resolves only its own observation.
 
 ## Founder diagnostic refresh and exact session recovery
 
+Both native apps retain safe diagnosis snapshots and control observations in
+owner-only, connection/identity/device/key-generation-scoped app storage.
+Offline snapshots remain explicitly saved/stale, never live authority. The
+apps render full per-agent health/problems/clocks and keep target observation
+times separate from server receipt/expiry clocks. Protected controls are
+Founder-only even in AI mode; ordinary publishing keeps its manual gate.
+
 `AgentOperation` version **1** is a durable non-inference control for
-`diagnostics`, `session-recovery` or `runtime-reset`. Founder alone creates it through
+`diagnostics`, `session-recovery`, `runtime-reset` or `native-restart`. Founder alone creates it through
 `POST /v1/agents/{id}/diagnostics` (`DiagnosticRefreshRequest`) or
 `POST /v1/agents/{id}/repairs` (`SessionRecoveryRequest`), or
 `POST /v1/agents/{id}/reset` (`AgentResetRequest`). Reset uses an alias of the
 existing reason-only envelope, preserving the locked native payload fingerprint.
+`POST /v1/agents/{id}/restart` uses the same reason-only envelope but routes
+execution through the independent Foundation root maintenance receiver.
+The signed restart permit/current Founder-device and target generations,
+recorded prior mode/temporary pause, nonce lease and exact root report receipts
+use service-owned settings and existing protected operation messages. No SQL
+migration or ordinary-message authority is added.
+Targets cannot report native restart results through the normal operation
+endpoint, and the worker control-loop list excludes these native controls.
+Only the root-private typed boundary can issue the unused 30-second start lease
+or report them. Fixed administrator-pinned worker routes and an explicit local
+restart policy are independent OS authority. Missing/dead target identity proxies
+are not used to transport this control.
 Creation command
 metadata requires a stable `operation_id` and no optimistic revision. The
 server binds immutable requester/target key generations, reason and creation
@@ -602,9 +621,11 @@ queued/checking controls; only that target may report safe typed results to
 operation expiry are rechecked. Exact submission/report retries retain their
 original request fingerprints and receipts.
 
-States are `queued`, `checking`, `refreshed`, `recovered`, `reset`, `rejected`,
-`operator-required` and `expired`. A queued offline/dead daemon is not fresh
-success; the server cannot restart it through this API. Results carry only safe
+States are `queued`, `checking`, `refreshed`, `recovered`, `reset`, `restarted`,
+`rejected`, `operator-required` and `expired`. A queued offline/dead daemon is not
+fresh success; diagnostic refresh, runtime reset and repair cannot restart it.
+The distinct policy-bound native restart uses the independent receiver.
+Results carry only safe
 `code`, server-anchored `captured_at`, `mode_at_check`, `automation_may_resume`
 and `AgentInspection` observation:
 health, separately timestamped provider observation, exact session-fence
@@ -614,6 +635,18 @@ arguments, credentials, transcripts or workspace paths. A provider value of
 an observation, not an inference or completed work. Health/phase and provider
 observations keep independent timestamps rather than overwriting an in-flight
 work phase.
+
+Native restart additionally has terminal `restarted` with verified
+`native_runtime` source/identity-generation/service/pending-count observations.
+Its helper records start evidence before effects, verifies joined fixed native
+manager stop and the existing slot, and verifies both started services and
+current identity. It does not replace binaries or erase state/fences.
+Only the exact unchanged temporary pause can restore prior AI after verified
+startup without independent pending work/report/session blockers. Newer Founder
+intent, preexisting manual mode and uncertain effects remain fenced. This
+separate policy-bound capability does not expand diagnostic refresh, runtime
+reset or exact repair into OS service control. A native receipt read or lost
+result delivery never repeats restart or renews a lease.
 
 Runtime reset explicitly permits cancellation of the target daemon's owned work
 and interactive session, including Founder self-reset, without changing mode.
