@@ -304,6 +304,12 @@ work in AI or manual mode, ordinary publication does not gain that exemption.
 Recovery re-reads the exact unexpired diagnostic with monotonic request timing.
 Queued/unknown submissions remain explicit and reuse their original operation.
 
+Durable public connection profiles retain canonical `provisioned` or `active`
+state; neither is proof of current runtime authority. Native restart reads that
+retained identity/generation without rewriting it and still requires the fresh
+server-signed active-target permit/nonce lease plus post-start identity checks.
+Retired/unsupported profiles remain denied.
+
 Native restart is a separate 0.3.41 policy-bound operation. Its Foundation root
 receiver uses administrator-pinned worker helper routes independently of dead
 target identity services. Retain exact signatures, device/target generations,

@@ -34,7 +34,7 @@ func (n *Native) restartGeneration() (int64, error) {
 		return 0, err
 	}
 	if profile.Identity.AgentID != n.Policy.TargetID || profile.Identity.InstanceID != n.Policy.InstanceID ||
-		profile.Identity.State != "active" || profile.Identity.Generation <= 0 {
+		(profile.Identity.State != "provisioned" && profile.Identity.State != "active") || profile.Identity.Generation <= 0 {
 		return 0, domain.Fail(domain.Denied, "native restart belongs to another retained computer identity")
 	}
 	return profile.Identity.Generation, nil
