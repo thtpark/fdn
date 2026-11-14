@@ -61,7 +61,7 @@ func ValidateAgentInspection(inspection AgentInspection) error {
 		if !ValidProvider(p.Provider) || !ValidHealthVersion(p.Version) || p.ObservedAt <= 0 || p.ObservedAt > inspection.ObservedAt {
 			return Fail(Invalid, "provider observation requires supported provider, safe version and bounded time")
 		}
-		if !slices.Contains([]string{"unknown", "authenticated", "login-required", "credentials-present-unverified", "signed-in", "sign-in-required"}, p.Authentication) {
+		if !ValidProviderAuthentication(p.Authentication) {
 			return Fail(Invalid, "provider authentication observation is unsupported")
 		}
 		if p.ProblemCode != "" && !safeObservationProblem(p.ProblemCode) {

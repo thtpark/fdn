@@ -160,14 +160,18 @@ func InstallShellCommands(home, configFile, cliPath, shell string) (result Shell
 		return result, err
 	}
 	files := []shellFile{}
-	for _, name := range []string{"codex", "copilot"} {
-		file, err := readShellFile(filepath.Join(result.Directory, name), 0700)
+	for _, name := range domain.ProviderNames() {
+		command := name
+		if name == "antigravity" {
+			command = "agy"
+		}
+		file, err := readShellFile(filepath.Join(result.Directory, command), 0700)
 		if err != nil {
 			return result, err
 		}
 		marker := "#!/bin/sh\n# Foundation managed provider launcher v1 " + name + " " + domain.Hash(configFile) + "\n"
 		if file.exists && !bytes.HasPrefix(file.old, []byte(marker)) {
-			return result, domain.Fail(domain.Conflict, "an unmanaged command occupies codex/copilot in the account's .foundation/bin; preserve it rather than overwrite")
+			return result, domain.Fail(domain.Conflict, "an unmanaged command occupies a provider launcher in this account's .foundation/bin; preserve it rather than overwrite")
 		}
 		file.next = []byte(marker + "exec " + shellQuote(cliPath) + " --config " + shellQuote(configFile) + " provider exec --provider " + name + " -- \"$@\"\n")
 		file.mode = 0700

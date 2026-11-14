@@ -18,6 +18,9 @@ func (e *Engine) inventoryPaths(c config.Worker) (map[string]string, error) {
 }
 
 func (e *Engine) publishEnvironment(ctx context.Context) error {
+	if err := e.publishProviderCatalog(ctx); err != nil {
+		return err
+	}
 	c, err := e.currentConfig()
 	if err != nil {
 		return err

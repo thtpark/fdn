@@ -94,6 +94,10 @@ func rpc(reader *bufio.Reader, writer io.Writer, id int, method string, params a
 }
 
 func (m *Manager) statusProcess(ctx context.Context, path string, args []string, exchange func(io.Reader, io.Writer) error) (err error) {
+	return m.exchangeProcess(ctx, process.Spec{Path: path, Args: args, Env: process.Environment()}, exchange)
+}
+
+func (m *Manager) exchangeProcess(ctx context.Context, spec process.Spec, exchange func(io.Reader, io.Writer) error) (err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	stdinReader, stdinWriter := io.Pipe()
@@ -105,9 +109,19 @@ func (m *Manager) statusProcess(ctx context.Context, path string, args []string,
 	stopPipes := context.AfterFunc(ctx, closePipes)
 	done := make(chan error, 1)
 	diagnostic := process.NewBuffer(8192)
+	if spec.Stdout != nil {
+		spec.Stdout = io.MultiWriter(stdoutWriter, spec.Stdout)
+	} else {
+		spec.Stdout = stdoutWriter
+	}
+	if spec.Stderr != nil {
+		spec.Stderr = io.MultiWriter(diagnostic, spec.Stderr)
+	} else {
+		spec.Stderr = diagnostic
+	}
+	spec.Stdin = stdinReader
 	go func() {
-		runErr := m.Runner.Run(ctx, process.Spec{Path: path, Args: args, Env: process.Environment(),
-			Stdin: stdinReader, Stdout: stdoutWriter, Stderr: diagnostic})
+		runErr := m.Runner.Run(ctx, spec)
 		stdinReader.CloseWithError(runErr)
 		stdoutWriter.CloseWithError(runErr)
 		done <- runErr

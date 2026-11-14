@@ -420,4 +420,6 @@ type ListQuery struct {
 	Cursor          string `json:"cursor,omitempty"`
 }
 
-func ValidProvider(name string) bool { return name == "codex" || name == "copilot" }
+func ProviderNames() []string { return []string{"codex", "copilot", "antigravity"} }
+
+func ValidProvider(name string) bool { return slices.Contains(ProviderNames(), name) }

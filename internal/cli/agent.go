@@ -131,7 +131,7 @@ func requireArgs(args []string, count int) error {
 
 func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (any, error) {
 	if len(args) == 0 {
-		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, reset, repair, operation, environment, environment-report, add, add-status, register, recover, identity, revoke, mode, preferences or request-sign-in")
+		return nil, domain.Fail(domain.Invalid, "agent requires list, show, status, diagnose, reset, repair, operation, environment, environment-report, model-options, model-options-report, add, add-status, register, recover, identity, revoke, mode, preferences or request-sign-in")
 	}
 	if args[0] == "add" || args[0] == "add-status" || args[0] == "add-relay" {
 		return a.agentAddition(ctx, r, args)
@@ -139,6 +139,18 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 	if args[0] == "environment" {
 		if err := requireArgs(args, 2); err != nil {
 			return nil, err
+		}
+		if args[0] == "model-options" {
+			if err := requireArgs(args, 2); err != nil {
+				return nil, err
+			}
+			return api.Call[domain.AgentModelOptions](ctx, r.client, "GET", api.Path("agents", args[1], "model-options"), nil)
+		}
+		if args[0] == "model-options-report" {
+			if err := requireArgs(args, 1); err != nil {
+				return nil, err
+			}
+			return a.reportProviderCatalog(ctx, r)
 		}
 		return api.Call[domain.AgentEnvironment](ctx, r.client, "GET", api.Path("agents", args[1], "environment"), nil)
 	}

@@ -1157,16 +1157,20 @@ Its reason-only payload preserves the current native handshake fingerprint.
 ## Providers and protected handoffs
 
 Install exact approved versions or explicitly update through the CLI. Managed
-staging disables install scripts, locks integrity, verifies npm registry
-signatures and checks required adapter flags before activation; failures retain
-the previous version. Do not bypass checks with a guessed replacement provider.
+Codex/Copilot staging disables install scripts, locks integrity and verifies npm
+registry signatures. Antigravity stages only the official standalone CLI asset,
+checks its independent GitHub SHA256/platform/version and extracts one native
+executable; it is not claimed npm-signed or attested. All adapters must pass
+required capability checks before activation; failures retain the prior source.
+Do not bypass checks with a guessed executable or Antigravity IDE launcher.
 
 Read `provider status`. Codex credentials-present-unverified is not proof of
-live authentication. Copilot uses bounded read-only auth/model RPC. Neither
-status invokes paid inference.
+live authentication and is excluded from authenticated app choices. Copilot
+uses bounded read-only auth/model RPC; Antigravity uses only ACP session admission,
+model metadata and close. None of these status checks invokes paid inference.
 
 Providers are installed in private version directories, not globally with npm.
-Install/update and daemon startup expose stable `codex`/`copilot` commands in the
+Install/update and daemon startup expose stable `codex`/`copilot`/`agy` commands in the
 account's `.foundation/bin` and preserve a managed PATH block in its login profile.
 Verify the actual login shell with `command -v codex`, `command -v copilot`,
 `codex --version`, and `copilot --version`, not only absolute managed paths.
@@ -1186,10 +1190,11 @@ route human-only credential/consent actions to Founder. If authentication could
 unlock unapproved inference, Founder explicitly requests manual mode on the
 target and later explicitly resumes it. No delegate or target changes mode.
 Prefer supported headless/device-code login: Codex `login --device-auth`,
-Copilot `login --device-code`. Local `provider login` and authentication tmux
-sessions inspect the selected executable's `login --help` first, add only the
-advertised provider-specific flag, and otherwise retain native login. Help
-failure is explicit and starts no login; Copilot self-update remains disabled.
+Copilot `login --device-code`. Antigravity uses its advertised `agy acp --login`
+flow in the protected human terminal; no guessed device-code flag or token
+transfer is used. Local provider login and authentication tmux sessions inspect
+the selected executable's supported help before choosing that flow. Help failure
+is explicit and starts no login; Copilot self-update remains disabled.
 
 Displaying the provider's sign-in screen, public verification URL and one-time
 prompt to the authorized human through the approved terminal/session is allowed;

@@ -8,7 +8,7 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 )
 
-func TestAgentPreferencesNativeAPIEnforcesFounderAndRetainsExactDefaults(t *testing.T) {
+func TestAgentPreferencesNativeAPIEnforcesFounderOrSelfAndRetainsExactDefaults(t *testing.T) {
 	f := newAuthenticationAPIFixture(t)
 	f.server.health.close()
 	ctx := context.Background()
@@ -25,7 +25,7 @@ func TestAgentPreferencesNativeAPIEnforcesFounderAndRetainsExactDefaults(t *test
 		Command:  domain.Command{OperationID: domain.NewID("op"), ExpectedRevision: initial.Revision},
 		Provider: &name, Model: &model, Reason: "Founder configures the next session's defaults.",
 	}
-	for _, caller := range []*Client{target, delegate} {
+	for _, caller := range []*Client{delegate} {
 		if _, err := Call[domain.ProviderPreferences](ctx, caller, http.MethodPost, path, request); domain.AsFault(err).Code != domain.Denied {
 			t.Fatal("a worker/delegate changed agent defaults", err)
 		}

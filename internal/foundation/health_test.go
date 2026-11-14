@@ -65,6 +65,22 @@ func directHealthMessage(t *testing.T, f *fixture, sender string, response bool)
 	return m
 }
 
+func TestHealthHeartbeatRetainsEnvironmentAndAllComponentObservations(t *testing.T) {
+	f := newFixture(t)
+	h := observedHealth(f.now.Unix())
+	for _, component := range []string{"configuration", "mode-control", "provider-update", "controller", "watch", "heartbeat", "connection", "session", "control", "environment"} {
+		h.Problems = append(h.Problems, domain.HealthProblem{
+			Component: component, Code: domain.Unavailable, FirstSeenAt: h.ObservedAt, LastSeenAt: h.ObservedAt,
+		})
+	}
+	a := publishHealth(t, f.s, f.worker.ID, h)
+	d := diagnoseHealth(t, f.s, f.founder.ID, f.worker.ID)
+	if a.LastSeen != f.now.Unix() || d.Stale || d.ReceivedAt != f.now.Unix() || d.Health == nil ||
+		len(d.Health.Problems) != domain.MaxHealthProblems || d.Health.Problems[len(d.Health.Problems)-1].Component != "environment" {
+		t.Fatal("a supported environment diagnostic suppressed liveness or lost evidence", a.LastSeen, d)
+	}
+}
+
 func TestHealthLiveHeartbeatOverDeadlineAndStableDelivery(t *testing.T) {
 	f := newFixture(t)
 	h := observedHealth(f.now.Unix() + 6*3600)

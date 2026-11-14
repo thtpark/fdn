@@ -140,6 +140,30 @@ func TestWorkerHealthProblemsAreTimestampedRedactedAndResolved(t *testing.T) {
 	}
 }
 
+func TestWorkerHealthEveryEmittedComponentPassesTheWireContract(t *testing.T) {
+	ctx := context.Background()
+	engine, _ := healthEngine(t)
+	for _, component := range healthComponents {
+		engine.recordProblem(ctx, component.key, domain.Fail(domain.Unavailable, "PRIVATE_DIAGNOSTIC_EVIDENCE"))
+	}
+	health := readHealth(t, engine)
+	if len(health.Problems) != len(healthComponents) {
+		t.Fatal("component evidence was omitted", health.Problems)
+	}
+	if err := domain.ValidateWorkerHealth(*health); err != nil {
+		t.Fatal("the worker emitted health that the server rejects", err)
+	}
+	if err := domain.ValidateAgentInspection(domain.AgentInspection{
+		ObservedAt: health.ObservedAt, Health: health, WorkSlot: "unknown",
+	}); err != nil {
+		t.Fatal("the worker emitted health that fresh inspection rejects", err)
+	}
+	data, err := json.Marshal(health)
+	if err != nil || strings.Contains(string(data), "PRIVATE_DIAGNOSTIC_EVIDENCE") {
+		t.Fatal("private diagnostic evidence crossed the health boundary", err)
+	}
+}
+
 func TestWorkerHealthSignInDoesNotClearPauseOrInvocationFence(t *testing.T) {
 	ctx := context.Background()
 	engine, now := healthEngine(t)

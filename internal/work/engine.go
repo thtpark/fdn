@@ -46,6 +46,7 @@ func invocationPrompt(context []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	contract += "You may deliberately change your own default provider/model with preferred_model={provider,model,reason} in a valid structured reply. Choose only from fresh authenticated_model_options for this computer; credentials-present-unverified and signed-out providers are not eligible. An empty model delegates model selection to that authenticated provider. This changes only your default for future calls, never the pinned task/provider/model, mode, identity, approval, spending, retry budgets or retained/in-flight journals. Do not claim a preference was saved until Foundation acknowledges the exact proposal. If no authenticated options are reported, do not invent a choice; report the authentication/catalog prerequisite.\n"
 	if launch.ConversationID != "" && launch.Phase != domain.RecoveryRun {
 		contract += "This is the tool-enabled execution of a recorded Adhoc conversation action, not a text acknowledgement. Inspect applicable local/project skills and retrieve relevant current thread, task, notes, knowledge and workspace context before acting or answering. Reference actual records and checks in evidence. Perform the retained action only within the recipient's current authority and existing workspace/OS permissions; an Adhoc record does not authorize another project's unapproved work, root changes, protected consent, spending, contracts or disclosure. Report actual results or concrete blockers, never a promise or invented success. Do not retry prior uncertain effects. response_requested defaults to true; set false only when a further response is unnecessary.\n"
 		contract += "Include public_report={summary,evidence} with a detailed team-safe account of the actual work, checks, outcome, blockers and next steps for the shared task and worklog. Keep the private reply in summary/evidence separate: never copy private conversation text, credentials, private paths or raw transcripts into public_report. Publish significant in-scope progress through worklog add using intentional team-safe summaries, not terminal dumps. A completed outcome still awaits independent verification.\n"
@@ -81,31 +82,32 @@ type Status struct {
 }
 
 type Launch struct {
-	Phase              string                    `json:"phase"`
-	AgentID            string                    `json:"agent_id"`
-	ExecutorAgent      *domain.Agent             `json:"executor_agent,omitempty"`
-	Recovery           *TaskRecoveryContext      `json:"recovery,omitempty"`
-	Task               *domain.Task              `json:"task,omitempty"`
-	Project            *domain.Project           `json:"project,omitempty"`
-	Discussion         []domain.Entry            `json:"discussion"`
-	Capabilities       []local.Observation       `json:"capabilities"`
-	Knowledge          []local.Knowledge         `json:"selected_private_knowledge"`
-	SharedNotes        []domain.Note             `json:"shared_notes"`
-	Message            *domain.Message           `json:"message,omitempty"`
-	RequestParent      *domain.Message           `json:"request_parent,omitempty"`
-	Attention          *domain.Attention         `json:"attention,omitempty"`
-	InventoryHash      string                    `json:"inventory_hash,omitempty"`
-	SystemCapabilities *local.SystemCapabilities `json:"system_capabilities,omitempty"`
-	ActionKey          string                    `json:"action_key,omitempty"`
-	Continuation       *provider.Reply           `json:"continuation,omitempty"`
-	Thread             []domain.Message          `json:"message_thread,omitempty"`
-	ThreadCursor       string                    `json:"thread_cursor,omitempty"`
-	ContextIncomplete  bool                      `json:"context_incomplete,omitempty"`
-	ReferencedTasks    []domain.Task             `json:"referenced_tasks,omitempty"`
-	ReferencedProjects []domain.Project          `json:"referenced_projects,omitempty"`
-	Requester          *domain.Agent             `json:"requester,omitempty"`
-	ConversationID     string                    `json:"conversation_action_id,omitempty"`
-	ActionInstructions string                    `json:"action_instructions,omitempty"`
+	Phase              string                             `json:"phase"`
+	AgentID            string                             `json:"agent_id"`
+	ExecutorAgent      *domain.Agent                      `json:"executor_agent,omitempty"`
+	Recovery           *TaskRecoveryContext               `json:"recovery,omitempty"`
+	Task               *domain.Task                       `json:"task,omitempty"`
+	Project            *domain.Project                    `json:"project,omitempty"`
+	Discussion         []domain.Entry                     `json:"discussion"`
+	Capabilities       []local.Observation                `json:"capabilities"`
+	Knowledge          []local.Knowledge                  `json:"selected_private_knowledge"`
+	SharedNotes        []domain.Note                      `json:"shared_notes"`
+	Message            *domain.Message                    `json:"message,omitempty"`
+	RequestParent      *domain.Message                    `json:"request_parent,omitempty"`
+	Attention          *domain.Attention                  `json:"attention,omitempty"`
+	InventoryHash      string                             `json:"inventory_hash,omitempty"`
+	SystemCapabilities *local.SystemCapabilities          `json:"system_capabilities,omitempty"`
+	ActionKey          string                             `json:"action_key,omitempty"`
+	Continuation       *provider.Reply                    `json:"continuation,omitempty"`
+	Thread             []domain.Message                   `json:"message_thread,omitempty"`
+	ThreadCursor       string                             `json:"thread_cursor,omitempty"`
+	ContextIncomplete  bool                               `json:"context_incomplete,omitempty"`
+	ReferencedTasks    []domain.Task                      `json:"referenced_tasks,omitempty"`
+	ReferencedProjects []domain.Project                   `json:"referenced_projects,omitempty"`
+	Requester          *domain.Agent                      `json:"requester,omitempty"`
+	ConversationID     string                             `json:"conversation_action_id,omitempty"`
+	ActionInstructions string                             `json:"action_instructions,omitempty"`
+	ModelOptions       *domain.ProviderCatalogObservation `json:"authenticated_model_options,omitempty"`
 }
 
 type Engine struct {
@@ -769,6 +771,9 @@ func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manua
 		return local.Journal{}, err
 	}
 	if err := e.refreshNotes(ctx, &launch); err != nil {
+		return local.Journal{}, err
+	}
+	if err := e.refreshModelContext(ctx, &launch); err != nil {
 		return local.Journal{}, err
 	}
 	j, err := e.newJournal(launch, health, model)

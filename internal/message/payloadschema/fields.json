@@ -357,6 +357,20 @@
       "name": "work_slot"
     }
   },
+  "AgentModelOptions": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "Computers": {
+      "id": 3,
+      "name": "computers"
+    },
+    "ServerObservedAt": {
+      "id": 2,
+      "name": "server_observed_at"
+    }
+  },
   "AgentOperation": {
     "CreatedAt": {
       "id": 13,
@@ -476,6 +490,10 @@
     }
   },
   "AgentPreferencesRequest": {
+    "Catalog": {
+      "id": 6,
+      "name": "catalog"
+    },
     "ExpectedRevision": {
       "id": 2,
       "name": "expected_revision"
@@ -1284,6 +1302,32 @@
     }
   },
   "ComputerEnvironment": {
+    "BindingID": {
+      "id": 1,
+      "name": "binding_id"
+    },
+    "DeviceName": {
+      "id": 2,
+      "name": "device_name"
+    },
+    "Generation": {
+      "id": 3,
+      "name": "generation"
+    },
+    "Observation": {
+      "id": 6,
+      "name": "observation"
+    },
+    "ReceivedAt": {
+      "id": 4,
+      "name": "received_at"
+    },
+    "Stale": {
+      "id": 5,
+      "name": "stale"
+    }
+  },
+  "ComputerModelOptions": {
     "BindingID": {
       "id": 1,
       "name": "binding_id"
@@ -2795,6 +2839,74 @@
       "name": "operation_id"
     }
   },
+  "ProviderCatalogBinding": {
+    "BindingID": {
+      "id": 1,
+      "name": "binding_id"
+    },
+    "Generation": {
+      "id": 2,
+      "name": "generation"
+    }
+  },
+  "ProviderCatalogObservation": {
+    "ObservedAt": {
+      "id": 2,
+      "name": "observed_at"
+    },
+    "Providers": {
+      "id": 3,
+      "name": "providers"
+    },
+    "Version": {
+      "id": 1,
+      "name": "version"
+    }
+  },
+  "ProviderCatalogRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Observation": {
+      "id": 3,
+      "name": "observation"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "ProviderModelCatalog": {
+    "Authentication": {
+      "id": 3,
+      "name": "authentication"
+    },
+    "ModelProblem": {
+      "id": 7,
+      "name": "model_problem"
+    },
+    "Models": {
+      "id": 5,
+      "name": "models"
+    },
+    "ObservedAt": {
+      "id": 4,
+      "name": "observed_at"
+    },
+    "ProblemCode": {
+      "id": 6,
+      "name": "problem_code"
+    },
+    "Provider": {
+      "id": 1,
+      "name": "provider"
+    },
+    "Version": {
+      "id": 2,
+      "name": "version"
+    }
+  },
   "ProviderObservation": {
     "Authentication": {
       "id": 3,
@@ -3943,6 +4055,10 @@
     "Attempt": {
       "id": 21,
       "name": "attempt"
+    },
+    "Catalog": {
+      "id": 27,
+      "name": "catalog"
     },
     "Decision": {
       "id": 19,

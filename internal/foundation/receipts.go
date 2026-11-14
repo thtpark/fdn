@@ -75,7 +75,7 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "assistance-help", ID: v.ID, Value: data}
 	case domain.ReportOutcome:
 		ref = storedResult{Kind: "report", ID: v.Run.ID, TaskID: v.Task.ID, Accepted: v.Accepted, Stale: v.Stale}
-	case domain.Attention, map[string]bool, []domain.Screen, domain.Sharing, domain.ComputerEnvironment, domain.AnnouncementReceipt, domain.FileProgress, domain.FileDownloadReceipt, domain.UpgradeMaintenance, domain.ProviderPreferences, domain.UpgradeLease:
+	case domain.Attention, map[string]bool, []domain.Screen, domain.Sharing, domain.ComputerEnvironment, domain.ComputerModelOptions, domain.AnnouncementReceipt, domain.FileProgress, domain.FileDownloadReceipt, domain.UpgradeMaintenance, domain.ProviderPreferences, domain.UpgradeLease:
 		data, err := json.Marshal(v)
 		if err != nil {
 			return nil, err

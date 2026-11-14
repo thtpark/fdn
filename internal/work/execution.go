@@ -54,6 +54,9 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	if err := e.refreshNotes(ctx, &launch); err != nil {
 		return err
 	}
+	if err := e.refreshModelContext(ctx, &launch); err != nil {
+		return err
+	}
 	j, err := e.newJournal(launch, health, model)
 	if err != nil {
 		return err
@@ -232,6 +235,9 @@ func (e *Engine) finishExecution(ctx context.Context, j *local.Journal, launch L
 	}
 	if launch.Task == nil {
 		return domain.Fail(domain.Internal, "coding invocation omitted its task context")
+	}
+	if err := e.applyPreferredModel(ctx, j, reply.Preferences); err != nil {
+		return err
 	}
 	if j.Kind == domain.RecoveryRun {
 		j.Report = &domain.ReportRequest{Command: domain.Command{OperationID: j.ID + ".report"}, RunID: j.RunID, Token: j.Token,

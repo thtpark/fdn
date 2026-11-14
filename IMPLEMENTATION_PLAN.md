@@ -6,6 +6,26 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Authenticated model choices and Antigravity CLI (0.3.42 source)
+
+Both apps offer only fresh authenticated models from the chosen enrolled
+computer, excluding unverified credentials, signed-out providers and stale
+reports. Founder can request an agent-selected default through an ordinary
+private message. Agents may deliberately change their own preferred defaults,
+including prior Founder choices, with independent revisions and exact replay;
+task/provider/model pins, mode, authority and work/retry fences remain intact.
+
+The official standalone Antigravity CLI is a third provider through native ACP
+stdio, with read-only authentication/model discovery, fixed tool-disabled text
+and bounded nonprompting coding profiles. Versioned native assets require
+independent GitHub digests and safe extraction; IDE launchers, arbitrary URLs,
+GUI automation, native self-update adoption and credential copying are denied.
+Health producers, heartbeat storage and fresh inspection preserve all ten
+supported safe components, including environment failures.
+Additive DTOs require a compatible source cutover, not SQL migration or automatic
+publication/deployment. Fixtures and native help/admission probes are not paid
+inference, authenticated-vendor or full-host production qualification.
+
 ### Per-agent app diagnostics and supervised native restart (0.3.41 source)
 
 Both apps expose readable per-agent diagnostics at any time, including explicit

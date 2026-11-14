@@ -63,7 +63,7 @@ func terminalAdmission(ctx context.Context, r *resources) (*secure.Lock, error) 
 func (a *app) executeProvider(ctx context.Context, r *resources, args []string) (value any, err error) {
 	flags := flag.NewFlagSet("provider exec", flag.ContinueOnError)
 	flags.SetOutput(a.diagnostic)
-	name := flags.String("provider", r.config.Provider, "codex or copilot")
+	name := flags.String("provider", r.config.Provider, "codex, copilot or antigravity")
 	if err := flags.Parse(args); err != nil {
 		return nil, domain.Fail(domain.Invalid, "provider exec requires --provider NAME -- NATIVE_ARGUMENTS")
 	}

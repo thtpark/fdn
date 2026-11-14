@@ -159,7 +159,14 @@ Wire Founder CLI/native/proxy/mobile controls, per-invocation selection and
 pre-onboarding requested-auth checks together. Task preferences override agent
 defaults; unavailable models delegate to the same provider before invocation,
 without replaying uncertain inference or changing pinned journals. Read-only
-Codex/Copilot catalogs need bounded framing/pagination and joined cancellation.
+Provider catalogs need bounded framing/pagination and joined cancellation.
+App model choices use only fresh authenticated observations from the chosen
+enrolled computer. Default writes permit Founder or self, preserve task pins
+and authority, and retain exact catalog/preference proposals after uncertainty.
+Antigravity uses the official standalone CLI/ACP, fixed empty-tool text and
+documented coding-tool profiles, never an IDE launcher or credential extraction.
+Test raw permission requests, client/MCP/tool denial, exact session/model output,
+independent release digests, safe extraction and retained native activation.
 Adhoc action plans separate public title/scope/criteria and public reports from
 private instructions/results. Lifecycle worklogs commit with the corresponding
 task/run mutation and preserve full bounded evidence without advancing discussion.

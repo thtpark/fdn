@@ -23,8 +23,8 @@ func (s *Store) AgentPreferences(ctx context.Context, actor, id string) (domain.
 
 func (s *Store) SetAgentPreferences(ctx context.Context, actor, id string, req domain.AgentPreferencesRequest) (domain.ProviderPreferences, error) {
 	return mutate(ctx, s, actor, "agent.preferences:"+id, req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.ProviderPreferences, error) {
-		if !a.Founder {
-			return domain.ProviderPreferences{}, domain.Fail(domain.Denied, "only Founder may set an agent's default provider and model")
+		if !a.Founder && a.ID != id {
+			return domain.ProviderPreferences{}, domain.Fail(domain.Denied, "only Founder or the agent itself may change its preferred provider and model")
 		}
 		target, err := activeIdentitySubject(ctx, tx, id)
 		if err != nil {
@@ -51,6 +51,11 @@ func (s *Store) SetAgentPreferences(ctx context.Context, actor, id string, req d
 		}
 		if err := domain.ValidateProviderModel(preferences.Provider, preferences.Model); err != nil {
 			return preferences, err
+		}
+		if req.Catalog != nil {
+			if err := s.validateModelChoice(ctx, tx, id, *req.Catalog, preferences.Provider, preferences.Model); err != nil {
+				return preferences, err
+			}
 		}
 		preferences.Revision++
 		preferences.UpdatedBy, preferences.UpdatedAt, preferences.Reason = a.ID, s.timestamp(), req.Reason

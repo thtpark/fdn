@@ -168,7 +168,7 @@ func (s *Store) validApproval(ctx context.Context, tx *sql.Tx, p domain.Project,
 func validateChange(req domain.TaskChange) error {
 	fields := map[string]string{
 		"edit":   "title description acceptance_criteria priority importance attachment_ids",
-		"status": "status", "assign": "agent_id provider model", "provider": "provider model",
+		"status": "status", "assign": "agent_id provider model catalog", "provider": "provider model catalog",
 		"workspace": "workspace_ref", "policy": "policy", "retry-policy": "retry_policy",
 		"approve": "spec_generation", "verify": "spec_generation result_generation decision",
 		"retry-approve": "spec_generation run_id attempt", "recovery-review": "spec_generation run_id attempt", "withdraw": "",
@@ -272,6 +272,11 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 				t.AssigneeID = req.AgentID
 			}
 			t.Provider, t.Model = req.Provider, req.Model
+			if req.Catalog != nil {
+				if err := s.validateModelChoice(ctx, tx, t.AssigneeID, *req.Catalog, t.Provider, t.Model); err != nil {
+					return t, err
+				}
+			}
 			invalidate(&t)
 		case "workspace":
 			if a.ID != t.AssigneeID {

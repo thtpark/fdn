@@ -62,6 +62,28 @@ func TestHealthValidationClosedBoundedObservations(t *testing.T) {
 	}
 }
 
+func TestHealthValidationAcceptsEverySupportedComponentWithoutDroppingEvidence(t *testing.T) {
+	h := healthValidationFixture()
+	for _, component := range []string{"configuration", "mode-control", "provider-update", "controller", "watch", "heartbeat", "connection", "session", "control", "environment"} {
+		h.Problems = append(h.Problems, HealthProblem{
+			Component: component, Code: Unavailable, FirstSeenAt: 900, LastSeenAt: 1000,
+		})
+	}
+	if len(h.Problems) != MaxHealthProblems {
+		t.Fatal("the health budget does not cover all supported components", len(h.Problems), MaxHealthProblems)
+	}
+	if err := ValidateWorkerHealth(h); err != nil {
+		t.Fatal("supported component evidence was rejected", err)
+	}
+	if err := ValidateAgentInspection(AgentInspection{ObservedAt: h.ObservedAt, Health: &h, WorkSlot: "free"}); err != nil {
+		t.Fatal("fresh inspection rejected supported health evidence", err)
+	}
+	h.Problems[len(h.Problems)-1] = h.Problems[0]
+	if err := ValidateWorkerHealth(h); err == nil || AsFault(err).Code != Invalid {
+		t.Fatal("duplicate supported components were accepted", err)
+	}
+}
+
 func TestHealthRelativeClocksAndHeartbeatDTOCompatibility(t *testing.T) {
 	h := healthValidationFixture()
 	h.ObservedAt, h.PhaseStartedAt, h.DeadlineAt = 11000, 10900, 11200

@@ -244,6 +244,18 @@ func (s *Server) routes() {
 	body(s, "POST /v1/agents/{id}/preferences", false, func(r *operationRequest, a domain.Agent, q domain.AgentPreferencesRequest) (domain.ProviderPreferences, error) {
 		return s.Store.SetAgentPreferences(r.Context(), a.ID, r.PathValue("id"), q)
 	})
+	read(s, "GET /v1/agents/{id}/model-options", func(r *operationRequest, a domain.Agent) (domain.AgentModelOptions, error) {
+		if err := monitoringRead(r, false); err != nil {
+			return domain.AgentModelOptions{}, err
+		}
+		return s.Store.AgentModelOptions(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/agents/{id}/model-options", false, func(r *operationRequest, a domain.Agent, q domain.ProviderCatalogRequest) (domain.ComputerModelOptions, error) {
+		if a.ID != r.PathValue("id") {
+			return domain.ComputerModelOptions{}, domain.Fail(domain.Denied, "only the enrolled computer may publish its own provider authentication and models")
+		}
+		return s.Store.PublishProviderCatalog(r.Context(), a.ID, q)
+	})
 	body(s, "POST /v1/agents/{id}/status", false, func(r *operationRequest, a domain.Agent, q domain.AgentStatusRequest) (domain.AgentStatusReceipt, error) {
 		return s.Store.PublishAgentStatus(r.Context(), a.ID, r.PathValue("id"), q)
 	})

@@ -91,7 +91,7 @@ creates a whole-desktop profile or screen authorization.
 
 | Table | Contract |
 | --- | --- |
-| `agents` | Immutable identity, display name, Founder/active/banned state, sponsor, timestamps, mode/revision, Founder mode-request attribution and optional independently revisioned Founder provider/model defaults; the historical credential-hash column is unused by authentication |
+| `agents` | Immutable identity, display name, Founder/active/banned state, sponsor, timestamps, mode/revision, Founder mode-request attribution and optional independently revisioned Founder/self provider/model preferences; the historical credential-hash column is unused by authentication |
 | `invitations` | Historical SQL storage retained by immutable schema definitions; no input type, runtime operation or receipt adapter exists |
 | `agent_identities` | Original agent binding plus Founder-only additional `device_id` bindings, each with independent request, SSH user/UID, approved keys, generations and state; generated `agent_id` retains the owning actor foreign key |
 | `identity_accounts` | Durable one-enrollment/one-UID/one-SSH-user reservation; historical `agent_id` column identifies the original agent binding or additional device binding, never another actor |
@@ -1341,7 +1341,7 @@ No SQL migration or rewrite of existing agent/task/journal records is required.
 Each new provider invocation refreshes current agent defaults. Task selection
 overrides them for that task's preparation/execution; messages, attention and
 independent verification use their recipient/verifier's own defaults. Local
-configuration is used when no Founder override exists. A task model supersedes
+configuration is used when no agent override exists. A task model supersedes
 the agent model; switching providers drops a model from the other provider.
 Fresh read-only provider catalogs are bounded and non-inferencing. Absent models
 and unavailable/invalid catalogs cause a logged, pre-invocation empty-model
@@ -1357,6 +1357,18 @@ Provider absence, authentication uncertainty, cancellation and unproved cleanup
 remain explicit blockers. Catalog failure is separately visible in provider
 status. Native invocation failures retain their existing uncertainty/replay
 rules; no automatic inference retry is introduced.
+
+From 0.3.42, Founder or self may change an agent's preferred defaults; changing
+another actor remains Founder-only. Computer-scoped provider catalogs are saved
+in existing settings under current device/key generations, without a SQL
+migration. Only provider-reported `authenticated` observations supply app model
+choices. Server receipt plus worker-relative probe age bounds freshness; exact
+or unchanged replay does not renew an old authentication observation. App and
+structured controller preference proposals bind the actual computer generation
+and validate current authentication/model membership transactionally. They
+change no task specification, authority epoch, mode, pending journal or budget.
+New catalog/binding DTOs change the locked native fingerprint and require
+compatible server, proxies, clients, workers and embedded runtime.
 
 ## Tasks and execution
 
