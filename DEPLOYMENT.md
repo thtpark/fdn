@@ -1300,15 +1300,17 @@ virtual desktops or monitor-scoped capture; macOS needs an existing authorized
 desktop and any native screen-recording/accessibility consent. Never unlock
 someone else's desktop or automate OS permission/credential prompts.
 
-Readiness probes read only RFB protocol metadata, never VNC credentials or pixels.
-TigerVNC can count these incomplete connections toward its connection blacklist,
-then return an RFB denial banner even while the port is listening. With explicit
-operator approval, a **verified loopback-only** TigerVNC backend can use
-`-UseBlacklist=0` while retaining `-SecurityTypes VncAuth`, private credentials,
-SSH/mTLS relay authorization and disabled X11 TCP. Never apply that exception to
-an externally reachable backend. Foundation duplicate-identity bans are separate
-and remain enforced. Qualify actual backend authentication separately through an
-authorized human or an opaque credential probe that emits only readiness metadata.
+From 0.3.44, screen inventory reads native display geometry and passive listening
+socket metadata (`ss` on Linux, native `lsof` on macOS), never opening an RFB
+connection, authenticating or reading pixels. Even incomplete banner probes consume
+TigerVNC authentication attempts and can cause exponential backend lockouts.
+Keep backend authentication and its blacklist enabled. Only an explicitly opened
+view connects and validates the RFB protocol before launching its selected app;
+the target performs at most one configured VNCAuth submission for that stream.
+Listener metadata is not proof of successful authentication. Qualify that separately
+through an authorized human or an opaque target-local credential probe. Existing
+lockouts need an actual quiet expiry or a separately authorized backend recovery,
+not repeated connections, password guesses or weakened security.
 
 Configure one explicit `screens` profile per usable display: stable id/name,
 geometry, scope screen/desktop, verified loopback VNC address, native display

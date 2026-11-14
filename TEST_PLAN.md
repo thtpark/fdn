@@ -205,6 +205,11 @@ Native RFB net.Pipe fixtures exercise 3.3/3.7/3.8, local VNCAuth, None-only
 authenticated viewer handshake, pixels, shared flag, per-event input gating,
 both clipboard directions, power/resize denial, malformed/bounded messages and
 joined cancellation. Unsupported/encrypted security/encodings fail closed.
+Repeated native screen inventories must accept zero TCP connections at their
+configured RFB backends, not merely send zero authentication/pixel bytes. Passive
+listener tests cover IPv4/IPv6/localhost, wildcard listeners, wrong ports and
+missing listeners; display geometry and source deadlines remain required.
+Explicit view opening must still reject non-RFB endpoints before app launch.
 Live output tests must preserve provider stdout/stderr limits and structured
 reply bytes; reading a filename/status is not an output-stream test.
 
