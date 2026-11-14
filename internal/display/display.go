@@ -43,7 +43,7 @@ func startupError(err error, clean bool) error {
 	return &StartupError{Err: err, clean: clean && !errors.As(err, &uncertain)}
 }
 
-// Inventory probes metadata and RFB version banners, never UI pixels or login.
+// Inventory reads display/listener metadata without opening a VNC connection.
 func Inventory(ctx context.Context, c config.Worker) ([]domain.Screen, error) {
 	found, err := inventory(ctx, c)
 	result := make([]domain.Screen, 0, len(found))
@@ -72,18 +72,16 @@ func inventory(ctx context.Context, c config.Worker) ([]available, error) {
 		if !profile.VNCVerified || profile.VNCAddress == "" {
 			continue
 		}
-		conn, _, err := dialBackend(inventoryCtx, profile.VNCAddress)
+		// Incomplete RFB connections consume TigerVNC authentication attempts.
+		listening, err := backendListening(inventoryCtx, profile)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return result, errors.Join(problems, err)
 			}
-			if domain.AsFault(err).Code == domain.Denied || domain.AsFault(err).Code == domain.Invalid {
-				problems = errors.Join(problems, err)
-			}
+			problems = errors.Join(problems, err)
 			continue
 		}
-		if err := conn.Close(); err != nil {
-			problems = errors.Join(problems, err)
+		if !listening {
 			continue
 		}
 		rect, primary, err := probe(inventoryCtx, profile)

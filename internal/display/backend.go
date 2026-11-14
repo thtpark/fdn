@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -36,6 +37,99 @@ func backendUnavailable(sourceCtx context.Context, message string) error {
 		return err
 	}
 	return domain.Fail(domain.Prerequisite, message)
+}
+
+func backendListening(ctx context.Context, profile config.Screen) (bool, error) {
+	if err := contextError(ctx); err != nil {
+		return false, err
+	}
+	if err := config.Loopback(profile.VNCAddress); err != nil {
+		return false, err
+	}
+	host, port, _ := net.SplitHostPort(profile.VNCAddress)
+	number, _ := strconv.Atoi(port)
+	if number == 0 {
+		return false, domain.Fail(domain.Invalid, "VNC needs a nonzero loopback port")
+	}
+	port = strconv.Itoa(number)
+	var data []byte
+	var err error
+	switch runtime.GOOS {
+	case "linux":
+		data, err = runTool(ctx, profile, "ss", "-H", "-ltn", "sport", "=", ":"+port)
+	case "darwin":
+		path, pathErr := executable("/usr/sbin/lsof")
+		if pathErr != nil {
+			return false, pathErr
+		}
+		env, home, environmentErr := environment(profile)
+		if environmentErr != nil {
+			return false, environmentErr
+		}
+		output, diagnostic := process.NewBuffer(64<<10), process.NewBuffer(16<<10)
+		err = (process.Native{}).Run(ctx, process.Spec{
+			Path: path, Args: []string{"-nP", "-a", "-iTCP:" + port, "-sTCP:LISTEN", "-Fn"},
+			Env: env, Dir: home, Stdout: output, Stderr: diagnostic,
+		})
+		var outputErr, diagnosticErr error
+		data, outputErr = output.Bytes()
+		message, diagnosticErr := diagnostic.Bytes()
+		var exit *exec.ExitError
+		var cleanup *process.CleanupError
+		if errors.As(err, &exit) && exit.ExitCode() == 1 && !errors.As(err, &cleanup) &&
+			len(data) == 0 && len(message) == 0 && outputErr == nil && diagnosticErr == nil {
+			err = nil
+		}
+		err = errors.Join(err, outputErr, diagnosticErr)
+	default:
+		return false, domain.Fail(domain.Prerequisite, "passive VNC listener inspection is unavailable on this operating system")
+	}
+	if err != nil {
+		return false, errors.Join(err, contextError(ctx))
+	}
+	if err := contextError(ctx); err != nil {
+		return false, err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		var address string
+		if runtime.GOOS == "darwin" {
+			if !strings.HasPrefix(line, "n") {
+				continue
+			}
+			address = strings.TrimPrefix(line, "n")
+		} else {
+			fields := strings.Fields(line)
+			if len(fields) < 5 || fields[0] != "LISTEN" {
+				continue
+			}
+			address = fields[3]
+		}
+		if backendListenerMatches(address, host, port) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func backendListenerMatches(address, host, port string) bool {
+	listeningHost, listeningPort, err := net.SplitHostPort(address)
+	if err != nil || listeningPort != port {
+		return false
+	}
+	if listeningHost == "*" {
+		return true
+	}
+	ip := net.ParseIP(listeningHost)
+	if ip == nil {
+		return false
+	}
+	if ip.IsUnspecified() {
+		return true
+	}
+	if host == "localhost" {
+		return ip.IsLoopback()
+	}
+	return ip.Equal(net.ParseIP(host))
 }
 
 func dialBackend(sourceCtx context.Context, address string) (net.Conn, []byte, error) {

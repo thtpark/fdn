@@ -74,18 +74,17 @@ func TestMacGeometryUsesExactNativeDisplayAndPhysicalPixels(t *testing.T) {
 
 func TestInventoryBackendProbeIsBoundedAndNoninteractive(t *testing.T) {
 	f := screenFixtureFor(t)
-	hung := rfb(t, "")
 	f.config.Screens = f.config.Screens[:1]
-	f.config.Screens[0].VNCAddress = hung.address
+	writeHelper(t, filepath.Join(f.bin, "xrandr"), "exec /bin/sleep 1\n")
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	start := time.Now()
 	got, err := Inventory(ctx, f.config)
 	if len(got) != 0 || time.Since(start) > time.Second || !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatal("hung backend was reported available or ignored the context bound", got, err)
+		t.Fatal("hung native inventory was reported available or ignored the context bound", got, err)
 	}
-	if hung.received.Load() != 0 {
-		t.Fatal("readiness probe sent a login or framebuffer request")
+	if f.left.accepted.Load() != 0 {
+		t.Fatal("readiness inventory opened a VNC authentication attempt")
 	}
 }
 
