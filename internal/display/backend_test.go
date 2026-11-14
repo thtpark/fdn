@@ -3,6 +3,7 @@ package display
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,13 +15,21 @@ type unnotifiedDeadlineContext struct {
 	deadline time.Time
 }
 
+func TestBackendPassiveNativeListenerDoesNotConnect(t *testing.T) {
+	f := screenFixtureFor(t)
+	profile := f.config.Screens[0]
+	listening, err := backendListening(context.Background(), profile)
+	if err != nil || !listening || f.left.accepted.Load() != 0 {
+		t.Fatal("configured native listener was not observed passively", listening, err, f.left.accepted.Load())
+	}
+}
+
 func (c unnotifiedDeadlineContext) Deadline() (time.Time, bool) { return c.deadline, true }
 
 func TestInventoryPreservesDeadlineBeforeContextNotification(t *testing.T) {
 	f := screenFixtureFor(t)
-	hung := rfb(t, "")
 	f.config.Screens = f.config.Screens[:1]
-	f.config.Screens[0].VNCAddress = hung.address
+	writeHelper(t, filepath.Join(f.bin, "xrandr"), "exec /bin/sleep 1\n")
 	source, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// Deliberately withhold Done/Err notification after the socket deadline.
@@ -30,10 +39,32 @@ func TestInventoryPreservesDeadlineBeforeContextNotification(t *testing.T) {
 		t.Fatal("regression did not exercise an unnotified source deadline")
 	}
 	if len(got) != 0 || !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatal("socket deadline was swallowed before context notification", got, err)
+		t.Fatal("native inventory deadline was swallowed before context notification", got, err)
 	}
-	if hung.received.Load() != 0 {
-		t.Fatal("deadline probe sent a login or framebuffer request")
+	if f.left.accepted.Load() != 0 {
+		t.Fatal("deadline inventory opened a VNC authentication attempt")
+	}
+}
+
+func TestBackendListenerMatchesOnlyTheConfiguredLoopbackDestination(t *testing.T) {
+	for _, test := range []struct {
+		address, host, port string
+		want                bool
+	}{
+		{"127.0.0.1:5901", "127.0.0.1", "5901", true},
+		{"[::1]:5901", "localhost", "5901", true},
+		{"[::ffff:127.0.0.1]:5901", "127.0.0.1", "5901", true},
+		{"*:5901", "127.0.0.1", "5901", true},
+		{"0.0.0.0:5901", "127.0.0.1", "5901", true},
+		{"[::]:5901", "::1", "5901", true},
+		{"127.0.0.2:5901", "127.0.0.1", "5901", false},
+		{"192.0.2.1:5901", "localhost", "5901", false},
+		{"127.0.0.1:5902", "127.0.0.1", "5901", false},
+		{"invalid", "127.0.0.1", "5901", false},
+	} {
+		if got := backendListenerMatches(test.address, test.host, test.port); got != test.want {
+			t.Errorf("listener %s for %s:%s = %v, want %v", test.address, test.host, test.port, got, test.want)
+		}
 	}
 }
 

@@ -1122,6 +1122,9 @@ ends its attachment, not the terminal producer, provider or task.
 
 VNC uses a currently published configured physical/virtual screen, never a
 desktop invented on a headless target. Observer connections do not launch apps.
+Inventory passively inspects the verified loopback listener without opening RFB
+connections or consuming authentication attempts; actual protocol/authentication
+validation happens only when an explicit viewer opens.
 Capture must be screen-isolated or explicitly labelled whole-desktop fallback;
 a delegate's approval must include that fallback. Screen/terminal changes update
 the same logical viewer without renewing expiry. Foundation withdraws old

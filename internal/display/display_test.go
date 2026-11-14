@@ -157,7 +157,7 @@ func validSession(screen string) domain.Session {
 	return domain.Session{ID: "session_fixture", Mode: "vnc", ScreenID: screen, State: "consented", OpenRequested: true, ExpiresAt: time.Now().Unix() + 60}
 }
 
-func TestInventoryRequiresActualDisplayAndRFBWithoutCreatingAnything(t *testing.T) {
+func TestInventoryRequiresActualDisplayAndListeningBackendWithoutCreatingAnything(t *testing.T) {
 	f := screenFixtureFor(t)
 	c := config.DefaultWorker(f.config.StateDir)
 	got, err := Inventory(context.Background(), c)
@@ -188,8 +188,8 @@ func TestInventoryRequiresActualDisplayAndRFBWithoutCreatingAnything(t *testing.
 			t.Fatal("headless probe launched a display/application", name, err)
 		}
 	}
-	if f.left.received.Load() != 0 || f.right.received.Load() != 0 {
-		t.Fatal("inventory sent authentication or UI requests to RFB")
+	if f.left.accepted.Load() != 0 || f.right.accepted.Load() != 0 {
+		t.Fatal("inventory opened VNC authentication attempts")
 	}
 }
 
@@ -209,18 +209,31 @@ func TestInventoryReportsOnlyVerifiedGeometryAndPublicMetadata(t *testing.T) {
 	if err == nil || len(got) != 1 || got[0].ID != "left" {
 		t.Fatal("mismatched monitor geometry was published", got, err)
 	}
-	if f.left.received.Load() != 0 || f.right.received.Load() != 0 {
-		t.Fatal("inventory captured UI or attempted authentication")
+	if f.left.accepted.Load() != 0 || f.right.accepted.Load() != 0 {
+		t.Fatal("inventory opened a VNC connection")
 	}
 }
 
-func TestInventoryRejectsNonRFBAndUnavailableBackends(t *testing.T) {
+func TestInventoryIsPassiveAndExplicitOpenStillRejectsNonRFB(t *testing.T) {
 	f := screenFixtureFor(t)
 	bad := rfb(t, "HTTP/1.1 200")
 	f.config.Screens[0].VNCAddress = bad.address
 	f.config.Screens = f.config.Screens[:1]
-	if got, err := Inventory(context.Background(), f.config); err != nil || len(got) != 0 {
-		t.Fatal("non-RFB endpoint became a screen", got, err)
+	for range 8 {
+		if got, err := Inventory(context.Background(), f.config); err != nil || len(got) != 1 {
+			t.Fatal("passive inventory lost an explicitly verified listening backend", got, err)
+		}
+	}
+	if bad.accepted.Load() != 0 {
+		t.Fatal("repeated inventory consumed a backend authentication budget")
+	}
+	session := validSession("left")
+	session.ApplicationID = "left-only"
+	if endpoint, err := Open(context.Background(), f.config, session); err == nil || endpoint != nil {
+		t.Fatal("explicit VNC view accepted a non-RFB backend")
+	}
+	if _, err := os.Stat(filepath.Join(f.home, "app.pid")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("invalid backend launched an application before protocol verification")
 	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
