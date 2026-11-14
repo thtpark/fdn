@@ -1,6 +1,6 @@
 ---
 name: foundation-provider-auth
-description: "Use when installing/updating Codex or Copilot, checking provider readiness, preferred models, catalog fallback or post-login stalls, arranging headless/device-code human sign-in, displaying authorized sign-in screens/public verification links, renewing expired sign-in requests through Founder, preparing an authorized tmux/VNC assistance session, or diagnosing expired consent without exposing credentials or starting inference."
+description: "Use when installing/updating Codex, Copilot or the standalone Antigravity CLI, checking provider readiness, authenticated computer-scoped model choices, self-managed preferences, catalog fallback or post-login stalls, arranging protected human sign-in, displaying authorized public verification links, renewing expired sign-in requests through Founder, or diagnosing consent without exposing credentials or starting inference."
 ---
 
 # Provider readiness and protected authentication
@@ -26,9 +26,23 @@ Native coordination is protobuf over SSH/mTLS/Unix IPC. A pushed authentication
 notice/control is durable context, not successful sign-in or permission to start
 login, inference, a session, or another worker.
 
+Foundation 0.3.42 publishes safe computer-generation-bound provider/model
+observations. App options exclude unverified credentials and signed-out/stale
+catalogs. Founder or self may change the agent's shared preferred defaults;
+task choices, mode and running calls remain unchanged. A model-choice message
+requests a decision, not authentication or execution approval.
+
+Antigravity uses the official standalone `agy` CLI, not the IDE launcher. Native
+install/update verifies the exact versioned GitHub asset/digest; it is not npm
+signature verification or attestation. Readiness uses ACP admission/model/close
+without a prompt. Protected human login uses advertised `agy acp --login`.
+Fixed isolated agent profiles disable text tools, client file/terminal access,
+MCP, hooks/plugins and delegation, while coding permits only the documented
+file/search/command tools. Do not weaken capability checks or copy credentials.
+
 1. Resolve the worker's actual account/HOME/configuration/identity and mode.
    Inspect `provider status --provider NAME`, `preferences show`, `agent
-   preferences AGENT`, `work status`
+   preferences AGENT`, `agent model-options AGENT`, `work status`
    and session state. These probes do not authorize paid inference. To read saved
    observations without another probe, use `agent diagnose AGENT_ID` as Founder/
    self, or `message diagnose MESSAGE_ID` as that message's sender/recipient only.
@@ -60,7 +74,7 @@ login, inference, a session, or another worker.
    of repeating notices. Provider device-code and session/grant expiry are
    separate. A reply/receipt never proves sign-in; unknown provider status
    does not justify fabricating a login request.
-2. Missing provider: obtain approval for the native Node/npm prerequisite and
+2. Missing Codex/Copilot provider: obtain approval for the native Node/npm prerequisite and
    exact provider version, then `provider install --provider NAME --version
    EXACT`; explicit `provider update --provider NAME` chooses latest. Keep
    integrity/signature/non-prompting checks; never force an unsupported adapter
@@ -69,7 +83,7 @@ login, inference, a session, or another worker.
    provider-selected model, not an alternate-provider or inference retry.
    Inspect `model_catalog_error`; it is not successful catalog discovery.
    Managed executables are private, with stable shell launchers in `.foundation/bin`.
-   Verify actual login-shell `command -v codex/copilot` and bare `--version`;
+   Verify actual login-shell `command -v codex/copilot/agy` and bare `--version`;
    absolute-path success alone does not prove shell usability. Repair an older
    install with `provider link`, then reconnect or add `.foundation/bin` to the
    current PATH. Do not globally reinstall packages to mask this omission.
@@ -145,7 +159,7 @@ login, inference, a session, or another worker.
 10. After the human completes login, recheck provider status without inference.
     A finished login command and Codex credentials-present-unverified do not
     prove live vendor usability. Respect task provider/model preferences over
-    Founder agent defaults over local defaults. Unknown cost/catalog quality
+    independently versioned agent defaults over local defaults. Unknown cost/catalog quality
     is not permission for paid probes or guessed ranking; unavailable models
     delegate selection to the same provider before invocation.
     Keep Founder pause, shared-slot/open/uncertain session, uncertain invocation,

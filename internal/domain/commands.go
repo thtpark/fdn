@@ -68,30 +68,31 @@ type TaskRequest struct {
 
 type TaskChange struct {
 	Command
-	AttachmentIDs       *[]string       `json:"attachment_ids,omitempty"`
-	Kind                string          `json:"kind"`
-	Reason              string          `json:"reason"`
-	Title               *string         `json:"title,omitempty"`
-	Description         *string         `json:"description,omitempty"`
-	AcceptanceCriteria  *string         `json:"acceptance_criteria,omitempty"`
-	Priority            *int            `json:"priority,omitempty"`
-	Importance          *int            `json:"importance,omitempty"`
-	Status              Status          `json:"status,omitempty"`
-	AgentID             string          `json:"agent_id,omitempty"`
-	Provider            string          `json:"provider,omitempty"`
-	Model               string          `json:"model,omitempty"`
-	WorkspaceRef        string          `json:"workspace_ref,omitempty"`
-	Policy              *ApprovalPolicy `json:"policy,omitempty"`
-	RetryPolicy         *RetryPolicy    `json:"retry_policy,omitempty"`
-	SpecGeneration      int64           `json:"spec_generation,omitempty"`
-	ResultGeneration    int64           `json:"result_generation,omitempty"`
-	Decision            string          `json:"decision,omitempty"`
-	RunID               string          `json:"run_id,omitempty"`
-	Attempt             int             `json:"attempt,omitempty"`
-	HistorySequence     int64           `json:"history_sequence,omitempty"`
-	AnswerIDs           []string        `json:"answer_ids,omitempty"`
-	Waiting             *Waiting        `json:"waiting,omitempty"`
-	StoppedAcknowledged bool            `json:"stopped_acknowledged,omitempty"`
+	AttachmentIDs       *[]string               `json:"attachment_ids,omitempty"`
+	Kind                string                  `json:"kind"`
+	Reason              string                  `json:"reason"`
+	Title               *string                 `json:"title,omitempty"`
+	Description         *string                 `json:"description,omitempty"`
+	AcceptanceCriteria  *string                 `json:"acceptance_criteria,omitempty"`
+	Priority            *int                    `json:"priority,omitempty"`
+	Importance          *int                    `json:"importance,omitempty"`
+	Status              Status                  `json:"status,omitempty"`
+	AgentID             string                  `json:"agent_id,omitempty"`
+	Provider            string                  `json:"provider,omitempty"`
+	Model               string                  `json:"model,omitempty"`
+	Catalog             *ProviderCatalogBinding `json:"catalog,omitempty"`
+	WorkspaceRef        string                  `json:"workspace_ref,omitempty"`
+	Policy              *ApprovalPolicy         `json:"policy,omitempty"`
+	RetryPolicy         *RetryPolicy            `json:"retry_policy,omitempty"`
+	SpecGeneration      int64                   `json:"spec_generation,omitempty"`
+	ResultGeneration    int64                   `json:"result_generation,omitempty"`
+	Decision            string                  `json:"decision,omitempty"`
+	RunID               string                  `json:"run_id,omitempty"`
+	Attempt             int                     `json:"attempt,omitempty"`
+	HistorySequence     int64                   `json:"history_sequence,omitempty"`
+	AnswerIDs           []string                `json:"answer_ids,omitempty"`
+	Waiting             *Waiting                `json:"waiting,omitempty"`
+	StoppedAcknowledged bool                    `json:"stopped_acknowledged,omitempty"`
 }
 
 type EntryRequest struct {

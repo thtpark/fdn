@@ -53,6 +53,12 @@ func (r PublicReport) Validate() error {
 	return nil
 }
 
+type PreferenceChoice struct {
+	Provider string `json:"provider"`
+	Model    string `json:"model"`
+	Reason   string `json:"reason"`
+}
+
 type Reply struct {
 	Outcome            string              `json:"outcome"`
 	Decision           string              `json:"decision,omitempty"`
@@ -70,6 +76,7 @@ type Reply struct {
 	Action             *ConversationAction `json:"action,omitempty"`
 	Recovery           *RecoveryResult     `json:"recovery,omitempty"`
 	PublicReport       *PublicReport       `json:"public_report,omitempty"`
+	Preferences        *PreferenceChoice   `json:"preferred_model,omitempty"`
 }
 
 func (r Reply) RequestsResponse() bool {
@@ -77,6 +84,17 @@ func (r Reply) RequestsResponse() bool {
 }
 
 func (r Reply) Validate() error {
+	if r.Preferences != nil {
+		if r.Preferences.Provider == "" {
+			return domain.Fail(domain.Provider, "an agent-selected preference requires an explicit authenticated provider")
+		}
+		if err := domain.ValidateProviderModel(r.Preferences.Provider, r.Preferences.Model); err != nil {
+			return err
+		}
+		if err := domain.CheckText(r.Preferences.Reason, "preferred model selection reason", 8192, true); err != nil {
+			return err
+		}
+	}
 	if r.PublicReport != nil {
 		if err := r.PublicReport.Validate(); err != nil {
 			return err
@@ -208,7 +226,15 @@ func (m *Manager) Resolve(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if installed.Provider != name || !filepath.IsAbs(installed.Path) || !installed.SignaturesVerified {
+	verified := installed.SignaturesVerified
+	if name == "antigravity" && domain.ValidHash(installed.ArtifactSHA256) && domain.ValidHash(installed.ExecutableSHA256) {
+		hash, err := hashProviderExecutable(installed.Path)
+		if err != nil {
+			return "", err
+		}
+		verified = hash == installed.ExecutableSHA256
+	}
+	if installed.Provider != name || !filepath.IsAbs(installed.Path) || !verified {
 		return "", domain.Fail(domain.Prerequisite, "managed provider metadata failed validation")
 	}
 	return installed.Path, nil
@@ -216,7 +242,7 @@ func (m *Manager) Resolve(name string) (string, error) {
 
 func (m *Manager) Paths() (map[string]string, error) {
 	paths := map[string]string{}
-	for _, name := range []string{"codex", "copilot"} {
+	for _, name := range domain.ProviderNames() {
 		path, err := m.Resolve(name)
 		if errors.Is(err, os.ErrNotExist) {
 			continue
@@ -238,6 +264,9 @@ func (m *Manager) capture(ctx context.Context, path, dir string, args ...string)
 }
 
 func (m *Manager) compatibility(ctx context.Context, name, path string) error {
+	if name == "antigravity" {
+		return m.antigravityCompatibility(ctx, path)
+	}
 	help, err := m.capture(ctx, path, "", "--help")
 	if err != nil {
 		return domain.Fail(domain.Prerequisite, "provider help/capability probe failed")
@@ -284,6 +313,24 @@ func (m *Manager) Check(ctx context.Context, name string) (Health, error) {
 	if err := m.compatibility(ctx, name, path); err != nil {
 		return health, err
 	}
+	if name == "antigravity" {
+		authenticated, models, err := m.antigravityReadiness(ctx, path)
+		var cleanup *process.CleanupError
+		if err != nil && (!authenticated || ctx.Err() != nil || errors.As(err, &cleanup)) {
+			return health, err
+		}
+		if authenticated {
+			health.Authentication = "authenticated"
+			if err != nil {
+				health.ModelCatalogError = "read-only model catalog unavailable; session model selection will be delegated to the provider"
+			} else {
+				health.Models = models
+			}
+		} else {
+			health.Authentication = "login-required"
+		}
+		return health, nil
+	}
 	if name == "copilot" {
 		authenticated, models, err := m.copilotAuthentication(ctx, path)
 		var cleanup *process.CleanupError
@@ -328,6 +375,9 @@ func NativeArguments(name string, arguments []string) ([]string, error) {
 	if !domain.ValidProvider(name) {
 		return nil, domain.Fail(domain.Invalid, "unsupported provider adapter")
 	}
+	if name == "antigravity" && len(arguments) != 0 && (arguments[0] == "update" || arguments[0] == "install") {
+		return nil, domain.Fail(domain.Prerequisite, "use Foundation provider install/update to preserve exact verified Antigravity CLI activation")
+	}
 	if name != "copilot" {
 		return slices.Clone(arguments), nil
 	}
@@ -343,6 +393,9 @@ func NativeArguments(name string, arguments []string) ([]string, error) {
 func Arguments(name, workspace, output, model string, coding bool) ([]string, error) {
 	if !domain.ValidProvider(name) {
 		return nil, domain.Fail(domain.Invalid, "unsupported provider adapter")
+	}
+	if name == "antigravity" {
+		return append(antigravityACPArguments(coding), "--agent", antigravityAgent), nil
 	}
 	var args []string
 	if name == "codex" {
@@ -394,6 +447,9 @@ func (m *Manager) Invoke(ctx context.Context, inv Invocation) (reply Reply, err 
 	}
 	if err := secure.Create(filepath.Join(dir, "prompt.txt"), []byte(inv.Prompt)); err != nil {
 		return reply, err
+	}
+	if inv.Provider == "antigravity" {
+		return m.invokeAntigravity(ctx, inv, dir)
 	}
 	outputFile := filepath.Join(dir, "reply.json")
 	if inv.Provider == "codex" {

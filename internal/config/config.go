@@ -180,7 +180,7 @@ func (c Worker) ValidateForOwner(ownerUID uint32) error {
 		return domain.Fail(domain.Invalid, "mode must be ai or manual")
 	}
 	if !domain.ValidProvider(c.Provider) {
-		return domain.Fail(domain.Invalid, "preferred provider must be codex or copilot")
+		return domain.Fail(domain.Invalid, "preferred provider must be codex, copilot or antigravity")
 	}
 	if err := domain.CheckText(c.Model, "preferred model", 256, false); err != nil {
 		return err

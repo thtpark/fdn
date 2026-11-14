@@ -22,7 +22,7 @@ func TestManagedShellCommandsPreserveProfilesAndFollowConfiguration(t *testing.T
 	config := filepath.Join(home, "private config's.json")
 	cli := filepath.Join(t.TempDir(), "agent-cli")
 	first, err := InstallShellCommands(home, config, cli, "/bin/bash")
-	if err != nil || !first.Changed || first.Profile != profile || len(first.Commands) != 2 {
+	if err != nil || !first.Changed || first.Profile != profile || len(first.Commands) != 3 {
 		t.Fatal(first, err)
 	}
 	body, err := os.ReadFile(profile)
@@ -35,6 +35,10 @@ func TestManagedShellCommandsPreserveProfilesAndFollowConfiguration(t *testing.T
 		if err != nil || !strings.Contains(string(data), "provider exec --provider "+name+" -- \"$@\"") ||
 			!strings.Contains(string(data), shellQuote(config)) || !strings.Contains(string(data), shellQuote(cli)) {
 			t.Fatal("launcher does not resolve through the configured managed provider", name, err)
+		}
+		agy, err := os.ReadFile(filepath.Join(bin, "agy"))
+		if err != nil || !strings.Contains(string(agy), "provider exec --provider antigravity") {
+			t.Fatal("standalone Antigravity CLI launcher is missing", err)
 		}
 		if info, err := os.Stat(file); err != nil || info.Mode().Perm() != 0700 {
 			t.Fatal("launcher permissions are not private/executable", err)

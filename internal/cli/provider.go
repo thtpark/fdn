@@ -37,7 +37,7 @@ func (a *app) providerCommand(ctx context.Context, r *resources, args []string) 
 		return a.linkProviders()
 	}
 	fs := flag.NewFlagSet("provider", flag.ContinueOnError)
-	name := fs.String("provider", r.config.Provider, "codex or copilot")
+	name := fs.String("provider", r.config.Provider, "codex, copilot or antigravity")
 	version := fs.String("version", "", "exact version for installation")
 	if err := parse(fs, args[1:]); err != nil {
 		return nil, err

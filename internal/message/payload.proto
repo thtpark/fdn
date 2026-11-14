@@ -129,6 +129,12 @@ message Go_AgentInspection {
   String work_slot = 5;
 }
 
+message Go_AgentModelOptions {
+  String agent_id = 1;
+  Signed server_observed_at = 2;
+  List_Go_ComputerModelOptions computers = 3;
+}
+
 message Go_AgentOperation {
   Signed version = 1;
   String id = 2;
@@ -172,6 +178,7 @@ message Go_AgentPreferencesRequest {
   String provider = 3;
   String model = 4;
   String reason = 5;
+  Go_ProviderCatalogBinding catalog = 6;
 }
 
 message Go_AgentRequest {
@@ -455,6 +462,15 @@ message Go_ComputerEnvironment {
   Signed received_at = 4;
   Bool stale = 5;
   Go_EnvironmentObservation observation = 6;
+}
+
+message Go_ComputerModelOptions {
+  String binding_id = 1;
+  String device_name = 2;
+  Signed generation = 3;
+  Signed received_at = 4;
+  Bool stale = 5;
+  Go_ProviderCatalogObservation observation = 6;
 }
 
 message Go_ConnectionProfile {
@@ -948,6 +964,33 @@ message Go_ProjectRequest {
   String description = 4;
 }
 
+message Go_ProviderCatalogBinding {
+  String binding_id = 1;
+  Signed generation = 2;
+}
+
+message Go_ProviderCatalogObservation {
+  Signed version = 1;
+  Signed observed_at = 2;
+  List_Go_ProviderModelCatalog providers = 3;
+}
+
+message Go_ProviderCatalogRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  Go_ProviderCatalogObservation observation = 3;
+}
+
+message Go_ProviderModelCatalog {
+  String provider = 1;
+  String version = 2;
+  String authentication = 3;
+  Signed observed_at = 4;
+  List_String models = 5;
+  String problem_code = 6;
+  String model_problem = 7;
+}
+
 message Go_ProviderObservation {
   String provider = 1;
   String version = 2;
@@ -1338,6 +1381,7 @@ message Go_TaskChange {
   Go_Waiting waiting = 24;
   Bool stopped_acknowledged = 25;
   List_String attachment_ids = 26;
+  Go_ProviderCatalogBinding catalog = 27;
 }
 
 message Go_TaskRequest {
@@ -1638,6 +1682,11 @@ message List_Go_AgentInspection {
   bool present = 2;
 }
 
+message List_Go_AgentModelOptions {
+  repeated Go_AgentModelOptions items = 1;
+  bool present = 2;
+}
+
 message List_Go_AgentOperation {
   repeated Go_AgentOperation items = 1;
   bool present = 2;
@@ -1815,6 +1864,11 @@ message List_Go_Command {
 
 message List_Go_ComputerEnvironment {
   repeated Go_ComputerEnvironment items = 1;
+  bool present = 2;
+}
+
+message List_Go_ComputerModelOptions {
+  repeated Go_ComputerModelOptions items = 1;
   bool present = 2;
 }
 
@@ -2085,6 +2139,26 @@ message List_Go_ProjectChange {
 
 message List_Go_ProjectRequest {
   repeated Go_ProjectRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_ProviderCatalogBinding {
+  repeated Go_ProviderCatalogBinding items = 1;
+  bool present = 2;
+}
+
+message List_Go_ProviderCatalogObservation {
+  repeated Go_ProviderCatalogObservation items = 1;
+  bool present = 2;
+}
+
+message List_Go_ProviderCatalogRequest {
+  repeated Go_ProviderCatalogRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_ProviderModelCatalog {
+  repeated Go_ProviderModelCatalog items = 1;
   bool present = 2;
 }
 
@@ -2423,6 +2497,11 @@ message List_Page_Go_AgentInspection {
   bool present = 2;
 }
 
+message List_Page_Go_AgentModelOptions {
+  repeated Page_Go_AgentModelOptions items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_AgentOperation {
   repeated Page_Go_AgentOperation items = 1;
   bool present = 2;
@@ -2600,6 +2679,11 @@ message List_Page_Go_Command {
 
 message List_Page_Go_ComputerEnvironment {
   repeated Page_Go_ComputerEnvironment items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_ComputerModelOptions {
+  repeated Page_Go_ComputerModelOptions items = 1;
   bool present = 2;
 }
 
@@ -2870,6 +2954,26 @@ message List_Page_Go_ProjectChange {
 
 message List_Page_Go_ProjectRequest {
   repeated Page_Go_ProjectRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_ProviderCatalogBinding {
+  repeated Page_Go_ProviderCatalogBinding items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_ProviderCatalogObservation {
+  repeated Page_Go_ProviderCatalogObservation items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_ProviderCatalogRequest {
+  repeated Page_Go_ProviderCatalogRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_ProviderModelCatalog {
+  repeated Page_Go_ProviderModelCatalog items = 1;
   bool present = 2;
 }
 
@@ -3293,6 +3397,16 @@ message Map_Go_AgentInspection_Entry {
   Go_AgentInspection value = 2;
 }
 
+message Map_Go_AgentModelOptions {
+  repeated Map_Go_AgentModelOptions_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_AgentModelOptions_Entry {
+  optional string key = 1;
+  Go_AgentModelOptions value = 2;
+}
+
 message Map_Go_AgentOperation {
   repeated Map_Go_AgentOperation_Entry items = 1;
   bool present = 2;
@@ -3656,6 +3770,16 @@ message Map_Go_ComputerEnvironment {
 message Map_Go_ComputerEnvironment_Entry {
   optional string key = 1;
   Go_ComputerEnvironment value = 2;
+}
+
+message Map_Go_ComputerModelOptions {
+  repeated Map_Go_ComputerModelOptions_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ComputerModelOptions_Entry {
+  optional string key = 1;
+  Go_ComputerModelOptions value = 2;
 }
 
 message Map_Go_ConnectionProfile {
@@ -4196,6 +4320,46 @@ message Map_Go_ProjectRequest_Entry {
 message Map_Go_Project_Entry {
   optional string key = 1;
   Go_Project value = 2;
+}
+
+message Map_Go_ProviderCatalogBinding {
+  repeated Map_Go_ProviderCatalogBinding_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ProviderCatalogBinding_Entry {
+  optional string key = 1;
+  Go_ProviderCatalogBinding value = 2;
+}
+
+message Map_Go_ProviderCatalogObservation {
+  repeated Map_Go_ProviderCatalogObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ProviderCatalogObservation_Entry {
+  optional string key = 1;
+  Go_ProviderCatalogObservation value = 2;
+}
+
+message Map_Go_ProviderCatalogRequest {
+  repeated Map_Go_ProviderCatalogRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ProviderCatalogRequest_Entry {
+  optional string key = 1;
+  Go_ProviderCatalogRequest value = 2;
+}
+
+message Map_Go_ProviderModelCatalog {
+  repeated Map_Go_ProviderModelCatalog_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ProviderModelCatalog_Entry {
+  optional string key = 1;
+  Go_ProviderModelCatalog value = 2;
 }
 
 message Map_Go_ProviderObservation {
@@ -4863,6 +5027,16 @@ message Map_Page_Go_AgentInspection_Entry {
   Page_Go_AgentInspection value = 2;
 }
 
+message Map_Page_Go_AgentModelOptions {
+  repeated Map_Page_Go_AgentModelOptions_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_AgentModelOptions_Entry {
+  optional string key = 1;
+  Page_Go_AgentModelOptions value = 2;
+}
+
 message Map_Page_Go_AgentOperation {
   repeated Map_Page_Go_AgentOperation_Entry items = 1;
   bool present = 2;
@@ -5226,6 +5400,16 @@ message Map_Page_Go_ComputerEnvironment {
 message Map_Page_Go_ComputerEnvironment_Entry {
   optional string key = 1;
   Page_Go_ComputerEnvironment value = 2;
+}
+
+message Map_Page_Go_ComputerModelOptions {
+  repeated Map_Page_Go_ComputerModelOptions_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ComputerModelOptions_Entry {
+  optional string key = 1;
+  Page_Go_ComputerModelOptions value = 2;
 }
 
 message Map_Page_Go_ConnectionProfile {
@@ -5766,6 +5950,46 @@ message Map_Page_Go_ProjectRequest_Entry {
 message Map_Page_Go_Project_Entry {
   optional string key = 1;
   Page_Go_Project value = 2;
+}
+
+message Map_Page_Go_ProviderCatalogBinding {
+  repeated Map_Page_Go_ProviderCatalogBinding_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ProviderCatalogBinding_Entry {
+  optional string key = 1;
+  Page_Go_ProviderCatalogBinding value = 2;
+}
+
+message Map_Page_Go_ProviderCatalogObservation {
+  repeated Map_Page_Go_ProviderCatalogObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ProviderCatalogObservation_Entry {
+  optional string key = 1;
+  Page_Go_ProviderCatalogObservation value = 2;
+}
+
+message Map_Page_Go_ProviderCatalogRequest {
+  repeated Map_Page_Go_ProviderCatalogRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ProviderCatalogRequest_Entry {
+  optional string key = 1;
+  Page_Go_ProviderCatalogRequest value = 2;
+}
+
+message Map_Page_Go_ProviderModelCatalog {
+  repeated Map_Page_Go_ProviderModelCatalog_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ProviderModelCatalog_Entry {
+  optional string key = 1;
+  Page_Go_ProviderModelCatalog value = 2;
 }
 
 message Map_Page_Go_ProviderObservation {
@@ -6413,6 +6637,11 @@ message Page_Go_AgentInspection {
   String next_cursor = 2;
 }
 
+message Page_Go_AgentModelOptions {
+  List_Go_AgentModelOptions items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_AgentOperation {
   List_Go_AgentOperation items = 1;
   String next_cursor = 2;
@@ -6590,6 +6819,11 @@ message Page_Go_Command {
 
 message Page_Go_ComputerEnvironment {
   List_Go_ComputerEnvironment items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_ComputerModelOptions {
+  List_Go_ComputerModelOptions items = 1;
   String next_cursor = 2;
 }
 
@@ -6860,6 +7094,26 @@ message Page_Go_ProjectChange {
 
 message Page_Go_ProjectRequest {
   List_Go_ProjectRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_ProviderCatalogBinding {
+  List_Go_ProviderCatalogBinding items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_ProviderCatalogObservation {
+  List_Go_ProviderCatalogObservation items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_ProviderCatalogRequest {
+  List_Go_ProviderCatalogRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_ProviderModelCatalog {
+  List_Go_ProviderModelCatalog items = 1;
   String next_cursor = 2;
 }
 

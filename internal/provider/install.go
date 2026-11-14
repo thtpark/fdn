@@ -24,6 +24,8 @@ type Installed struct {
 	Path               string `json:"path"`
 	SignaturesVerified bool   `json:"registry_signatures_verified"`
 	UpdatedAt          int64  `json:"updated_at"`
+	ArtifactSHA256     string `json:"artifact_sha256,omitempty"`
+	ExecutableSHA256   string `json:"executable_sha256,omitempty"`
 }
 
 func packageName(name string) (string, error) {
@@ -38,6 +40,10 @@ func packageName(name string) (string, error) {
 }
 
 func Latest(ctx context.Context, name string, client *http.Client) (string, error) {
+	if name == "antigravity" {
+		release, err := antigravityReleaseMetadata(ctx, client, "latest")
+		return release.Version, err
+	}
 	pkg, err := packageName(name)
 	if err != nil {
 		return "", err
@@ -75,6 +81,9 @@ func Latest(ctx context.Context, name string, client *http.Client) (string, erro
 }
 
 func (m *Manager) Install(ctx context.Context, name, version string) (installed Installed, err error) {
+	if name == "antigravity" {
+		return m.installAntigravity(ctx, version, antigravityDownloadClient())
+	}
 	pkg, err := packageName(name)
 	if err != nil {
 		return installed, err
@@ -173,13 +182,16 @@ func (m *Manager) MaybeUpdate(ctx context.Context) error {
 	if !m.Config.AutomaticProviderUpdates {
 		return nil
 	}
-	for _, name := range []string{"codex", "copilot"} {
+	for _, name := range domain.ProviderNames() {
 		if m.Config.ProviderPaths[name] != "" {
 			continue
 		}
 		root := filepath.Join(m.Config.StateDir, "providers", name)
 		var installed Installed
 		err := config.Read(filepath.Join(root, "active.json"), &installed)
+		if name == "antigravity" && os.IsNotExist(err) {
+			continue
+		}
 		if err == nil && time.Since(time.Unix(installed.UpdatedAt, 0)) < 24*time.Hour {
 			continue
 		}
@@ -187,7 +199,11 @@ func (m *Manager) MaybeUpdate(ctx context.Context) error {
 			return err
 		}
 		queryCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-		version, queryErr := Latest(queryCtx, name, &http.Client{Timeout: 15 * time.Second})
+		client := &http.Client{Timeout: 15 * time.Second}
+		if name == "antigravity" {
+			client = antigravityDownloadClient()
+		}
+		version, queryErr := Latest(queryCtx, name, client)
 		cancel()
 		if queryErr != nil {
 			return queryErr

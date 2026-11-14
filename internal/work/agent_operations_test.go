@@ -232,6 +232,34 @@ func TestDiagnosticRefreshRunsWhilePausedAndBusyWithoutInferenceOrFenceChanges(t
 	}
 }
 
+func TestDiagnosticRefreshRetainsEveryWorkerComponentAndPassesServerValidation(t *testing.T) {
+	f := newOperationFixture(t, "diagnostics", false)
+	ctx := context.Background()
+	if err := f.engine.beginHealth(ctx, f.engine.Config); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.engine.finishHealth(ctx, Status{State: "manual", Mode: "manual"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, component := range healthComponents {
+		f.engine.recordProblem(ctx, component.key, domain.Fail(domain.Unavailable, "PRIVATE_COMPONENT_FAILURE"))
+	}
+	before := f.fence()
+	recovered, err := f.engine.handleAgentOperation(ctx, f.operation.ID)
+	if err != nil || recovered || f.operation.State != "refreshed" {
+		t.Fatal("supported component observations blocked fresh diagnostics", err, f.operation.State)
+	}
+	report := f.reports[len(f.reports)-1]
+	if err := domain.ValidateAgentOperationReport(report); err != nil {
+		t.Fatal("fresh diagnostic result would be rejected by the server", err)
+	}
+	if report.Result.Observation.Health == nil ||
+		len(report.Result.Observation.Health.Problems) != len(healthComponents) ||
+		f.fence() != before || f.executor.invocations.Load() != 0 {
+		t.Fatal("inspection omitted evidence, changed a fence or invoked inference", report.Result)
+	}
+}
+
 func TestDiagnosticRefreshProbeFailureIsNotSuccessfulAuthentication(t *testing.T) {
 	f := newOperationFixture(t, "diagnostics", false)
 	f.executor.checkError = domain.Fail(domain.Unavailable, "/PRIVATE/provider/raw-output")

@@ -28,7 +28,7 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/files", "/v1/files/*", "/v1/files/*/chunks", "/v1/publications", "/v1/publications/*", "/v1/publications/*/versions", "/v1/publication-versions/*",
 		"/v1/agents/*/sharing", "/v1/agents/*/sharing/sessions",
 		"/v1/sessions/*/access",
-		"/v1/agents/*/preferences",
+		"/v1/agents/*/preferences", "/v1/agents/*/model-options",
 		"/v1/upgrades/preflight/*", "/v1/upgrades/preflight-requests",
 	},
 	http.MethodPost: {
@@ -42,7 +42,7 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/files", "/v1/files/*/chunks", "/v1/files/*/finalize", "/v1/files/*/publish", "/v1/files/*/grants", "/v1/files/*/delete", "/v1/files/*/downloaded",
 		"/v1/publications", "/v1/publications/*/change",
 		"/v1/agents/*/sharing", "/v1/agents/*/sharing/select",
-		"/v1/agents/*/preferences",
+		"/v1/agents/*/preferences", "/v1/agents/*/model-options",
 		"/v1/upgrades/preflight", "/v1/upgrades/preflight/*/result",
 	},
 }
@@ -110,7 +110,7 @@ func ordinaryPath(method string, u *url.URL) bool {
 				return u.RawQuery == ""
 			case "/v1/sessions/*/access":
 				return u.RawQuery == ""
-			case "/v1/agents/*/preferences":
+			case "/v1/agents/*/preferences", "/v1/agents/*/model-options":
 				return u.RawQuery == ""
 			case "/v1/upgrades/preflight", "/v1/upgrades/preflight/*", "/v1/upgrades/preflight-requests", "/v1/upgrades/preflight/*/result":
 				return u.RawQuery == ""

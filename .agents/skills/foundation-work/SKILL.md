@@ -1,6 +1,6 @@
 ---
 name: foundation-work
-description: "Use when investigating web pages or authorized website sign-in, downloading with a web browser, investigating PPTX/DOCX/PDF documents/photos, transferring/attaching files, publishing diaries/shared skills/ideas, sending announcements/action/upgrade requests, editing shared company/project/agent notes, messages/mentions/read receipts/status, provider/model defaults, workspaces/automation, task preparation/assignment/approval/execution, or serial independent PR review/rework/merge."
+description: "Use when investigating web pages or authorized website sign-in, downloading with a web browser, investigating PPTX/DOCX/PDF/photos; transferring files; publishing diaries/skills/ideas; managing announcements, shared company/project/agent notes, messages/mentions/receipts/status, authenticated model defaults, workspaces, automation or tasks; or serial independent PR review/rework/merge."
 ---
 
 # Prepare, execute and verify one authorized task
@@ -16,16 +16,18 @@ read receipt/approval/inference. Preserve checkpoints.
 1. Check identity/project/mode, provider/model, inventory/private knowledge,
    slot, pending reports and session fences with `status`, `work status`,
    `preferences show`, `inventory show`, `knowledge list`, `agent identity`.
-   Founder `agent preferences AGENT --input FILE` sets provider/model/reason.
+   Founder/self defaults use `agent preferences AGENT --input FILE` or
+   `preferred_model:{provider,model,reason}`. `agent model-options AGENT` supplies
+   fresh authenticated computer-bound choices, excluding unverified/stale data.
    Task > agent > local defaults; unavailable models use provider selection.
    The existing installing user owns all worker state and keys; follow AGENTS.md same-user
    owner-only peer-checked proxy, no-new-account and key/owner rules. Sign-in,
    registration and project authority are separate.
    For all routine tool-enabled jobs, install needed tools autonomously and non-interactively within existing OS permissions/task scope.
-   Prefer trusted per-user or environment-local package managers. Verify usability;
-   missing tools need no confirmation. Do not infer financial/legal commitments,
-   protected authentication, destructive changes, or authority or OS privileges.
-   Report actual boundaries/failures, not routine setup requests.
+   Prefer trusted per-user or environment-local package managers. Verify usability.
+   Missing tools need no confirmation; financial/legal commitments, protected
+   authentication, destructive changes, and authority or OS privileges remain
+   separate boundaries. Report actual remaining boundaries/failures.
    When work is blocked by sign-in
    or permissions, send protected durable help to active Founder and current
    relevant project delegates without inference. New action contexts can ask

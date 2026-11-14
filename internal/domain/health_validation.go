@@ -5,7 +5,7 @@ import (
 	"slices"
 )
 
-const MaxHealthProblems = 9
+const MaxHealthProblems = 10
 const MaxHealthPendingReports = 1024
 const maxHealthTimestamp int64 = 253402300799
 const maxHealthDeadlineSeconds int64 = 7 * 24 * 60 * 60
@@ -28,7 +28,7 @@ func ValidateWorkerHealth(h WorkerHealth) error {
 	if !slices.Contains([]string{"ai", "manual"}, h.Mode) || (h.Provider != "" && !ValidProvider(h.Provider)) || (h.PreferredProvider != "" && !ValidProvider(h.PreferredProvider)) || !ValidHealthVersion(h.ProviderVersion) || (h.Model != "" && !healthModelPattern.MatchString(h.Model)) {
 		return Fail(Invalid, "health mode, provider, model or safe version data is unsupported")
 	}
-	if !slices.Contains([]string{"unknown", "authenticated", "login-required", "credentials-present-unverified", "signed-in", "sign-in-required"}, h.Authentication) {
+	if !ValidProviderAuthentication(h.Authentication) {
 		return Fail(Invalid, "health authentication observation is unsupported")
 	}
 	if !slices.Contains([]string{"unknown", "checking", "reconciling", "provider-check", "preparing", "invoking", "applying", "reporting", "idle", "paused", "blocked", "session"}, h.Phase) {
@@ -72,7 +72,7 @@ func ValidateWorkerHealth(h WorkerHealth) error {
 	}
 	seen := map[string]bool{}
 	for _, p := range h.Problems {
-		if !slices.Contains([]string{"configuration", "mode-control", "provider-update", "controller", "watch", "heartbeat", "connection", "session", "control"}, p.Component) || seen[p.Component] {
+		if !slices.Contains([]string{"configuration", "mode-control", "provider-update", "controller", "watch", "heartbeat", "connection", "session", "control", "environment"}, p.Component) || seen[p.Component] {
 			return Fail(Invalid, "health problem components must be supported and unique")
 		}
 		seen[p.Component] = true

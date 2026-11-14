@@ -9,6 +9,13 @@ Read `guide show DEVELOPMENT.md`, `guide show SCHEMA.md`,
 `guide show TEST_PLAN.md` and `guide show IMPLEMENTATION_PLAN.md`.
 The checkout's root documents are canonical; no old source tree is required.
 
+From 0.3.42, keep authenticated model catalogs bound to the current computer/key
+generation, with server-clock freshness and unchanged replay. Default writes
+allow Founder or self, never another ordinary actor or a task-pin override.
+Antigravity uses the official standalone CLI/ACP, verified native assets and
+fixed tool-isolated profiles. Qualify parser bounds, protected human login,
+native cancellation and no-inference authentication/model probes locally.
+
 1. Establish the current request/contract, source state and related tests.
    Preserve user changes, operational identities and retained evidence.
    `scripts/agent-cli.sh`, `scripts/agent-service.sh` and

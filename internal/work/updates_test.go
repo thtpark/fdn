@@ -266,6 +266,17 @@ func (f *pushFixture) RoundTrip(request *http.Request) (*http.Response, error) {
 		return f.response(domain.ComputerEnvironment{BindingID: f.me.ID, DeviceName: f.me.Name,
 			Generation: 1, ReceivedAt: time.Now().Unix(), Observation: body.Observation}, nil)
 	}
+	if request.Method == http.MethodPost && path == "/v1/agents/"+f.me.ID+"/model-options" {
+		var body domain.ProviderCatalogRequest
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			return nil, err
+		}
+		if err := domain.ValidateProviderCatalog(body.Observation); err != nil {
+			return nil, err
+		}
+		return f.response(domain.ComputerModelOptions{BindingID: f.me.ID, DeviceName: f.me.Name,
+			Generation: 1, ReceivedAt: time.Now().Unix(), Observation: body.Observation}, nil)
+	}
 	if request.Method == http.MethodPost && strings.HasPrefix(path, "/v1/messages") {
 		body, err := io.ReadAll(request.Body)
 		if err != nil {
@@ -472,7 +483,8 @@ func TestPushServiceDoesNotDiscoverOrAdvanceBusinessProgressWhileIdle(t *testing
 		found, err := f.engine.State.Get(context.Background(), "work-status", &status)
 		checkpoint, checkpointErr := f.engine.updateCheckpoint(context.Background(), nil)
 		return err == nil && found && status.State == "idle" && checkpointErr == nil &&
-			!checkpoint.Work.pending() && !checkpoint.Mode.pending() && !checkpoint.Operations.pending() && !checkpoint.Authentication.pending()
+			!checkpoint.Work.pending() && !checkpoint.Mode.pending() && !checkpoint.Operations.pending() && !checkpoint.Authentication.pending() &&
+			f.executor.checks.Load() == int64(len(domain.ProviderNames()))
 	})
 	select {
 	case <-f.waiting:
@@ -489,6 +501,7 @@ func TestPushServiceDoesNotDiscoverOrAdvanceBusinessProgressWhileIdle(t *testing
 		counts[key] = value
 	}
 	f.mu.Unlock()
+	beforeChecks := f.executor.checks.Load()
 	time.Sleep(5200 * time.Millisecond)
 	f.mu.Lock()
 	for key, value := range counts {
@@ -501,8 +514,8 @@ func TestPushServiceDoesNotDiscoverOrAdvanceBusinessProgressWhileIdle(t *testing
 	if _, err := f.engine.State.Get(context.Background(), workerHealthKey, &after); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(before, after) || f.executor.invocations.Load() != 0 || f.executor.checks.Load() != 0 {
-		t.Fatal("an unchanged idle identity ran inference/provider checks or advanced health progress", before, after)
+	if !reflect.DeepEqual(before, after) || f.executor.invocations.Load() != 0 || f.executor.checks.Load() != beforeChecks {
+		t.Fatal("an unchanged idle identity ran inference/repeated provider checks or advanced health progress", before, after)
 	}
 	// Critical publication is independent of the indefinitely blocked feed.
 	if err := f.engine.phaseHealth(context.Background(), "blocked", nil, "", 0, false); err != nil {

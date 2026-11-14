@@ -51,7 +51,7 @@ func (e *Embedded) Events(ctx context.Context, cursor string, filter domain.Upda
 	return e.source().Events(ctx, cursor, filter, wait)
 }
 
-var embeddedReads = strings.Fields("version help status identity work agents agent environment announcementAudience projects project tasks task taskHistory runs run discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory sessions session grants grant assistanceStatus sharing sharingSessions sharingStatus devices diagnostics operation configuration guides guide events")
+var embeddedReads = strings.Fields("version help status identity work agents agent environment modelOptions announcementAudience projects project tasks task taskHistory runs run discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory sessions session grants grant assistanceStatus sharing sharingSessions sharingStatus devices diagnostics operation configuration guides guide events")
 
 func (e *Embedded) ValidateQuery(q observe.Query) error {
 	if err := q.Validate(); err != nil {

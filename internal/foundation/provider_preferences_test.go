@@ -9,13 +9,13 @@ import (
 	"github.com/thtpark/fdn/internal/domain"
 )
 
-func TestAgentPreferencesFounderOnlyVersionedAndReplaySafe(t *testing.T) {
+func TestAgentPreferencesFounderOrSelfVersionedAndReplaySafe(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	provider, model := "copilot", "preferred-fixture"
 	req := domain.AgentPreferencesRequest{Command: domain.Command{OperationID: domain.NewID("op"), ExpectedRevision: 1},
 		Provider: preferenceText(provider), Model: preferenceText(model), Reason: "Founder chooses the default model."}
-	for _, actor := range []domain.Agent{f.worker, f.other} {
+	for _, actor := range []domain.Agent{f.other} {
 		_, err := f.s.SetAgentPreferences(ctx, actor.ID, f.worker.ID, req)
 		assertCode(t, err, domain.Denied)
 	}
@@ -65,6 +65,40 @@ func TestAgentPreferencesFounderOnlyVersionedAndReplaySafe(t *testing.T) {
 	if err != nil || readErr != nil || old != saved || current != cleared {
 		t.Fatal("old exact replay reapplied defaults or lost its original receipt", old, current, err, readErr)
 	}
+}
+
+func TestAgentPreferencesSelfMayChangePriorFounderDefaultsWithoutChangingAuthority(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	first := "codex"
+	saved, err := f.s.SetAgentPreferences(ctx, f.founder.ID, f.worker.ID, domain.AgentPreferencesRequest{
+		Command:  domain.Command{OperationID: domain.NewID("op"), ExpectedRevision: 1},
+		Provider: &first, Reason: "Founder initial preference",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := f.s.Me(ctx, f.worker.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, model := "copilot", "self-selected"
+	changed, err := f.s.SetAgentPreferences(ctx, f.worker.ID, f.worker.ID, domain.AgentPreferencesRequest{
+		Command:  domain.Command{OperationID: domain.NewID("op"), ExpectedRevision: saved.Revision},
+		Provider: &next, Model: &model, Reason: "Agent deliberately chooses its next-call default",
+	})
+	if err != nil || changed.Provider != next || changed.Model != model || changed.UpdatedBy != f.worker.ID {
+		t.Fatal("self-managed preferred model did not replace the earlier default", changed, err)
+	}
+	after, err := f.s.Me(ctx, f.worker.ID)
+	if err != nil || after.Revision != before.Revision || after.Mode != before.Mode {
+		t.Fatal("self-managed defaults changed mode or authority", after, err)
+	}
+	_, err = f.s.SetAgentPreferences(ctx, f.worker.ID, f.founder.ID, domain.AgentPreferencesRequest{
+		Command:  domain.Command{OperationID: domain.NewID("op"), ExpectedRevision: 1},
+		Provider: &next, Reason: "Cannot change another actor",
+	})
+	assertCode(t, err, domain.Denied)
 }
 
 func TestAgentPreferencesValidateBeforeChangingState(t *testing.T) {

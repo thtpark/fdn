@@ -135,7 +135,7 @@ over another user's files. It never enrolls/authenticates or enables work.
 
 | Command | Arguments / scope |
 | --- | --- |
-| `agent-cli config init` | `--identity-socket ABS [--state DIR --provider codex|copilot --workspace-root DIR --allow-workspace-tools]`; runner setup only, refuses existing configuration and installs own-account guidance |
+| `agent-cli config init` | `--identity-socket ABS [--state DIR --provider codex|copilot|antigravity --workspace-root DIR --allow-workspace-tools]`; runner setup only, refuses existing configuration and installs own-account guidance |
 | `agent-cli config show` | Non-secret runner configuration; never credential contents |
 | `agent-cli config set` | `--input FILE`; documented patch below; credentials/identity are not editable |
 | `agent-cli connect` | No arguments; attach the activated local private identity proxy, verify the matching enrolled agent and retain only public AgentID |
@@ -143,8 +143,8 @@ over another user's files. It never enrolls/authenticates or enables work.
 | `agent-cli doctor` | Read-only configuration, TLS/API authentication and service version |
 | `agent-cli mode show` | Offline local mirror of authoritative `ai`/`manual`; work status includes the last Founder control reference |
 | `agent-cli mode set` | `ai` or `manual`; authenticated Founder changes its own mode only; non-Founder callers are denied |
-| `agent-cli preferences show` | This computer's local provider/model defaults; Founder agent defaults can override them |
-| `agent-cli preferences set` | `--input FILE`, optional `provider`/`model`; provider change clears old model; does not replace Founder-controlled agent defaults |
+| `agent-cli preferences show` | This computer's local provider/model defaults; independently versioned agent preferences can override them |
+| `agent-cli preferences set` | `--input FILE`, optional `provider`/`model`; provider change clears old model; use `agent preferences` to change the agent's shared preferred defaults |
 | `agent-cli service plan` | `--input OPTIONS`; render native worker definition |
 | `agent-cli service install` | `--input OPTIONS --apply`; own-account native registration/start |
 | `agent-cli service status` | Same local status, including `health`, without requiring network |
@@ -153,7 +153,7 @@ Configuration patches accept only `poll_seconds` (1-3600),
 `invocation_timeout_seconds` (1-86400), `research_interval_hours` (12 or 24),
 `automatic_provider_updates`, `allow_workspace_tools`, `provider_paths`,
 `screens`, and `ssh`. Provider paths are absolute and only
-name codex/copilot. Transport/provider-path changes require service restart.
+name codex/copilot/antigravity. Transport/provider-path changes require service restart.
 From 0.3.22, `allow_workspace_tools` is a retained legacy configuration slot,
 not an extra local permission gate. Fresh defaults are true; old false values
 do not block automatic owned project directories. Explicit binding disables,
@@ -281,6 +281,8 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent list` | Active identity checks; shared registry including concise public status |
 | `agent-cli agent environment` | `AGENT`; public OS/CPU/memory/storage and Foundation executable reports for current enrolled computers, with server receipt freshness; Founder-computer discovery remains Founder-only |
 | `agent-cli agent environment-report` | Publish this computer's bounded native observations; version-only Foundation probes, no provider login/inference, private paths or raw errors; exact operation replay retains the original capture |
+| `agent-cli agent model-options` | `AGENT`; saved computer/key-generation-bound provider authentication and models, with server receipt freshness; no login/inference; Founder-computer discovery remains Founder-only |
+| `agent-cli agent model-options-report` | Explicitly probe this computer's provider version/capabilities/authentication/catalog and publish safe facts through its own identity; exact operation replay retains the original observation; no login, inference or mode change |
 | `agent-cli agent show` | `AGENT`; current role, authoritative mode/revision, Founder request attribution and public status |
 | `agent-cli agent status` | `--input FILE`: required `text` (single line, max160 characters), intentional non-secret self-publication; explicit empty text restores automatic activity; no target/priority/time/mode override |
 | `agent-cli agent diagnose` | `AGENT_ID [--refresh]`; default is saved read-only `AgentDiagnostics` for Founder/self; `--refresh` submits a durable Founder-only diagnostic `AgentOperation` |
@@ -289,8 +291,8 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent repair` | `AGENT_ID --input FILE`; Founder-only `SessionRecoveryRequest` for one exact closed session and fresh observed fence SHA256; returns `AgentOperation`, never accepts caller cleanup proof |
 | `agent-cli agent operation` | Exactly `REQUEST_ID` from `data.id`; bodyless GET of the common diagnostic-refresh/session-recovery state and safe result, visible only to its requester Founder or target |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
-| `agent-cli agent preferences` | `AGENT [--input FILE]`; read agent defaults, or Founder-only set optional `provider`/`model` with required `reason`; independent preference revision, exact replay, no mode or running-session changes |
-| `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
+| `agent-cli agent preferences` | `AGENT [--input FILE]`; Founder or self may set optional `provider`/`model` with required `reason`; optional `catalog:{binding_id,generation}` pins currently authenticated computer/model choices; independent revision/exact replay, no mode or running-call changes |
+| `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot/antigravity), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban applies only to non-Founders |
 | `agent-cli agent register` | `--input SIGNED_PUBLIC [--output PUBLIC_PROFILE]`; Founder-only new signed public-key registration |
 | `agent-cli agent add` | `--host IP --user SSH_USER --name NAME [--port 22 --identity-file ABS --via-foundation]`; Founder-only new-worker installation and signed registration in a protected human terminal; direct SSH by default, optional authenticated Foundation-host relay |
@@ -1348,7 +1350,7 @@ Autonomous targets need a current matching Founder-issued grant, not a local
 human consent decision, plus explicit requester open. Founder targets may still
 use the existing requested/consent flow when no grant is supplied. Mode is
 tmux/vnc; purpose terminal/authentication. Authentication
-requires codex/copilot. Set `expires_at` to an actual UTC Unix deadline 60-900
+requires codex/copilot/antigravity. Set `expires_at` to an actual UTC Unix deadline 60-900
 seconds ahead; never reuse a stale example deadline. For task-scoped sessions,
 the task must connect project and target assignee.
 
@@ -1850,11 +1852,11 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 
 | Command | Arguments / boundary |
 | --- | --- |
-| `agent-cli provider status` | `[--provider codex|copilot]`; bounded version/capability/auth probes without inference |
+| `agent-cli provider status` | `[--provider codex|copilot|antigravity]`; bounded version/capability/auth probes without inference |
 | `agent-cli provider install` | `--provider NAME --version EXACT`; staged integrity/signature/capability checks under the shared local slot |
 | `agent-cli provider update` | `[--provider NAME]`; explicit latest resolution, retains previous version on staging failure |
 | `agent-cli provider login` | `[--provider NAME]`; actual human TTY only; probes login help and prefers supported device-code/headless flow, otherwise native login; no structured/captured credentials |
-| `agent-cli provider link` | Repair/install this account's stable codex/copilot launchers and login PATH without downloading, authenticating or running a provider |
+| `agent-cli provider link` | Repair/install this account's stable codex/copilot/agy launchers and login PATH without downloading, authenticating or running a provider |
 | `agent-cli provider exec` | `--provider NAME -- NATIVE_ARGUMENTS`; resolve the active managed version, preserve native output/exit status; interactive commands require a human terminal and the shared local slot |
 | `agent-cli work prompt` | Shared prompt and version-matched operating guidance; no task claim or inference |
 | `agent-cli work status` | Read-only local state, live `health` phase/deadline/progress/authentication observations and safe timestamped component diagnostics, blockers, pending invocations/reports, session fence and durable authentication request/delivery references |
@@ -2042,7 +2044,29 @@ active human-help recipient; an AI delegate is not a replacement.
 
 ### Agent and task model preferences
 
-Selection for each new invocation is: task preference, then Founder-controlled
+Antigravity uses the official standalone `agy` CLI and its ACP stdio interface,
+not the Antigravity IDE launcher, GUI automation or reverse-engineered APIs.
+`provider install --provider antigravity --version EXACT` verifies the official
+versioned GitHub platform asset against its independently supplied SHA256, safely
+extracts the single native executable and capability-checks it before activation.
+These assets are not npm-signature verified or claimed signed/attested. Managed
+executable hashes are checked again on resolution; native `update`/`install`
+commands cannot bypass Foundation activation. Automatic updates consider
+Antigravity only after explicit installation.
+
+Readiness uses only ACP initialize/session admission/model metadata/close; an
+`Authentication required` response remains login-required and starts no login.
+Human `provider login --provider antigravity` uses the advertised `agy acp --login`
+flow through the existing protected terminal. Text calls select a fixed custom
+agent with no tools and strict deny rules; coding selects only the documented
+file/search/command tools, with unattended permissions. Client file/terminal
+capabilities, MCP, inherited customizations, hooks/plugins and subagent tools are
+disabled. Isolated provider configuration remains under the existing HOME and
+retained invocation state; no identity/provider key is copied. Unexpected tool,
+permission or interactive requests fail explicitly, with exact native cleanup
+and private evidence retained.
+
+Selection for each new invocation is: task preference, then independently versioned
 agent defaults, then the computer's local `preferences` configuration.
 Independent verification, private replies and comment attention use the
 recipient/verifier's own defaults, not another assignee's task selection.
@@ -2059,6 +2083,27 @@ agent-cli agent preferences AGENT_ID --input defaults.json
 ```json
 {"provider":"copilot","model":"MODEL_ID","reason":"Use this model by default for new sessions"}
 ```
+
+The agent itself may change its own defaults, including a prior Founder choice;
+it cannot change another actor's defaults or its task-specific provider/model.
+The apps offer **Ask agent to choose a model**, an ordinary private message
+request, not approval, login or automatic model execution. A valid controller
+reply may propose `preferred_model:{provider,model,reason}`. The controller
+rechecks that provider's authentication/models and commits a source-bound,
+computer-generation-pinned preference proposal before reporting the reply.
+Lost acknowledgements replay the same catalog/preference proposals without
+another model invocation or fresh probe.
+
+App provider/model pickers use only fresh **authenticated** catalogs from the
+selected agent computer. `credentials-present-unverified`, signed-out, missing
+and stale observations are not choices. Founder devices retain separate catalogs;
+one computer's credentials never authorize a choice on another. Authenticated
+providers with unavailable model catalogs offer only explicit provider selection
+with an empty model, not invented IDs. Task creation stays inherited until an
+assignee computer can be selected. Assignment/provider changes pin the selected
+catalog with `catalog:{binding_id,generation}` and validate it transactionally.
+Explicit CLI preconfiguration without a catalog remains supported; it is not
+proof of authentication and does not bypass the pre-invocation readiness check.
 
 Changing the provider clears the previous model unless a new model is supplied.
 An empty model delegates selection to the provider. An empty provider clears
@@ -2093,8 +2138,8 @@ Managed Codex exec uses capability-checked `--json` event output and the exact
 tool diagnostics must not unnecessarily fill stderr. Existing stdout/stderr
 and final-reply limits stay enforced; genuine overflow remains failure.
 
-Provider install/update and worker daemon startup install managed `codex` and
-`copilot` launchers in `$HOME/.foundation/bin`. They dispatch through `provider exec`,
+Provider install/update and worker daemon startup install managed `codex`,
+`copilot` and `agy` launchers in `$HOME/.foundation/bin`. They dispatch through `provider exec`,
 so upgrades select the current private managed version rather than a shell link
 to a stale release. A preserved managed block in the applicable sh/bash/zsh
 login profile adds that directory to PATH without duplicates. Existing unrelated

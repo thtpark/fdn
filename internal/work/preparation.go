@@ -165,6 +165,9 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 	if reply.Decision != "" {
 		return domain.Fail(domain.Provider, "text-only responses cannot make verification decisions")
 	}
+	if err := e.applyPreferredModel(ctx, j, reply.Preferences); err != nil {
+		return err
+	}
 	if reply.Action != nil {
 		return e.queueConversationAction(ctx, j, launch, reply)
 	}

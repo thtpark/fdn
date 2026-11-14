@@ -11,14 +11,15 @@ type ProviderPreferences struct {
 
 type AgentPreferencesRequest struct {
 	Command
-	Provider *string `json:"provider,omitempty"`
-	Model    *string `json:"model,omitempty"`
-	Reason   string  `json:"reason"`
+	Provider *string                 `json:"provider,omitempty"`
+	Model    *string                 `json:"model,omitempty"`
+	Reason   string                  `json:"reason"`
+	Catalog  *ProviderCatalogBinding `json:"catalog,omitempty"`
 }
 
 func ValidateProviderModel(provider, model string) error {
 	if provider != "" && !ValidProvider(provider) {
-		return Fail(Invalid, "provider must be codex, copilot, or empty to inherit")
+		return Fail(Invalid, "provider must be codex, copilot, antigravity, or empty to inherit")
 	}
 	if model != "" && provider == "" {
 		return Fail(Invalid, "a model preference requires an explicit provider")

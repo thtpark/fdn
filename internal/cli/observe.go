@@ -80,6 +80,8 @@ func (s observationSource) snapshot(ctx context.Context, q observe.Query) (any, 
 		return a.agentCommand(ctx, r, []string{leaf, q.ID})
 	case "environment":
 		return a.agentCommand(ctx, r, []string{"environment", q.ID})
+	case "modelOptions":
+		return a.agentCommand(ctx, r, []string{"model-options", q.ID})
 	case "announcementAudience":
 		args := []string{"audience", "--scope", q.Scope}
 		if q.Project != "" {

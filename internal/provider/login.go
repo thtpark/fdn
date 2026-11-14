@@ -19,6 +19,12 @@ func (m *Manager) LoginCommand(ctx context.Context, name string) (string, []stri
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
+	if name == "antigravity" {
+		if err := m.antigravityCompatibility(ctx, path); err != nil {
+			return "", nil, err
+		}
+		return path, []string{"acp", "--login", "--disable-telemetry"}, nil
+	}
 	probe, err := NativeArguments(name, []string{"login", "--help"})
 	if err != nil {
 		return "", nil, err
