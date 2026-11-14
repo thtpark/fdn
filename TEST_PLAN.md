@@ -37,6 +37,11 @@ read-only ACP admission/catalog, empty-tool text and fixed coding profiles,
 disabled client/MCP/delegation capabilities, denied interactive requests and
 joined cancellation. Native help and no-auth admission probes establish only
 those read-only capabilities, not authenticated paid inference or production.
+Independent startup catalog probes may be pending or suppressed by an unsafe
+legacy fence. Control tests require zero inference and unchanged mode/identity,
+with at most one bounded probe per provider; diagnostic refresh additionally
+requires its own observation probe. They never require a background metadata
+loop to run before a reset/repair result.
 
 ```sh
 go test -race -count=1 ./internal/domain ./internal/foundation ./internal/api ./internal/cli ./internal/upgrade ./internal/identityservice -run 'NativeRestart|AgentNativeRestart|IndependentRestart|EmbeddedProtectedAgent|AgentOperation|AgentReset'

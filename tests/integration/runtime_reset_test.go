@@ -136,8 +136,8 @@ func TestFounderRuntimeResetPreservesIdentityModeAndLegacyEvidence(t *testing.T)
 				t.Fatal("runtime reset changed the enrolled identity", before, after, err)
 			}
 			me, err := api.Call[domain.Agent](ctx, client, "GET", "/v1/me", nil)
-			if err != nil || me.Mode != "manual" || x.checks.Load() != int64(len(domain.ProviderNames())) || x.invocations.Load() != 0 {
-				t.Fatal("reset changed mode, provider authentication or spending", me, err, x.checks.Load(), x.invocations.Load())
+			if err != nil || me.Mode != "manual" || x.checks.Load() > int64(len(domain.ProviderNames())) || x.invocations.Load() != 0 {
+				t.Fatal("reset changed mode, inferred or exceeded bounded read-only catalog probes", me, err, x.checks.Load(), x.invocations.Load())
 			}
 		})
 	}

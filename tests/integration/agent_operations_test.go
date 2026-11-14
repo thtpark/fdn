@@ -151,9 +151,10 @@ func TestFounderRefreshAndClosedSessionRepairWorkWhileAgentIsPausedAndFenced(t *
 				t.Fatal("fence mutation did not match durable cleanup proof", fence, err)
 			}
 			me, err := api.Call[domain.Agent](ctx, h.worker, "GET", "/v1/me", nil)
+			checks := x.checks.Load()
 			if err != nil || me.Mode != "manual" || x.invocations.Load() != 0 ||
-				x.checks.Load() != int64(len(domain.ProviderNames())+1) {
-				t.Fatal("remote control changed pause or performed inference", me, err, x.invocations.Load(), x.checks.Load())
+				checks < 1 || checks > int64(len(domain.ProviderNames())+1) {
+				t.Fatal("remote control changed pause, inferred or exceeded bounded read-only probes", me, err, x.invocations.Load(), checks)
 			}
 		})
 	}
