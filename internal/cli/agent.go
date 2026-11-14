@@ -140,19 +140,19 @@ func (a *app) agentCommand(ctx context.Context, r *resources, args []string) (an
 		if err := requireArgs(args, 2); err != nil {
 			return nil, err
 		}
-		if args[0] == "model-options" {
-			if err := requireArgs(args, 2); err != nil {
-				return nil, err
-			}
-			return api.Call[domain.AgentModelOptions](ctx, r.client, "GET", api.Path("agents", args[1], "model-options"), nil)
-		}
-		if args[0] == "model-options-report" {
-			if err := requireArgs(args, 1); err != nil {
-				return nil, err
-			}
-			return a.reportProviderCatalog(ctx, r)
-		}
 		return api.Call[domain.AgentEnvironment](ctx, r.client, "GET", api.Path("agents", args[1], "environment"), nil)
+	}
+	if args[0] == "model-options" {
+		if err := requireArgs(args, 2); err != nil {
+			return nil, err
+		}
+		return api.Call[domain.AgentModelOptions](ctx, r.client, "GET", api.Path("agents", args[1], "model-options"), nil)
+	}
+	if args[0] == "model-options-report" {
+		if err := requireArgs(args, 1); err != nil {
+			return nil, err
+		}
+		return a.reportProviderCatalog(ctx, r)
 	}
 	if args[0] == "environment-report" {
 		if err := requireArgs(args, 1); err != nil {

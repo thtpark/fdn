@@ -37,6 +37,10 @@ read-only ACP admission/catalog, empty-tool text and fixed coding profiles,
 disabled client/MCP/delegation capabilities, denied interactive requests and
 joined cancellation. Native help and no-auth admission probes establish only
 those read-only capabilities, not authenticated paid inference or production.
+CLI tests execute both documented `agent model-options` leaves and the native/
+embedded observer snapshot, separately from `agent environment`; explicit report
+replay retains the original observation. Catalog handlers must be sibling
+dispatch branches, never unreachable nested environment commands.
 Independent startup catalog probes may be pending or suppressed by an unsafe
 legacy fence. Control tests require zero inference and unchanged mode/identity,
 with at most one bounded probe per provider; diagnostic refresh additionally
