@@ -87,6 +87,19 @@ func (s *Store) CreateTask(ctx context.Context, actor string, req domain.TaskReq
 			SpecGeneration: 1, CreatedBy: a.ID, CreatedAt: s.timestamp(),
 			Policy:      domain.ApprovalPolicy{RequiredActors: []string{}},
 			RetryPolicy: domain.RetryPolicy{MaxRetries: 3, BackoffSeconds: 30}}
+		if req.Source != nil {
+			if err := requireAuthority(a, p); err != nil {
+				return t, err
+			}
+			if err := s.validateTaskSource(ctx, tx, p, req.Source); err != nil {
+				return t, err
+			}
+			t.Source = req.Source
+			t.Policy.IndependentReadiness, t.Policy.IndependentVerification = true, true
+		}
+		if p.ID == domain.FoundationProjectID {
+			t.Policy.IndependentReadiness, t.Policy.IndependentVerification = true, true
+		}
 		if p.ID == domain.AdhocProjectID {
 			if req.ParentID != "" || req.Repetitive {
 				return t, domain.Fail(domain.Invalid, "Adhoc records must be standalone non-repetitive tasks")
@@ -174,6 +187,7 @@ func validateChange(req domain.TaskChange) error {
 		"retry-approve": "spec_generation run_id attempt", "recovery-review": "spec_generation run_id attempt", "withdraw": "",
 		"clarity": "spec_generation answer_ids", "waiting": "spec_generation waiting",
 		"revert": "history_sequence", "archive": "", "stop": "", "release": "run_id stopped_acknowledged",
+		"source": "source",
 	}
 	allowed, ok := fields[req.Kind]
 	if !ok {
@@ -220,13 +234,23 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 		if p.ID == domain.AdhocProjectID && (t.CreatedBy != a.ID || t.AssigneeID != a.ID) && !authority(a, p) {
 			return t, domain.Fail(domain.Denied, "only an Adhoc task's creator/assignee or current project authority may change it")
 		}
-		administrative := slices.Contains([]string{"assign", "provider", "retry-approve", "recovery-review", "release"}, req.Kind)
+		administrative := slices.Contains([]string{"assign", "provider", "retry-approve", "recovery-review", "release", "source"}, req.Kind)
 		if administrative {
 			if err := requireAuthority(a, p); err != nil {
 				return t, err
 			}
 		}
 		switch req.Kind {
+		case "source":
+			if req.Source == nil {
+				return t, domain.Fail(domain.Invalid, "source requires an exact hosted repository and commit")
+			}
+			if err := s.validateTaskSource(ctx, tx, p, req.Source); err != nil {
+				return t, err
+			}
+			t.Source, t.ResultSource, t.BuildID = req.Source, nil, ""
+			t.Policy.IndependentReadiness, t.Policy.IndependentVerification = true, true
+			invalidate(&t)
 		case "edit":
 			if req.Title == nil && req.Description == nil && req.AcceptanceCriteria == nil && req.Priority == nil && req.Importance == nil && req.AttachmentIDs == nil {
 				return t, domain.Fail(domain.Invalid, "edit must include an editable field")
@@ -293,6 +317,9 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 		case "policy":
 			if req.Policy == nil || len(req.Policy.RequiredActors) > 32 {
 				return t, domain.Fail(domain.Invalid, "bounded approval policy is required")
+			}
+			if (p.ID == domain.FoundationProjectID || t.Source != nil) && (!req.Policy.IndependentReadiness || !req.Policy.IndependentVerification) {
+				return t, domain.Fail(domain.Denied, "Foundation and source-bound software work retain independent readiness and verification")
 			}
 			for _, actor := range req.Policy.RequiredActors {
 				if _, err := activeIdentitySubject(ctx, tx, actor); err != nil {
@@ -366,6 +393,9 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 			}
 			switch req.Decision {
 			case "accept":
+				if err := s.requireIntegratedSource(ctx, tx, t); err != nil {
+					return t, err
+				}
 				t.Status, t.Waiting = domain.Done, nil
 				t.Verification = &domain.Approval{ActorID: a.ID, SpecGeneration: t.SpecGeneration, ResultGeneration: t.ResultGeneration, ProjectEpoch: p.Epoch, At: s.timestamp(), OperationID: req.OperationID}
 			case "rework":

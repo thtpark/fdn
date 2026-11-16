@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -27,15 +28,26 @@ func (e *Engine) execute(ctx context.Context, c config.Worker, task domain.Task,
 	return e.coding(ctx, c, task, launch, manual)
 }
 
-func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, launch Launch, manual bool) error {
+func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, launch Launch, manual bool) (err error) {
 	ctx, launch = actionContext(ctx, launch)
+	if !domain.CodingRun(launch.Phase) {
+		return domain.Fail(domain.Internal, "coding invocation requires its explicit execution, verification or recovery phase")
+	}
+	if err := e.reserveImprovement(ctx, &launch); err != nil {
+		return err
+	}
+	defer func() { settleAfterImprovement(e, launch, &err) }()
+	if launch.Maintenance != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(launch.Maintenance.Seconds)*time.Second)
+		defer cancel()
+	}
 	if err := e.phaseHealth(ctx, "preparing", &launch, "", 120, false); err != nil {
 		return err
 	}
 	verification := launch.Phase == domain.VerificationRun
 	recovery := launch.Phase == domain.RecoveryRun
 	var binding local.Binding
-	var err error
 	if verification {
 		binding, err = e.projectWorkspace(ctx, c, task.ProjectID)
 	} else {
@@ -67,6 +79,9 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	}
 	j.State, j.WorkspaceRef, j.Token = "claim-prepared", binding.Ref, domain.NewToken()
 	j.Claim = &domain.ClaimRequest{Command: domain.Command{OperationID: j.ID + ".claim", ExpectedRevision: task.Revision}, SpecGeneration: task.SpecGeneration, TokenHash: domain.Hash(j.Token), Provider: health.Provider, Model: model}
+	if launch.Maintenance != nil {
+		j.Claim.MaintenanceID = launch.Maintenance.ID
+	}
 	if verification {
 		j.Claim.Kind, j.Claim.ResultGeneration, j.Claim.ProjectEpoch = domain.VerificationRun, task.ResultGeneration, launch.Project.Epoch
 	} else if recovery {
@@ -107,6 +122,17 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	if err := e.guardConversationAction(runCtx, cancel, launch); err != nil {
 		return errors.Join(err, e.notStarted(ctx, &j, "conversation source changed before provider launch"))
 	}
+	workspace := binding.Path
+	source := task.Source
+	if verification && task.ResultSource != nil {
+		source = task.ResultSource
+	}
+	if source != nil {
+		workspace, err = SourceWorkspace(runCtx, e.Client, *source, binding.Path, task.ID+"-"+fmt.Sprint(task.SpecGeneration))
+		if err != nil {
+			return errors.Join(err, e.notStarted(ctx, &j, "source preparation could not be verified; existing files were preserved"))
+		}
+	}
 	if err := e.phaseHealth(ctx, "invoking", &launch, j.ID, min(binding.TimeoutSeconds, c.InvocationTimeoutSeconds), true); err != nil {
 		return err
 	}
@@ -116,8 +142,8 @@ func (e *Engine) coding(ctx context.Context, c config.Worker, task domain.Task, 
 	}
 	go e.guardMode(runCtx, cancel, manual, binding.Ref)
 	reply, invokeErr := e.Executor.Invoke(runCtx, provider.Invocation{ID: j.ID, Provider: j.Provider, Path: health.Path, Model: model,
-		Prompt: prompt, Workspace: binding.Path, Coding: true,
-		Timeout: time.Duration(min(binding.TimeoutSeconds, c.InvocationTimeoutSeconds)) * time.Second,
+		Prompt: prompt, Workspace: workspace, Coding: true, TaskID: task.ID, RunID: run.ID,
+		Timeout: improvementTimeout(launch, time.Duration(min(binding.TimeoutSeconds, c.InvocationTimeoutSeconds))*time.Second),
 		Started: func(pid int) error { j.PID = pid; return e.State.SaveJournal(runCtx, j) }})
 	if invokeErr == nil {
 		invokeErr = reply.Validate()

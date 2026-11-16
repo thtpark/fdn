@@ -26,8 +26,8 @@ func (s *Store) ChangeProject(ctx context.Context, actor, id string, req domain.
 			return p, domain.Fail(domain.Invalid, "project change must include an editable field")
 		}
 		if req.Name != nil {
-			if p.ID == domain.AdhocProjectID && *req.Name != "Adhoc" {
-				return p, domain.Fail(domain.Invalid, "the reserved Adhoc project's name is fixed")
+			if (p.ID == domain.AdhocProjectID && *req.Name != "Adhoc") || (p.ID == domain.FoundationProjectID && *req.Name != "Foundation") {
+				return p, domain.Fail(domain.Invalid, "reserved built-in project names are fixed")
 			}
 			p.Name = *req.Name
 		}

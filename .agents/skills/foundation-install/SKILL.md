@@ -1,9 +1,30 @@
 ---
 name: foundation-install
-description: "Use when installing Foundation or a worker under the existing installing user, preparing native Linux/macOS computers and per-user services, verifying current-format durable release packages, provisioning narrow native upgrade policies, or applying a Founder-authorized upgrade without losing identity and state."
+description: "Use when installing Foundation, agents, new internal tools or adopting existing tools under the existing user; preparing Linux/macOS services; verifying official/internal source-bound releases; provisioning narrow native trust/policies; or applying a Founder-authorized rollout without losing identity, data and work fences."
 ---
 
 # Install or upgrade Foundation
+
+For 0.3.45 internal products, read `guide show IMPROVEMENT.md`.
+`software plan --input TARGETS --output PLAN`, `software apply --input PLAN`
+and `software status --input PLAN` retain exact private native observations,
+source/digests, computer/key generations and off-host recovery keys. Status
+dispatches no new planning. Queued/staged is not installed. Internal manifests
+need the separately pinned distribution public key plus current Founder
+permission and independently provisioned native policy. Registry publication,
+project/task approval and local tool permission do not provision OS privilege.
+Existing-tool adoption requires verified baseline/manager ownership and an
+explicit policy; preserve old files/configuration/consumers. Never replace an
+unknown installation as if absent. Vendor/provider/OS tools keep their current
+update and protected authentication boundaries.
+
+Pause and join work before native effects, stage all bytes before stopping the
+hosting Foundation, and inspect exact native receipts after uncertainty. Keep
+Foundation-first dependencies, fixed expiry/nonce, all identity/journal/session
+fences, pending reports and newer/manual Founder intent. A verified install
+does not erase an independent automation-resumption blocker or imply safe SQL
+rollback. Source archives/Git bundles are companion official release assets,
+not an offline dependency cache or permission to build on an installation target.
 
 Fresh worker setup may be explicitly launched by Founder with `agent-cli agent
 add --host IP --user EXISTING_USER --name NAME` and a stable global

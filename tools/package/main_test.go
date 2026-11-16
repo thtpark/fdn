@@ -28,6 +28,24 @@ func TestReleaseBuildListsIncludeIsolatedIdentityService(t *testing.T) {
 	}
 }
 
+func TestReleaseGoEnvironmentIgnoresLocalWorkspaceAndFlagOverrides(t *testing.T) {
+	t.Setenv("GOWORK", "private-local-workspace")
+	t.Setenv("GOFLAGS", "-modfile=private-local.mod")
+	t.Setenv("GOENV", "private-local-go-env")
+	t.Setenv("GOTOOLCHAIN", "auto")
+	t.Setenv("GO111MODULE", "off")
+	actual := map[string]string{}
+	for _, entry := range releaseGoEnvironment() {
+		name, value, _ := strings.Cut(entry, "=")
+		actual[name] = value
+	}
+	for name, expected := range map[string]string{"GO111MODULE": "on", "GOWORK": "off", "GOFLAGS": "-mod=readonly", "GOENV": "off", "GOTOOLCHAIN": "local"} {
+		if actual[name] != expected {
+			t.Fatal("release build could use untracked local workspace/flags", name, actual[name])
+		}
+	}
+}
+
 func TestFoundationPackageUnitUsesSeparateWritableIngress(t *testing.T) {
 	unit, err := foundationUnit()
 	if err != nil {

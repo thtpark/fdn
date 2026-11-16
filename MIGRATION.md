@@ -2,6 +2,27 @@
 
 ## Supported baseline
 
+0.3.45 appends server SQL12 for continuous improvement and internal software
+delivery; shipped SQL1-SQL11 remain immutable. The reserved Foundation project
+is created only by deliberate Founder policy configuration, never from a name
+match or Adhoc self-readiness. Existing identities, projects, private messages,
+notes, modes, workspaces, journals/outbox, file bytes and receipts are preserved.
+An SQL11 binary cannot read SQL12; do not roll back the binary over the new DB.
+
+Registry custody is an explicit transition for a ready owner-private retained
+file, not adoption of an ordinary transfer/publication or private-file bypass.
+Hosted Git/source/release bytes reuse the existing file store and manifest2
+snapshot rehydration. Native cold-backup policy must retain actual file storage
+and separately provisioned distribution signing material.
+
+Official four-binary native ZIP contents remain compatible; source companions
+are additional immutable GitHub assets, not extra unrecognized ZIP entries.
+Native DTO fingerprints change and require coordinated compatible components,
+even where API/schema2/protocol2/localSQL1 numbers do not change. Old receivers
+do not gain internal installation support from release metadata.
+Internal install trust/receiver profiles require separate administrator
+provisioning; no source change implies a package publication or deployment.
+
 Foundation 0.3.5 is the source baseline: application/API schema 2, native message
 protocol 2, server SQLite 5 and local-worker SQLite 1. Backup manifests must use
 the current schema 2. Older formats and future unknown formats fail explicitly;

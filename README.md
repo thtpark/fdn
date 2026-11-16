@@ -5,10 +5,13 @@ authoritative SQLite-backed service, a native worker daemon, and one structured
 CLI for people and coding agents. Development and operation need no companion
 checkout. The supported baseline is 0.3.5: API/schema **2**, native protocol
 **2**, server SQL **5** and local SQL **1**. Older formats/layouts are not
-imported or overwritten. Current source advances server SQL to **11**, preserving
+imported or overwritten. Current source advances server SQL to **12**, preserving
 SQL6 notes, SQL7 Founder devices, SQL8 observation indexes and SQL9 publications/
 file metadata, with ACL-backed Foundation storage, durable receiver copies and
 private unified-sharing selection.
+SQL12 adds internal feature/tool intake, the reserved Foundation project,
+bundle-backed hosted source, source-pinned builds/releases, immutable registry
+custody and explicitly authorized software rollout records.
 The software-first security model
 is being integrated; source-bound acceptance and native qualification are
 separate. No hardware adapter or attestation is claimed.
@@ -36,6 +39,7 @@ provider authentication, task work, recovery and development.
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Delivered phases, preserved product goals and remaining work |
 | [CAPACITY.md](CAPACITY.md) | Current load evidence and the unqualified 1,000-agent target |
 | [MIGRATION.md](MIGRATION.md) | Design continuity, deliberate changes and no automatic legacy import |
+| [IMPROVEMENT.md](IMPROVEMENT.md) | New/existing internal tools, features, hosted Git, delegated maintenance, exact builds/releases and Founder-approved installation |
 
 These references and skills are embedded in binaries and included in every
 release format. `agent-cli guide list/show/install` works offline without
@@ -54,6 +58,7 @@ supplies bounded guidance explicitly when provider discovery is disabled.
 | 4 | Codex/Copilot adapters, private messages, urgent inboxes, staged provider installation/updates, protected login handoff, expiring target-consented tmux/existing-VNC sessions. |
 | 5 | Shared manual/automatic controller and prompt, first capability review, scope/acceptance refinement, actual-answer incorporation, exact-specification signoff requests, preflight, serial claims, supervised processes, pause/checkpoints, durable report outbox, restart reconciliation, unsafe-retry approval/backoff, idle research. |
 | 6 | Deliberate team-readable file/diary/skill/idea publications, immutable versions, staged SHA-256-verified uploads, exact private reader grants, durable download receipts and automatic designated-transfer cleanup; message/task/comment/worklog attachments and native inline images/videos. |
+| Continuous improvement | Features/bugs/incidents in the appropriate project, bounded delegated maintenance under one slot, internal Git contributions and independent integration, approved source-bound builds, signed immutable releases, tool inventory/consumer bindings and exact opt-in Founder rollouts. External PR export is separate. |
 
 Recurring-child generation and full-host disaster-recovery automation from
 Phases 7-8 remain outside this milestone. Repetitive parents are recognized but

@@ -60,6 +60,31 @@ func (s observationSource) snapshot(ctx context.Context, q observe.Query) (any, 
 		page = append(page, "--cursor", q.Cursor)
 	}
 	switch q.Kind {
+	case "improvementPolicy":
+		return a.deliveryCommand(ctx, r, "improvement", []string{"policy"})
+	case "maintenanceUsage":
+		return a.deliveryCommand(ctx, r, "improvement", []string{"usage"})
+	case "improvements":
+		args := append([]string{"list", "--project", q.Project, "--state", q.State}, page...)
+		return a.deliveryCommand(ctx, r, "improvement", args)
+	case "repositories":
+		return a.deliveryCommand(ctx, r, "repository", append([]string{"list", "--project", q.Project}, page...))
+	case "products":
+		return a.deliveryCommand(ctx, r, "software", append([]string{"list", "--project", q.Project}, page...))
+	case "releases":
+		return a.deliveryCommand(ctx, r, "release", append([]string{"list", "--product", q.Product}, page...))
+	case "improvement", "repository", "product", "build", "release", "softwareControl", "softwareDeployment", "softwareMaintenance":
+		group := map[string]string{"improvement": "improvement", "repository": "repository", "product": "software", "build": "build", "release": "release",
+			"softwareControl": "software", "softwareDeployment": "software", "softwareMaintenance": "software"}[q.Kind]
+		leaf := map[string]string{"softwareControl": "control", "softwareDeployment": "deployment", "softwareMaintenance": "maintenance"}[q.Kind]
+		if leaf == "" {
+			leaf = "show"
+		}
+		return a.deliveryCommand(ctx, r, group, []string{leaf, q.ID})
+	case "softwareInventory":
+		return a.deliveryCommand(ctx, r, "software", []string{"inventory"})
+	case "softwareConsumers":
+		return a.deliveryCommand(ctx, r, "software", []string{"consumers", "--project", q.Project})
 	case "version":
 		return map[string]any{"version": domain.Version, "commit": domain.Commit, "api_version": domain.APIVersion, "schema_version": domain.SchemaVersion}, nil
 	case "help":

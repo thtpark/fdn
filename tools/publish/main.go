@@ -3,6 +3,7 @@ package main
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -132,7 +133,7 @@ func main() {
 		version, readErr := os.ReadFile("VERSION")
 		err = readErr
 		if err == nil {
-			err = bundle("publish/input", "publish/output", strings.TrimSpace(string(version)), event.PullRequest.MergeCommitSHA)
+			err = publishAssets(context.Background(), ".", "publish/input", "publish/output", strings.TrimSpace(string(version)), event.PullRequest.MergeCommitSHA)
 		}
 	}
 	if err != nil {

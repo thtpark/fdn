@@ -28,6 +28,7 @@ func thirdPartyNotices() ([]byte, error) {
 	}
 	cmd := exec.Command("go", "list", "-deps", "-json", "./cmd/...")
 	cmd.Dir = filepath.Dir(modFile)
+	cmd.Env = releaseGoEnvironment()
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err

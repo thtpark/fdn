@@ -5,12 +5,61 @@ Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
 Native message protocol version is **2**; server SQLite migration version is
-**11**; local-worker SQLite remains **1**. Existing SQL5-SQL10 databases advance
-through ordered SQL11 after verified SQL10 filesystem materialization; earlier server-state formats remain unsupported.
+**12**; local-worker SQLite remains **1**. Existing SQL5-SQL11 databases advance
+through ordered SQL12 after verified SQL10 filesystem materialization; earlier server-state formats remain unsupported.
 Deploy the server first. Version 2 requires account-bound public-key admission
 and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
 create new runtime identities. Native multi-UID qualification is separate from
 source-bound software tests and has not been performed.
+
+## Internal contribution and delivery
+
+Read [IMPROVEMENT.md](IMPROVEMENT.md). SQL12 appends improvement requests,
+repositories, registry artifacts, software products/builds/releases, installed
+inventory, consumers, private native preflights/deployments and durable
+maintenance reservations. SQL1-SQL11 are unchanged.
+
+`project_foundation` is initialized exactly once by Founder configuration;
+name collisions never confer authority. Requests are shared safe context, not
+Adhoc standing readiness. Related original tasks retain their own project,
+parent, approval/retry and acceptance. Current delegates can triage/approve and
+independently verify ordinary exact tasks. Founder alone configures bounded
+maintenance and native rollout intent.
+
+Maintenance charges the full reserved upper bound in server-clock windows;
+settlement/new operations/restarts/policy edits do not refund it. One existing
+local/server work slot still covers preparation, coding, builds and review.
+Source and build changes invalidate task readiness; claims bind exact
+maintenance/source context. Actual integration precedes source acceptance and
+independently accepted platform builds precede atomic release publication.
+
+Git bundles are immutable complete SHA-256-verified files; branch changes and
+operation receipts commit transactionally. Only the active assigned coding run
+updates its approved actor work ref. Independent current verification binds
+reported source/result, base/head and exact candidate. No raw Git command,
+private filesystem path, force ref update or database write is accepted.
+
+Explicit file submission transfers immutable registry custody without copying
+private owner credentials or inventing an enrolled service actor. Original
+owner provenance remains; mutation/deletion/re-sharing is denied thereafter.
+Registry readership derives from current source/project authority or exact
+native target permits. Byte storage and backup materialization reuse the
+existing single Foundation file store, preserving SQL9 chunk/hash recovery,
+receipts and identity quarantine.
+
+Internal releases bind product/revision/source/platform/files/dependencies and
+a separately provisioned distribution signature. Permission signatures and
+fresh nonce start leases are separate from that signature. Preflight,
+authorization, status and native completion remain exact Founder/target/
+computer/key-generation-bound. Root maintenance can read or operate only its
+approved Foundation instance. Queued is not installed; native verified results
+do not clear unrelated fences or newer/manual mode intent.
+
+New/existing tools share product records, but vendor/unknown provenance cannot
+be re-signed as internally built software. Observations never establish
+managed installation; only exact native receipts do. Consumer dependencies
+pin release/platform/digest/purpose. Capability labels confer no tool,
+authentication, OS, spending or plugin authority.
 
 ## Persistence and transaction boundaries
 

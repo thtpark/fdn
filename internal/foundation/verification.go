@@ -32,6 +32,11 @@ func (s *Store) reportVerification(ctx context.Context, tx *sql.Tx, a domain.Age
 		t.DiscussionGeneration != run.DiscussionGeneration || p.Epoch != run.ProjectEpoch ||
 		t.ActiveRun.StopRequested || !eligibleApprover(a, p, t, true) || a.ID == t.AssigneeID ||
 		(!a.Founder && a.Mode != "ai") || a.Revision != run.AgentRevision || t.Result == nil || t.Result.SpecGeneration != run.SpecGeneration || t.ArchivedAt != 0
+	if !stale && req.Outcome == "completed" && req.Decision == "accept" {
+		if err := s.requireIntegratedSource(ctx, tx, t); err != nil {
+			return outcome, err
+		}
+	}
 	if !stale && req.ApproveRework {
 		if !eligibleApprover(a, p, t, false) {
 			return outcome, domain.Fail(domain.Denied, "rework approval requires current readiness authority and policy")

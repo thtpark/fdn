@@ -93,6 +93,9 @@ func (a *app) engine(r *resources) *work.Engine {
 }
 
 func (a *app) service(ctx context.Context, args []string) (value any, err error) {
+	if len(args) > 0 && (args[0] == "software-helper" || args[0] == "software-worker") {
+		return a.softwareNativeCommand(ctx, args[1:], "agent", args[0] == "software-worker")
+	}
 	if len(args) > 0 && args[0] == "restart-helper" {
 		return a.restartHelper(ctx, args[1:])
 	}

@@ -53,21 +53,23 @@ type GrantRequest struct {
 
 type TaskRequest struct {
 	Command
-	AttachmentIDs      []string `json:"attachment_ids,omitempty"`
-	ProjectID          string   `json:"project_id"`
-	Title              string   `json:"title"`
-	Description        string   `json:"description"`
-	AcceptanceCriteria string   `json:"acceptance_criteria"`
-	Provider           string   `json:"provider,omitempty"`
-	Model              string   `json:"model,omitempty"`
-	ParentID           string   `json:"parent_id,omitempty"`
-	Repetitive         bool     `json:"repetitive"`
-	Priority           int      `json:"priority"`
-	Importance         int      `json:"importance"`
+	Source             *TaskSource `json:"source,omitempty"`
+	AttachmentIDs      []string    `json:"attachment_ids,omitempty"`
+	ProjectID          string      `json:"project_id"`
+	Title              string      `json:"title"`
+	Description        string      `json:"description"`
+	AcceptanceCriteria string      `json:"acceptance_criteria"`
+	Provider           string      `json:"provider,omitempty"`
+	Model              string      `json:"model,omitempty"`
+	ParentID           string      `json:"parent_id,omitempty"`
+	Repetitive         bool        `json:"repetitive"`
+	Priority           int         `json:"priority"`
+	Importance         int         `json:"importance"`
 }
 
 type TaskChange struct {
 	Command
+	Source              *TaskSource             `json:"source,omitempty"`
 	AttachmentIDs       *[]string               `json:"attachment_ids,omitempty"`
 	Kind                string                  `json:"kind"`
 	Reason              string                  `json:"reason"`
@@ -168,6 +170,7 @@ type SessionChange struct {
 
 type ClaimRequest struct {
 	Command
+	MaintenanceID    string `json:"maintenance_id,omitempty"`
 	Kind             string `json:"kind,omitempty"`
 	SourceRunID      string `json:"source_run_id,omitempty"`
 	SpecGeneration   int64  `json:"spec_generation"`

@@ -16,23 +16,26 @@ import (
 )
 
 type Policy struct {
-	Role               string   `json:"role"`
-	Name               string   `json:"name"`
-	InstanceID         string   `json:"instance_id"`
-	TargetID           string   `json:"target_id"`
-	CAFile             string   `json:"ca_file"`
-	StateDir           string   `json:"state_dir"`
-	Method             string   `json:"method"`
-	Prefix             string   `json:"prefix,omitempty"`
-	BinaryDir          string   `json:"binary_dir"`
-	User               string   `json:"user"`
-	Home               string   `json:"home"`
-	ConfigFile         string   `json:"config_file"`
-	IdentityConfig     string   `json:"identity_config,omitempty"`
-	ServiceOptions     string   `json:"service_options,omitempty"`
-	BackupPaths        []string `json:"backup_paths"`
-	AllowNativeRestart bool     `json:"allow_native_restart,omitempty"`
-	RestartTargets     []Target `json:"restart_targets,omitempty"`
+	EnableInternalSoftware    bool     `json:"enable_internal_software,omitempty"`
+	InternalProductID         string   `json:"internal_product_id,omitempty"`
+	DistributionPublicKeyFile string   `json:"distribution_public_key_file,omitempty"`
+	Role                      string   `json:"role"`
+	Name                      string   `json:"name"`
+	InstanceID                string   `json:"instance_id"`
+	TargetID                  string   `json:"target_id"`
+	CAFile                    string   `json:"ca_file"`
+	StateDir                  string   `json:"state_dir"`
+	Method                    string   `json:"method"`
+	Prefix                    string   `json:"prefix,omitempty"`
+	BinaryDir                 string   `json:"binary_dir"`
+	User                      string   `json:"user"`
+	Home                      string   `json:"home"`
+	ConfigFile                string   `json:"config_file"`
+	IdentityConfig            string   `json:"identity_config,omitempty"`
+	ServiceOptions            string   `json:"service_options,omitempty"`
+	BackupPaths               []string `json:"backup_paths"`
+	AllowNativeRestart        bool     `json:"allow_native_restart,omitempty"`
+	RestartTargets            []Target `json:"restart_targets,omitempty"`
 }
 
 var nativeName = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
@@ -48,6 +51,7 @@ func protected(path string, owner uint32) error {
 		if err != nil {
 			return err
 		}
+
 		stat, ok := info.Sys().(*syscall.Stat_t)
 		if !ok || (stat.Uid != 0 && stat.Uid != owner) || info.Mode()&os.ModeSymlink != 0 ||
 			info.Mode().Perm()&0022 != 0 || (current != path && !info.IsDir()) {
@@ -60,6 +64,10 @@ func protected(path string, owner uint32) error {
 }
 
 func (p Policy) Validate() error {
+	if p.EnableInternalSoftware && (!domain.ValidOperation(p.InternalProductID) || !filepath.IsAbs(p.DistributionPublicKeyFile) ||
+		filepath.Clean(p.DistributionPublicKeyFile) != p.DistributionPublicKeyFile) {
+		return domain.Fail(domain.Invalid, "internal Foundation updating requires an exact product and independently pinned distribution public key")
+	}
 	if len(p.RestartTargets) > 32 || p.Role != "foundation" && len(p.RestartTargets) != 0 ||
 		p.Role != "agent" && p.AllowNativeRestart {
 		return domain.Fail(domain.Invalid, "native restart policy must bind one worker or bounded Foundation operator routes")
@@ -136,7 +144,7 @@ func ReadPolicy(path string) (Policy, error) {
 			return policy, err
 		}
 	}
-	for _, path := range []string{policy.CAFile, policy.ConfigFile, policy.IdentityConfig, policy.ServiceOptions} {
+	for _, path := range []string{policy.CAFile, policy.ConfigFile, policy.IdentityConfig, policy.ServiceOptions, policy.DistributionPublicKeyFile} {
 		if path != "" {
 			uid, _, err := policy.account()
 			if err != nil {

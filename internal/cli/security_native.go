@@ -446,6 +446,7 @@ func (a *app) serveNativeFoundation(ctx context.Context, args []string, supplied
 	}
 	defer service.Close()
 	if err := service.ConfigureIdentity(api.IdentityOptions{CAFile: filepath.Join(c.StateDir, "ca.pem"), CAKeyFile: filepath.Join(c.StateDir, "ca-key.pem"),
+		DistributionKeyFile: c.DistributionKeyFile,
 		Provision: func(ctx context.Context, identity domain.AgentIdentity) (domain.AgentIdentity, error) {
 			return provisionNativeIdentity(ctx, store, client, c, identity)
 		},

@@ -19,6 +19,8 @@ import (
 
 func (a *app) foundation(ctx context.Context, args []string) (any, error) {
 	switch args[0] {
+	case "software-helper", "software-worker":
+		return a.softwareNativeCommand(ctx, args[1:], "foundation", args[0] == "software-worker")
 	case "upgrade-helper":
 		return a.upgradeHelper(ctx, args[1:])
 	case "request-worker":

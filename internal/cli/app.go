@@ -34,6 +34,11 @@ type app struct {
 }
 
 var AgentCommands = []string{
+	"improvement configure", "improvement policy", "improvement create", "improvement list", "improvement show", "improvement decide", "improvement usage",
+	"repository create", "repository list", "repository show", "repository link", "repository bundle", "repository remote", "repository push", "repository merge",
+	"software register", "software list", "software show", "software observe", "software inventory", "software bind-consumer", "software consumers",
+	"software preflight", "software control", "software plan", "software apply", "software status", "software deployment", "software maintenance",
+	"build create", "build show", "build run", "build result", "release create", "release list", "release show", "release revoke",
 	"config init", "config show", "config set", "connect", "status", "doctor", "mode show", "mode set",
 	"agent list", "agent status", "agent diagnose", "agent reset", "agent restart", "agent repair", "agent operation", "agent revoke", "agent register", "agent recover", "agent identity", "project list", "project show", "project create", "project change", "project delegate", "project authorize",
 	"device list", "device register", "device revoke",
@@ -51,13 +56,13 @@ var AgentCommands = []string{
 	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
 	"work prompt", "work status", "work run", "work recover", "work recovery-inspect", "service plan", "service install", "service status",
 	"upgrade check", "upgrade plan", "upgrade apply", "upgrade status",
-	"upgrade-lease", "message-worker",
+	"upgrade-lease", "message-worker", "software-mailbox",
 	"share show", "share sessions", "share publish", "share terminal", "share select", "share approve", "share revoke", "share request", "share open", "share stream", "share input", "share release-input", "share help",
 	"share status",
 }
 
-var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install", "upgrade-helper", "request-worker"}
-var ServiceCommands = []string{"serve", "status", "upgrade-helper", "restart-helper", "request-worker"}
+var FoundationCommands = []string{"init", "serve", "doctor", "gateway", "accounts serve", "recover-founder", "tls-renew", "backup-key", "backup", "restore", "service plan", "service install", "upgrade-helper", "request-worker", "software-helper", "software-worker"}
+var ServiceCommands = []string{"serve", "status", "upgrade-helper", "restart-helper", "request-worker", "software-helper", "software-worker"}
 var GuideCommands = []string{"guide list", "guide show", "guide install"}
 var AutonomyCommands = []string{"agent show", "agent mode", "agent request-sign-in", "assistance request", "assistance grant", "assistance list", "assistance show", "assistance revoke", "assistance open", "assistance status"}
 
@@ -229,7 +234,7 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 	if a.configFile == "" && tail[0] != "guide" {
 		return a.emit(nil, errors.Join(domain.Fail(domain.Prerequisite, "default configuration unavailable; specify --config"), homeErr))
 	}
-	longRunning := tail[0] == "observe" || tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" || tail[0] == "restart-helper" || tail[0] == "request-worker" ||
+	longRunning := tail[0] == "observe" || tail[0] == "serve" || tail[0] == "gateway" || tail[0] == "upgrade-helper" || tail[0] == "restart-helper" || tail[0] == "request-worker" || tail[0] == "software-helper" || tail[0] == "software-worker" ||
 		(tail[0] == "upgrade" && len(tail) > 1 && tail[1] == "apply") ||
 		(tail[0] == "accounts" && len(tail) > 1 && tail[1] == "serve") || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
 	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open") ||

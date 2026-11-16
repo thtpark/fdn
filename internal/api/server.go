@@ -28,14 +28,15 @@ type Envelope struct {
 }
 
 type Server struct {
-	Store          *foundation.Store
-	Log            *slog.Logger
-	Relay          *relay.Broker
-	mux            *http.ServeMux
-	identity       *identityServer
-	health         *healthMonitor
-	authentication func(*http.Request) (domain.Agent, error)
-	operations     map[string]*messageOperation
+	Store           *foundation.Store
+	Log             *slog.Logger
+	Relay           *relay.Broker
+	mux             *http.ServeMux
+	identity        *identityServer
+	health          *healthMonitor
+	authentication  func(*http.Request) (domain.Agent, error)
+	operations      map[string]*messageOperation
+	distributionKey []byte
 }
 
 func New(store *foundation.Store, log *slog.Logger) (*Server, error) {
@@ -49,6 +50,7 @@ func New(store *foundation.Store, log *slog.Logger) (*Server, error) {
 	s.identity = newIdentityServer(s)
 	s.routes()
 	s.publicationRoutes()
+	s.deliveryRoutes()
 	s.identityRoutes()
 	s.healthRoutes()
 	s.agentOperationRoutes()

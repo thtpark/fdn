@@ -21,7 +21,7 @@ import (
 	"github.com/thtpark/fdn/internal/secure"
 )
 
-//go:embed AGENTS.md README.md DEVELOPMENT.md DEPLOYMENT.md COMMANDS.md SCHEMA.md TEST_PLAN.md IMPLEMENTATION_PLAN.md CAPACITY.md MIGRATION.md .agents/skills/*/SKILL.md
+//go:embed AGENTS.md README.md DEVELOPMENT.md DEPLOYMENT.md COMMANDS.md SCHEMA.md TEST_PLAN.md IMPLEMENTATION_PLAN.md IMPROVEMENT.md CAPACITY.md MIGRATION.md .agents/skills/*/SKILL.md
 var content embed.FS
 
 //go:embed scripts/install.sh

@@ -49,6 +49,87 @@ Errors have `ok:false` and `error:{code,message,retryable}`. Exit codes:
 130 cancelled. Inspect the reported state; accepted/queued is not remote
 completion. There is no force/skip-approval flag.
 
+## Internal improvements, hosted source and software
+
+Read [IMPROVEMENT.md](IMPROVEMENT.md) for the complete human/agent workflow,
+examples, new versus existing tools, scheduling and recovery boundaries.
+All ordinary commands below use the same JSON envelope and enrolled identity.
+
+| Command | Input / effect |
+| --- | --- |
+| `agent-cli improvement configure` | `--input FILE`: enabled, project_ids, window_seconds (60-86400), slice_seconds (1-3600), per_agent_seconds, fleet_seconds, reason, expected_revision (0 initially); Founder-only; initializes `project_foundation` without self-approval |
+| `agent-cli improvement policy` | Read explicit configured/unconfigured policy; no execution |
+| `agent-cli improvement create` | `--input FILE`: project_id, optional product_id/related_task_id, kind feature_request/enhancement/bug_report/incident_repair/maintenance, title, description, acceptance_criteria; shared safe intake, not authority |
+| `agent-cli improvement list` | `[--project ID --state STATE --cursor CURSOR --limit N]`; bounded intake |
+| `agent-cli improvement show` | `ID`; exact request and task linkage |
+| `agent-cli improvement decide` | `ID --input FILE`: expected_revision, decision accept/defer/decline/duplicate, reason; current project authority; accept additionally assignee_id/optional source, duplicate additionally duplicate_of |
+| `agent-cli improvement usage` | This actor's conservative reserved seconds and aggregate usage/server-clock window |
+| `agent-cli repository create` | `--input FILE`: project_id, name, optional description/default_branch/public/bundle_file_id; Founder-only source/visibility registration; submitted bundle enters immutable custody |
+| `agent-cli repository list` | `[--project ID --cursor CURSOR --limit N]`; current readable source only |
+| `agent-cli repository show` | `ID`; authorized transactional refs and bundle IDs |
+| `agent-cli repository link` | Install this account's managed `git-remote-fdn` launcher; refuses unmanaged collision |
+| `agent-cli repository bundle` | `--workspace REF --ref refs/... --output NEW_FILE`; explicit self-contained source selection, never implicit private `--all` |
+| `agent-cli repository remote` | Internal Git-helper stdin/stdout protocol; `REMOTE_NAME fdn::REPOSITORY_ID`; not a raw shell/SSH gateway |
+| `agent-cli repository push` | `ID --input FILE`: task_id, run_id, private bundle_file_id, updates with name/old/new; one exact assigned actor work ref under active coding ownership; no force/delete/protected-ref write |
+| `agent-cli repository merge` | `ID --input FILE`: current verifier task_id/run_id/spec_generation/result_generation, source_ref/source_commit/base_commit/commit/bundle_file_id/reason; exact independently checked fast-forward or two-parent candidate |
+| `agent-cli software register` | `--input FILE`: project_id/name/kind/provenance/license/reason, optional repository_id/recipe_path/platform recipe_paths/capabilities; Founder-only; vendor/unknown tools cannot become internally built sources |
+| `agent-cli software list` | `[--project ID --cursor CURSOR --limit N]`; product/tool catalog metadata, not execution permission |
+| `agent-cli software show` | `PRODUCT_ID`; owner/source/profile metadata |
+| `agent-cli software observe` | `--input FILE`: observation product_id/state observed/unknown/absent/version/sha256/manager; this computer only, no paths/credentials or forged managed state |
+| `agent-cli software inventory` | Founder fleet view or own computer observations and actual native install receipts |
+| `agent-cli software bind-consumer` | `--input FILE`: project_id, dependency product_id/release_id/platform/sha256/purpose build/runtime/workspace, reason and current revision; scoped source access and project authority |
+| `agent-cli software consumers` | `--project PROJECT_ID`; exact declared version/interface dependencies |
+| `agent-cli build create` | `--input FILE`: product_id/task_id/platform; project authority; read the tracked recipe at the task's pinned commit, invalidate old readiness and bind immutable build inputs |
+| `agent-cli build show` | `BUILD_ID`; exact source/recipe/run/output provenance |
+| `agent-cli build run` | `BUILD_ID`; only inside its admitted coding task using local FDN_WORK_TASK/FDN_WORK_RUN; native bounded steps/output verification under the existing workspace/slot |
+| `agent-cli build result` | `BUILD_ID --input FILE`: run_id/bundle_file_id/toolchain/summary; exact active assignee, complete output hashes/modes; not task acceptance |
+| `agent-cli release create` | `--input FILE`: product_id/build_ids/reason; current authority, distinct declared platform builds and independent accepted task results, separate configured distribution signer |
+| `agent-cli release list` | `--product ID [--cursor CURSOR --limit N]`; immutable release versions |
+| `agent-cli release show` | `RELEASE_ID`; signed exact internal manifest; not installation authority |
+| `agent-cli release revoke` | `RELEASE_ID --input FILE`: reason; current project authority; prevents new native admission, does not erase bytes/history/copies |
+| `agent-cli software preflight` | `--input FILE`: target_id/binding_id/product_id/native action inspect/challenge/status and native ID; Founder-only typed observation, no caller helper/policy path |
+| `agent-cli software control` | `CONTROL_ID`; exact requesting-Founder-device result; queued/failed/expired is not observed success |
+| `agent-cli software plan` | `--input TARGETS --output PLAN`; release_id/targets(target_id,binding_id)/reason; retain original operation/control IDs and `PLAN.agekey`; no install |
+| `agent-cli software apply` | `--input PLAN`; exact Founder temporary pause and one dependent target submission; actual predecessor verification required; queued is not installed |
+| `agent-cli software status` | `--input PLAN`; read retained controls/deployments only, no new planning/installation or expiry renewal |
+| `agent-cli software deployment` | `DEPLOYMENT_ID`; exact private Founder/target outcome and native receipt |
+| `agent-cli software maintenance` | `BATCH_ID`; prior-mode intent and blocked/verified restoration, not an automation-mode override |
+| `agent-cli software-mailbox` | Internal bounded protobuf stdin/stdout; this installing user's exact software inbox/result/lease/artifact capabilities, no paths or caller identity substitution |
+| `agent-service software-helper` | `--policy FILE` for a separately provisioned general product, or `--updater-policy FILE` for the explicitly enabled Foundation/Agent paired updater; bounded protobuf input/output |
+| `agent-service software-worker` | Same explicit policy choice, optional `--once`; independently supervised native preflight/installation receiver with durable result replay |
+| `fdn-service software-helper` | Same explicit policy choices; Foundation instance inbox/lease/artifacts use its root-private native maintenance boundary |
+| `fdn-service software-worker` | Independently supervised root maintenance receiver, outside the Foundation/account services it stops; optional `--once` |
+
+`task create` accepts optional `source`; `task change` kind `source` takes
+`source:{repository_id,commit,optional ref/product_id}` under current project
+authority. A contribution ref must use `refs/heads/work/AGENT_ID/...`.
+Source changes invalidate readiness. Source-bound work retains independent
+readiness/verification; builds have no contribution ref. Completion captures
+the actual pushed source; accepting a contribution requires actual integration.
+
+Targets files contain one exact immutable `release_id`, 1-32
+`targets:[{target_id,binding_id}]`, and an intentional reason. A Foundation
+target names its instance with an empty binding and comes first. An agent
+target names its actor and actual enrolled computer binding, never a display name.
+Native policies/trust/receivers must already be provisioned independently.
+Internal signer configuration is `distribution_key_file` in the private server
+configuration; it cannot reuse the CA. No endpoint installs trust or OS privilege.
+
+Foundation/Agent paired updates use an existing native updater policy extended
+with `enable_internal_software:true`, `internal_product_id`, and
+`distribution_public_key_file`, selected explicitly with `--updater-policy`.
+The bridge verifies the original SoftwarePermit/signature, exact internal
+archive/inventory and fresh lease; it does not re-sign or relabel an UpgradePermit.
+Archive payloads contain all four binaries; Debian payloads name the exact
+fixed role package. Observed official installations receive a durable native
+baseline identifier, not fabricated internal release history.
+
+Reads have no bodies; query fields are strictly bounded and repeated fields
+are rejected. Mutations are queryless and reject protected provenance/identity/
+state fields. Native maintenance inbox/result/lease/artifact operations for the
+Foundation instance remain root-private; ordinary Founder/worker traffic
+cannot select them.
+
 ## Read-only desktop observation
 
 `agent-cli observe` is the read-only local observation leaf.

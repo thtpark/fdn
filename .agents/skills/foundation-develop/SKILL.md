@@ -9,6 +9,16 @@ Read `guide show DEVELOPMENT.md`, `guide show SCHEMA.md`,
 `guide show TEST_PLAN.md` and `guide show IMPLEMENTATION_PLAN.md`.
 The checkout's root documents are canonical; no old source tree is required.
 
+From 0.3.45, read `guide show IMPROVEMENT.md` for internal features and tools.
+Keep reserved Foundation project identity, ordinary scoped delegated authority,
+independent source/build acceptance and durable maintenance allowance separate.
+Git is bundle-backed over the existing identity transport; source/release files
+enter explicit immutable registry custody in the existing file store. Preserve
+source/old-ref hashes, complete bundle bounds, exact replay and current project/
+computer generations. Internal signing uses a separate distribution key, never
+the enrollment CA or an arbitrary URL. New/existing tool and consumer/adoption
+scenarios must verify actual bytes and interfaces, not metadata alone.
+
 From 0.3.42, keep authenticated model catalogs bound to the current computer/key
 generation, with server-clock freshness and unchanged replay. Default writes
 allow Founder or self, never another ordinary actor or a task-pin override.
@@ -66,7 +76,7 @@ native cancellation and no-inference authentication/model probes locally.
    adapters must prove non-prompting coding approval and tool-disabled text calls.
 5. Add ordered compatibility-tested migrations, never rewrite shipped schemas
    or reset state. Application/schema contract is 2, native message protocol 2,
-   server SQL migration 11, local SQL 1. SQL5 preserves private message bytes,
+   server SQL migration 12, local SQL 1. SQL5 preserves private message bytes,
    insertion order, receipts and scoped updates while admitting the exact
    Foundation maintenance mailbox, never an enrolled synthetic agent.
    SQL5 is the existing server-state floor; older and future unsupported

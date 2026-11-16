@@ -13,9 +13,13 @@ import (
 )
 
 func publicationFixture(t *testing.T) (string, string, string, string) {
+	return publicationFixtureWithIdentity(t, "0.3.4", strings.Repeat("a", 40))
+}
+
+func publicationFixtureWithIdentity(t *testing.T, version, commit string) (string, string, string, string) {
 	t.Helper()
 	root := t.TempDir()
-	input, output, version, commit := filepath.Join(root, "input"), filepath.Join(root, "output"), "0.3.4", strings.Repeat("a", 40)
+	input, output := filepath.Join(root, "input"), filepath.Join(root, "output")
 	for _, platform := range []string{"linux-amd64", "linux-arm64", "darwin-arm64"} {
 		directory := filepath.Join(input, "fdn-"+platform)
 		if err := os.MkdirAll(directory, 0700); err != nil {

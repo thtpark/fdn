@@ -153,6 +153,22 @@ of a future need.
 
 ## Making a behavior change
 
+Internal improvement/delivery uses [IMPROVEMENT.md](IMPROVEMENT.md),
+`internal/gitrepo`, `internal/software` and the Foundation delivery tables.
+Keep Go-only bounded bundle parsing, original source fingerprints, ref CAS,
+explicit registry custody and private root/native capabilities together.
+The four executable ZIP format and official merged-release/acceptance guards
+remain unchanged; source archive/Git bundle/manifest are companion assets.
+Internal builds use approved recipes under existing work, not fabricated
+Actions events or compilation by an updater.
+
+Test new/existing tools, feature/incident intake, delegate readiness, capacity
+windows/slices, exact Git source/integration, build output shapes, signing,
+adoption/consumer compatibility, server-first rollout, backup/uncertain replay
+and unchanged modes/identities. Typed DTO changes require current native ledger
+generation. Server SQL12 is ordered after immutable SQL11; local SQL1 and
+API/native versions remain separate.
+
 Provider/model defaults use the existing agent JSON record and independent
 preference revisions/receipts, not the authority revision or a new SQL schema.
 Wire Founder CLI/native/proxy/mobile controls, per-invocation selection and
