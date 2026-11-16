@@ -37,6 +37,9 @@ func requireFileReader(ctx context.Context, q queryer, actor string, file domain
 }
 
 func requireFileOwner(actor string, file domain.SharedFile) error {
+	if file.RegistryID != "" {
+		return domain.Fail(domain.Denied, "file bytes were explicitly submitted to immutable registry custody; original ownership grants no release deletion or re-sharing")
+	}
 	if actor != file.OwnerID {
 		return domain.Fail(domain.Denied, "only the file's owner may finalize, publish, grant, revoke or delete it")
 	}
@@ -354,6 +357,9 @@ func (s *Store) PublishFile(ctx context.Context, actor, id string, req domain.Fi
 }
 
 func (s *Store) deleteFile(ctx context.Context, tx *sql.Tx, file *domain.SharedFile) error {
+	if file.RegistryID != "" {
+		return domain.Fail(domain.Denied, "registry custody preserves referenced source and release bytes")
+	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM file_chunks WHERE file_id=?", file.ID); err != nil {
 		return err
 	}

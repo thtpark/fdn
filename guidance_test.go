@@ -24,7 +24,7 @@ func TestGuideCatalogSkillsLinksAndCurrentCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantSkills := []string{"foundation-develop", "foundation-enroll", "foundation-install", "foundation-operations", "foundation-provider-auth", "foundation-sharing", "foundation-work"}
-	if !slices.Equal(catalog.Skills, wantSkills) || len(catalog.Files) != 17 || !domain.ValidHash(catalog.ContentSHA256) {
+	if !slices.Equal(catalog.Skills, wantSkills) || len(catalog.Files) != 18 || !domain.ValidHash(catalog.ContentSHA256) {
 		t.Fatal("incomplete guide catalog", catalog)
 	}
 	link := regexp.MustCompile(`\]\(([^)]+)\)`)

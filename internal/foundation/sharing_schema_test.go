@@ -29,8 +29,8 @@ func TestSharingSQL11PreservesSQL10RecordsAndRejectsRollback(t *testing.T) {
 	}
 	var version int
 	var retained string
-	if err := current.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 11 {
-		t.Fatal("ordered sharing migration did not append SQL11", version, err)
+	if err := current.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != len(serverSchemas()) {
+		t.Fatal("ordered migration did not preserve sharing through the current schema", version, err)
 	}
 	if err := current.QueryRow("SELECT data FROM agents WHERE id='agent_retained'").Scan(&retained); err != nil || retained != payload {
 		t.Fatal("sharing migration rewrote existing records", retained, err)

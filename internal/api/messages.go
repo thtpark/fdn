@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -85,6 +86,18 @@ func operationQueries(pattern string) map[string]bool {
 		names = []string{"kind", "scope", "target", "cursor", "limit", "include_archived"}
 	case "GET /v1/publications/{id}/versions":
 		names = []string{"cursor", "limit"}
+	case "GET /v1/improvements":
+		names = []string{"project", "state", "cursor", "limit"}
+	case "GET /v1/repositories", "GET /v1/software-products":
+		names = []string{"project", "cursor", "limit"}
+	case "GET /v1/repositories/{id}/file":
+		names = []string{"commit", "path"}
+	case "GET /v1/artifacts/{id}/chunks":
+		names = []string{"offset"}
+	case "GET /v1/software-consumers":
+		names = []string{"project"}
+	case "GET /v1/software-releases":
+		names = []string{"product", "cursor", "limit"}
 	case "GET /v1/notes":
 		names = []string{"scope", "target"}
 	case "GET /v1/note-context":
@@ -216,6 +229,7 @@ func messageCatalog() map[string]*messageOperation {
 		s := &Server{mux: http.NewServeMux()}
 		s.routes()
 		s.publicationRoutes()
+		s.deliveryRoutes()
 		s.identityRoutes()
 		s.healthRoutes()
 		s.agentOperationRoutes()
@@ -493,6 +507,89 @@ func (s *Server) updateMessageRoutes() {
 
 func (s *Server) serveMaintenanceMessages(ctx context.Context, conn net.Conn) error {
 	session, err := message.NewSession(ctx, conn, func(call context.Context, request message.Request) ([]byte, error) {
+		if request.Operation == "query.maintenance.software-preflights" || request.Operation == "query.maintenance.software-requests" {
+			if request.Target != "" || len(request.Query) != 0 || len(request.Payload) != 0 {
+				return nil, domain.Fail(domain.Denied, "Foundation software inbox accepts no caller scope or body")
+			}
+			if request.Operation == "query.maintenance.software-preflights" {
+				items, err := s.Store.SoftwarePreflightInbox(call, "native-maintenance", true)
+				if err != nil {
+					return nil, err
+				}
+				return message.MarshalPayload(items)
+			}
+			items, err := s.Store.SoftwareInbox(call, "native-maintenance", true)
+			if err != nil {
+				return nil, err
+			}
+			return message.MarshalPayload(items)
+		}
+		if request.Operation == "query.maintenance.software-artifact" || request.Operation == "query.maintenance.software-artifact-chunk" {
+			if !domain.ValidOperation(request.Target) || len(request.Payload) != 0 {
+				return nil, domain.Fail(domain.Denied, "Foundation artifact read requires an exact immutable artifact reference")
+			}
+			if request.Operation == "query.maintenance.software-artifact" {
+				if len(request.Query) != 0 {
+					return nil, domain.Fail(domain.Invalid, "artifact metadata is queryless")
+				}
+				item, err := s.Store.NativeArtifact(call, request.Target)
+				if err != nil {
+					return nil, err
+				}
+				return message.MarshalPayload(item)
+			}
+			if len(request.Query) != 1 || request.Query["offset"] == "" {
+				return nil, domain.Fail(domain.Invalid, "artifact chunk requires only an aligned offset")
+			}
+			offset, err := strconv.ParseInt(request.Query["offset"], 10, 64)
+			if err != nil {
+				return nil, domain.Fail(domain.Invalid, "artifact offset must be an integer")
+			}
+			chunk, err := s.Store.NativeArtifactChunk(call, request.Target, offset)
+			if err != nil {
+				return nil, err
+			}
+			return message.MarshalPayload(chunk)
+		}
+		if request.Operation == "command.maintenance.software-preflight-result" || request.Operation == "command.maintenance.software-result" || request.Operation == "command.maintenance.software-lease" {
+			if request.Target != "" || len(request.Query) != 0 {
+				return nil, domain.Fail(domain.Denied, "Foundation software result/lease accepts no caller scope")
+			}
+			switch request.Operation {
+			case "command.maintenance.software-preflight-result":
+				var input domain.SoftwarePreflightReport
+				if err := message.UnmarshalPayload(request.Payload, &input); err != nil {
+					return nil, err
+				}
+				result, err := s.Store.ReportSoftwarePreflight(call, "native-maintenance", true, input)
+				if err != nil {
+					return nil, err
+				}
+				return message.MarshalPayload(result)
+			case "command.maintenance.software-result":
+				var input domain.SoftwareResultRequest
+				if err := message.UnmarshalPayload(request.Payload, &input); err != nil {
+					return nil, err
+				}
+				result, err := s.Store.ReportSoftware(call, "native-maintenance", true, input)
+				if err != nil {
+					return nil, err
+				}
+				return message.MarshalPayload(result)
+			default:
+				var input domain.UpgradeLeaseRequest
+				if err := message.UnmarshalPayload(request.Payload, &input); err != nil {
+					return nil, err
+				}
+				lease, err := s.Store.LeaseSoftware(call, "native-maintenance", true, input, func(lease domain.UpgradeLease) (string, error) {
+					return upgrade.SignLease(lease, s.identity.key)
+				})
+				if err != nil {
+					return nil, err
+				}
+				return message.MarshalPayload(lease)
+			}
+		}
 		if request.Operation == "query.maintenance.agent-restarts" {
 			if request.Target != "" || len(request.Query) != 0 || len(request.Payload) != 0 {
 				return nil, domain.Fail(domain.Denied, "native restart inbox accepts no caller scope or body")

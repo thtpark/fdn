@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -27,7 +28,9 @@ var nativeBinaries = []string{"agent-cli", "agent-service", "agent-identity", "f
 var workerBinaries = []string{"agent-cli", "agent-service", "agent-identity"}
 
 func main() {
-	if err := run(); err != nil {
+	sourceOnly := flag.Bool("source-only", false, "create source companion assets only, still requiring the exact merged release event")
+	flag.Parse()
+	if err := run(*sourceOnly); err != nil {
 		fmt.Fprintln(os.Stderr, domain.AsFault(err).Message)
 		os.Exit(1)
 	}
@@ -35,11 +38,14 @@ func main() {
 
 func command(args ...string) (string, error) {
 	cmd := exec.Command(args[0], args[1:]...)
+	if args[0] == "go" {
+		cmd.Env = releaseGoEnvironment()
+	}
 	data, err := cmd.Output()
 	return strings.TrimSpace(string(data)), err
 }
 
-func run() error {
+func run(sourceOnly bool) error {
 	ctx := context.Background()
 	commit, err := command("git", "rev-parse", "HEAD")
 	if err != nil {
@@ -56,10 +62,6 @@ func run() error {
 	if err := distribution.CheckReleaseEvent(os.Getenv("GITHUB_ACTIONS"), os.Getenv("GITHUB_EVENT_NAME"), event, commit); err != nil {
 		return err
 	}
-	goos, arch := os.Getenv("TARGET_OS"), os.Getenv("TARGET_ARCH")
-	if !((goos == "linux" && (arch == "amd64" || arch == "arm64")) || (goos == "darwin" && arch == "arm64")) {
-		return domain.Fail(domain.Invalid, "unsupported release target")
-	}
 	versionBytes, err := os.ReadFile("VERSION")
 	if err != nil {
 		return err
@@ -69,20 +71,27 @@ func run() error {
 		return domain.Fail(domain.Invalid, "VERSION must contain an exact semantic version")
 	}
 	domain.Version, domain.Commit = version, commit
-	epochText, err := command("git", "show", "-s", "--format=%ct", commit)
+	if sourceOnly {
+		return packageSource(ctx, version, commit)
+	}
+	goos, arch := os.Getenv("TARGET_OS"), os.Getenv("TARGET_ARCH")
+	if !((goos == "linux" && (arch == "amd64" || arch == "arm64")) || (goos == "darwin" && arch == "arm64")) {
+		return domain.Fail(domain.Invalid, "unsupported release target")
+	}
+	source, err := distribution.CheckSourceCheckout(ctx, ".", version, commit)
 	if err != nil {
 		return err
 	}
-	epoch, err := strconv.ParseInt(epochText, 10, 64)
-	if err != nil {
+	if err := distribution.CheckTrackedBuildInputs(ctx, "."); err != nil {
 		return err
 	}
+	epoch, epochText := source.SourceDateEpoch, strconv.FormatInt(source.SourceDateEpoch, 10)
 	target := goos + "-" + arch
 	out := filepath.Join("dist", target)
 	if err := os.MkdirAll(out, 0755); err != nil {
 		return err
 	}
-	stage, err := os.MkdirTemp("", "fdn-package-")
+	stage, err := os.MkdirTemp("dist", ".fdn-package-")
 	if err != nil {
 		return err
 	}
@@ -96,7 +105,7 @@ func run() error {
 				return err
 			}
 			cmd := exec.CommandContext(ctx, "go", "build", "-trimpath", "-buildvcs=false", "-ldflags", ldflags, "-o", filepath.Join(directory, name), "./cmd/"+name)
-			cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS="+goos, "GOARCH="+arch, "GOTOOLCHAIN=local", "SOURCE_DATE_EPOCH="+epochText)
+			cmd.Env = append(releaseGoEnvironment(), "CGO_ENABLED=0", "GOOS="+goos, "GOARCH="+arch, "SOURCE_DATE_EPOCH="+epochText)
 			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 			if err := cmd.Run(); err != nil {
 				return err
@@ -116,6 +125,12 @@ func run() error {
 	}
 	notices, err := thirdPartyNotices()
 	if err != nil {
+		return err
+	}
+	if _, err := distribution.CheckSourceCheckout(ctx, ".", version, commit); err != nil {
+		return err
+	}
+	if err := distribution.CheckTrackedBuildInputs(ctx, "."); err != nil {
 		return err
 	}
 	native := []distribution.Entry{{Name: "THIRD_PARTY_NOTICES", Data: notices, Mode: 0644}}
@@ -264,6 +279,10 @@ printf '%s\n' 'State and identities are preserved. Follow DEPLOYMENT.md for sign
 		return errors.Join(writeErr, file.Close())
 	}
 	return nil
+}
+
+func releaseGoEnvironment() []string {
+	return append(os.Environ(), "GO111MODULE=on", "GOWORK=off", "GOENV=off", "GOFLAGS=-mod=readonly", "GOTOOLCHAIN=local")
 }
 
 func foundationUnit() (platform.Definition, error) {

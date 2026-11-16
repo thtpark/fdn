@@ -124,7 +124,7 @@ func updateRoutes(update domain.Update, actor string) updateTargets {
 		return targets
 	case "task", "run":
 		return updateWork | updateSessions
-	case "comment", "worklog", "attention", "note":
+	case "comment", "worklog", "attention", "note", "improvement", "improvement-policy", "repository", "software", "build", "release":
 		return updateWork
 	default:
 		// Unknown future invalidations must not silently strand approved work.

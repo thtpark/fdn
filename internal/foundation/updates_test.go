@@ -643,8 +643,8 @@ func TestUpdatesCurrentSchemaReopenPreservesState(t *testing.T) {
 	}
 	defer s.Close()
 	var version int
-	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 11 {
-		t.Fatal("ordered migrations through SQL11 failed", version, err)
+	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != len(serverSchemas()) {
+		t.Fatal("ordered migrations through the current schema failed", version, err)
 	}
 	for table, hash := range before {
 		if got := securityTableHash(t, s.db, table); got != hash {

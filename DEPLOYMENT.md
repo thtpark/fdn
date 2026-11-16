@@ -87,6 +87,53 @@ not itself provision ingress or start the root helper.
 
 ## Founder-controlled native upgrades
 
+For internal releases and new/existing tools, read
+[IMPROVEMENT.md](IMPROVEMENT.md). Product registration and shared capability
+metadata do not enroll a native installer. Provision trust and receiver
+permissions separately, under the existing account and administrator boundaries.
+
+- Configure the server's protected `distribution_key_file` using an independent
+  Ed25519 key, not its enrollment/permission CA. Pin the corresponding public
+  key in each approved native product policy.
+- General-product policies identify exact instance, target/binding/generation,
+  product/kind/platform, existing user/UID/HOME, protected receiver state,
+  managed prefix, `public_key_file`, `ca_file`, method and backup paths.
+  Methods are archive, user-service and explicit administrator-enrolled Debian.
+  No arbitrary download URL, root hook, service command or caller helper path
+  is granted by a software request.
+- Existing installations require an explicitly verified current/adoption
+  baseline, native receipt/source hashes, ownership and manager compatibility.
+  Unknown state remains unmanaged; source discovery is not takeover authority.
+- For Foundation/Agent paired services, explicitly extend the existing updater
+  policy with `enable_internal_software`, `internal_product_id` and
+  `distribution_public_key_file`; use `--updater-policy`, not a relabeled
+  general tool policy. Preserve its Role/Name, actual user/HOME, binary/config/
+  identity/service bindings and all backup paths including the actual file store.
+- Supervise `software-worker` separately from every service it may stop, with
+  restart-on-failure/always. `software-helper` is the narrow one-shot interface.
+  The worker persists preflight replies and native outbox before acknowledgement.
+  Lost delivery does not repeat stop/backup/install or renew permission.
+
+```sh
+# Independently provisioned native operator context:
+fdn-service software-worker --updater-policy /APPROVED/foundation-updater.json
+# Existing installing user's receiver for a normal internal product:
+agent-service software-worker --policy /APPROVED/product-policy.json
+```
+
+Founder uses `software plan/apply/status` against exact immutable releases and
+computer bindings. Planning/queued/staged are distinct from actual installation.
+The exact native permit lasts at most 15 minutes; the unpredictable start proof
+is 30 seconds. Stage every verified byte before stopping the hosting Foundation.
+Keep the private plan/off-host age identity, encrypted cold snapshots, source/
+policy receipts, work/session/report fences and newer/manual mode intent.
+Ordinary tasks, product publication, shell approval and OS administrator access
+do not replace Foundation project/Founder installation authority.
+
+New native components/policies require a separately authorized bootstrap.
+Passing source fixtures cannot qualify actual root/user managers, multi-UID
+isolation, production installation, restore or a full fleet.
+
 Local development can run from source using
 [the isolated source wrappers](DEVELOPMENT.md#running-source-with-an-isolated-testing-identity).
 The normal release path is:

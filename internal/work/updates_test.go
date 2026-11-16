@@ -322,6 +322,9 @@ func (f *pushFixture) RoundTrip(request *http.Request) (*http.Response, error) {
 		}
 		return f.response(message, nil)
 	}
+	if request.Method == http.MethodGet && path == "/v1/improvement-policy" {
+		return f.response(domain.ImprovementPolicy{ProjectIDs: []string{}}, nil)
+	}
 	f.t.Errorf("unexpected push-fixture action: %s %s", request.Method, path)
 	return f.response(nil, domain.Fail(domain.Invalid, "unexpected fixture selector"))
 }

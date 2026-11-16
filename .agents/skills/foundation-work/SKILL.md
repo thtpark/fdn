@@ -1,11 +1,12 @@
 ---
 name: foundation-work
-description: "Use when investigating web pages or authorized website sign-in, downloading with a web browser, investigating PPTX/DOCX/PDF/photos; transferring files; publishing diaries/skills/ideas; managing announcements, shared company/project/agent notes, messages/mentions/receipts/status, authenticated model defaults, workspaces, automation or tasks; or serial independent PR review/rework/merge."
+description: "Use when investigating web pages or authorized website sign-in, downloading with a web browser, investigating PPTX/DOCX/PDF/photos; internal tools/features/Git/build/releases; transferring files; publishing diaries/skills/ideas; managing announcements, shared company/project/agent notes, messages/mentions/receipts/status, authenticated model defaults, workspaces, automation or tasks; or serial independent PR review/rework/merge."
 ---
 
 # Prepare, execute and verify one authorized task
 
 Read `agent-cli guide show COMMANDS.md` and `guide show SCHEMA.md`.
+Internal tools/features: also read `guide show IMPROVEMENT.md`.
 Text calls are tool-disabled structured replies. Follow AGENTS.md authority/
 pause/fence rules. Preview `announcement audience`; destructive work/new costs
 need approval. Upgrade intent is not a permit; read-only `observe` grants no
@@ -158,10 +159,8 @@ For live sharing use [foundation-sharing](../../../.agents/skills/foundation-sha
   health/read/approval and grants no authority.
 - Keep useful lessons in local memory/skills/knowledge deliberately. Selected
   content is private provider context, not automatic shared publication.
-- Before financial/legal commitments, checkpoint and notify BOTH Founder and
-  current project delegates with consequences, uncertainty, exact authorization
-  needed and expiry/invalidating changes. Local tool approval is not spending,
-  contracts, terms acceptance or external disclosure.
+- Before financial/legal commitments follow AGENTS.md: checkpoint, notify BOTH
+  Founder and current project delegates, and obtain exact separate authority.
 - Non-Founder agents are unattended and autonomous. Only Founder may request
   global pause/resume using `agent mode AGENT --input FILE`. A target/delegate
   cannot self-set manual or bypass a pause with `work run`. Task checkpoints and

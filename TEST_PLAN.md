@@ -6,6 +6,63 @@ Do not import a previous implementation's test counts/coverage as Go evidence.
 
 ## Independent suites
 
+### Continuous improvement and internal delivery (0.3.45)
+
+```sh
+go test -race -count=1 . ./internal/gitrepo ./internal/software ./internal/foundation ./internal/api ./internal/cli ./internal/work ./internal/observe ./internal/identityservice ./internal/upgrade -run 'Improvement|InternalSoftwareBridge|Source|Publication|Guide'
+go run ./tools/protocol --check
+```
+
+Scenario expectations:
+
+- Feature requests without incidents; new and existing internal tools; correct
+  owning project and related original task, never cross-project parenting,
+  Adhoc self-approval or implicit original-task completion.
+- Founder-only reserved project/policy/product/source initialization;
+  current scoped delegate triage/readiness and independent exact verification.
+  Raw/native/proxy malformed, protected or repeated-query inputs fail.
+- Exact per-agent/fleet/window/slice thresholds and server clocks; conservative
+  reservation charges survive response loss, settlement, restart and policy
+  revision; native/provider calls use the same work slot and bounded timeout.
+- Actual Git v2/v3 bundle clone/fsck/history; commit/tree/blob hashes, closure,
+  expanded-object/count/ref quotas, invalid paths/objects/deltas, corruption and
+  unsupported formats; SHA256 historical content fingerprints prevent
+  replacing bytes behind a retained SHA1 locator across repacked bundles.
+- Task-bound work refs and actual independent fast-forward/two-parent
+  integration; base/head/spec/result/authority drift, force/delete/foreign
+  refs and lost push/merge responses never bypass current gates.
+- Exact source/recipe/platform/dependency/native output shape; no sentence-only
+  completion or builder self-promotion. All declared platforms and immutable
+  source/payload bytes precede separately signed atomic release publication.
+  `TestBundleBuildRootPinsOwnedWorkspaceBelowSharedAncestor` proves ordinary
+  owner-controlled build roots work under shared temporary ancestors while
+  direct symlinks/foreign-writable roots and native privileged-policy ancestry
+  remain rejected. Build root identity and outputs are pinned through completion.
+- Generic archive/service/package fixtures cover first install, upgrades,
+  verified adoption, pinned dependencies and consumers, retained old files,
+  unsupported manager/privilege/trust denial, hashes/modes/paths/symlinks,
+  wrong target/platform, fixed expiry/nonce, backup and uncertain receipt replay.
+- Foundation paired-service bridge retains actual updater bindings, current
+  source baseline, all four archive binaries/exact Debian role payload,
+  independently verified original SoftwarePermit and fresh lease; no
+  signature relabeling, tar-as-ZIP shortcut, repeated manager effects or
+  inferred Root/Founder authority.
+- Companion source assets preserve the released commit/tree and clone ancestry
+  without dirty/untracked/private files; native four-binary ZIP layout and
+  official real-merge/pre-merge acceptance guards remain unchanged.
+- Ordered SQL12 migration preserves supported SQL5-SQL11 records, file bytes,
+  private identity/message/work receipts and refuses older/future binaries.
+  Backup/rehydration retains registry custody without new live byte storage.
+- Human/agent guide frontmatter/links/command coverage, both discovery roots,
+  source hashes and the existing 32 KiB operating-prompt bound remain valid.
+
+Run the smallest failed selectors first, then `bash scripts/test.sh all`.
+Use only disposable state/loopback/recording native effects and deterministic
+providers; no host service registration, live credentials, root tests, paid
+inference or real local release packaging. Passing these tests is not live
+provider, native service, whole-host restore, signing-key custody, multi-UID or
+1,000-agent fleet qualification.
+
 | Command | Coverage of the contract |
 | --- | --- |
 | `bash scripts/test.sh static` | Formatting, module checksums, vet, native/three-target builds, shell syntax |

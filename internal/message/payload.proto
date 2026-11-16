@@ -413,6 +413,26 @@ message Go_AuthenticationRefreshRequest {
   String reason = 5;
 }
 
+message Go_BuildOutput {
+  String path = 1;
+  Unsigned mode = 2;
+}
+
+message Go_BuildRecipe {
+  Signed format_version = 1;
+  String version = 2;
+  String platform = 3;
+  Signed timeout_seconds = 4;
+  List_Go_BuildStep steps = 5;
+  List_Go_BuildOutput outputs = 6;
+  List_Go_SoftwareDependency dependencies = 7;
+  String profile = 8;
+}
+
+message Go_BuildStep {
+  List_String args = 1;
+}
+
 message Go_CPUEnvironment {
   String model = 1;
   Signed logical_cores = 2;
@@ -439,6 +459,7 @@ message Go_ClaimRequest {
   String provider = 8;
   String model = 9;
   String source_run_id = 10;
+  String maintenance_id = 11;
 }
 
 message Go_Clarity {
@@ -480,6 +501,19 @@ message Go_ConnectionProfile {
   String ssh_host = 4;
   Signed ssh_port = 5;
   String known_hosts = 6;
+}
+
+message Go_DeliveryArtifact {
+  String id = 1;
+  String repository_id = 2;
+  String file_id = 3;
+  String project_id = 4;
+  String owner_id = 5;
+  String kind = 6;
+  String name = 7;
+  String sha256 = 8;
+  Signed size = 9;
+  Signed created_at = 10;
 }
 
 message Go_DiagnosticRefreshRequest {
@@ -644,6 +678,18 @@ message Go_FoundationExecutable {
   String running_commit = 8;
 }
 
+message Go_GitRef {
+  String name = 1;
+  String commit = 2;
+  String artifact_id = 3;
+}
+
+message Go_GitRefUpdate {
+  String name = 1;
+  String old = 2;
+  String new = 3;
+}
+
 message Go_GrantRequest {
   String operation_id = 1;
   Signed expected_revision = 2;
@@ -691,6 +737,19 @@ message Go_History {
   Bytes snapshot = 7;
 }
 
+message Go_HostedRepository {
+  String id = 1;
+  String project_id = 2;
+  String name = 3;
+  String description = 4;
+  String default_branch = 5;
+  Bool public = 6;
+  Signed revision = 7;
+  String created_by = 8;
+  Signed created_at = 9;
+  List_Go_GitRef refs = 10;
+}
+
 message Go_IdentityCertificate {
   Go_Agent agent = 1;
   Go_AgentIdentity identity = 2;
@@ -704,6 +763,78 @@ message Go_IdentityChallenge {
   Signed generation = 4;
   Signed expires_at = 5;
   String device_id = 6;
+}
+
+message Go_Improvement {
+  String id = 1;
+  String project_id = 2;
+  String product_id = 3;
+  String kind = 4;
+  String title = 5;
+  String description = 6;
+  String acceptance_criteria = 7;
+  String related_task_id = 8;
+  String incident_id = 9;
+  String requester_id = 10;
+  String origin = 11;
+  String state = 12;
+  String task_id = 13;
+  String duplicate_of = 14;
+  String decision_reason = 15;
+  Signed revision = 16;
+  Signed created_at = 17;
+  Signed updated_at = 18;
+}
+
+message Go_ImprovementDecision {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String decision = 3;
+  String reason = 4;
+  String assignee_id = 5;
+  String duplicate_of = 6;
+  Go_TaskSource source = 7;
+}
+
+message Go_ImprovementPolicy {
+  Signed revision = 1;
+  Bool enabled = 2;
+  List_String project_ids = 3;
+  Signed window_seconds = 4;
+  Signed slice_seconds = 5;
+  Signed per_agent_seconds = 6;
+  Signed fleet_seconds = 7;
+  String updated_by = 8;
+  Signed updated_at = 9;
+}
+
+message Go_ImprovementPolicyRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  Bool enabled = 3;
+  List_String project_ids = 4;
+  Signed window_seconds = 5;
+  Signed slice_seconds = 6;
+  Signed per_agent_seconds = 7;
+  Signed fleet_seconds = 8;
+  String reason = 9;
+}
+
+message Go_ImprovementRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String project_id = 3;
+  String product_id = 4;
+  String kind = 5;
+  String title = 6;
+  String description = 7;
+  String acceptance_criteria = 8;
+  String related_task_id = 9;
+}
+
+message Go_ImprovementResult {
+  Go_Improvement request = 1;
+  Go_Task task = 2;
 }
 
 message Go_ListQuery {
@@ -722,6 +853,49 @@ message Go_LocalStatus {
   Bool ready = 4;
   Signed owner_generation = 5;
   String problem = 6;
+}
+
+message Go_MaintenanceRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String project_id = 3;
+  String source_id = 4;
+  String kind = 5;
+  Signed seconds = 6;
+}
+
+message Go_MaintenanceReservation {
+  String id = 1;
+  String agent_id = 2;
+  String project_id = 3;
+  String source_id = 4;
+  String kind = 5;
+  Signed policy_revision = 6;
+  Signed seconds = 7;
+  Signed created_at = 8;
+  Signed expires_at = 9;
+  String state = 10;
+  String run_id = 11;
+}
+
+message Go_MaintenanceSettlement {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+}
+
+message Go_MaintenanceStatus {
+  Go_MaintenanceReservation reservation = 1;
+  Signed server_observed_at = 2;
+}
+
+message Go_MaintenanceUsage {
+  Go_ImprovementPolicy policy = 1;
+  Signed window_start = 2;
+  Signed agent_seconds = 3;
+  Signed fleet_seconds = 4;
+  String agent_id = 5;
+  Signed reservations = 6;
+  Signed server_observed_at = 7;
 }
 
 message Go_ManagedAccount {
@@ -1120,6 +1294,49 @@ message Go_ReportRequest {
   Go_Waiting waiting = 14;
 }
 
+message Go_RepositoryFile {
+  String repository_id = 1;
+  String commit = 2;
+  String path = 3;
+  String sha256 = 4;
+  Bytes data = 5;
+}
+
+message Go_RepositoryMerge {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String task_id = 3;
+  String run_id = 4;
+  Signed spec_generation = 5;
+  Signed result_generation = 6;
+  String source_ref = 7;
+  String source_commit = 8;
+  String base_commit = 9;
+  String commit = 10;
+  String bundle_file_id = 11;
+  String reason = 12;
+}
+
+message Go_RepositoryPush {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String task_id = 3;
+  String run_id = 4;
+  String bundle_file_id = 5;
+  List_Go_GitRefUpdate updates = 6;
+}
+
+message Go_RepositoryRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String project_id = 3;
+  String name = 4;
+  String description = 5;
+  String default_branch = 6;
+  Bool public = 7;
+  String bundle_file_id = 8;
+}
+
 message Go_Result {
   String run_id = 1;
   Signed spec_generation = 2;
@@ -1166,6 +1383,8 @@ message Go_Run {
   Signed started_at = 18;
   Signed finished_at = 19;
   String source_run_id = 20;
+  String maintenance_id = 21;
+  Signed deadline_at = 22;
 }
 
 message Go_Screen {
@@ -1274,6 +1493,7 @@ message Go_SharedFile {
   Signed deleted_at = 15;
   Signed published_at = 16;
   String published_by = 17;
+  String registry_id = 18;
 }
 
 message Go_Sharing {
@@ -1302,6 +1522,328 @@ message Go_SharingSelectRequest {
   String resource_id = 4;
   Bool protected = 5;
   String reason = 6;
+}
+
+message Go_SoftwareAuthorizationRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String preflight_id = 3;
+  String maintenance_id = 4;
+  Go_SoftwareProposal proposal = 5;
+}
+
+message Go_SoftwareBuild {
+  String id = 1;
+  String product_id = 2;
+  String task_id = 3;
+  Signed spec_generation = 4;
+  Go_TaskSource source = 5;
+  Go_BuildRecipe recipe = 6;
+  String recipe_sha256 = 7;
+  String state = 8;
+  String builder_id = 9;
+  String run_id = 10;
+  String artifact_id = 11;
+  List_Go_SoftwarePayload payloads = 12;
+  String created_by = 13;
+  Signed created_at = 14;
+}
+
+message Go_SoftwareBuildRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String product_id = 3;
+  String task_id = 4;
+  String platform = 5;
+}
+
+message Go_SoftwareBuildResult {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String run_id = 3;
+  String bundle_file_id = 4;
+  String toolchain = 5;
+  String summary = 6;
+}
+
+message Go_SoftwareChallenge {
+  String id = 1;
+  String nonce = 2;
+  String instance_id = 3;
+  String target_id = 4;
+  String binding_id = 5;
+  Signed generation = 6;
+  String product_id = 7;
+  String platform = 8;
+  String state = 9;
+  String current_sha256 = 10;
+  String current_version = 11;
+  String current_release = 12;
+  String policy_sha256 = 13;
+  Signed expires_at = 14;
+}
+
+message Go_SoftwareConsumer {
+  String id = 1;
+  String project_id = 2;
+  Go_SoftwareDependency dependency = 3;
+  Signed revision = 4;
+  String updated_by = 5;
+  Signed updated_at = 6;
+}
+
+message Go_SoftwareConsumerRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String project_id = 3;
+  Go_SoftwareDependency dependency = 4;
+  String reason = 5;
+}
+
+message Go_SoftwareDependency {
+  String product_id = 1;
+  String release_id = 2;
+  String platform = 3;
+  String sha256 = 4;
+  String purpose = 5;
+}
+
+message Go_SoftwareDeployment {
+  String maintenance_id = 1;
+  String id = 2;
+  Go_SoftwarePermit permit = 3;
+  String state = 4;
+  Go_SoftwareResult result = 5;
+  Signed created_at = 6;
+}
+
+message Go_SoftwareInventory {
+  String binding_id = 1;
+  String agent_id = 2;
+  Signed generation = 3;
+  Go_SoftwareObservation observation = 4;
+  String release_id = 5;
+  String receipt_id = 6;
+  Signed observed_at = 7;
+}
+
+message Go_SoftwareMailboxReply {
+  List_Go_SoftwarePreflight preflights = 1;
+  List_Go_SoftwareDeployment deployments = 2;
+  Go_SoftwarePreflight preflight = 3;
+  Go_SoftwareDeployment deployment = 4;
+  Go_UpgradeLease lease = 5;
+  Go_DeliveryArtifact artifact = 6;
+  Go_FileChunk chunk = 7;
+  Go_Fault error = 8;
+}
+
+message Go_SoftwareMailboxRequest {
+  String action = 1;
+  String artifact_id = 2;
+  Signed offset = 3;
+  Go_SoftwarePreflightReport preflight_report = 4;
+  Go_SoftwareResultRequest result = 5;
+  Go_UpgradeLeaseRequest lease = 6;
+}
+
+message Go_SoftwareMaintenance {
+  String id = 1;
+  String founder_id = 2;
+  String founder_binding = 3;
+  Signed generation = 4;
+  List_String preflight_ids = 5;
+  List_String deployment_ids = 6;
+  List_Go_UpgradePausedMode paused_modes = 7;
+  String state = 8;
+  String reason = 9;
+}
+
+message Go_SoftwareMaintenanceRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String id = 3;
+  List_String preflight_ids = 4;
+  String reason = 5;
+}
+
+message Go_SoftwareManifest {
+  Signed format_version = 1;
+  String instance_id = 2;
+  String release_id = 3;
+  String product_id = 4;
+  String project_id = 5;
+  String kind = 6;
+  String version = 7;
+  Signed revision = 8;
+  Go_TaskSource source = 9;
+  List_Go_SoftwarePlatform platforms = 10;
+  Signed created_at = 11;
+}
+
+message Go_SoftwareNativeReply {
+  Go_SoftwareChallenge challenge = 1;
+  Go_SoftwareResult result = 2;
+  String state = 3;
+  Go_Fault error = 4;
+}
+
+message Go_SoftwareNativeRequest {
+  String action = 1;
+  String id = 2;
+  String product_id = 3;
+  Go_SoftwarePermit permit = 4;
+}
+
+message Go_SoftwareObservation {
+  String product_id = 1;
+  String state = 2;
+  String version = 3;
+  String sha256 = 4;
+  String manager = 5;
+}
+
+message Go_SoftwareObservationRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  Go_SoftwareObservation observation = 3;
+}
+
+message Go_SoftwarePayload {
+  String path = 1;
+  String sha256 = 2;
+  Signed size = 3;
+  Unsigned mode = 4;
+}
+
+message Go_SoftwarePermit {
+  String id = 1;
+  Go_SoftwareProposal proposal = 2;
+  String actor_id = 3;
+  String actor_binding_id = 4;
+  Signed actor_generation = 5;
+  Signed issued_at = 6;
+  Signed expires_at = 7;
+  String signature = 8;
+}
+
+message Go_SoftwarePlatform {
+  String platform = 1;
+  String artifact_id = 2;
+  String sha256 = 3;
+  Signed size = 4;
+  String profile = 5;
+  List_Go_SoftwarePayload payloads = 6;
+  List_Go_SoftwareDependency dependencies = 7;
+}
+
+message Go_SoftwarePreflight {
+  String id = 1;
+  String founder_id = 2;
+  String founder_binding = 3;
+  Signed generation = 4;
+  Signed target_generation = 5;
+  Go_SoftwarePreflightRequest request = 6;
+  String state = 7;
+  Signed expires_at = 8;
+  Go_SoftwareNativeReply result = 9;
+}
+
+message Go_SoftwarePreflightReport {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String id = 3;
+  Go_SoftwareNativeReply result = 4;
+}
+
+message Go_SoftwarePreflightRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String target_id = 3;
+  String binding_id = 4;
+  String product_id = 5;
+  Go_SoftwareNativeRequest native = 6;
+}
+
+message Go_SoftwareProduct {
+  String id = 1;
+  String project_id = 2;
+  String repository_id = 3;
+  String name = 4;
+  String kind = 5;
+  String provenance = 6;
+  String recipe_path = 7;
+  Map_String recipe_paths = 8;
+  List_String capabilities = 9;
+  String license = 10;
+  Signed revision = 11;
+  String created_by = 12;
+  Signed created_at = 13;
+}
+
+message Go_SoftwareProductRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String project_id = 3;
+  String repository_id = 4;
+  String name = 5;
+  String kind = 6;
+  String provenance = 7;
+  String recipe_path = 8;
+  Map_String recipe_paths = 9;
+  List_String capabilities = 10;
+  String license = 11;
+  String reason = 12;
+}
+
+message Go_SoftwareProposal {
+  Go_SoftwareChallenge challenge = 1;
+  Go_SoftwareRelease release = 2;
+  String backup_recipient = 3;
+  String reason = 4;
+}
+
+message Go_SoftwareRelease {
+  String id = 1;
+  Go_SoftwareManifest manifest = 2;
+  String key_id = 3;
+  String signature = 4;
+  List_String build_ids = 5;
+  String created_by = 6;
+  Bool revoked = 7;
+}
+
+message Go_SoftwareReleaseChange {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String reason = 3;
+}
+
+message Go_SoftwareReleaseRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String product_id = 3;
+  List_String build_ids = 4;
+  String reason = 5;
+}
+
+message Go_SoftwareResult {
+  Bool resume_safe = 1;
+  String permit_id = 2;
+  String permit_sha256 = 3;
+  String product_id = 4;
+  String release_id = 5;
+  String artifact_id = 6;
+  String sha256 = 7;
+  String backup_sha256 = 8;
+  String state = 9;
+  String code = 10;
+}
+
+message Go_SoftwareResultRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  Go_SoftwareResult result = 3;
 }
 
 message Go_SystemEnvironment {
@@ -1352,6 +1894,9 @@ message Go_Task {
   List_Go_FileReference attachments = 37;
   String recovery_run_id = 38;
   Signed recovery_attempts = 39;
+  Go_TaskSource source = 40;
+  Go_TaskSource result_source = 41;
+  String build_id = 42;
 }
 
 message Go_TaskChange {
@@ -1382,6 +1927,7 @@ message Go_TaskChange {
   Bool stopped_acknowledged = 25;
   List_String attachment_ids = 26;
   Go_ProviderCatalogBinding catalog = 27;
+  Go_TaskSource source = 28;
 }
 
 message Go_TaskRequest {
@@ -1398,6 +1944,14 @@ message Go_TaskRequest {
   List_String attachment_ids = 11;
   String provider = 12;
   String model = 13;
+  Go_TaskSource source = 14;
+}
+
+message Go_TaskSource {
+  String repository_id = 1;
+  String commit = 2;
+  String ref = 3;
+  String product_id = 4;
 }
 
 message Go_Terminal {
@@ -1837,6 +2391,21 @@ message List_Go_AuthenticationRefreshRequest {
   bool present = 2;
 }
 
+message List_Go_BuildOutput {
+  repeated Go_BuildOutput items = 1;
+  bool present = 2;
+}
+
+message List_Go_BuildRecipe {
+  repeated Go_BuildRecipe items = 1;
+  bool present = 2;
+}
+
+message List_Go_BuildStep {
+  repeated Go_BuildStep items = 1;
+  bool present = 2;
+}
+
 message List_Go_CPUEnvironment {
   repeated Go_CPUEnvironment items = 1;
   bool present = 2;
@@ -1874,6 +2443,11 @@ message List_Go_ComputerModelOptions {
 
 message List_Go_ConnectionProfile {
   repeated Go_ConnectionProfile items = 1;
+  bool present = 2;
+}
+
+message List_Go_DeliveryArtifact {
+  repeated Go_DeliveryArtifact items = 1;
   bool present = 2;
 }
 
@@ -1977,6 +2551,16 @@ message List_Go_FoundationExecutable {
   bool present = 2;
 }
 
+message List_Go_GitRef {
+  repeated Go_GitRef items = 1;
+  bool present = 2;
+}
+
+message List_Go_GitRefUpdate {
+  repeated Go_GitRefUpdate items = 1;
+  bool present = 2;
+}
+
 message List_Go_GrantRequest {
   repeated Go_GrantRequest items = 1;
   bool present = 2;
@@ -2007,6 +2591,11 @@ message List_Go_History {
   bool present = 2;
 }
 
+message List_Go_HostedRepository {
+  repeated Go_HostedRepository items = 1;
+  bool present = 2;
+}
+
 message List_Go_IdentityCertificate {
   repeated Go_IdentityCertificate items = 1;
   bool present = 2;
@@ -2017,6 +2606,36 @@ message List_Go_IdentityChallenge {
   bool present = 2;
 }
 
+message List_Go_Improvement {
+  repeated Go_Improvement items = 1;
+  bool present = 2;
+}
+
+message List_Go_ImprovementDecision {
+  repeated Go_ImprovementDecision items = 1;
+  bool present = 2;
+}
+
+message List_Go_ImprovementPolicy {
+  repeated Go_ImprovementPolicy items = 1;
+  bool present = 2;
+}
+
+message List_Go_ImprovementPolicyRequest {
+  repeated Go_ImprovementPolicyRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_ImprovementRequest {
+  repeated Go_ImprovementRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_ImprovementResult {
+  repeated Go_ImprovementResult items = 1;
+  bool present = 2;
+}
+
 message List_Go_ListQuery {
   repeated Go_ListQuery items = 1;
   bool present = 2;
@@ -2024,6 +2643,31 @@ message List_Go_ListQuery {
 
 message List_Go_LocalStatus {
   repeated Go_LocalStatus items = 1;
+  bool present = 2;
+}
+
+message List_Go_MaintenanceRequest {
+  repeated Go_MaintenanceRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_MaintenanceReservation {
+  repeated Go_MaintenanceReservation items = 1;
+  bool present = 2;
+}
+
+message List_Go_MaintenanceSettlement {
+  repeated Go_MaintenanceSettlement items = 1;
+  bool present = 2;
+}
+
+message List_Go_MaintenanceStatus {
+  repeated Go_MaintenanceStatus items = 1;
+  bool present = 2;
+}
+
+message List_Go_MaintenanceUsage {
+  repeated Go_MaintenanceUsage items = 1;
   bool present = 2;
 }
 
@@ -2232,6 +2876,26 @@ message List_Go_ReportRequest {
   bool present = 2;
 }
 
+message List_Go_RepositoryFile {
+  repeated Go_RepositoryFile items = 1;
+  bool present = 2;
+}
+
+message List_Go_RepositoryMerge {
+  repeated Go_RepositoryMerge items = 1;
+  bool present = 2;
+}
+
+message List_Go_RepositoryPush {
+  repeated Go_RepositoryPush items = 1;
+  bool present = 2;
+}
+
+message List_Go_RepositoryRequest {
+  repeated Go_RepositoryRequest items = 1;
+  bool present = 2;
+}
+
 message List_Go_Result {
   repeated Go_Result items = 1;
   bool present = 2;
@@ -2312,6 +2976,171 @@ message List_Go_SharingSelectRequest {
   bool present = 2;
 }
 
+message List_Go_SoftwareAuthorizationRequest {
+  repeated Go_SoftwareAuthorizationRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareBuild {
+  repeated Go_SoftwareBuild items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareBuildRequest {
+  repeated Go_SoftwareBuildRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareBuildResult {
+  repeated Go_SoftwareBuildResult items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareChallenge {
+  repeated Go_SoftwareChallenge items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareConsumer {
+  repeated Go_SoftwareConsumer items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareConsumerRequest {
+  repeated Go_SoftwareConsumerRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareDependency {
+  repeated Go_SoftwareDependency items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareDeployment {
+  repeated Go_SoftwareDeployment items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareInventory {
+  repeated Go_SoftwareInventory items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareMailboxReply {
+  repeated Go_SoftwareMailboxReply items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareMailboxRequest {
+  repeated Go_SoftwareMailboxRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareMaintenance {
+  repeated Go_SoftwareMaintenance items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareMaintenanceRequest {
+  repeated Go_SoftwareMaintenanceRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareManifest {
+  repeated Go_SoftwareManifest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareNativeReply {
+  repeated Go_SoftwareNativeReply items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareNativeRequest {
+  repeated Go_SoftwareNativeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareObservation {
+  repeated Go_SoftwareObservation items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareObservationRequest {
+  repeated Go_SoftwareObservationRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwarePayload {
+  repeated Go_SoftwarePayload items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwarePermit {
+  repeated Go_SoftwarePermit items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwarePlatform {
+  repeated Go_SoftwarePlatform items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwarePreflight {
+  repeated Go_SoftwarePreflight items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwarePreflightReport {
+  repeated Go_SoftwarePreflightReport items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwarePreflightRequest {
+  repeated Go_SoftwarePreflightRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareProduct {
+  repeated Go_SoftwareProduct items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareProductRequest {
+  repeated Go_SoftwareProductRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareProposal {
+  repeated Go_SoftwareProposal items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareRelease {
+  repeated Go_SoftwareRelease items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareReleaseChange {
+  repeated Go_SoftwareReleaseChange items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareReleaseRequest {
+  repeated Go_SoftwareReleaseRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareResult {
+  repeated Go_SoftwareResult items = 1;
+  bool present = 2;
+}
+
+message List_Go_SoftwareResultRequest {
+  repeated Go_SoftwareResultRequest items = 1;
+  bool present = 2;
+}
+
 message List_Go_SystemEnvironment {
   repeated Go_SystemEnvironment items = 1;
   bool present = 2;
@@ -2329,6 +3158,11 @@ message List_Go_TaskChange {
 
 message List_Go_TaskRequest {
   repeated Go_TaskRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_TaskSource {
+  repeated Go_TaskSource items = 1;
   bool present = 2;
 }
 
@@ -2652,6 +3486,21 @@ message List_Page_Go_AuthenticationRefreshRequest {
   bool present = 2;
 }
 
+message List_Page_Go_BuildOutput {
+  repeated Page_Go_BuildOutput items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_BuildRecipe {
+  repeated Page_Go_BuildRecipe items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_BuildStep {
+  repeated Page_Go_BuildStep items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_CPUEnvironment {
   repeated Page_Go_CPUEnvironment items = 1;
   bool present = 2;
@@ -2689,6 +3538,11 @@ message List_Page_Go_ComputerModelOptions {
 
 message List_Page_Go_ConnectionProfile {
   repeated Page_Go_ConnectionProfile items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_DeliveryArtifact {
+  repeated Page_Go_DeliveryArtifact items = 1;
   bool present = 2;
 }
 
@@ -2792,6 +3646,16 @@ message List_Page_Go_FoundationExecutable {
   bool present = 2;
 }
 
+message List_Page_Go_GitRef {
+  repeated Page_Go_GitRef items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_GitRefUpdate {
+  repeated Page_Go_GitRefUpdate items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_GrantRequest {
   repeated Page_Go_GrantRequest items = 1;
   bool present = 2;
@@ -2822,6 +3686,11 @@ message List_Page_Go_History {
   bool present = 2;
 }
 
+message List_Page_Go_HostedRepository {
+  repeated Page_Go_HostedRepository items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_IdentityCertificate {
   repeated Page_Go_IdentityCertificate items = 1;
   bool present = 2;
@@ -2832,6 +3701,36 @@ message List_Page_Go_IdentityChallenge {
   bool present = 2;
 }
 
+message List_Page_Go_Improvement {
+  repeated Page_Go_Improvement items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_ImprovementDecision {
+  repeated Page_Go_ImprovementDecision items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_ImprovementPolicy {
+  repeated Page_Go_ImprovementPolicy items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_ImprovementPolicyRequest {
+  repeated Page_Go_ImprovementPolicyRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_ImprovementRequest {
+  repeated Page_Go_ImprovementRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_ImprovementResult {
+  repeated Page_Go_ImprovementResult items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_ListQuery {
   repeated Page_Go_ListQuery items = 1;
   bool present = 2;
@@ -2839,6 +3738,31 @@ message List_Page_Go_ListQuery {
 
 message List_Page_Go_LocalStatus {
   repeated Page_Go_LocalStatus items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_MaintenanceRequest {
+  repeated Page_Go_MaintenanceRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_MaintenanceReservation {
+  repeated Page_Go_MaintenanceReservation items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_MaintenanceSettlement {
+  repeated Page_Go_MaintenanceSettlement items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_MaintenanceStatus {
+  repeated Page_Go_MaintenanceStatus items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_MaintenanceUsage {
+  repeated Page_Go_MaintenanceUsage items = 1;
   bool present = 2;
 }
 
@@ -3047,6 +3971,26 @@ message List_Page_Go_ReportRequest {
   bool present = 2;
 }
 
+message List_Page_Go_RepositoryFile {
+  repeated Page_Go_RepositoryFile items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RepositoryMerge {
+  repeated Page_Go_RepositoryMerge items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RepositoryPush {
+  repeated Page_Go_RepositoryPush items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RepositoryRequest {
+  repeated Page_Go_RepositoryRequest items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_Result {
   repeated Page_Go_Result items = 1;
   bool present = 2;
@@ -3127,6 +4071,171 @@ message List_Page_Go_SharingSelectRequest {
   bool present = 2;
 }
 
+message List_Page_Go_SoftwareAuthorizationRequest {
+  repeated Page_Go_SoftwareAuthorizationRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareBuild {
+  repeated Page_Go_SoftwareBuild items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareBuildRequest {
+  repeated Page_Go_SoftwareBuildRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareBuildResult {
+  repeated Page_Go_SoftwareBuildResult items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareChallenge {
+  repeated Page_Go_SoftwareChallenge items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareConsumer {
+  repeated Page_Go_SoftwareConsumer items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareConsumerRequest {
+  repeated Page_Go_SoftwareConsumerRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareDependency {
+  repeated Page_Go_SoftwareDependency items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareDeployment {
+  repeated Page_Go_SoftwareDeployment items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareInventory {
+  repeated Page_Go_SoftwareInventory items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareMailboxReply {
+  repeated Page_Go_SoftwareMailboxReply items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareMailboxRequest {
+  repeated Page_Go_SoftwareMailboxRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareMaintenance {
+  repeated Page_Go_SoftwareMaintenance items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareMaintenanceRequest {
+  repeated Page_Go_SoftwareMaintenanceRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareManifest {
+  repeated Page_Go_SoftwareManifest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareNativeReply {
+  repeated Page_Go_SoftwareNativeReply items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareNativeRequest {
+  repeated Page_Go_SoftwareNativeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareObservation {
+  repeated Page_Go_SoftwareObservation items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareObservationRequest {
+  repeated Page_Go_SoftwareObservationRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwarePayload {
+  repeated Page_Go_SoftwarePayload items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwarePermit {
+  repeated Page_Go_SoftwarePermit items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwarePlatform {
+  repeated Page_Go_SoftwarePlatform items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwarePreflight {
+  repeated Page_Go_SoftwarePreflight items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwarePreflightReport {
+  repeated Page_Go_SoftwarePreflightReport items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwarePreflightRequest {
+  repeated Page_Go_SoftwarePreflightRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareProduct {
+  repeated Page_Go_SoftwareProduct items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareProductRequest {
+  repeated Page_Go_SoftwareProductRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareProposal {
+  repeated Page_Go_SoftwareProposal items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareRelease {
+  repeated Page_Go_SoftwareRelease items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareReleaseChange {
+  repeated Page_Go_SoftwareReleaseChange items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareReleaseRequest {
+  repeated Page_Go_SoftwareReleaseRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareResult {
+  repeated Page_Go_SoftwareResult items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_SoftwareResultRequest {
+  repeated Page_Go_SoftwareResultRequest items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_SystemEnvironment {
   repeated Page_Go_SystemEnvironment items = 1;
   bool present = 2;
@@ -3144,6 +4253,11 @@ message List_Page_Go_TaskChange {
 
 message List_Page_Go_TaskRequest {
   repeated Page_Go_TaskRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_TaskSource {
+  repeated Page_Go_TaskSource items = 1;
   bool present = 2;
 }
 
@@ -3712,6 +4826,36 @@ message Map_Go_AuthenticationRefresh_Entry {
   Go_AuthenticationRefresh value = 2;
 }
 
+message Map_Go_BuildOutput {
+  repeated Map_Go_BuildOutput_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_BuildOutput_Entry {
+  optional string key = 1;
+  Go_BuildOutput value = 2;
+}
+
+message Map_Go_BuildRecipe {
+  repeated Map_Go_BuildRecipe_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_BuildRecipe_Entry {
+  optional string key = 1;
+  Go_BuildRecipe value = 2;
+}
+
+message Map_Go_BuildStep {
+  repeated Map_Go_BuildStep_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_BuildStep_Entry {
+  optional string key = 1;
+  Go_BuildStep value = 2;
+}
+
 message Map_Go_CPUEnvironment {
   repeated Map_Go_CPUEnvironment_Entry items = 1;
   bool present = 2;
@@ -3790,6 +4934,16 @@ message Map_Go_ConnectionProfile {
 message Map_Go_ConnectionProfile_Entry {
   optional string key = 1;
   Go_ConnectionProfile value = 2;
+}
+
+message Map_Go_DeliveryArtifact {
+  repeated Map_Go_DeliveryArtifact_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_DeliveryArtifact_Entry {
+  optional string key = 1;
+  Go_DeliveryArtifact value = 2;
 }
 
 message Map_Go_DiagnosticRefreshRequest {
@@ -3992,6 +5146,26 @@ message Map_Go_FoundationExecutable_Entry {
   Go_FoundationExecutable value = 2;
 }
 
+message Map_Go_GitRef {
+  repeated Map_Go_GitRef_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_GitRefUpdate {
+  repeated Map_Go_GitRefUpdate_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_GitRefUpdate_Entry {
+  optional string key = 1;
+  Go_GitRefUpdate value = 2;
+}
+
+message Map_Go_GitRef_Entry {
+  optional string key = 1;
+  Go_GitRef value = 2;
+}
+
 message Map_Go_GrantRequest {
   repeated Map_Go_GrantRequest_Entry items = 1;
   bool present = 2;
@@ -4052,6 +5226,16 @@ message Map_Go_History_Entry {
   Go_History value = 2;
 }
 
+message Map_Go_HostedRepository {
+  repeated Map_Go_HostedRepository_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_HostedRepository_Entry {
+  optional string key = 1;
+  Go_HostedRepository value = 2;
+}
+
 message Map_Go_IdentityCertificate {
   repeated Map_Go_IdentityCertificate_Entry items = 1;
   bool present = 2;
@@ -4072,6 +5256,66 @@ message Map_Go_IdentityChallenge_Entry {
   Go_IdentityChallenge value = 2;
 }
 
+message Map_Go_Improvement {
+  repeated Map_Go_Improvement_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ImprovementDecision {
+  repeated Map_Go_ImprovementDecision_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ImprovementDecision_Entry {
+  optional string key = 1;
+  Go_ImprovementDecision value = 2;
+}
+
+message Map_Go_ImprovementPolicy {
+  repeated Map_Go_ImprovementPolicy_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ImprovementPolicyRequest {
+  repeated Map_Go_ImprovementPolicyRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ImprovementPolicyRequest_Entry {
+  optional string key = 1;
+  Go_ImprovementPolicyRequest value = 2;
+}
+
+message Map_Go_ImprovementPolicy_Entry {
+  optional string key = 1;
+  Go_ImprovementPolicy value = 2;
+}
+
+message Map_Go_ImprovementRequest {
+  repeated Map_Go_ImprovementRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ImprovementRequest_Entry {
+  optional string key = 1;
+  Go_ImprovementRequest value = 2;
+}
+
+message Map_Go_ImprovementResult {
+  repeated Map_Go_ImprovementResult_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_ImprovementResult_Entry {
+  optional string key = 1;
+  Go_ImprovementResult value = 2;
+}
+
+message Map_Go_Improvement_Entry {
+  optional string key = 1;
+  Go_Improvement value = 2;
+}
+
 message Map_Go_ListQuery {
   repeated Map_Go_ListQuery_Entry items = 1;
   bool present = 2;
@@ -4090,6 +5334,56 @@ message Map_Go_LocalStatus {
 message Map_Go_LocalStatus_Entry {
   optional string key = 1;
   Go_LocalStatus value = 2;
+}
+
+message Map_Go_MaintenanceRequest {
+  repeated Map_Go_MaintenanceRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_MaintenanceRequest_Entry {
+  optional string key = 1;
+  Go_MaintenanceRequest value = 2;
+}
+
+message Map_Go_MaintenanceReservation {
+  repeated Map_Go_MaintenanceReservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_MaintenanceReservation_Entry {
+  optional string key = 1;
+  Go_MaintenanceReservation value = 2;
+}
+
+message Map_Go_MaintenanceSettlement {
+  repeated Map_Go_MaintenanceSettlement_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_MaintenanceSettlement_Entry {
+  optional string key = 1;
+  Go_MaintenanceSettlement value = 2;
+}
+
+message Map_Go_MaintenanceStatus {
+  repeated Map_Go_MaintenanceStatus_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_MaintenanceStatus_Entry {
+  optional string key = 1;
+  Go_MaintenanceStatus value = 2;
+}
+
+message Map_Go_MaintenanceUsage {
+  repeated Map_Go_MaintenanceUsage_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_MaintenanceUsage_Entry {
+  optional string key = 1;
+  Go_MaintenanceUsage value = 2;
 }
 
 message Map_Go_ManagedAccount {
@@ -4502,6 +5796,46 @@ message Map_Go_ReportRequest_Entry {
   Go_ReportRequest value = 2;
 }
 
+message Map_Go_RepositoryFile {
+  repeated Map_Go_RepositoryFile_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RepositoryFile_Entry {
+  optional string key = 1;
+  Go_RepositoryFile value = 2;
+}
+
+message Map_Go_RepositoryMerge {
+  repeated Map_Go_RepositoryMerge_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RepositoryMerge_Entry {
+  optional string key = 1;
+  Go_RepositoryMerge value = 2;
+}
+
+message Map_Go_RepositoryPush {
+  repeated Map_Go_RepositoryPush_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RepositoryPush_Entry {
+  optional string key = 1;
+  Go_RepositoryPush value = 2;
+}
+
+message Map_Go_RepositoryRequest {
+  repeated Map_Go_RepositoryRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RepositoryRequest_Entry {
+  optional string key = 1;
+  Go_RepositoryRequest value = 2;
+}
+
 message Map_Go_Result {
   repeated Map_Go_Result_Entry items = 1;
   bool present = 2;
@@ -4662,6 +5996,336 @@ message Map_Go_Sharing_Entry {
   Go_Sharing value = 2;
 }
 
+message Map_Go_SoftwareAuthorizationRequest {
+  repeated Map_Go_SoftwareAuthorizationRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareAuthorizationRequest_Entry {
+  optional string key = 1;
+  Go_SoftwareAuthorizationRequest value = 2;
+}
+
+message Map_Go_SoftwareBuild {
+  repeated Map_Go_SoftwareBuild_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareBuildRequest {
+  repeated Map_Go_SoftwareBuildRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareBuildRequest_Entry {
+  optional string key = 1;
+  Go_SoftwareBuildRequest value = 2;
+}
+
+message Map_Go_SoftwareBuildResult {
+  repeated Map_Go_SoftwareBuildResult_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareBuildResult_Entry {
+  optional string key = 1;
+  Go_SoftwareBuildResult value = 2;
+}
+
+message Map_Go_SoftwareBuild_Entry {
+  optional string key = 1;
+  Go_SoftwareBuild value = 2;
+}
+
+message Map_Go_SoftwareChallenge {
+  repeated Map_Go_SoftwareChallenge_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareChallenge_Entry {
+  optional string key = 1;
+  Go_SoftwareChallenge value = 2;
+}
+
+message Map_Go_SoftwareConsumer {
+  repeated Map_Go_SoftwareConsumer_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareConsumerRequest {
+  repeated Map_Go_SoftwareConsumerRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareConsumerRequest_Entry {
+  optional string key = 1;
+  Go_SoftwareConsumerRequest value = 2;
+}
+
+message Map_Go_SoftwareConsumer_Entry {
+  optional string key = 1;
+  Go_SoftwareConsumer value = 2;
+}
+
+message Map_Go_SoftwareDependency {
+  repeated Map_Go_SoftwareDependency_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareDependency_Entry {
+  optional string key = 1;
+  Go_SoftwareDependency value = 2;
+}
+
+message Map_Go_SoftwareDeployment {
+  repeated Map_Go_SoftwareDeployment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareDeployment_Entry {
+  optional string key = 1;
+  Go_SoftwareDeployment value = 2;
+}
+
+message Map_Go_SoftwareInventory {
+  repeated Map_Go_SoftwareInventory_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareInventory_Entry {
+  optional string key = 1;
+  Go_SoftwareInventory value = 2;
+}
+
+message Map_Go_SoftwareMailboxReply {
+  repeated Map_Go_SoftwareMailboxReply_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareMailboxReply_Entry {
+  optional string key = 1;
+  Go_SoftwareMailboxReply value = 2;
+}
+
+message Map_Go_SoftwareMailboxRequest {
+  repeated Map_Go_SoftwareMailboxRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareMailboxRequest_Entry {
+  optional string key = 1;
+  Go_SoftwareMailboxRequest value = 2;
+}
+
+message Map_Go_SoftwareMaintenance {
+  repeated Map_Go_SoftwareMaintenance_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareMaintenanceRequest {
+  repeated Map_Go_SoftwareMaintenanceRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareMaintenanceRequest_Entry {
+  optional string key = 1;
+  Go_SoftwareMaintenanceRequest value = 2;
+}
+
+message Map_Go_SoftwareMaintenance_Entry {
+  optional string key = 1;
+  Go_SoftwareMaintenance value = 2;
+}
+
+message Map_Go_SoftwareManifest {
+  repeated Map_Go_SoftwareManifest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareManifest_Entry {
+  optional string key = 1;
+  Go_SoftwareManifest value = 2;
+}
+
+message Map_Go_SoftwareNativeReply {
+  repeated Map_Go_SoftwareNativeReply_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareNativeReply_Entry {
+  optional string key = 1;
+  Go_SoftwareNativeReply value = 2;
+}
+
+message Map_Go_SoftwareNativeRequest {
+  repeated Map_Go_SoftwareNativeRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareNativeRequest_Entry {
+  optional string key = 1;
+  Go_SoftwareNativeRequest value = 2;
+}
+
+message Map_Go_SoftwareObservation {
+  repeated Map_Go_SoftwareObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareObservationRequest {
+  repeated Map_Go_SoftwareObservationRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareObservationRequest_Entry {
+  optional string key = 1;
+  Go_SoftwareObservationRequest value = 2;
+}
+
+message Map_Go_SoftwareObservation_Entry {
+  optional string key = 1;
+  Go_SoftwareObservation value = 2;
+}
+
+message Map_Go_SoftwarePayload {
+  repeated Map_Go_SoftwarePayload_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwarePayload_Entry {
+  optional string key = 1;
+  Go_SoftwarePayload value = 2;
+}
+
+message Map_Go_SoftwarePermit {
+  repeated Map_Go_SoftwarePermit_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwarePermit_Entry {
+  optional string key = 1;
+  Go_SoftwarePermit value = 2;
+}
+
+message Map_Go_SoftwarePlatform {
+  repeated Map_Go_SoftwarePlatform_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwarePlatform_Entry {
+  optional string key = 1;
+  Go_SoftwarePlatform value = 2;
+}
+
+message Map_Go_SoftwarePreflight {
+  repeated Map_Go_SoftwarePreflight_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwarePreflightReport {
+  repeated Map_Go_SoftwarePreflightReport_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwarePreflightReport_Entry {
+  optional string key = 1;
+  Go_SoftwarePreflightReport value = 2;
+}
+
+message Map_Go_SoftwarePreflightRequest {
+  repeated Map_Go_SoftwarePreflightRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwarePreflightRequest_Entry {
+  optional string key = 1;
+  Go_SoftwarePreflightRequest value = 2;
+}
+
+message Map_Go_SoftwarePreflight_Entry {
+  optional string key = 1;
+  Go_SoftwarePreflight value = 2;
+}
+
+message Map_Go_SoftwareProduct {
+  repeated Map_Go_SoftwareProduct_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareProductRequest {
+  repeated Map_Go_SoftwareProductRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareProductRequest_Entry {
+  optional string key = 1;
+  Go_SoftwareProductRequest value = 2;
+}
+
+message Map_Go_SoftwareProduct_Entry {
+  optional string key = 1;
+  Go_SoftwareProduct value = 2;
+}
+
+message Map_Go_SoftwareProposal {
+  repeated Map_Go_SoftwareProposal_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareProposal_Entry {
+  optional string key = 1;
+  Go_SoftwareProposal value = 2;
+}
+
+message Map_Go_SoftwareRelease {
+  repeated Map_Go_SoftwareRelease_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareReleaseChange {
+  repeated Map_Go_SoftwareReleaseChange_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareReleaseChange_Entry {
+  optional string key = 1;
+  Go_SoftwareReleaseChange value = 2;
+}
+
+message Map_Go_SoftwareReleaseRequest {
+  repeated Map_Go_SoftwareReleaseRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareReleaseRequest_Entry {
+  optional string key = 1;
+  Go_SoftwareReleaseRequest value = 2;
+}
+
+message Map_Go_SoftwareRelease_Entry {
+  optional string key = 1;
+  Go_SoftwareRelease value = 2;
+}
+
+message Map_Go_SoftwareResult {
+  repeated Map_Go_SoftwareResult_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareResultRequest {
+  repeated Map_Go_SoftwareResultRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_SoftwareResultRequest_Entry {
+  optional string key = 1;
+  Go_SoftwareResultRequest value = 2;
+}
+
+message Map_Go_SoftwareResult_Entry {
+  optional string key = 1;
+  Go_SoftwareResult value = 2;
+}
+
 message Map_Go_SystemEnvironment {
   repeated Map_Go_SystemEnvironment_Entry items = 1;
   bool present = 2;
@@ -4695,6 +6359,16 @@ message Map_Go_TaskRequest {
 message Map_Go_TaskRequest_Entry {
   optional string key = 1;
   Go_TaskRequest value = 2;
+}
+
+message Map_Go_TaskSource {
+  repeated Map_Go_TaskSource_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_TaskSource_Entry {
+  optional string key = 1;
+  Go_TaskSource value = 2;
 }
 
 message Map_Go_Task_Entry {
@@ -5342,6 +7016,36 @@ message Map_Page_Go_AuthenticationRefresh_Entry {
   Page_Go_AuthenticationRefresh value = 2;
 }
 
+message Map_Page_Go_BuildOutput {
+  repeated Map_Page_Go_BuildOutput_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_BuildOutput_Entry {
+  optional string key = 1;
+  Page_Go_BuildOutput value = 2;
+}
+
+message Map_Page_Go_BuildRecipe {
+  repeated Map_Page_Go_BuildRecipe_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_BuildRecipe_Entry {
+  optional string key = 1;
+  Page_Go_BuildRecipe value = 2;
+}
+
+message Map_Page_Go_BuildStep {
+  repeated Map_Page_Go_BuildStep_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_BuildStep_Entry {
+  optional string key = 1;
+  Page_Go_BuildStep value = 2;
+}
+
 message Map_Page_Go_CPUEnvironment {
   repeated Map_Page_Go_CPUEnvironment_Entry items = 1;
   bool present = 2;
@@ -5420,6 +7124,16 @@ message Map_Page_Go_ConnectionProfile {
 message Map_Page_Go_ConnectionProfile_Entry {
   optional string key = 1;
   Page_Go_ConnectionProfile value = 2;
+}
+
+message Map_Page_Go_DeliveryArtifact {
+  repeated Map_Page_Go_DeliveryArtifact_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_DeliveryArtifact_Entry {
+  optional string key = 1;
+  Page_Go_DeliveryArtifact value = 2;
 }
 
 message Map_Page_Go_DiagnosticRefreshRequest {
@@ -5622,6 +7336,26 @@ message Map_Page_Go_FoundationExecutable_Entry {
   Page_Go_FoundationExecutable value = 2;
 }
 
+message Map_Page_Go_GitRef {
+  repeated Map_Page_Go_GitRef_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_GitRefUpdate {
+  repeated Map_Page_Go_GitRefUpdate_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_GitRefUpdate_Entry {
+  optional string key = 1;
+  Page_Go_GitRefUpdate value = 2;
+}
+
+message Map_Page_Go_GitRef_Entry {
+  optional string key = 1;
+  Page_Go_GitRef value = 2;
+}
+
 message Map_Page_Go_GrantRequest {
   repeated Map_Page_Go_GrantRequest_Entry items = 1;
   bool present = 2;
@@ -5682,6 +7416,16 @@ message Map_Page_Go_History_Entry {
   Page_Go_History value = 2;
 }
 
+message Map_Page_Go_HostedRepository {
+  repeated Map_Page_Go_HostedRepository_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_HostedRepository_Entry {
+  optional string key = 1;
+  Page_Go_HostedRepository value = 2;
+}
+
 message Map_Page_Go_IdentityCertificate {
   repeated Map_Page_Go_IdentityCertificate_Entry items = 1;
   bool present = 2;
@@ -5702,6 +7446,66 @@ message Map_Page_Go_IdentityChallenge_Entry {
   Page_Go_IdentityChallenge value = 2;
 }
 
+message Map_Page_Go_Improvement {
+  repeated Map_Page_Go_Improvement_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ImprovementDecision {
+  repeated Map_Page_Go_ImprovementDecision_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ImprovementDecision_Entry {
+  optional string key = 1;
+  Page_Go_ImprovementDecision value = 2;
+}
+
+message Map_Page_Go_ImprovementPolicy {
+  repeated Map_Page_Go_ImprovementPolicy_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ImprovementPolicyRequest {
+  repeated Map_Page_Go_ImprovementPolicyRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ImprovementPolicyRequest_Entry {
+  optional string key = 1;
+  Page_Go_ImprovementPolicyRequest value = 2;
+}
+
+message Map_Page_Go_ImprovementPolicy_Entry {
+  optional string key = 1;
+  Page_Go_ImprovementPolicy value = 2;
+}
+
+message Map_Page_Go_ImprovementRequest {
+  repeated Map_Page_Go_ImprovementRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ImprovementRequest_Entry {
+  optional string key = 1;
+  Page_Go_ImprovementRequest value = 2;
+}
+
+message Map_Page_Go_ImprovementResult {
+  repeated Map_Page_Go_ImprovementResult_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_ImprovementResult_Entry {
+  optional string key = 1;
+  Page_Go_ImprovementResult value = 2;
+}
+
+message Map_Page_Go_Improvement_Entry {
+  optional string key = 1;
+  Page_Go_Improvement value = 2;
+}
+
 message Map_Page_Go_ListQuery {
   repeated Map_Page_Go_ListQuery_Entry items = 1;
   bool present = 2;
@@ -5720,6 +7524,56 @@ message Map_Page_Go_LocalStatus {
 message Map_Page_Go_LocalStatus_Entry {
   optional string key = 1;
   Page_Go_LocalStatus value = 2;
+}
+
+message Map_Page_Go_MaintenanceRequest {
+  repeated Map_Page_Go_MaintenanceRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_MaintenanceRequest_Entry {
+  optional string key = 1;
+  Page_Go_MaintenanceRequest value = 2;
+}
+
+message Map_Page_Go_MaintenanceReservation {
+  repeated Map_Page_Go_MaintenanceReservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_MaintenanceReservation_Entry {
+  optional string key = 1;
+  Page_Go_MaintenanceReservation value = 2;
+}
+
+message Map_Page_Go_MaintenanceSettlement {
+  repeated Map_Page_Go_MaintenanceSettlement_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_MaintenanceSettlement_Entry {
+  optional string key = 1;
+  Page_Go_MaintenanceSettlement value = 2;
+}
+
+message Map_Page_Go_MaintenanceStatus {
+  repeated Map_Page_Go_MaintenanceStatus_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_MaintenanceStatus_Entry {
+  optional string key = 1;
+  Page_Go_MaintenanceStatus value = 2;
+}
+
+message Map_Page_Go_MaintenanceUsage {
+  repeated Map_Page_Go_MaintenanceUsage_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_MaintenanceUsage_Entry {
+  optional string key = 1;
+  Page_Go_MaintenanceUsage value = 2;
 }
 
 message Map_Page_Go_ManagedAccount {
@@ -6132,6 +7986,46 @@ message Map_Page_Go_ReportRequest_Entry {
   Page_Go_ReportRequest value = 2;
 }
 
+message Map_Page_Go_RepositoryFile {
+  repeated Map_Page_Go_RepositoryFile_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RepositoryFile_Entry {
+  optional string key = 1;
+  Page_Go_RepositoryFile value = 2;
+}
+
+message Map_Page_Go_RepositoryMerge {
+  repeated Map_Page_Go_RepositoryMerge_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RepositoryMerge_Entry {
+  optional string key = 1;
+  Page_Go_RepositoryMerge value = 2;
+}
+
+message Map_Page_Go_RepositoryPush {
+  repeated Map_Page_Go_RepositoryPush_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RepositoryPush_Entry {
+  optional string key = 1;
+  Page_Go_RepositoryPush value = 2;
+}
+
+message Map_Page_Go_RepositoryRequest {
+  repeated Map_Page_Go_RepositoryRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RepositoryRequest_Entry {
+  optional string key = 1;
+  Page_Go_RepositoryRequest value = 2;
+}
+
 message Map_Page_Go_Result {
   repeated Map_Page_Go_Result_Entry items = 1;
   bool present = 2;
@@ -6292,6 +8186,336 @@ message Map_Page_Go_Sharing_Entry {
   Page_Go_Sharing value = 2;
 }
 
+message Map_Page_Go_SoftwareAuthorizationRequest {
+  repeated Map_Page_Go_SoftwareAuthorizationRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareAuthorizationRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareAuthorizationRequest value = 2;
+}
+
+message Map_Page_Go_SoftwareBuild {
+  repeated Map_Page_Go_SoftwareBuild_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareBuildRequest {
+  repeated Map_Page_Go_SoftwareBuildRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareBuildRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareBuildRequest value = 2;
+}
+
+message Map_Page_Go_SoftwareBuildResult {
+  repeated Map_Page_Go_SoftwareBuildResult_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareBuildResult_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareBuildResult value = 2;
+}
+
+message Map_Page_Go_SoftwareBuild_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareBuild value = 2;
+}
+
+message Map_Page_Go_SoftwareChallenge {
+  repeated Map_Page_Go_SoftwareChallenge_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareChallenge_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareChallenge value = 2;
+}
+
+message Map_Page_Go_SoftwareConsumer {
+  repeated Map_Page_Go_SoftwareConsumer_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareConsumerRequest {
+  repeated Map_Page_Go_SoftwareConsumerRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareConsumerRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareConsumerRequest value = 2;
+}
+
+message Map_Page_Go_SoftwareConsumer_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareConsumer value = 2;
+}
+
+message Map_Page_Go_SoftwareDependency {
+  repeated Map_Page_Go_SoftwareDependency_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareDependency_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareDependency value = 2;
+}
+
+message Map_Page_Go_SoftwareDeployment {
+  repeated Map_Page_Go_SoftwareDeployment_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareDeployment_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareDeployment value = 2;
+}
+
+message Map_Page_Go_SoftwareInventory {
+  repeated Map_Page_Go_SoftwareInventory_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareInventory_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareInventory value = 2;
+}
+
+message Map_Page_Go_SoftwareMailboxReply {
+  repeated Map_Page_Go_SoftwareMailboxReply_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareMailboxReply_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareMailboxReply value = 2;
+}
+
+message Map_Page_Go_SoftwareMailboxRequest {
+  repeated Map_Page_Go_SoftwareMailboxRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareMailboxRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareMailboxRequest value = 2;
+}
+
+message Map_Page_Go_SoftwareMaintenance {
+  repeated Map_Page_Go_SoftwareMaintenance_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareMaintenanceRequest {
+  repeated Map_Page_Go_SoftwareMaintenanceRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareMaintenanceRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareMaintenanceRequest value = 2;
+}
+
+message Map_Page_Go_SoftwareMaintenance_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareMaintenance value = 2;
+}
+
+message Map_Page_Go_SoftwareManifest {
+  repeated Map_Page_Go_SoftwareManifest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareManifest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareManifest value = 2;
+}
+
+message Map_Page_Go_SoftwareNativeReply {
+  repeated Map_Page_Go_SoftwareNativeReply_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareNativeReply_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareNativeReply value = 2;
+}
+
+message Map_Page_Go_SoftwareNativeRequest {
+  repeated Map_Page_Go_SoftwareNativeRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareNativeRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareNativeRequest value = 2;
+}
+
+message Map_Page_Go_SoftwareObservation {
+  repeated Map_Page_Go_SoftwareObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareObservationRequest {
+  repeated Map_Page_Go_SoftwareObservationRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareObservationRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareObservationRequest value = 2;
+}
+
+message Map_Page_Go_SoftwareObservation_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareObservation value = 2;
+}
+
+message Map_Page_Go_SoftwarePayload {
+  repeated Map_Page_Go_SoftwarePayload_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwarePayload_Entry {
+  optional string key = 1;
+  Page_Go_SoftwarePayload value = 2;
+}
+
+message Map_Page_Go_SoftwarePermit {
+  repeated Map_Page_Go_SoftwarePermit_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwarePermit_Entry {
+  optional string key = 1;
+  Page_Go_SoftwarePermit value = 2;
+}
+
+message Map_Page_Go_SoftwarePlatform {
+  repeated Map_Page_Go_SoftwarePlatform_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwarePlatform_Entry {
+  optional string key = 1;
+  Page_Go_SoftwarePlatform value = 2;
+}
+
+message Map_Page_Go_SoftwarePreflight {
+  repeated Map_Page_Go_SoftwarePreflight_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwarePreflightReport {
+  repeated Map_Page_Go_SoftwarePreflightReport_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwarePreflightReport_Entry {
+  optional string key = 1;
+  Page_Go_SoftwarePreflightReport value = 2;
+}
+
+message Map_Page_Go_SoftwarePreflightRequest {
+  repeated Map_Page_Go_SoftwarePreflightRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwarePreflightRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwarePreflightRequest value = 2;
+}
+
+message Map_Page_Go_SoftwarePreflight_Entry {
+  optional string key = 1;
+  Page_Go_SoftwarePreflight value = 2;
+}
+
+message Map_Page_Go_SoftwareProduct {
+  repeated Map_Page_Go_SoftwareProduct_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareProductRequest {
+  repeated Map_Page_Go_SoftwareProductRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareProductRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareProductRequest value = 2;
+}
+
+message Map_Page_Go_SoftwareProduct_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareProduct value = 2;
+}
+
+message Map_Page_Go_SoftwareProposal {
+  repeated Map_Page_Go_SoftwareProposal_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareProposal_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareProposal value = 2;
+}
+
+message Map_Page_Go_SoftwareRelease {
+  repeated Map_Page_Go_SoftwareRelease_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareReleaseChange {
+  repeated Map_Page_Go_SoftwareReleaseChange_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareReleaseChange_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareReleaseChange value = 2;
+}
+
+message Map_Page_Go_SoftwareReleaseRequest {
+  repeated Map_Page_Go_SoftwareReleaseRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareReleaseRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareReleaseRequest value = 2;
+}
+
+message Map_Page_Go_SoftwareRelease_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareRelease value = 2;
+}
+
+message Map_Page_Go_SoftwareResult {
+  repeated Map_Page_Go_SoftwareResult_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareResultRequest {
+  repeated Map_Page_Go_SoftwareResultRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_SoftwareResultRequest_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareResultRequest value = 2;
+}
+
+message Map_Page_Go_SoftwareResult_Entry {
+  optional string key = 1;
+  Page_Go_SoftwareResult value = 2;
+}
+
 message Map_Page_Go_SystemEnvironment {
   repeated Map_Page_Go_SystemEnvironment_Entry items = 1;
   bool present = 2;
@@ -6325,6 +8549,16 @@ message Map_Page_Go_TaskRequest {
 message Map_Page_Go_TaskRequest_Entry {
   optional string key = 1;
   Page_Go_TaskRequest value = 2;
+}
+
+message Map_Page_Go_TaskSource {
+  repeated Map_Page_Go_TaskSource_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_TaskSource_Entry {
+  optional string key = 1;
+  Page_Go_TaskSource value = 2;
 }
 
 message Map_Page_Go_Task_Entry {
@@ -6792,6 +9026,21 @@ message Page_Go_AuthenticationRefreshRequest {
   String next_cursor = 2;
 }
 
+message Page_Go_BuildOutput {
+  List_Go_BuildOutput items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_BuildRecipe {
+  List_Go_BuildRecipe items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_BuildStep {
+  List_Go_BuildStep items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_CPUEnvironment {
   List_Go_CPUEnvironment items = 1;
   String next_cursor = 2;
@@ -6829,6 +9078,11 @@ message Page_Go_ComputerModelOptions {
 
 message Page_Go_ConnectionProfile {
   List_Go_ConnectionProfile items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_DeliveryArtifact {
+  List_Go_DeliveryArtifact items = 1;
   String next_cursor = 2;
 }
 
@@ -6932,6 +9186,16 @@ message Page_Go_FoundationExecutable {
   String next_cursor = 2;
 }
 
+message Page_Go_GitRef {
+  List_Go_GitRef items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_GitRefUpdate {
+  List_Go_GitRefUpdate items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_GrantRequest {
   List_Go_GrantRequest items = 1;
   String next_cursor = 2;
@@ -6962,6 +9226,11 @@ message Page_Go_History {
   String next_cursor = 2;
 }
 
+message Page_Go_HostedRepository {
+  List_Go_HostedRepository items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_IdentityCertificate {
   List_Go_IdentityCertificate items = 1;
   String next_cursor = 2;
@@ -6972,6 +9241,36 @@ message Page_Go_IdentityChallenge {
   String next_cursor = 2;
 }
 
+message Page_Go_Improvement {
+  List_Go_Improvement items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_ImprovementDecision {
+  List_Go_ImprovementDecision items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_ImprovementPolicy {
+  List_Go_ImprovementPolicy items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_ImprovementPolicyRequest {
+  List_Go_ImprovementPolicyRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_ImprovementRequest {
+  List_Go_ImprovementRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_ImprovementResult {
+  List_Go_ImprovementResult items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_ListQuery {
   List_Go_ListQuery items = 1;
   String next_cursor = 2;
@@ -6979,6 +9278,31 @@ message Page_Go_ListQuery {
 
 message Page_Go_LocalStatus {
   List_Go_LocalStatus items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_MaintenanceRequest {
+  List_Go_MaintenanceRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_MaintenanceReservation {
+  List_Go_MaintenanceReservation items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_MaintenanceSettlement {
+  List_Go_MaintenanceSettlement items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_MaintenanceStatus {
+  List_Go_MaintenanceStatus items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_MaintenanceUsage {
+  List_Go_MaintenanceUsage items = 1;
   String next_cursor = 2;
 }
 
@@ -7187,6 +9511,26 @@ message Page_Go_ReportRequest {
   String next_cursor = 2;
 }
 
+message Page_Go_RepositoryFile {
+  List_Go_RepositoryFile items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RepositoryMerge {
+  List_Go_RepositoryMerge items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RepositoryPush {
+  List_Go_RepositoryPush items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RepositoryRequest {
+  List_Go_RepositoryRequest items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_Result {
   List_Go_Result items = 1;
   String next_cursor = 2;
@@ -7267,6 +9611,171 @@ message Page_Go_SharingSelectRequest {
   String next_cursor = 2;
 }
 
+message Page_Go_SoftwareAuthorizationRequest {
+  List_Go_SoftwareAuthorizationRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareBuild {
+  List_Go_SoftwareBuild items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareBuildRequest {
+  List_Go_SoftwareBuildRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareBuildResult {
+  List_Go_SoftwareBuildResult items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareChallenge {
+  List_Go_SoftwareChallenge items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareConsumer {
+  List_Go_SoftwareConsumer items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareConsumerRequest {
+  List_Go_SoftwareConsumerRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareDependency {
+  List_Go_SoftwareDependency items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareDeployment {
+  List_Go_SoftwareDeployment items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareInventory {
+  List_Go_SoftwareInventory items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareMailboxReply {
+  List_Go_SoftwareMailboxReply items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareMailboxRequest {
+  List_Go_SoftwareMailboxRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareMaintenance {
+  List_Go_SoftwareMaintenance items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareMaintenanceRequest {
+  List_Go_SoftwareMaintenanceRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareManifest {
+  List_Go_SoftwareManifest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareNativeReply {
+  List_Go_SoftwareNativeReply items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareNativeRequest {
+  List_Go_SoftwareNativeRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareObservation {
+  List_Go_SoftwareObservation items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareObservationRequest {
+  List_Go_SoftwareObservationRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwarePayload {
+  List_Go_SoftwarePayload items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwarePermit {
+  List_Go_SoftwarePermit items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwarePlatform {
+  List_Go_SoftwarePlatform items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwarePreflight {
+  List_Go_SoftwarePreflight items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwarePreflightReport {
+  List_Go_SoftwarePreflightReport items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwarePreflightRequest {
+  List_Go_SoftwarePreflightRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareProduct {
+  List_Go_SoftwareProduct items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareProductRequest {
+  List_Go_SoftwareProductRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareProposal {
+  List_Go_SoftwareProposal items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareRelease {
+  List_Go_SoftwareRelease items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareReleaseChange {
+  List_Go_SoftwareReleaseChange items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareReleaseRequest {
+  List_Go_SoftwareReleaseRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareResult {
+  List_Go_SoftwareResult items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_SoftwareResultRequest {
+  List_Go_SoftwareResultRequest items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_SystemEnvironment {
   List_Go_SystemEnvironment items = 1;
   String next_cursor = 2;
@@ -7284,6 +9793,11 @@ message Page_Go_TaskChange {
 
 message Page_Go_TaskRequest {
   List_Go_TaskRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_TaskSource {
+  List_Go_TaskSource items = 1;
   String next_cursor = 2;
 }
 

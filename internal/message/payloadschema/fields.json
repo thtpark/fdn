@@ -1183,6 +1183,56 @@
       "name": "reason"
     }
   },
+  "BuildOutput": {
+    "Mode": {
+      "id": 2,
+      "name": "mode"
+    },
+    "Path": {
+      "id": 1,
+      "name": "path"
+    }
+  },
+  "BuildRecipe": {
+    "Dependencies": {
+      "id": 7,
+      "name": "dependencies"
+    },
+    "FormatVersion": {
+      "id": 1,
+      "name": "format_version"
+    },
+    "Outputs": {
+      "id": 6,
+      "name": "outputs"
+    },
+    "Platform": {
+      "id": 3,
+      "name": "platform"
+    },
+    "Profile": {
+      "id": 8,
+      "name": "profile"
+    },
+    "Steps": {
+      "id": 5,
+      "name": "steps"
+    },
+    "TimeoutSeconds": {
+      "id": 4,
+      "name": "timeout_seconds"
+    },
+    "Version": {
+      "id": 2,
+      "name": "version"
+    }
+  },
+  "BuildStep": {
+    "Args": {
+      "id": 1,
+      "name": "args"
+    }
+  },
   "CPUEnvironment": {
     "LogicalCores": {
       "id": 2,
@@ -1231,6 +1281,10 @@
     "Kind": {
       "id": 3,
       "name": "kind"
+    },
+    "MaintenanceID": {
+      "id": 11,
+      "name": "maintenance_id"
     },
     "Model": {
       "id": 9,
@@ -1377,6 +1431,48 @@
     "URL": {
       "id": 2,
       "name": "url"
+    }
+  },
+  "DeliveryArtifact": {
+    "CreatedAt": {
+      "id": 10,
+      "name": "created_at"
+    },
+    "FileID": {
+      "id": 3,
+      "name": "file_id"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 6,
+      "name": "kind"
+    },
+    "Name": {
+      "id": 7,
+      "name": "name"
+    },
+    "OwnerID": {
+      "id": 5,
+      "name": "owner_id"
+    },
+    "ProjectID": {
+      "id": 4,
+      "name": "project_id"
+    },
+    "RepositoryID": {
+      "id": 2,
+      "name": "repository_id"
+    },
+    "SHA256": {
+      "id": 8,
+      "name": "sha256"
+    },
+    "Size": {
+      "id": 9,
+      "name": "size"
     }
   },
   "DiagnosticRefreshRequest": {
@@ -1849,6 +1945,34 @@
       "name": "version"
     }
   },
+  "GitRef": {
+    "ArtifactID": {
+      "id": 3,
+      "name": "artifact_id"
+    },
+    "Commit": {
+      "id": 2,
+      "name": "commit"
+    },
+    "Name": {
+      "id": 1,
+      "name": "name"
+    }
+  },
+  "GitRefUpdate": {
+    "Name": {
+      "id": 1,
+      "name": "name"
+    },
+    "New": {
+      "id": 3,
+      "name": "new"
+    },
+    "Old": {
+      "id": 2,
+      "name": "old"
+    }
+  },
   "GrantRequest": {
     "AgentID": {
       "id": 3,
@@ -1977,6 +2101,48 @@
       "name": "source_id"
     }
   },
+  "HostedRepository": {
+    "CreatedAt": {
+      "id": 9,
+      "name": "created_at"
+    },
+    "CreatedBy": {
+      "id": 8,
+      "name": "created_by"
+    },
+    "DefaultBranch": {
+      "id": 5,
+      "name": "default_branch"
+    },
+    "Description": {
+      "id": 4,
+      "name": "description"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Name": {
+      "id": 3,
+      "name": "name"
+    },
+    "ProjectID": {
+      "id": 2,
+      "name": "project_id"
+    },
+    "Public": {
+      "id": 6,
+      "name": "public"
+    },
+    "Refs": {
+      "id": 10,
+      "name": "refs"
+    },
+    "Revision": {
+      "id": 7,
+      "name": "revision"
+    }
+  },
   "IdentityCertificate": {
     "Agent": {
       "id": 1,
@@ -2015,6 +2181,234 @@
     "Nonce": {
       "id": 1,
       "name": "nonce"
+    }
+  },
+  "Improvement": {
+    "AcceptanceCriteria": {
+      "id": 7,
+      "name": "acceptance_criteria"
+    },
+    "CreatedAt": {
+      "id": 17,
+      "name": "created_at"
+    },
+    "DecisionReason": {
+      "id": 15,
+      "name": "decision_reason"
+    },
+    "Description": {
+      "id": 6,
+      "name": "description"
+    },
+    "DuplicateOf": {
+      "id": 14,
+      "name": "duplicate_of"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "IncidentID": {
+      "id": 9,
+      "name": "incident_id"
+    },
+    "Kind": {
+      "id": 4,
+      "name": "kind"
+    },
+    "Origin": {
+      "id": 11,
+      "name": "origin"
+    },
+    "ProductID": {
+      "id": 3,
+      "name": "product_id"
+    },
+    "ProjectID": {
+      "id": 2,
+      "name": "project_id"
+    },
+    "RelatedTaskID": {
+      "id": 8,
+      "name": "related_task_id"
+    },
+    "RequesterID": {
+      "id": 10,
+      "name": "requester_id"
+    },
+    "Revision": {
+      "id": 16,
+      "name": "revision"
+    },
+    "State": {
+      "id": 12,
+      "name": "state"
+    },
+    "TaskID": {
+      "id": 13,
+      "name": "task_id"
+    },
+    "Title": {
+      "id": 5,
+      "name": "title"
+    },
+    "UpdatedAt": {
+      "id": 18,
+      "name": "updated_at"
+    }
+  },
+  "ImprovementDecision": {
+    "AssigneeID": {
+      "id": 5,
+      "name": "assignee_id"
+    },
+    "Decision": {
+      "id": 3,
+      "name": "decision"
+    },
+    "DuplicateOf": {
+      "id": 6,
+      "name": "duplicate_of"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 4,
+      "name": "reason"
+    },
+    "Source": {
+      "id": 7,
+      "name": "source"
+    }
+  },
+  "ImprovementPolicy": {
+    "Enabled": {
+      "id": 2,
+      "name": "enabled"
+    },
+    "FleetSeconds": {
+      "id": 7,
+      "name": "fleet_seconds"
+    },
+    "PerAgentSeconds": {
+      "id": 6,
+      "name": "per_agent_seconds"
+    },
+    "ProjectIDs": {
+      "id": 3,
+      "name": "project_ids"
+    },
+    "Revision": {
+      "id": 1,
+      "name": "revision"
+    },
+    "SliceSeconds": {
+      "id": 5,
+      "name": "slice_seconds"
+    },
+    "UpdatedAt": {
+      "id": 9,
+      "name": "updated_at"
+    },
+    "UpdatedBy": {
+      "id": 8,
+      "name": "updated_by"
+    },
+    "WindowSeconds": {
+      "id": 4,
+      "name": "window_seconds"
+    }
+  },
+  "ImprovementPolicyRequest": {
+    "Enabled": {
+      "id": 3,
+      "name": "enabled"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "FleetSeconds": {
+      "id": 8,
+      "name": "fleet_seconds"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "PerAgentSeconds": {
+      "id": 7,
+      "name": "per_agent_seconds"
+    },
+    "ProjectIDs": {
+      "id": 4,
+      "name": "project_ids"
+    },
+    "Reason": {
+      "id": 9,
+      "name": "reason"
+    },
+    "SliceSeconds": {
+      "id": 6,
+      "name": "slice_seconds"
+    },
+    "WindowSeconds": {
+      "id": 5,
+      "name": "window_seconds"
+    }
+  },
+  "ImprovementRequest": {
+    "AcceptanceCriteria": {
+      "id": 8,
+      "name": "acceptance_criteria"
+    },
+    "Description": {
+      "id": 7,
+      "name": "description"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Kind": {
+      "id": 5,
+      "name": "kind"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProductID": {
+      "id": 4,
+      "name": "product_id"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "RelatedTaskID": {
+      "id": 9,
+      "name": "related_task_id"
+    },
+    "Title": {
+      "id": 6,
+      "name": "title"
+    }
+  },
+  "ImprovementResult": {
+    "Request": {
+      "id": 1,
+      "name": "request"
+    },
+    "Task": {
+      "id": 2,
+      "name": "task"
     }
   },
   "Invitation": {
@@ -2107,6 +2501,128 @@
     "Ready": {
       "id": 4,
       "name": "ready"
+    }
+  },
+  "MaintenanceRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Kind": {
+      "id": 5,
+      "name": "kind"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "Seconds": {
+      "id": 6,
+      "name": "seconds"
+    },
+    "SourceID": {
+      "id": 4,
+      "name": "source_id"
+    }
+  },
+  "MaintenanceReservation": {
+    "AgentID": {
+      "id": 2,
+      "name": "agent_id"
+    },
+    "CreatedAt": {
+      "id": 8,
+      "name": "created_at"
+    },
+    "ExpiresAt": {
+      "id": 9,
+      "name": "expires_at"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 5,
+      "name": "kind"
+    },
+    "PolicyRevision": {
+      "id": 6,
+      "name": "policy_revision"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "RunID": {
+      "id": 11,
+      "name": "run_id"
+    },
+    "Seconds": {
+      "id": 7,
+      "name": "seconds"
+    },
+    "SourceID": {
+      "id": 4,
+      "name": "source_id"
+    },
+    "State": {
+      "id": 10,
+      "name": "state"
+    }
+  },
+  "MaintenanceSettlement": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "MaintenanceStatus": {
+    "Reservation": {
+      "id": 1,
+      "name": "reservation"
+    },
+    "ServerObservedAt": {
+      "id": 2,
+      "name": "server_observed_at"
+    }
+  },
+  "MaintenanceUsage": {
+    "AgentID": {
+      "id": 5,
+      "name": "agent_id"
+    },
+    "AgentSeconds": {
+      "id": 3,
+      "name": "agent_seconds"
+    },
+    "FleetSeconds": {
+      "id": 4,
+      "name": "fleet_seconds"
+    },
+    "Policy": {
+      "id": 1,
+      "name": "policy"
+    },
+    "Reservations": {
+      "id": 6,
+      "name": "reservations"
+    },
+    "ServerObservedAt": {
+      "id": 7,
+      "name": "server_observed_at"
+    },
+    "WindowStart": {
+      "id": 2,
+      "name": "window_start"
     }
   },
   "ManagedAccount": {
@@ -3279,6 +3795,138 @@
       "name": "waiting"
     }
   },
+  "RepositoryFile": {
+    "Commit": {
+      "id": 2,
+      "name": "commit"
+    },
+    "Data": {
+      "id": 5,
+      "name": "data"
+    },
+    "Path": {
+      "id": 3,
+      "name": "path"
+    },
+    "RepositoryID": {
+      "id": 1,
+      "name": "repository_id"
+    },
+    "SHA256": {
+      "id": 4,
+      "name": "sha256"
+    }
+  },
+  "RepositoryMerge": {
+    "BaseCommit": {
+      "id": 9,
+      "name": "base_commit"
+    },
+    "BundleFileID": {
+      "id": 11,
+      "name": "bundle_file_id"
+    },
+    "Commit": {
+      "id": 10,
+      "name": "commit"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 12,
+      "name": "reason"
+    },
+    "ResultGeneration": {
+      "id": 6,
+      "name": "result_generation"
+    },
+    "RunID": {
+      "id": 4,
+      "name": "run_id"
+    },
+    "SourceCommit": {
+      "id": 8,
+      "name": "source_commit"
+    },
+    "SourceRef": {
+      "id": 7,
+      "name": "source_ref"
+    },
+    "SpecGeneration": {
+      "id": 5,
+      "name": "spec_generation"
+    },
+    "TaskID": {
+      "id": 3,
+      "name": "task_id"
+    }
+  },
+  "RepositoryPush": {
+    "BundleFileID": {
+      "id": 5,
+      "name": "bundle_file_id"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "RunID": {
+      "id": 4,
+      "name": "run_id"
+    },
+    "TaskID": {
+      "id": 3,
+      "name": "task_id"
+    },
+    "Updates": {
+      "id": 6,
+      "name": "updates"
+    }
+  },
+  "RepositoryRequest": {
+    "BundleFileID": {
+      "id": 8,
+      "name": "bundle_file_id"
+    },
+    "DefaultBranch": {
+      "id": 6,
+      "name": "default_branch"
+    },
+    "Description": {
+      "id": 5,
+      "name": "description"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Name": {
+      "id": 4,
+      "name": "name"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "Public": {
+      "id": 7,
+      "name": "public"
+    }
+  },
   "Result": {
     "Evidence": {
       "id": 4,
@@ -3356,6 +4004,10 @@
       "id": 17,
       "name": "checkpoint"
     },
+    "DeadlineAt": {
+      "id": 22,
+      "name": "deadline_at"
+    },
     "Decision": {
       "id": 10,
       "name": "decision"
@@ -3379,6 +4031,10 @@
     "Kind": {
       "id": 2,
       "name": "kind"
+    },
+    "MaintenanceID": {
+      "id": 21,
+      "name": "maintenance_id"
     },
     "Model": {
       "id": 13,
@@ -3744,6 +4400,10 @@
       "id": 17,
       "name": "published_by"
     },
+    "RegistryID": {
+      "id": 18,
+      "name": "registry_id"
+    },
     "Revision": {
       "id": 12,
       "name": "revision"
@@ -3855,6 +4515,964 @@
       "name": "resource_id"
     }
   },
+  "SoftwareAuthorizationRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "MaintenanceID": {
+      "id": 4,
+      "name": "maintenance_id"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "PreflightID": {
+      "id": 3,
+      "name": "preflight_id"
+    },
+    "Proposal": {
+      "id": 5,
+      "name": "proposal"
+    }
+  },
+  "SoftwareBuild": {
+    "ArtifactID": {
+      "id": 11,
+      "name": "artifact_id"
+    },
+    "BuilderID": {
+      "id": 9,
+      "name": "builder_id"
+    },
+    "CreatedAt": {
+      "id": 14,
+      "name": "created_at"
+    },
+    "CreatedBy": {
+      "id": 13,
+      "name": "created_by"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Payloads": {
+      "id": 12,
+      "name": "payloads"
+    },
+    "ProductID": {
+      "id": 2,
+      "name": "product_id"
+    },
+    "Recipe": {
+      "id": 6,
+      "name": "recipe"
+    },
+    "RecipeSHA256": {
+      "id": 7,
+      "name": "recipe_sha256"
+    },
+    "RunID": {
+      "id": 10,
+      "name": "run_id"
+    },
+    "Source": {
+      "id": 5,
+      "name": "source"
+    },
+    "SpecGeneration": {
+      "id": 4,
+      "name": "spec_generation"
+    },
+    "State": {
+      "id": 8,
+      "name": "state"
+    },
+    "TaskID": {
+      "id": 3,
+      "name": "task_id"
+    }
+  },
+  "SoftwareBuildRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Platform": {
+      "id": 5,
+      "name": "platform"
+    },
+    "ProductID": {
+      "id": 3,
+      "name": "product_id"
+    },
+    "TaskID": {
+      "id": 4,
+      "name": "task_id"
+    }
+  },
+  "SoftwareBuildResult": {
+    "BundleFileID": {
+      "id": 4,
+      "name": "bundle_file_id"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "RunID": {
+      "id": 3,
+      "name": "run_id"
+    },
+    "Summary": {
+      "id": 6,
+      "name": "summary"
+    },
+    "Toolchain": {
+      "id": 5,
+      "name": "toolchain"
+    }
+  },
+  "SoftwareChallenge": {
+    "BindingID": {
+      "id": 5,
+      "name": "binding_id"
+    },
+    "CurrentRelease": {
+      "id": 12,
+      "name": "current_release"
+    },
+    "CurrentSHA256": {
+      "id": 10,
+      "name": "current_sha256"
+    },
+    "CurrentVersion": {
+      "id": 11,
+      "name": "current_version"
+    },
+    "ExpiresAt": {
+      "id": 14,
+      "name": "expires_at"
+    },
+    "Generation": {
+      "id": 6,
+      "name": "generation"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "InstanceID": {
+      "id": 3,
+      "name": "instance_id"
+    },
+    "Nonce": {
+      "id": 2,
+      "name": "nonce"
+    },
+    "Platform": {
+      "id": 8,
+      "name": "platform"
+    },
+    "PolicySHA256": {
+      "id": 13,
+      "name": "policy_sha256"
+    },
+    "ProductID": {
+      "id": 7,
+      "name": "product_id"
+    },
+    "State": {
+      "id": 9,
+      "name": "state"
+    },
+    "TargetID": {
+      "id": 4,
+      "name": "target_id"
+    }
+  },
+  "SoftwareConsumer": {
+    "Dependency": {
+      "id": 3,
+      "name": "dependency"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "ProjectID": {
+      "id": 2,
+      "name": "project_id"
+    },
+    "Revision": {
+      "id": 4,
+      "name": "revision"
+    },
+    "UpdatedAt": {
+      "id": 6,
+      "name": "updated_at"
+    },
+    "UpdatedBy": {
+      "id": 5,
+      "name": "updated_by"
+    }
+  },
+  "SoftwareConsumerRequest": {
+    "Dependency": {
+      "id": 4,
+      "name": "dependency"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "Reason": {
+      "id": 5,
+      "name": "reason"
+    }
+  },
+  "SoftwareDependency": {
+    "Platform": {
+      "id": 3,
+      "name": "platform"
+    },
+    "ProductID": {
+      "id": 1,
+      "name": "product_id"
+    },
+    "Purpose": {
+      "id": 5,
+      "name": "purpose"
+    },
+    "ReleaseID": {
+      "id": 2,
+      "name": "release_id"
+    },
+    "SHA256": {
+      "id": 4,
+      "name": "sha256"
+    }
+  },
+  "SoftwareDeployment": {
+    "CreatedAt": {
+      "id": 6,
+      "name": "created_at"
+    },
+    "ID": {
+      "id": 2,
+      "name": "id"
+    },
+    "MaintenanceID": {
+      "id": 1,
+      "name": "maintenance_id"
+    },
+    "Permit": {
+      "id": 3,
+      "name": "permit"
+    },
+    "Result": {
+      "id": 5,
+      "name": "result"
+    },
+    "State": {
+      "id": 4,
+      "name": "state"
+    }
+  },
+  "SoftwareInventory": {
+    "AgentID": {
+      "id": 2,
+      "name": "agent_id"
+    },
+    "BindingID": {
+      "id": 1,
+      "name": "binding_id"
+    },
+    "Generation": {
+      "id": 3,
+      "name": "generation"
+    },
+    "Observation": {
+      "id": 4,
+      "name": "observation"
+    },
+    "ObservedAt": {
+      "id": 7,
+      "name": "observed_at"
+    },
+    "ReceiptID": {
+      "id": 6,
+      "name": "receipt_id"
+    },
+    "ReleaseID": {
+      "id": 5,
+      "name": "release_id"
+    }
+  },
+  "SoftwareMailboxReply": {
+    "Artifact": {
+      "id": 6,
+      "name": "artifact"
+    },
+    "Chunk": {
+      "id": 7,
+      "name": "chunk"
+    },
+    "Deployment": {
+      "id": 4,
+      "name": "deployment"
+    },
+    "Deployments": {
+      "id": 2,
+      "name": "deployments"
+    },
+    "Error": {
+      "id": 8,
+      "name": "error"
+    },
+    "Lease": {
+      "id": 5,
+      "name": "lease"
+    },
+    "Preflight": {
+      "id": 3,
+      "name": "preflight"
+    },
+    "Preflights": {
+      "id": 1,
+      "name": "preflights"
+    }
+  },
+  "SoftwareMailboxRequest": {
+    "Action": {
+      "id": 1,
+      "name": "action"
+    },
+    "ArtifactID": {
+      "id": 2,
+      "name": "artifact_id"
+    },
+    "Lease": {
+      "id": 6,
+      "name": "lease"
+    },
+    "Offset": {
+      "id": 3,
+      "name": "offset"
+    },
+    "PreflightReport": {
+      "id": 4,
+      "name": "preflight_report"
+    },
+    "Result": {
+      "id": 5,
+      "name": "result"
+    }
+  },
+  "SoftwareMaintenance": {
+    "DeploymentIDs": {
+      "id": 6,
+      "name": "deployment_ids"
+    },
+    "FounderBinding": {
+      "id": 3,
+      "name": "founder_binding"
+    },
+    "FounderID": {
+      "id": 2,
+      "name": "founder_id"
+    },
+    "Generation": {
+      "id": 4,
+      "name": "generation"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "PausedModes": {
+      "id": 7,
+      "name": "paused_modes"
+    },
+    "PreflightIDs": {
+      "id": 5,
+      "name": "preflight_ids"
+    },
+    "Reason": {
+      "id": 9,
+      "name": "reason"
+    },
+    "State": {
+      "id": 8,
+      "name": "state"
+    }
+  },
+  "SoftwareMaintenanceRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "ID": {
+      "id": 3,
+      "name": "id"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "PreflightIDs": {
+      "id": 4,
+      "name": "preflight_ids"
+    },
+    "Reason": {
+      "id": 5,
+      "name": "reason"
+    }
+  },
+  "SoftwareManifest": {
+    "CreatedAt": {
+      "id": 11,
+      "name": "created_at"
+    },
+    "FormatVersion": {
+      "id": 1,
+      "name": "format_version"
+    },
+    "InstanceID": {
+      "id": 2,
+      "name": "instance_id"
+    },
+    "Kind": {
+      "id": 6,
+      "name": "kind"
+    },
+    "Platforms": {
+      "id": 10,
+      "name": "platforms"
+    },
+    "ProductID": {
+      "id": 4,
+      "name": "product_id"
+    },
+    "ProjectID": {
+      "id": 5,
+      "name": "project_id"
+    },
+    "ReleaseID": {
+      "id": 3,
+      "name": "release_id"
+    },
+    "Revision": {
+      "id": 8,
+      "name": "revision"
+    },
+    "Source": {
+      "id": 9,
+      "name": "source"
+    },
+    "Version": {
+      "id": 7,
+      "name": "version"
+    }
+  },
+  "SoftwareNativeReply": {
+    "Challenge": {
+      "id": 1,
+      "name": "challenge"
+    },
+    "Error": {
+      "id": 4,
+      "name": "error"
+    },
+    "Result": {
+      "id": 2,
+      "name": "result"
+    },
+    "State": {
+      "id": 3,
+      "name": "state"
+    }
+  },
+  "SoftwareNativeRequest": {
+    "Action": {
+      "id": 1,
+      "name": "action"
+    },
+    "ID": {
+      "id": 2,
+      "name": "id"
+    },
+    "Permit": {
+      "id": 4,
+      "name": "permit"
+    },
+    "ProductID": {
+      "id": 3,
+      "name": "product_id"
+    }
+  },
+  "SoftwareObservation": {
+    "Manager": {
+      "id": 5,
+      "name": "manager"
+    },
+    "ProductID": {
+      "id": 1,
+      "name": "product_id"
+    },
+    "SHA256": {
+      "id": 4,
+      "name": "sha256"
+    },
+    "State": {
+      "id": 2,
+      "name": "state"
+    },
+    "Version": {
+      "id": 3,
+      "name": "version"
+    }
+  },
+  "SoftwareObservationRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Observation": {
+      "id": 3,
+      "name": "observation"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "SoftwarePayload": {
+    "Mode": {
+      "id": 4,
+      "name": "mode"
+    },
+    "Path": {
+      "id": 1,
+      "name": "path"
+    },
+    "SHA256": {
+      "id": 2,
+      "name": "sha256"
+    },
+    "Size": {
+      "id": 3,
+      "name": "size"
+    }
+  },
+  "SoftwarePermit": {
+    "ActorBindingID": {
+      "id": 4,
+      "name": "actor_binding_id"
+    },
+    "ActorGeneration": {
+      "id": 5,
+      "name": "actor_generation"
+    },
+    "ActorID": {
+      "id": 3,
+      "name": "actor_id"
+    },
+    "ExpiresAt": {
+      "id": 7,
+      "name": "expires_at"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "IssuedAt": {
+      "id": 6,
+      "name": "issued_at"
+    },
+    "Proposal": {
+      "id": 2,
+      "name": "proposal"
+    },
+    "Signature": {
+      "id": 8,
+      "name": "signature"
+    }
+  },
+  "SoftwarePlatform": {
+    "ArtifactID": {
+      "id": 2,
+      "name": "artifact_id"
+    },
+    "Dependencies": {
+      "id": 7,
+      "name": "dependencies"
+    },
+    "Payloads": {
+      "id": 6,
+      "name": "payloads"
+    },
+    "Platform": {
+      "id": 1,
+      "name": "platform"
+    },
+    "Profile": {
+      "id": 5,
+      "name": "profile"
+    },
+    "SHA256": {
+      "id": 3,
+      "name": "sha256"
+    },
+    "Size": {
+      "id": 4,
+      "name": "size"
+    }
+  },
+  "SoftwarePreflight": {
+    "ExpiresAt": {
+      "id": 8,
+      "name": "expires_at"
+    },
+    "FounderBinding": {
+      "id": 3,
+      "name": "founder_binding"
+    },
+    "FounderID": {
+      "id": 2,
+      "name": "founder_id"
+    },
+    "Generation": {
+      "id": 4,
+      "name": "generation"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Request": {
+      "id": 6,
+      "name": "request"
+    },
+    "Result": {
+      "id": 9,
+      "name": "result"
+    },
+    "State": {
+      "id": 7,
+      "name": "state"
+    },
+    "TargetGeneration": {
+      "id": 5,
+      "name": "target_generation"
+    }
+  },
+  "SoftwarePreflightReport": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "ID": {
+      "id": 3,
+      "name": "id"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Result": {
+      "id": 4,
+      "name": "result"
+    }
+  },
+  "SoftwarePreflightRequest": {
+    "BindingID": {
+      "id": 4,
+      "name": "binding_id"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Native": {
+      "id": 6,
+      "name": "native"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProductID": {
+      "id": 5,
+      "name": "product_id"
+    },
+    "TargetID": {
+      "id": 3,
+      "name": "target_id"
+    }
+  },
+  "SoftwareProduct": {
+    "Capabilities": {
+      "id": 9,
+      "name": "capabilities"
+    },
+    "CreatedAt": {
+      "id": 13,
+      "name": "created_at"
+    },
+    "CreatedBy": {
+      "id": 12,
+      "name": "created_by"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 5,
+      "name": "kind"
+    },
+    "License": {
+      "id": 10,
+      "name": "license"
+    },
+    "Name": {
+      "id": 4,
+      "name": "name"
+    },
+    "ProjectID": {
+      "id": 2,
+      "name": "project_id"
+    },
+    "Provenance": {
+      "id": 6,
+      "name": "provenance"
+    },
+    "RecipePath": {
+      "id": 7,
+      "name": "recipe_path"
+    },
+    "RecipePaths": {
+      "id": 8,
+      "name": "recipe_paths"
+    },
+    "RepositoryID": {
+      "id": 3,
+      "name": "repository_id"
+    },
+    "Revision": {
+      "id": 11,
+      "name": "revision"
+    }
+  },
+  "SoftwareProductRequest": {
+    "Capabilities": {
+      "id": 10,
+      "name": "capabilities"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Kind": {
+      "id": 6,
+      "name": "kind"
+    },
+    "License": {
+      "id": 11,
+      "name": "license"
+    },
+    "Name": {
+      "id": 5,
+      "name": "name"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectID": {
+      "id": 3,
+      "name": "project_id"
+    },
+    "Provenance": {
+      "id": 7,
+      "name": "provenance"
+    },
+    "Reason": {
+      "id": 12,
+      "name": "reason"
+    },
+    "RecipePath": {
+      "id": 8,
+      "name": "recipe_path"
+    },
+    "RecipePaths": {
+      "id": 9,
+      "name": "recipe_paths"
+    },
+    "RepositoryID": {
+      "id": 4,
+      "name": "repository_id"
+    }
+  },
+  "SoftwareProposal": {
+    "BackupRecipient": {
+      "id": 3,
+      "name": "backup_recipient"
+    },
+    "Challenge": {
+      "id": 1,
+      "name": "challenge"
+    },
+    "Reason": {
+      "id": 4,
+      "name": "reason"
+    },
+    "Release": {
+      "id": 2,
+      "name": "release"
+    }
+  },
+  "SoftwareRelease": {
+    "BuildIDs": {
+      "id": 5,
+      "name": "build_ids"
+    },
+    "CreatedBy": {
+      "id": 6,
+      "name": "created_by"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "KeyID": {
+      "id": 3,
+      "name": "key_id"
+    },
+    "Manifest": {
+      "id": 2,
+      "name": "manifest"
+    },
+    "Revoked": {
+      "id": 7,
+      "name": "revoked"
+    },
+    "Signature": {
+      "id": 4,
+      "name": "signature"
+    }
+  },
+  "SoftwareReleaseChange": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Reason": {
+      "id": 3,
+      "name": "reason"
+    }
+  },
+  "SoftwareReleaseRequest": {
+    "BuildIDs": {
+      "id": 4,
+      "name": "build_ids"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProductID": {
+      "id": 3,
+      "name": "product_id"
+    },
+    "Reason": {
+      "id": 5,
+      "name": "reason"
+    }
+  },
+  "SoftwareResult": {
+    "ArtifactID": {
+      "id": 6,
+      "name": "artifact_id"
+    },
+    "BackupSHA256": {
+      "id": 8,
+      "name": "backup_sha256"
+    },
+    "Code": {
+      "id": 10,
+      "name": "code"
+    },
+    "PermitID": {
+      "id": 2,
+      "name": "permit_id"
+    },
+    "PermitSHA256": {
+      "id": 3,
+      "name": "permit_sha256"
+    },
+    "ProductID": {
+      "id": 4,
+      "name": "product_id"
+    },
+    "ReleaseID": {
+      "id": 5,
+      "name": "release_id"
+    },
+    "ResumeSafe": {
+      "id": 1,
+      "name": "resume_safe"
+    },
+    "SHA256": {
+      "id": 7,
+      "name": "sha256"
+    },
+    "State": {
+      "id": 9,
+      "name": "state"
+    }
+  },
+  "SoftwareResultRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Result": {
+      "id": 3,
+      "name": "result"
+    }
+  },
   "SystemEnvironment": {
     "Architecture": {
       "id": 4,
@@ -3901,6 +5519,10 @@
     "Attempts": {
       "id": 32,
       "name": "attempts"
+    },
+    "BuildID": {
+      "id": 42,
+      "name": "build_id"
     },
     "Clarity": {
       "id": 28,
@@ -3990,6 +5612,10 @@
       "id": 18,
       "name": "result_generation"
     },
+    "ResultSource": {
+      "id": 41,
+      "name": "result_source"
+    },
     "RetryApproval": {
       "id": 27,
       "name": "retry_approval"
@@ -4001,6 +5627,10 @@
     "Revision": {
       "id": 15,
       "name": "revision"
+    },
+    "Source": {
+      "id": 40,
+      "name": "source"
     },
     "SpecGeneration": {
       "id": 16,
@@ -4120,6 +5750,10 @@
       "id": 20,
       "name": "run_id"
     },
+    "Source": {
+      "id": 28,
+      "name": "source"
+    },
     "SpecGeneration": {
       "id": 17,
       "name": "spec_generation"
@@ -4194,9 +5828,31 @@
       "id": 8,
       "name": "repetitive"
     },
+    "Source": {
+      "id": 14,
+      "name": "source"
+    },
     "Title": {
       "id": 4,
       "name": "title"
+    }
+  },
+  "TaskSource": {
+    "Commit": {
+      "id": 2,
+      "name": "commit"
+    },
+    "ProductID": {
+      "id": 4,
+      "name": "product_id"
+    },
+    "Ref": {
+      "id": 3,
+      "name": "ref"
+    },
+    "RepositoryID": {
+      "id": 1,
+      "name": "repository_id"
     }
   },
   "Terminal": {

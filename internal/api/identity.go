@@ -21,10 +21,11 @@ import (
 )
 
 type IdentityOptions struct {
-	CAFile    string
-	CAKeyFile string
-	Provision func(context.Context, domain.AgentIdentity) (domain.AgentIdentity, error)
-	Disable   func(context.Context, domain.AgentIdentity) error
+	DistributionKeyFile string
+	CAFile              string
+	CAKeyFile           string
+	Provision           func(context.Context, domain.AgentIdentity) (domain.AgentIdentity, error)
+	Disable             func(context.Context, domain.AgentIdentity) error
 }
 
 type controllerOwner struct {
@@ -75,6 +76,11 @@ func (s *Server) ConfigureIdentity(options IdentityOptions) error {
 		return err
 	}
 	s.identity.options, s.identity.ca, s.identity.key = options, ca, key
+	if options.DistributionKeyFile != "" {
+		if err := s.ConfigureDistributionKey(options.DistributionKeyFile); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

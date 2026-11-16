@@ -24,6 +24,7 @@ type FileReference struct {
 }
 
 type SharedFile struct {
+	RegistryID string `json:"registry_id,omitempty"`
 	FileReference
 	OwnerID             string `json:"owner_id"`
 	State               string `json:"state"`

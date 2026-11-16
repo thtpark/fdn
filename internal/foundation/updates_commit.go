@@ -339,6 +339,16 @@ func (r *updateRouter) route(change updateChange) error {
 	parties := make(updateParties)
 	u := domain.Update{SourceID: change.id}
 	switch change.table {
+	case "delivery":
+		if err := json.Unmarshal(change.after, &u); err != nil {
+			return err
+		}
+		if err := r.project(u.ProjectID, parties); err != nil {
+			return err
+		}
+		if err := r.projectDependents(u.ProjectID, parties); err != nil {
+			return err
+		}
 	case "files":
 		values, err := changeValues[domain.SharedFile](change)
 		if err != nil {

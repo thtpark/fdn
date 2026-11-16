@@ -19,6 +19,13 @@ type peerContextKey struct{}
 
 var ordinaryRoutes = map[string][]string{
 	http.MethodGet: {
+		"/v1/improvement-policy", "/v1/improvements", "/v1/improvements/*", "/v1/maintenance-usage",
+		"/v1/maintenance-reservations/*",
+		"/v1/repositories", "/v1/repositories/*", "/v1/repositories/*/file", "/v1/artifacts/*", "/v1/artifacts/*/chunks",
+		"/v1/software-products", "/v1/software-products/*", "/v1/software-builds/*", "/v1/software-releases", "/v1/software-releases/*",
+		"/v1/software-inventory", "/v1/software-consumers", "/v1/software-preflights/*", "/v1/software-preflight-requests",
+		"/v1/software-deployments/*", "/v1/software-requests",
+		"/v1/software-maintenance/*",
 		"/healthz", "/v1/me", "/v1/identity/status", "/v1/identity/devices", "/v1/agents", "/v1/agents/*", "/v1/agents/*/screens", "/v1/agents/*/diagnostics", "/v1/ownership", "/v1/projects", "/v1/projects/*",
 		"/v1/tasks", "/v1/tasks/*", "/v1/tasks/*/entries", "/v1/tasks/*/runs", "/v1/runs/*", "/v1/history/*", "/v1/attention", "/v1/events",
 		"/v1/messages", "/v1/messages/*", "/v1/messages/*/diagnostics", "/v1/messages/*/thread", "/v1/sessions", "/v1/sessions/*", "/v1/sessions/*/relay/requester", "/v1/sessions/*/relay/target",
@@ -32,6 +39,13 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/upgrades/preflight/*", "/v1/upgrades/preflight-requests",
 	},
 	http.MethodPost: {
+		"/v1/improvement-policy", "/v1/improvements", "/v1/improvements/*/decision",
+		"/v1/maintenance-reservations", "/v1/maintenance-reservations/*/settle",
+		"/v1/repositories", "/v1/repositories/*/push", "/v1/repositories/*/merge", "/v1/software-products",
+		"/v1/software-builds", "/v1/software-builds/*/result", "/v1/software-releases", "/v1/software-releases/*/revoke",
+		"/v1/software-observations", "/v1/software-consumers", "/v1/software-preflights", "/v1/software-preflight-results",
+		"/v1/software-deployments", "/v1/software-results", "/v1/software-leases",
+		"/v1/software-maintenance",
 		"/v1/agents/*/restart",
 		"/v1/identity/register", "/v1/identity/*/recover", "/v1/identity/devices", "/v1/identity/devices/*/revoke",
 		"/v1/heartbeat", "/v1/agents/*/screens", "/v1/agents/*/mode", "/v1/agents/*/revoke", "/v1/agents/*/authentication", "/v1/agents/*/diagnostics", "/v1/agents/*/repairs", "/v1/agents/*/reset", "/v1/agents/*/status", "/v1/agent-operations/*/result", "/v1/projects", "/v1/projects/*/change", "/v1/project-creation-grants", "/v1/projects/*/delegates",
@@ -77,6 +91,34 @@ func ordinaryPath(method string, u *url.URL) bool {
 		}
 		if match {
 			switch pattern {
+			case "/v1/improvements", "/v1/repositories", "/v1/software-products", "/v1/software-releases",
+				"/v1/repositories/*/file", "/v1/artifacts/*/chunks", "/v1/software-consumers":
+				query, err := url.ParseQuery(u.RawQuery)
+				if err != nil {
+					return false
+				}
+				for name, values := range query {
+					allowed := method == http.MethodGet &&
+						((pattern == "/v1/improvements" && (name == "project" || name == "state" || name == "cursor" || name == "limit")) ||
+							((pattern == "/v1/repositories" || pattern == "/v1/software-products") && (name == "project" || name == "cursor" || name == "limit")) ||
+							(pattern == "/v1/software-releases" && (name == "product" || name == "cursor" || name == "limit")) ||
+							(pattern == "/v1/repositories/*/file" && (name == "commit" || name == "path")) ||
+							(pattern == "/v1/artifacts/*/chunks" && name == "offset") ||
+							(pattern == "/v1/software-consumers" && name == "project"))
+					if !allowed || len(values) != 1 {
+						return false
+					}
+				}
+			case "/v1/improvement-policy", "/v1/improvements/*", "/v1/improvements/*/decision",
+				"/v1/maintenance-usage", "/v1/maintenance-reservations", "/v1/maintenance-reservations/*", "/v1/maintenance-reservations/*/settle",
+				"/v1/repositories/*", "/v1/repositories/*/push", "/v1/repositories/*/merge", "/v1/artifacts/*",
+				"/v1/software-products/*", "/v1/software-builds", "/v1/software-builds/*", "/v1/software-builds/*/result",
+				"/v1/software-releases/*", "/v1/software-releases/*/revoke", "/v1/software-inventory", "/v1/software-observations",
+				"/v1/software-preflights", "/v1/software-preflights/*", "/v1/software-preflight-requests", "/v1/software-preflight-results",
+				"/v1/software-deployments", "/v1/software-deployments/*", "/v1/software-requests", "/v1/software-results", "/v1/software-leases":
+				return u.RawQuery == ""
+			case "/v1/software-maintenance", "/v1/software-maintenance/*":
+				return u.RawQuery == ""
 			case "/v1/files", "/v1/files/*/chunks", "/v1/publications", "/v1/publications/*/versions":
 				query, err := url.ParseQuery(u.RawQuery)
 				if err != nil {

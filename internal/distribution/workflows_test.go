@@ -169,7 +169,7 @@ func TestWorkflowTriggersAndIndependentSuites(t *testing.T) {
 	}
 	release := loadWorkflow(t, "package.yml")
 	pr = release.On["pull_request"]
-	if !reflect.DeepEqual(pr.Branches, []string{"release"}) || !reflect.DeepEqual(pr.Types, []string{"closed"}) || len(release.Jobs) != 2 {
+	if !reflect.DeepEqual(pr.Branches, []string{"release"}) || !reflect.DeepEqual(pr.Types, []string{"closed"}) || len(release.Jobs) != 3 {
 		t.Fatal("release workflow has extra paths")
 	}
 	job := release.Jobs["package"]
@@ -178,7 +178,8 @@ func TestWorkflowTriggersAndIndependentSuites(t *testing.T) {
 	}
 	exactCheckout, guardedBuild := false, false
 	for _, step := range job.Steps {
-		if strings.HasPrefix(step.Uses, "actions/checkout@") && step.With["ref"] == "${{ github.event.pull_request.merge_commit_sha }}" {
+		if strings.HasPrefix(step.Uses, "actions/checkout@") && step.With["ref"] == "${{ github.event.pull_request.merge_commit_sha }}" &&
+			step.With["fetch-depth"] == 0 && step.With["persist-credentials"] == false {
 			exactCheckout = true
 		}
 		if step.Run == "go run ./tools/package" {
@@ -189,7 +190,7 @@ func TestWorkflowTriggersAndIndependentSuites(t *testing.T) {
 		t.Fatal("packaging does not bind the merged source and runtime event guard")
 	}
 	publication := release.Jobs["publish"]
-	if publication.If != job.If || !reflect.DeepEqual(publication.Needs, []string{"package"}) ||
+	if publication.If != job.If || !reflect.DeepEqual(publication.Needs, []string{"package", "source"}) ||
 		publication.Permissions["contents"] != "write" || publication.Permissions["actions"] != "read" {
 		t.Fatal("durable release publication is not bound to all successful native packages and its narrow permission scope")
 	}
@@ -201,5 +202,59 @@ func TestWorkflowTriggersAndIndependentSuites(t *testing.T) {
 		if !strings.Contains(commands, required) {
 			t.Fatal("release publication lost source/immutability/draft protection", required)
 		}
+	}
+}
+
+func TestSourceCompanionsArePackagedOnceAndPublishedAlongsideNativeZIPs(t *testing.T) {
+	release := loadWorkflow(t, "package.yml")
+	guard := "github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release'"
+	source, exists := release.Jobs["source"]
+	if !exists || source.If != guard {
+		t.Fatal("source companions have an unguarded or missing package job")
+	}
+	packages, completeCheckouts, uploads := 0, 0, 0
+	for id, job := range release.Jobs {
+		if job.If != guard {
+			t.Fatal("release workflow gained a non-merge execution path", id)
+		}
+		for _, step := range job.Steps {
+			if strings.HasPrefix(step.Uses, "actions/checkout@") &&
+				step.With["ref"] == "${{ github.event.pull_request.merge_commit_sha }}" &&
+				step.With["fetch-depth"] == 0 && step.With["persist-credentials"] == false {
+				completeCheckouts++
+			}
+			if step.Run == "go run ./tools/package -source-only" {
+				packages++
+				if id != "source" || step.Env["TARGET_OS"] != "" || step.Env["TARGET_ARCH"] != "" {
+					t.Fatal("source is duplicated in native platform jobs")
+				}
+			}
+			if strings.HasPrefix(step.Uses, "actions/upload-artifact@") && step.With["name"] == "fdn-source" &&
+				step.With["path"] == "dist/source/" && step.With["if-no-files-found"] == "error" {
+				uploads++
+			}
+		}
+	}
+	if packages != 1 || uploads != 1 || completeCheckouts != 3 {
+		t.Fatal("source packaging is duplicated or release ancestry is shallow", packages, uploads, completeCheckouts)
+	}
+	var commands string
+	for _, step := range release.Jobs["publish"].Steps {
+		commands += step.Run + "\n"
+	}
+	for _, required := range []string{"--pattern 'fdn-*'", "publish/output/*.zip", "publish/output/*-source.tar.gz",
+		"publish/output/*-source.bundle", "publish/output/*-source.json", "publish/output/*-source.SHA256SUMS",
+		"git/ref/tags/$tag", "Release tag already exists", "--draft=false --latest"} {
+		if !strings.Contains(commands, required) {
+			t.Fatal("source publication lost all-assets or immutable-release guard", required)
+		}
+	}
+	for _, forbidden := range []string{"--clobber", "gh release upload", "gh release delete", "--force"} {
+		if strings.Contains(commands, forbidden) {
+			t.Fatal("source publication can overwrite an existing release", forbidden)
+		}
+	}
+	if strings.Count(commands, "gh release create ") != 1 || strings.Count(commands, "--draft=false") != 1 {
+		t.Fatal("source publication is not a single draft-to-published operation")
 	}
 }

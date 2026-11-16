@@ -47,6 +47,24 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "publication-version", ID: v.VersionID}
 	case domain.Task:
 		ref = storedResult{Kind: "tasks", ID: v.ID}
+	case domain.Improvement:
+		ref = storedResult{Kind: "improvements", ID: v.ID}
+	case domain.HostedRepository:
+		ref = storedResult{Kind: "repositories", ID: v.ID}
+	case domain.SoftwareProduct:
+		ref = storedResult{Kind: "software_products", ID: v.ID}
+	case domain.SoftwareBuild:
+		ref = storedResult{Kind: "software_builds", ID: v.ID}
+	case domain.SoftwareRelease:
+		ref = storedResult{Kind: "software_releases", ID: v.ID}
+	case domain.SoftwareDeployment:
+		ref = storedResult{Kind: "software_deployments", ID: v.ID}
+	case domain.SoftwarePreflight:
+		ref = storedResult{Kind: "software_preflights", ID: v.ID}
+	case domain.MaintenanceReservation:
+		ref = storedResult{Kind: "maintenance_reservations", ID: v.ID}
+	case domain.ImprovementResult:
+		ref = storedResult{Kind: "improvement-result", ID: v.Request.ID}
 	case domain.Run:
 		ref = storedResult{Kind: "runs", ID: v.ID}
 	case domain.Entry:
@@ -75,7 +93,7 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "assistance-help", ID: v.ID, Value: data}
 	case domain.ReportOutcome:
 		ref = storedResult{Kind: "report", ID: v.Run.ID, TaskID: v.Task.ID, Accepted: v.Accepted, Stale: v.Stale}
-	case domain.Attention, map[string]bool, []domain.Screen, domain.Sharing, domain.ComputerEnvironment, domain.ComputerModelOptions, domain.AnnouncementReceipt, domain.FileProgress, domain.FileDownloadReceipt, domain.UpgradeMaintenance, domain.ProviderPreferences, domain.UpgradeLease:
+	case domain.Attention, map[string]bool, []domain.Screen, domain.Sharing, domain.ComputerEnvironment, domain.ComputerModelOptions, domain.AnnouncementReceipt, domain.FileProgress, domain.FileDownloadReceipt, domain.UpgradeMaintenance, domain.ProviderPreferences, domain.UpgradeLease, domain.ImprovementPolicy, domain.SoftwareInventory, domain.SoftwareConsumer, domain.SoftwareMaintenance:
 		data, err := json.Marshal(v)
 		if err != nil {
 			return nil, err
@@ -122,6 +140,51 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, actor string, data []b
 		value, err = get[domain.Publication](ctx, tx, "publication_versions", ref.ID)
 	case "tasks":
 		value, err = get[domain.Task](ctx, tx, ref.Kind, ref.ID)
+	case "improvements":
+		value, err = get[domain.Improvement](ctx, tx, ref.Kind, ref.ID)
+	case "improvement-result":
+		request, readErr := get[domain.Improvement](ctx, tx, "improvements", ref.ID)
+		err = readErr
+		result := domain.ImprovementResult{Request: request}
+		if err == nil && request.TaskID != "" {
+			task, taskErr := get[domain.Task](ctx, tx, "tasks", request.TaskID)
+			err, result.Task = taskErr, &task
+		}
+		value = result
+	case "repositories":
+		repo, readErr := get[domain.HostedRepository](ctx, tx, ref.Kind, ref.ID)
+		err = readErr
+		if err == nil {
+			err = requireRepositoryReader(ctx, tx, actor, repo)
+		}
+		value = repo
+	case "software_products":
+		value, err = get[domain.SoftwareProduct](ctx, tx, ref.Kind, ref.ID)
+	case "software_builds":
+		value, err = get[domain.SoftwareBuild](ctx, tx, ref.Kind, ref.ID)
+	case "software_releases":
+		value, err = get[domain.SoftwareRelease](ctx, tx, ref.Kind, ref.ID)
+	case "software_deployments":
+		deployment, readErr := get[domain.SoftwareDeployment](ctx, tx, ref.Kind, ref.ID)
+		err = readErr
+		if err == nil && deployment.Permit.ActorID != actor && deployment.Permit.Proposal.Challenge.TargetID != actor {
+			err = domain.Fail(domain.Denied, "software deployment receipt belongs to another party")
+		}
+		value = deployment
+	case "software_preflights":
+		control, readErr := get[domain.SoftwarePreflight](ctx, tx, ref.Kind, ref.ID)
+		err = readErr
+		if err == nil && actor != control.FounderID && actor != control.Request.TargetID && actor != "native-maintenance" {
+			err = domain.Fail(domain.Denied, "software preflight receipt belongs to another party")
+		}
+		value = control
+	case "maintenance_reservations":
+		reservation, readErr := get[domain.MaintenanceReservation](ctx, tx, ref.Kind, ref.ID)
+		err = readErr
+		if err == nil && reservation.AgentID != actor {
+			err = domain.Fail(domain.Denied, "maintenance reservation belongs to another actor")
+		}
+		value = reservation
 	case "runs":
 		value, err = get[domain.Run](ctx, tx, ref.Kind, ref.ID)
 	case "entries":

@@ -60,6 +60,7 @@ type PreferenceChoice struct {
 }
 
 type Reply struct {
+	Improvement        *ImprovementChoice  `json:"improvement,omitempty"`
 	Outcome            string              `json:"outcome"`
 	Decision           string              `json:"decision,omitempty"`
 	Summary            string              `json:"summary"`
@@ -84,6 +85,11 @@ func (r Reply) RequestsResponse() bool {
 }
 
 func (r Reply) Validate() error {
+	if r.Improvement != nil {
+		if r.Outcome != "reviewed" || !slices.Contains([]string{"accept", "defer", "decline", "duplicate"}, r.Improvement.Decision) {
+			return domain.Fail(domain.Provider, "improvement triage requires reviewed and an exact accept/defer/decline/duplicate choice")
+		}
+	}
 	if r.Preferences != nil {
 		if r.Preferences.Provider == "" {
 			return domain.Fail(domain.Provider, "an agent-selected preference requires an explicit authenticated provider")
@@ -183,6 +189,8 @@ type Health struct {
 }
 
 type Invocation struct {
+	TaskID    string
+	RunID     string
 	ID        string
 	Provider  string
 	Model     string
@@ -479,10 +487,7 @@ func (m *Manager) Invoke(ctx context.Context, inv Invocation) (reply Reply, err 
 		_, closeErr := stdout.finish()
 		return reply, errors.Join(err, closeErr)
 	}
-	environment := process.Environment()
-	if inv.Coding && m.Config.SourcePath() != "" {
-		environment = append(environment, config.WorkerConfigEnvironment+"="+m.Config.SourcePath())
-	}
+	environment := invocationEnvironment(m.Config, inv)
 	runErr := m.Runner.Run(ctx, process.Spec{Path: inv.Path, Args: args, Dir: cwd, Env: environment,
 		Stdin: strings.NewReader(inv.Prompt), Stdout: stdout, Stderr: stderr, Started: inv.Started})
 	out, outErr := stdout.finish()

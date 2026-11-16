@@ -21,14 +21,15 @@ import (
 )
 
 type Server struct {
-	StateDir      string `json:"state_dir"`
-	FileDir       string `json:"file_dir,omitempty"`
-	CertFile      string `json:"cert_file"`
-	KeyFile       string `json:"key_file"`
-	IngressSocket string `json:"ingress_socket,omitempty"`
-	JoinSocket    string `json:"join_socket,omitempty"`
-	IngressGroup  int    `json:"ingress_group,omitempty"`
-	AccountSocket string `json:"account_socket,omitempty"`
+	DistributionKeyFile string `json:"distribution_key_file,omitempty"`
+	StateDir            string `json:"state_dir"`
+	FileDir             string `json:"file_dir,omitempty"`
+	CertFile            string `json:"cert_file"`
+	KeyFile             string `json:"key_file"`
+	IngressSocket       string `json:"ingress_socket,omitempty"`
+	JoinSocket          string `json:"join_socket,omitempty"`
+	IngressGroup        int    `json:"ingress_group,omitempty"`
+	AccountSocket       string `json:"account_socket,omitempty"`
 }
 
 func (c Server) FileDirectory() string {
@@ -144,6 +145,10 @@ func URL(raw string) error {
 }
 
 func (c Server) Validate() error {
+	if c.DistributionKeyFile != "" && (!filepath.IsAbs(c.DistributionKeyFile) || filepath.Clean(c.DistributionKeyFile) != c.DistributionKeyFile ||
+		strings.ContainsAny(c.DistributionKeyFile, "\x00\r\n")) {
+		return domain.Fail(domain.Invalid, "distribution signing key requires an explicit canonical protected path")
+	}
 	if !filepath.IsAbs(c.StateDir) || !filepath.IsAbs(c.CertFile) || !filepath.IsAbs(c.KeyFile) {
 		return domain.Fail(domain.Invalid, "server paths must be absolute")
 	}

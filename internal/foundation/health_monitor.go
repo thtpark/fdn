@@ -191,6 +191,9 @@ func (s *Store) sweepAgentHealth(ctx context.Context, id string) error {
 		if err := saveHealthSetting(ctx, tx, healthIncidentKey+id, episode); err != nil {
 			return err
 		}
+		if err := s.proposeIncidentImprovement(ctx, tx, episode); err != nil {
+			return err
+		}
 	}
 	return s.commit(ctx, tx)
 }

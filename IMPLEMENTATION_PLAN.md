@@ -6,6 +6,31 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Internal continuous improvement and tools (0.3.45 source)
+
+Feature requests, enhancements, bugs, incident-derived proposals and new/existing
+internal tools share one owning-project/task/contribution/build/release flow.
+The reserved Founder-owned Foundation project does not inherit Adhoc authority.
+Current independent delegates handle routine triage/readiness/review under a
+durable, explicitly configured idle-first maintenance allowance and one slot.
+External contribution remains a separate Founder-approved optional action.
+
+Hosted Git is immutable bundle-backed transport and transactional exact refs,
+without running agent-supplied server Git commands. Source-bound build recipes
+and independently accepted platform outputs feed separately signed immutable
+internal releases. Existing files enter deliberate registry custody in the same
+file store. Product inventory/consumer bindings distinguish observation,
+verified source and managed installation; unknown/vendor tools are not adopted
+or internally re-signed by discovery alone.
+
+Native delivery reuses exact Founder/device/generation, fixed expiry/nonce,
+independent policy/receiver, encrypted backup, server-first dependency and
+uncertain receipt boundaries. New SQL12 and typed source support require
+compatible bootstrap, not automatic live activation. Source fixture results
+are not native service/root rollout, physical isolation, provider quality,
+artifact notarization or full-host/fleet qualification.
+See [IMPROVEMENT.md](IMPROVEMENT.md) and [TEST_PLAN.md](TEST_PLAN.md).
+
 ### Authenticated model choices and Antigravity CLI (0.3.42 source)
 
 Both apps offer only fresh authenticated models from the chosen enrolled

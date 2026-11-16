@@ -210,6 +210,9 @@ type Result struct {
 }
 
 type Task struct {
+	Source               *TaskSource     `json:"source,omitempty"`
+	ResultSource         *TaskSource     `json:"result_source,omitempty"`
+	BuildID              string          `json:"build_id,omitempty"`
 	Attachments          []FileReference `json:"attachments,omitempty"`
 	ID                   string          `json:"id"`
 	ProjectID            string          `json:"project_id"`
@@ -252,6 +255,8 @@ type Task struct {
 }
 
 type Run struct {
+	MaintenanceID        string   `json:"maintenance_id,omitempty"`
+	DeadlineAt           int64    `json:"deadline_at,omitempty"`
 	ID                   string   `json:"id"`
 	Kind                 string   `json:"kind,omitempty"`
 	TaskID               string   `json:"task_id"`

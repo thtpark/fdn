@@ -261,10 +261,7 @@ func (m *Manager) invokeAntigravity(ctx context.Context, inv Invocation, directo
 		workspace = inv.Workspace
 	}
 	args := append(antigravityACPArguments(inv.Coding), "--gemini-dir", filepath.ToSlash(relative), "--agent", antigravityAgent)
-	environment := process.Environment()
-	if inv.Coding && m.Config.SourcePath() != "" {
-		environment = append(environment, config.WorkerConfigEnvironment+"="+m.Config.SourcePath())
-	}
+	environment := invocationEnvironment(m.Config, inv)
 	ctx, cancel := context.WithTimeout(ctx, inv.Timeout)
 	defer cancel()
 	stdout, err := newInvocationOutput(filepath.Join(directory, "stdout.log"), 2<<20)

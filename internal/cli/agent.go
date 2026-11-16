@@ -21,6 +21,9 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 	if group == "agent" && len(tail) > 0 && tail[0] == "add-relay" {
 		a.nativeOutput = true
 	}
+	if group == "repository" && len(tail) > 0 && tail[0] == "remote" {
+		a.nativeOutput = true
+	}
 	if group == "config" && len(tail) > 0 && tail[0] == "init" {
 		return a.initWorker(tail[1:])
 	}
@@ -35,6 +38,7 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.nativeService(ctx, tail, "agent")
 	}
 	localOnly := slices.Contains([]string{"config", "knowledge", "inventory", "workspace", "provider", "preferences", "service", "screen"}, group) ||
+		(group == "repository" && len(tail) > 0 && (tail[0] == "link" || tail[0] == "bundle")) ||
 		(group == "file" && len(tail) > 0 && slices.Contains([]string{"upload-status", "download-status"}, tail[0])) ||
 		(group == "agent" && len(tail) > 0 && tail[0] == "add-status") ||
 		(group == "upgrade" && len(tail) > 0 && tail[0] == "status") ||
@@ -46,6 +50,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 	}
 	defer func() { err = errors.Join(err, r.close()) }()
 	switch group {
+	case "improvement", "repository", "software", "build", "release":
+		return a.deliveryCommand(ctx, r, group, tail)
 	case "observe":
 		if len(tail) != 0 {
 			return nil, domain.Fail(domain.Invalid, "observe accepts only versioned stdin frames")
@@ -115,6 +121,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.upgradeLease(ctx, r, tail)
 	case "message-worker":
 		return a.messageWorker(ctx, r, tail)
+	case "software-mailbox":
+		return a.softwareMailboxCommand(ctx, r, tail)
 	case "watch":
 		return a.watchCommand(ctx, r, tail)
 	default:

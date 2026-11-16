@@ -10,6 +10,7 @@ import (
 )
 
 type Query struct {
+	Product         string `json:"product,omitempty"`
 	Kind            string `json:"kind"`
 	ID              string `json:"id,omitempty"`
 	Scope           string `json:"scope,omitempty"`
@@ -27,13 +28,13 @@ type Query struct {
 	PublicationKind string `json:"publication_kind,omitempty"`
 }
 
-var kinds = strings.Fields("version help status identity work agents agent environment modelOptions announcementAudience projects project tasks task taskHistory runs run discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens sharing sharingSessions sharingStatus devices diagnostics operation upgrade configuration guides guide doctor events")
+var kinds = strings.Fields("version help status identity work agents agent environment modelOptions announcementAudience projects project tasks task taskHistory runs run discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens sharing sharingSessions sharingStatus devices diagnostics operation upgrade configuration guides guide doctor events improvementPolicy improvements improvement repositories repository products product build releases release softwareInventory softwareConsumers softwareControl softwareDeployment softwareMaintenance maintenanceUsage")
 
 func (q Query) Validate() error {
 	if !slices.Contains(kinds, q.Kind) || q.Limit < 0 || q.Limit > 200 || len(q.Cursor) > 512 || q.Offset < 0 || q.Offset > domain.MaxFileSize {
 		return domain.Fail(domain.Invalid, "unsupported observer query or page budget")
 	}
-	for _, value := range []string{q.ID, q.Project, q.Assignee, q.Peer} {
+	for _, value := range []string{q.ID, q.Project, q.Assignee, q.Peer, q.Product} {
 		if len(value) > 512 || strings.ContainsAny(value, "\x00\r\n") || strings.HasPrefix(value, "-") {
 			return domain.Fail(domain.Invalid, "invalid observer query target")
 		}
@@ -52,6 +53,8 @@ func (q Query) Subscribable() bool {
 
 func (q Query) SampleInterval() time.Duration {
 	switch q.Kind {
+	case "maintenanceUsage", "softwareInventory", "softwareControl", "softwareDeployment", "softwareMaintenance":
+		return 5 * time.Second
 	case "work", "knowledge", "knowledgeItem", "knowledgeHistory", "workspaces", "inventory", "preferences", "configuration", "screens", "upgrade", "diagnostics", "messageDiagnostics":
 		return 5 * time.Second
 	case "agents", "agent", "environment", "modelOptions":
@@ -63,6 +66,18 @@ func (q Query) SampleInterval() time.Duration {
 
 func (q Query) Matches(u domain.Update, actor string) bool {
 	switch q.Kind {
+	case "improvementPolicy", "maintenanceUsage":
+		return u.Topic == "improvement-policy"
+	case "improvements", "improvement":
+		return u.Topic == "improvement" && (q.ID == "" || q.ID == u.SourceID) && (q.Project == "" || q.Project == u.ProjectID)
+	case "repositories", "repository":
+		return u.Topic == "repository" && (q.ID == "" || q.ID == u.SourceID)
+	case "products", "product":
+		return u.Topic == "software" && (q.ID == "" || q.ID == u.SourceID)
+	case "build":
+		return u.Topic == "build" && q.ID == u.SourceID
+	case "releases", "release":
+		return u.Topic == "release" && (q.ID == "" || q.ID == u.SourceID)
 	case "files":
 		return u.Topic == "file"
 	case "file":
@@ -129,6 +144,10 @@ func Filters(queries []Query, actor string) (domain.UpdateFilter, domain.UpdateF
 	allPublic := false
 	for _, q := range queries {
 		switch q.Kind {
+		case "improvements", "improvement", "improvementPolicy":
+			public.Topics = append(public.Topics, "improvement", "improvement-policy")
+		case "repositories", "repository", "products", "product", "build", "releases", "release":
+			private.Topics = append(private.Topics, "repository", "software", "build", "release")
 		case "files", "file":
 			if q.ID == "" {
 				private.Topics = append(private.Topics, "file")

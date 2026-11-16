@@ -82,6 +82,9 @@ type Status struct {
 }
 
 type Launch struct {
+	Improvement        *domain.Improvement                `json:"improvement,omitempty"`
+	Maintenance        *domain.MaintenanceReservation     `json:"maintenance,omitempty"`
+	CandidateAgents    []domain.Agent                     `json:"candidate_agents,omitempty"`
 	Phase              string                             `json:"phase"`
 	AgentID            string                             `json:"agent_id"`
 	ExecutorAgent      *domain.Agent                      `json:"executor_agent,omitempty"`
@@ -435,6 +438,23 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 	if err != nil {
 		return status, err
 	}
+	policy, err := api.Call[domain.ImprovementPolicy](ctx, e.Client, http.MethodGet, "/v1/improvement-policy", nil)
+	if err != nil {
+		return status, err
+	}
+	if policy.Enabled {
+		usage, err := api.Call[domain.MaintenanceUsage](ctx, e.Client, http.MethodGet, "/v1/maintenance-usage", nil)
+		if err != nil {
+			return status, err
+		}
+		if reserveDue(usage, usage.ServerObservedAt) {
+			acted, err := e.improvementStep(ctx, c, manual, policy, tasks)
+			if acted || err != nil {
+				status.State = "improvement"
+				return status, err
+			}
+		}
+	}
 	slices.SortStableFunc(tasks, func(a, b domain.Task) int {
 		if a.Priority != b.Priority {
 			return b.Priority - a.Priority
@@ -451,6 +471,9 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return 0
 	})
 	for _, task := range tasks {
+		if improvementProject(policy, task.ProjectID) {
+			continue
+		}
 		var conversation string
 		managed, err := e.State.Get(ctx, "conversation-task:"+task.ID, &conversation)
 		if err != nil {
@@ -520,6 +543,9 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	}
 	for _, task := range reviews {
+		if improvementProject(policy, task.ProjectID) {
+			continue
+		}
 		if err := e.verify(ctx, c, me, task, manual); err != nil {
 			if permissionFailure(err) {
 				err = e.permissionBlocked(ctx, c, Launch{Task: &task}, "task-authority", err)
@@ -545,6 +571,12 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, err
 	} else if acted {
 		status.State = "message"
+		return status, nil
+	}
+	if acted, err := e.improvementStep(ctx, c, manual, policy, tasks); err != nil {
+		return status, err
+	} else if acted {
+		status.State = "improvement"
 		return status, nil
 	}
 	if acted, err := e.research(ctx, c, tasks, manual); err != nil {
@@ -758,7 +790,7 @@ func (e *Engine) newJournal(launch Launch, health provider.Health, model string)
 	return j, nil
 }
 
-func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manual bool) (local.Journal, error) {
+func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manual bool) (result local.Journal, err error) {
 	ctx, launch = actionContext(ctx, launch)
 	if err := e.phaseHealth(ctx, "preparing", &launch, "", 120, false); err != nil {
 		return local.Journal{}, err
@@ -776,6 +808,15 @@ func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manua
 	if err := e.refreshModelContext(ctx, &launch); err != nil {
 		return local.Journal{}, err
 	}
+	if err := e.reserveImprovement(ctx, &launch); err != nil {
+		return local.Journal{}, err
+	}
+	defer func() { settleAfterImprovement(e, launch, &err) }()
+	if launch.Maintenance != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(launch.Maintenance.Seconds)*time.Second)
+		defer cancel()
+	}
 	j, err := e.newJournal(launch, health, model)
 	if err != nil {
 		return j, err
@@ -788,6 +829,16 @@ func (e *Engine) text(ctx context.Context, c config.Worker, launch Launch, manua
 }
 
 func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journal, launch Launch, path string, manual bool) error {
+	if launch.Maintenance != nil {
+		status, err := api.Call[domain.MaintenanceStatus](ctx, e.Client, http.MethodGet,
+			api.Path("maintenance-reservations", launch.Maintenance.ID), nil)
+		if err != nil {
+			return err
+		}
+		if status.Reservation.State != "reserved" || status.Reservation.ExpiresAt <= status.ServerObservedAt {
+			return domain.Fail(domain.Prerequisite, "retained improvement slice expired or settled; inference was not replayed")
+		}
+	}
 	prompt, err := invocationPrompt(j.Context)
 	if err != nil {
 		return err
@@ -816,7 +867,7 @@ func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journ
 	}
 	go e.guardMode(invocationCtx, cancel, manual, "")
 	reply, err := e.Executor.Invoke(invocationCtx, provider.Invocation{ID: j.ID, Provider: j.Provider, Path: path, Model: j.Model,
-		Prompt: prompt, Timeout: time.Duration(min(c.InvocationTimeoutSeconds, 300)) * time.Second,
+		Prompt: prompt, Timeout: improvementTimeout(launch, time.Duration(min(c.InvocationTimeoutSeconds, 300))*time.Second),
 		Started: func(pid int) error { j.PID = pid; return e.State.SaveJournal(invocationCtx, *j) }})
 	if err == nil {
 		err = reply.Validate()

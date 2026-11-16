@@ -24,6 +24,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -40,9 +41,31 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  source:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release'
+    name: Package / source companions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Package exact tracked source and complete release ancestry once
+        run: go run ./tools/package -source-only
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fdn-source
+          path: dist/source/
+          if-no-files-found: error
+          retention-days: 30
+
   publish:
     if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'release'
-    needs: [package]
+    needs: [package, source]
     name: Publish immutable release assets
     runs-on: ubuntu-latest
     permissions:
@@ -52,11 +75,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - name: Fetch this exact run's verified native artifacts
+      - name: Fetch this exact run's verified native and source artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'fdn-*' --dir publish/input
@@ -92,6 +116,7 @@ jobs:
           fi
           gh release create "$tag" --repo "$GITHUB_REPOSITORY" \
             --target "$RELEASE_COMMIT" --draft --title "Foundation $version" \
-            --notes "Exact merged release source: $RELEASE_COMMIT. Reproducible native binaries; unsigned and unattested. Workflow: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            publish/output/*.zip
+            --notes "Exact merged release source: $RELEASE_COMMIT. Reproducible native binaries and tracked source/full-ancestry companions; unsigned and unattested. External dependencies and toolchains are not supplied. Workflow: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            publish/output/*.zip publish/output/*-source.tar.gz publish/output/*-source.bundle \
+            publish/output/*-source.json publish/output/*-source.SHA256SUMS
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest

@@ -31,7 +31,7 @@ func contentHash(task domain.Task) string {
 		Policy                                                  domain.ApprovalPolicy
 		Retry                                                   domain.RetryPolicy
 	}{task.Title, task.Description, task.AcceptanceCriteria, task.AssigneeID, task.Provider, task.Model, task.Policy, task.RetryPolicy})
-	return domain.Hash(string(data))
+	return domain.Hash(string(data) + improvementContent(task))
 }
 
 func reviewKey(task domain.Task, phase string) string {
@@ -172,6 +172,8 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 		return e.queueConversationAction(ctx, j, launch, reply)
 	}
 	switch launch.Phase {
+	case "improvement-triage", "improvement-readiness":
+		return e.applyImprovementText(ctx, j, launch, reply)
 	case "onboarding":
 		if reply.Outcome != "reviewed" || len(reply.Questions) != 0 {
 			return domain.Fail(domain.Provider, "onboarding requires a complete bounded capability review")

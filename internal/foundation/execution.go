@@ -128,8 +128,26 @@ OR (json_extract(data,'$.purpose')='sharing' AND COALESCE(json_extract(data,'$.i
 		if active != 0 {
 			return domain.Run{}, domain.Fail(domain.Conflict, "this agent already owns an active task")
 		}
+		reservation, err := s.validateMaintenance(ctx, tx, a.ID, p.ID, t.ID, kind, req.MaintenanceID)
+		if err != nil {
+			return domain.Run{}, err
+		}
+		if err := s.validateTaskSource(ctx, tx, p, t.Source); err != nil {
+			return domain.Run{}, err
+		}
 		run := domain.Run{ID: domain.NewID("run"), Kind: kind, TaskID: t.ID, AgentID: a.ID, SpecGeneration: t.SpecGeneration,
 			Attempt: t.Attempts + 1, Provider: req.Provider, Model: req.Model, State: "running", Evidence: []string{}, StartedAt: s.timestamp()}
+		if reservation.ID != "" {
+			run.MaintenanceID, run.DeadlineAt = reservation.ID, reservation.ExpiresAt
+			reservation.RunID, reservation.State = run.ID, "admitted"
+			raw, err := encode(reservation)
+			if err != nil {
+				return run, err
+			}
+			if _, err := tx.ExecContext(ctx, "UPDATE maintenance_reservations SET data=? WHERE id=?", raw, reservation.ID); err != nil {
+				return run, err
+			}
+		}
 		if kind == domain.VerificationRun {
 			run.Attempt, run.ResultGeneration, run.DiscussionGeneration, run.ProjectEpoch, run.AgentRevision = 1, t.ResultGeneration, t.DiscussionGeneration, p.Epoch, a.Revision
 		} else if kind == domain.RecoveryRun {
@@ -247,6 +265,18 @@ func (s *Store) Report(ctx context.Context, actor, taskID string, req domain.Rep
 		} else {
 			switch req.Outcome {
 			case "completed":
+				if t.BuildID != "" {
+					build, err := get[domain.SoftwareBuild](ctx, tx, "software_builds", t.BuildID)
+					if err != nil {
+						return outcome, err
+					}
+					if build.State != "submitted" || build.RunID != run.ID || build.SpecGeneration != t.SpecGeneration {
+						return outcome, domain.Fail(domain.Prerequisite, "build task completion requires its exact verified native output submission")
+					}
+				}
+				if err := s.captureResultSource(ctx, tx, &t); err != nil {
+					return outcome, err
+				}
 				t.Status, t.Waiting, t.UnsafeRetry = domain.Completed, nil, false
 				t.ResultGeneration++
 				t.Result = &domain.Result{RunID: run.ID, SpecGeneration: run.SpecGeneration, Summary: req.Summary, Evidence: req.Evidence}

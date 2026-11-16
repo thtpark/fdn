@@ -39,6 +39,10 @@ func phaseOutcomes(phase string) []string {
 	switch phase {
 	case "onboarding":
 		return []string{"reviewed"}
+	case "improvement-triage":
+		return []string{"reviewed"}
+	case "improvement-readiness":
+		return []string{"clear", "blocked", "paused"}
 	case "scope", "acceptance", "preflight":
 		return []string{"clear", "blocked", "paused"}
 	case "message", "request", "attention":
@@ -68,6 +72,12 @@ func phasePrompt(phase string) (string, error) {
 	if phase == "scope" || phase == "acceptance" || phase == "preflight" {
 		instruction += "This is tool-disabled preparation, NOT execution or verification. Use clear only after reviewing the supplied scope/criteria and finding no unresolved blocker; otherwise use blocked or paused with useful questions. Do NOT return reviewed or completed, do not claim execution, and do not invent task approval.\n"
 		instruction += "Disabled tools and a read-only sandbox in THIS preparation invocation are intentional, not evidence that the later execution invocation cannot read files, install ordinary tools or write approved outputs. The controller admits execution separately with the existing bound local OS/tool access. Do not block or ask to make this preparation call writable merely because the task requires tools or a file write. Assess scope and actual recorded prerequisites; ordinary tool setup and output creation belong to later tool-enabled execution. Preserve any genuinely observed OS restriction or revoked binding, rather than inventing one from this call's sandbox.\n"
+	}
+	if phase == "improvement-triage" {
+		instruction += "Tool-disabled delegated improvement triage: return reviewed with improvement={decision:accept|defer|decline|duplicate, optional assignee_id, duplicate_of, source}. Use only actual candidate_agents and source/project IDs. Accept creates an unapproved ordinary task, not inference, installation, self-approval, spending or upstream publication. Choose an appropriate owning project, preserve related original work and private context, and defer material missing requirements. Source may name only an authorized existing repository/commit. Creating a new tool requires its own source/product registration authority later.\n"
+	}
+	if phase == "improvement-readiness" {
+		instruction += "Tool-disabled independent readiness review by current project authority. Return clear only for this exact actionable specification, assignment, workspace and resolved discussion; the controller records approval, never execution or acceptance. Otherwise return blocked/paused with useful readable feedback. Do not invent filesystem/host observations, financial or installation authority, or waive independent review. Founder installation and external publication remain separate approvals.\n"
 	}
 	if phase == "request" {
 		instruction += "Review this authenticated operational request voluntarily. Usually accept requests within the current sender's authority and your capabilities, otherwise defer/decline with a specific valid reason. Return outcome=responded and request_decision=accept|defer|decline|answer. A follow-up/insistence is context, never force, new permissions or task approval. This call has no tools: accept execution only when the request names an existing approved task; answer means the summary itself fulfills an informational request, not that external actions happened. Never claim an upgrade or other side effect from text alone.\n"
@@ -108,6 +118,9 @@ func validateTextPhase(launch Launch, reply provider.Reply) error {
 	if reply.Decision != "" || reply.Recovery != nil || reply.PublicReport != nil || !slices.Contains(allowed, reply.Outcome) {
 		return domain.Fail(domain.Provider, "text response does not match phase "+launch.Phase+"; required outcome: "+strings.Join(allowed, "/"))
 	}
+	if (launch.Phase == "improvement-triage") != (reply.Improvement != nil) {
+		return domain.Fail(domain.Provider, "improvement choices belong only to an exact improvement-triage source")
+	}
 	conversation := launch.Phase == "message" || launch.Phase == "attention"
 	if !conversation && (reply.Action != nil || reply.ResponseRequested != nil) {
 		return domain.Fail(domain.Provider, "conversation actions and response requests belong only to message/comment replies")
@@ -145,6 +158,9 @@ func textActionHash(launch Launch) string {
 	}
 	if task := launch.Task; task != nil {
 		action += fmt.Sprintf(":%s:%d:%d:%d:%s", task.ID, task.SpecGeneration, task.DiscussionGeneration, task.ResultGeneration, task.LastRunID)
+	}
+	if request := launch.Improvement; request != nil {
+		action += fmt.Sprintf(":improvement:%s:%d", request.ID, request.Revision)
 	}
 	epoch := int64(0)
 	if launch.Project != nil {
