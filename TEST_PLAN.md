@@ -34,6 +34,10 @@ Scenario expectations:
 - Exact source/recipe/platform/dependency/native output shape; no sentence-only
   completion or builder self-promotion. All declared platforms and immutable
   source/payload bytes precede separately signed atomic release publication.
+  `TestBundleBuildRootPinsOwnedWorkspaceBelowSharedAncestor` proves ordinary
+  owner-controlled build roots work under shared temporary ancestors while
+  direct symlinks/foreign-writable roots and native privileged-policy ancestry
+  remain rejected. Build root identity and outputs are pinned through completion.
 - Generic archive/service/package fixtures cover first install, upgrades,
   verified adoption, pinned dependencies and consumers, retained old files,
   unsupported manager/privilege/trust denial, hashes/modes/paths/symlinks,

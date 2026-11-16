@@ -161,21 +161,28 @@ func CreateBundle(writer io.Writer, rootPath string, outputs []domain.BuildOutpu
 	if err != nil {
 		return nil, err
 	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return nil, domain.Fail(domain.Denied, "software build root must be a real directory")
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0022 != 0 {
+		return nil, domain.Fail(domain.Denied, "software build root must be an owned real directory without foreign write access")
+	}
+	if err := secure.CheckOwner(info); err != nil {
+		return nil, err
 	}
 	absolute, err := filepath.Abs(rootPath)
 	if err != nil {
 		return nil, err
 	}
-	if err := protectedPath(absolute, uint32(os.Geteuid()), false); err != nil {
-		return nil, err
-	}
-	root, err := os.OpenRoot(rootPath)
+	root, err := os.OpenRoot(absolute)
 	if err != nil {
 		return nil, err
 	}
-	defer root.Close()
+	defer func() { err = errors.Join(err, root.Close()) }()
+	opened, err := root.Stat(".")
+	if err != nil {
+		return nil, err
+	}
+	if !os.SameFile(info, opened) {
+		return nil, domain.Fail(domain.Conflict, "software build root changed before it could be pinned")
+	}
 	outputs = slices.Clone(outputs)
 	slices.SortFunc(outputs, func(a, b domain.BuildOutput) int { return strings.Compare(a.Path, b.Path) })
 	inventory := newNames()
@@ -229,6 +236,13 @@ func CreateBundle(writer io.Writer, rootPath string, outputs []domain.BuildOutpu
 		payloads = append(payloads, domain.SoftwarePayload{Path: output.Path, Mode: output.Mode, Size: before.Size(),
 			SHA256: hex.EncodeToString(hash.Sum(nil))})
 		total += before.Size()
+	}
+	retained, err := os.Lstat(absolute)
+	if err != nil {
+		return nil, err
+	}
+	if !os.SameFile(opened, retained) {
+		return nil, domain.Fail(domain.Conflict, "software build root was replaced while bundling; outputs were not adopted")
 	}
 	return payloads, nil
 }

@@ -111,12 +111,50 @@ func TestBundleRejectsPathsLinksDuplicatesModesAndExtensions(t *testing.T) {
 		{"pax", []*tar.Header{{Name: "tool", Typeflag: tar.TypeReg, Mode: 0644, Format: tar.FormatPAX,
 			PAXRecords: map[string]string{"comment": "opaque"}}}, nil},
 	}
+
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			if _, err := InspectBundle(gzipTar(t, test.headers, test.data)); err == nil {
 				t.Fatal("unsafe archive was accepted")
 			}
 		})
+	}
+}
+
+func TestBundleBuildRootPinsOwnedWorkspaceBelowSharedAncestor(t *testing.T) {
+	parent, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(parent, 0777); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(parent, "owned-workspace")
+	if err := os.Mkdir(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "tool"), []byte("approved build output"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	var archive bytes.Buffer
+	if _, err := CreateBundle(&archive, root, []domain.BuildOutput{{Path: "tool", Mode: 0755}}, 1); err != nil {
+		t.Fatal("owned workspace was confused with a privileged installer path", err)
+	}
+	if err := protectedPath(root, uint32(os.Geteuid()), false); err == nil {
+		t.Fatal("native installer-policy ancestor protection was weakened")
+	}
+	link := filepath.Join(parent, "linked-workspace")
+	if err := os.Symlink(root, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CreateBundle(io.Discard, link, []domain.BuildOutput{{Path: "tool", Mode: 0755}}, 1); err == nil {
+		t.Fatal("direct symlink build root was adopted")
+	}
+	if err := os.Chmod(root, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CreateBundle(io.Discard, root, []domain.BuildOutput{{Path: "tool", Mode: 0755}}, 1); err == nil {
+		t.Fatal("foreign-writable build root was adopted")
 	}
 }
 
