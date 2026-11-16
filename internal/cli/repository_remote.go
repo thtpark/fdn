@@ -102,7 +102,7 @@ func (a *app) repositoryLocal(ctx context.Context, r *resources, leaf string, ar
 			return nil, domain.Fail(domain.Invalid, "Git remote helper requires Git's exact remote name and fdn::repository_ID")
 		}
 		id := strings.TrimPrefix(args[1], "fdn::")
-		if !strings.HasPrefix(args[1], "fdn::") || !strings.HasPrefix(id, "repository_") || !domain.ValidOperation(id) {
+		if !strings.HasPrefix(id, "repository_") || !domain.ValidOperation(id) {
 			return nil, domain.Fail(domain.Invalid, "Git remote must be fdn::repository_ID on this enrolled Foundation connection")
 		}
 		return nil, a.gitRemoteProtocol(ctx, r, id)

@@ -31,6 +31,10 @@ Scenario expectations:
 - Task-bound work refs and actual independent fast-forward/two-parent
   integration; base/head/spec/result/authority drift, force/delete/foreign
   refs and lost push/merge responses never bypass current gates.
+  Actual Git invocation proves the helper receives a scheme-stripped
+  repository ID. Both canonical and explicit CLI addresses negotiate the
+  supported protocol; malformed/foreign/double-scheme addresses fail before
+  transport. Production acceptance must clone the documented `fdn::ID` URL.
 - Exact source/recipe/platform/dependency/native output shape; no sentence-only
   completion or builder self-promotion. All declared platforms and immutable
   source/payload bytes precede separately signed atomic release publication.
