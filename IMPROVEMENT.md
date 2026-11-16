@@ -205,6 +205,9 @@ git clone fdn::REPOSITORY_ID
 The helper uses this computer's existing identity proxy. Place its managed
 launcher on PATH as described by the normal per-user installation guide.
 Unmanaged helper collisions are errors, never overwrite permission.
+From 0.3.47 it accepts Git's canonical scheme-stripped repository argument;
+the external clone URL remains exactly `fdn::REPOSITORY_ID`, without doubling
+the scheme. Explicit direct CLI helper invocation may also use the full URL.
 
 Set task `source` through a current project-authorized task change:
 
