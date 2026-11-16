@@ -26,6 +26,14 @@ does not erase an independent automation-resumption blocker or imply safe SQL
 rollback. Source archives/Git bundles are companion official release assets,
 not an offline dependency cache or permission to build on an installation target.
 
+From 0.3.46, exact paired-service `prepared` means already admitted, stopped
+and cold-backed-up. Original completion may cross the 15-minute admission
+deadline only after current CA/signature/policy and actual private backup-byte
+verification. Never renew its permit, repeat backup/stop or adopt another or
+uncertain job. Generic tool `prepared` is payload staging before admission and
+still requires fresh unexpired authority. Older helpers need an explicitly
+authorized verified published-helper bootstrap, not a bypass or state edit.
+
 Fresh worker setup may be explicitly launched by Founder with `agent-cli agent
 add --host IP --user EXISTING_USER --name NAME` and a stable global
 `--operation-id`. It installs only under that existing non-root user's HOME,

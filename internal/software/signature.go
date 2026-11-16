@@ -367,11 +367,20 @@ func SignPermit(permit domain.SoftwarePermit, caPrivatePEM []byte) (string, erro
 }
 
 func VerifyPermit(permit domain.SoftwarePermit, caPEM []byte, now time.Time) error {
+	return verifyPermit(permit, caPEM, now, false)
+}
+
+// VerifyAdmittedPermit requires the caller's exact durable native admission proof.
+func VerifyAdmittedPermit(permit domain.SoftwarePermit, caPEM []byte, now time.Time) error {
+	return verifyPermit(permit, caPEM, now, true)
+}
+
+func verifyPermit(permit domain.SoftwarePermit, caPEM []byte, now time.Time, admitted bool) error {
 	if err := validatePermitFields(permit); err != nil {
 		return err
 	}
-	if permit.IssuedAt > now.Unix()+30 || permit.ExpiresAt <= now.Unix() ||
-		permit.Proposal.Challenge.ExpiresAt <= now.Unix() || permit.Proposal.Challenge.ExpiresAt < permit.IssuedAt {
+	if permit.IssuedAt > now.Unix()+30 || !admitted && (permit.ExpiresAt <= now.Unix() ||
+		permit.Proposal.Challenge.ExpiresAt <= now.Unix()) || permit.Proposal.Challenge.ExpiresAt < permit.IssuedAt {
 		return domain.Fail(domain.Denied, "software authorization or its original native challenge is expired or not yet valid")
 	}
 	key, err := caKey(caPEM, now)

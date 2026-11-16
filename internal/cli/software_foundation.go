@@ -51,7 +51,8 @@ func (a *app) foundationSoftwareRuntime(ctx context.Context, path, role string) 
 	}
 	native := upgrade.NewNative(policy)
 	bridge := &upgrade.SoftwareBridge{Native: native, Trust: upgrade.SoftwareBridgeTrust{
-		VerifyPermit: software.VerifyPermit, VerifyRelease: software.VerifyRelease, Extract: software.ExtractBundle,
+		VerifyPermit: software.VerifyPermit, VerifyAdmittedPermit: software.VerifyAdmittedPermit,
+		VerifyRelease: software.VerifyRelease, Extract: software.ExtractBundle,
 		Fetch: func(ctx context.Context, id, path string) error { return fetchSoftwareArtifact(ctx, channel, id, path) },
 		Lease: func(ctx context.Context, q domain.UpgradeLeaseRequest) (domain.UpgradeLease, error) {
 			reply, err := channel(ctx, domain.SoftwareMailboxRequest{Action: "lease", Lease: &q})

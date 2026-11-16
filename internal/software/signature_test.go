@@ -146,6 +146,37 @@ func TestCanonicalManifestSortsWithoutMutatingAndRejectsAmbiguity(t *testing.T) 
 	}
 }
 
+func TestAdmittedPermitStillRequiresOriginalSignatureAndCurrentlyValidCA(t *testing.T) {
+	permit, _, _, _, ca, now := signatureFixture(t)
+	late := now.Add(16 * time.Minute)
+	if err := VerifyPermit(permit, ca, late); domain.AsFault(err).Code != domain.Denied {
+		t.Fatal("ordinary admission accepted an expired permission", err)
+	}
+	if err := VerifyAdmittedPermit(permit, ca, late); err != nil {
+		t.Fatal("original admitted permission could not be verified after its deadline", err)
+	}
+	changed := clonePermit(t, permit)
+	changed.ActorGeneration++
+	if err := VerifyAdmittedPermit(changed, ca, late); err == nil {
+		t.Fatal("admitted verification weakened the original issuer signature")
+	}
+	other, err := pki.Generate(late)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyAdmittedPermit(permit, other.CA, late); err == nil {
+		t.Fatal("admitted completion accepted another current CA")
+	}
+	block, _ := pem.Decode(ca)
+	certificate, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyAdmittedPermit(permit, ca, certificate.NotAfter); err == nil {
+		t.Fatal("admitted completion trusted an expired CA")
+	}
+}
+
 func TestPermitExpiryPinnedCAAndFoundationBindingFailClosed(t *testing.T) {
 	permit, _, _, caKeyPEM, caPEM, now := signatureFixture(t)
 	if err := VerifyPermit(permit, caPEM, time.Unix(permit.ExpiresAt, 0)); err == nil {

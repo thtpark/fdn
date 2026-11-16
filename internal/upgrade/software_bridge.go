@@ -1,7 +1,9 @@
 package upgrade
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -16,11 +18,12 @@ import (
 )
 
 type SoftwareBridgeTrust struct {
-	VerifyPermit  func(domain.SoftwarePermit, []byte, time.Time) error
-	VerifyRelease func(domain.SoftwareRelease, []byte) error
-	Extract       func([]byte, string, []domain.SoftwarePayload) error
-	Fetch         func(context.Context, string, string) error
-	Lease         func(context.Context, domain.UpgradeLeaseRequest) (domain.UpgradeLease, error)
+	VerifyPermit         func(domain.SoftwarePermit, []byte, time.Time) error
+	VerifyAdmittedPermit func(domain.SoftwarePermit, []byte, time.Time) error
+	VerifyRelease        func(domain.SoftwareRelease, []byte) error
+	Extract              func([]byte, string, []domain.SoftwarePayload) error
+	Fetch                func(context.Context, string, string) error
+	Lease                func(context.Context, domain.UpgradeLeaseRequest) (domain.UpgradeLease, error)
 }
 
 type SoftwareBridge struct {
@@ -47,7 +50,8 @@ func (b *SoftwareBridge) bridgeDirectory(id string) (string, error) {
 func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNativeRequest) (domain.SoftwareNativeReply, error) {
 	var reply domain.SoftwareNativeReply
 	n, p := b.Native, b.Native.Policy
-	if !p.EnableInternalSoftware || p.InternalProductID != request.ProductID || b.Trust.VerifyPermit == nil || b.Trust.VerifyRelease == nil ||
+	if !p.EnableInternalSoftware || p.InternalProductID != request.ProductID || b.Trust.VerifyPermit == nil ||
+		b.Trust.VerifyAdmittedPermit == nil || b.Trust.VerifyRelease == nil ||
 		b.Trust.Extract == nil || b.Trust.Fetch == nil || b.Trust.Lease == nil {
 		return reply, domain.Fail(domain.Prerequisite, "Foundation internal updater bridge is not independently provisioned for this exact product")
 	}
@@ -145,27 +149,43 @@ func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNati
 	if err != nil {
 		return reply, err
 	}
-	if err := b.Trust.VerifyPermit(permit, ca, n.Now()); err != nil {
-		return reply, err
-	}
-	if err := b.Trust.VerifyRelease(permit.Proposal.Release, public); err != nil {
-		return reply, err
-	}
 	if jobErr == nil {
-		if domain.Hash(job.Permit.Signature) != domain.Hash(permit.Signature) {
+		old, err := json.Marshal(job.Permit)
+		if err != nil {
+			return reply, err
+		}
+		next, err := json.Marshal(permit)
+		if err != nil {
+			return reply, err
+		}
+		if !bytes.Equal(old, next) {
 			return reply, domain.Fail(domain.Conflict, "native internal job has different original authority")
 		}
 		if job.State == "verified" {
 			return b.bridgeReply(ctx, job)
 		}
-		if request.Action == "prepare" && job.State == "prepared" {
-			return domain.SoftwareNativeReply{State: "prepared"}, nil
-		}
-		if request.Action == "prepare" || job.State != "prepared" {
+		if job.State != "prepared" {
 			return reply, domain.Fail(domain.Prerequisite, "internal native effects are uncertain; inspect original status, never rerun")
 		}
 	} else if !errors.Is(jobErr, os.ErrNotExist) {
 		return reply, jobErr
+	}
+	verify := b.Trust.VerifyPermit
+	admitted := jobErr == nil && job.State == "prepared"
+	if admitted {
+		if err := n.verifyColdBackup(directory, job.Backup); err != nil {
+			return reply, err
+		}
+		verify = b.Trust.VerifyAdmittedPermit
+	}
+	if err := verify(permit, ca, n.Now()); err != nil {
+		return reply, err
+	}
+	if err := b.Trust.VerifyRelease(permit.Proposal.Release, public); err != nil {
+		return reply, err
+	}
+	if admitted && request.Action == "prepare" {
+		return domain.SoftwareNativeReply{State: "prepared"}, nil
 	}
 	var challenge domain.SoftwareChallenge
 	if err := config.Read(filepath.Join(directory, "challenge.json"), &challenge); err != nil {

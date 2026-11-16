@@ -34,10 +34,17 @@ func TestInternalSoftwareBridgeRetainsPairedNativePolicyAndExactReceipts(t *test
 	}
 	verifications, fetches, stops := 0, 0, 0
 	bridge := &SoftwareBridge{Native: n, Trust: SoftwareBridgeTrust{
-		VerifyPermit: func(permit domain.SoftwarePermit, _ []byte, _ time.Time) error {
+		VerifyPermit: func(permit domain.SoftwarePermit, _ []byte, now time.Time) error {
+			verifications++
+			if permit.Signature != "original-software-permission" || now.Unix() >= permit.ExpiresAt {
+				return domain.Fail(domain.Denied, "fixture original permission changed")
+			}
+			return nil
+		},
+		VerifyAdmittedPermit: func(permit domain.SoftwarePermit, _ []byte, _ time.Time) error {
 			verifications++
 			if permit.Signature != "original-software-permission" {
-				return domain.Fail(domain.Denied, "fixture original permission changed")
+				return domain.Fail(domain.Denied, "fixture original admitted permission changed")
 			}
 			return nil
 		},
@@ -97,6 +104,16 @@ func TestInternalSoftwareBridgeRetainsPairedNativePolicyAndExactReceipts(t *test
 	prepared, err := bridge.Handle(ctx, domain.SoftwareNativeRequest{Action: "prepare", ID: "native_internal", ProductID: n.Policy.InternalProductID, Permit: &permit})
 	if err != nil || prepared.State != "prepared" {
 		t.Fatal("exact paired stop/backup did not prepare", prepared, err)
+	}
+	now := n.Now().Add(16 * time.Minute)
+	n.Now = func() time.Time { return now }
+	if replay, err := bridge.Handle(ctx, domain.SoftwareNativeRequest{Action: "prepare", ID: "native_internal", ProductID: n.Policy.InternalProductID, Permit: &permit}); err != nil || replay.State != "prepared" {
+		t.Fatal("expired exact prepared replay lost its admitted cold receipt", replay, err)
+	}
+	tampered := permit
+	tampered.Proposal.Reason = "different proposal behind original signature"
+	if _, err := bridge.Handle(ctx, domain.SoftwareNativeRequest{Action: "apply", ID: "native_internal", ProductID: n.Policy.InternalProductID, Permit: &tampered}); domain.AsFault(err).Code != domain.Conflict {
+		t.Fatal("internal prepared job adopted altered original authority", err)
 	}
 	for _, call := range recorder.calls {
 		if strings.Contains(strings.Join(call.Args, " "), "bootout") || strings.Contains(strings.Join(call.Args, " "), "stop") {

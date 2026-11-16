@@ -574,8 +574,12 @@ Foundation CA, exact current challenge/policy/source and a fresh 30-second
 nonce-bound server start lease. Recovery/revocation, changed pause/generation,
 active ownership or assistance before native start denies the lease.
 Once the exact maintenance job is admitted and services are stopped, completion
-uses its durable receipt and original fixed permit expiry; it is not a new
-revocable session or permission to resume work.
+uses its durable receipt; it is not a new revocable session or permission to
+resume work. From 0.3.46, exact paired-service `prepared` completion may outlast
+the fixed admission deadline only with the unchanged original permit/policy,
+currently valid pinned CA and verified actual private cold-backup bytes.
+Nothing renews the original expiry, repeats backup/stop, or adopts uncertain
+effects. Generic tool payload staging is not this stopped-job admission proof.
 
 Targets prepare/stop themselves only after accepting the exact request.
 Package installation/start/verification is Foundation first, then dependent

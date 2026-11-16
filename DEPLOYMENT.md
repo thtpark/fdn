@@ -471,6 +471,17 @@ already-verified native receipt without another stop, backup, install or start
 lease. A different permit cannot adopt it. This is receipt reconciliation, not
 permission to retry an interrupted or merely prepared installation.
 
+From 0.3.46, a paired native job whose services were stopped and whose encrypted
+cold backup is durably `prepared` may finish that **same admitted job** after
+the 15-minute admission window. The helper rechecks the exact original
+permit/challenge/policy, the currently valid pinned CA and signature, and the
+actual owner-only cold-backup bytes/digest before installation. It does not
+renew a permit, request another lease, repeat backup/stop, adopt a different
+proposal or resume uncertain `stopping`/`installing` effects. Missing, changed,
+linked or non-private backup evidence requires operator inspection.
+Generic tool `prepared` means payload staging **before admission**, so its
+first native effects still require an unexpired permit and fresh start lease.
+
 After a lost response, use the same private `upgrade status --input PLAN`.
 It works from retained original-Founder evidence plus the separate operator
 channel even while Foundation is offline. `prepared` means stopped and backed up,
