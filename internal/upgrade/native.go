@@ -707,6 +707,47 @@ func (n *Native) backup(ctx context.Context, directory, recipient string) (strin
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
+func (n *Native) verifyColdBackup(directory, expected string) (err error) {
+	if !domain.ValidHash(expected) {
+		return domain.Fail(domain.Conflict, "prepared native upgrade has no verified cold-backup digest")
+	}
+	path := filepath.Join(directory, "before-upgrade.tar.age")
+	if err := protected(path, uint32(os.Geteuid())); err != nil {
+		return err
+	}
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, file.Close()) }()
+	before, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	owner, ok := before.Sys().(*syscall.Stat_t)
+	if !ok || owner.Uid != uint32(os.Geteuid()) || !before.Mode().IsRegular() ||
+		before.Mode().Perm()&0077 != 0 || before.Size() == 0 {
+		return domain.Fail(domain.Denied, "prepared native cold backup is not a private installing-account file")
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return err
+	}
+	after, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	current, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(before, current) || before.Size() != after.Size() ||
+		before.ModTime() != after.ModTime() || hex.EncodeToString(hash.Sum(nil)) != expected {
+		return domain.Fail(domain.Conflict, "prepared native cold-backup bytes changed; preserve evidence for operator inspection")
+	}
+	return nil
+}
+
 func (n *Native) verify(ctx context.Context, job nativeJob) (domain.UpgradeNativeReply, error) {
 	reply := domain.UpgradeNativeReply{State: job.State, BackupSHA256: job.Backup}
 	version, commit, err := n.installed(ctx)
@@ -869,8 +910,11 @@ func (n *Native) Handle(ctx context.Context, request domain.UpgradeNativeRequest
 		if !bytes.Equal(old, next) {
 			return reply, domain.Fail(domain.Conflict, "native operation ID belongs to another immutable upgrade proposal")
 		}
-		if job.State == "verified" || request.Action == "prepare" && job.State == "prepared" {
+		if job.State == "verified" {
 			return n.verify(ctx, job)
+		}
+		if job.State != "prepared" {
+			return reply, domain.Fail(domain.Conflict, "native upgrade has uncertain side effects; inspect its exact status, never blindly rerun it")
 		}
 	} else if !os.IsNotExist(readErr) {
 		return reply, readErr
@@ -879,8 +923,17 @@ func (n *Native) Handle(ctx context.Context, request domain.UpgradeNativeRequest
 	if err != nil {
 		return reply, err
 	}
-	if err := VerifyPermit(permit, ca, n.Now()); err != nil {
+	admitted := readErr == nil && job.State == "prepared"
+	if admitted {
+		if err := n.verifyColdBackup(directory, job.Backup); err != nil {
+			return reply, err
+		}
+	}
+	if err := verifyPermit(permit, ca, n.Now(), admitted); err != nil {
 		return reply, err
+	}
+	if admitted && request.Action == "prepare" {
+		return n.verify(ctx, job)
 	}
 	if request.Action == "prepare" {
 		if readErr == nil {

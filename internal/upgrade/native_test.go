@@ -23,13 +23,14 @@ import (
 )
 
 type nativeRecorder struct {
-	calls      []process.Spec
-	newSource  bool
-	failApply  bool
-	busy       bool
-	clearFence bool
-	generation int64
-	release    domain.UpgradeRelease
+	calls       []process.Spec
+	newSource   bool
+	failApply   bool
+	busy        bool
+	clearFence  bool
+	generation  int64
+	release     domain.UpgradeRelease
+	afterBackup func()
 }
 
 func (r *nativeRecorder) Run(_ context.Context, spec process.Spec) error {
@@ -58,6 +59,9 @@ func (r *nativeRecorder) Run(_ context.Context, spec process.Spec) error {
 		return json.NewEncoder(spec.Stdout).Encode(map[string]any{"ok": true, "data": map[string]string{"tls_and_authentication": "verified"}})
 	case spec.Path == "/usr/bin/tar":
 		_, err := io.WriteString(spec.Stdout, "cold fixture: original keys, journals, public binding and fence")
+		if err == nil && r.afterBackup != nil {
+			r.afterBackup()
+		}
 		return err
 	case spec.Path == "/bin/sh":
 		if r.failApply {
@@ -286,6 +290,146 @@ func TestNativeUpgradeRejectsWrongSignatureTargetAndBusyStateBeforeStopping(t *t
 		if strings.Contains(strings.Join(call.Args, " "), "stop ") || call.Path == "/bin/sh" {
 			t.Fatal("unapproved/busy request stopped a service or ran the installer")
 		}
+	}
+}
+
+func TestNativeUpgradeLongColdBackupCompletesOnlyOriginalAdmittedJob(t *testing.T) {
+	native, recorder, signer, key := nativeFixture(t)
+	now := native.Now()
+	native.Now = func() time.Time { return now }
+	permit := preparePermit(t, native, recorder, signer, key)
+	recorder.afterBackup = func() { now = now.Add(16 * time.Minute) }
+	leases := 0
+	lease := native.Lease
+	native.Lease = func(ctx context.Context, request domain.UpgradeLeaseRequest) (domain.UpgradeLease, error) {
+		leases++
+		return lease(ctx, request)
+	}
+	request := domain.UpgradeNativeRequest{Action: "prepare", ID: permit.Proposal.Challenge.ID, Permit: &permit}
+	prepared, err := native.Handle(context.Background(), request)
+	if err != nil || prepared.State != "prepared" || now.Unix() <= permit.ExpiresAt {
+		t.Fatal("long cold backup did not cross the fixed admission deadline", prepared, err)
+	}
+	ca, err := os.ReadFile(native.Policy.CAFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyPermit(permit, ca, now); domain.AsFault(err).Code != domain.Denied {
+		t.Fatal("ordinary expired admission was weakened", err)
+	}
+	tampered := permit
+	tampered.Proposal.Reason = "different authority behind the same signature"
+	changed := request
+	changed.Permit = &tampered
+	before := len(recorder.calls)
+	if _, err := native.Handle(context.Background(), changed); domain.AsFault(err).Code != domain.Conflict || len(recorder.calls) != before {
+		t.Fatal("another proposal adopted the stopped job", err)
+	}
+	replay, err := native.Handle(context.Background(), request)
+	if err != nil || replay != prepared {
+		t.Fatal("exact prepared replay required another lease or backup", replay, err)
+	}
+	request.Action = "apply"
+	result, err := native.Handle(context.Background(), request)
+	if err != nil || result.State != "verified" || result.BackupSHA256 != prepared.BackupSHA256 {
+		t.Fatal("admitted job could not finish after its long backup", result, err)
+	}
+	calls := len(recorder.calls)
+	if _, err := native.Handle(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	for _, call := range recorder.calls[calls:] {
+		if call.Path == "/bin/sh" || call.Path == "/usr/bin/tar" || strings.Contains(strings.Join(call.Args, " "), "stop") {
+			t.Fatal("completed replay repeated native effects")
+		}
+	}
+	backups, installs := 0, 0
+	for _, call := range recorder.calls {
+		if call.Path == "/usr/bin/tar" {
+			backups++
+		}
+		if call.Path == "/bin/sh" {
+			installs++
+		}
+	}
+	if leases != 1 || backups != 1 || installs != 1 {
+		t.Fatal("completion renewed authority or repeated effects", leases, backups, installs)
+	}
+}
+
+func TestNativeUpgradeLateCompletionRequiresActualColdBackupAndCurrentCA(t *testing.T) {
+	for _, kind := range []string{"missing", "tampered", "symlink", "public", "missing-digest", "rotated-ca", "expired-ca"} {
+		t.Run(kind, func(t *testing.T) {
+			native, recorder, signer, key := nativeFixture(t)
+			permit := preparePermit(t, native, recorder, signer, key)
+			request := domain.UpgradeNativeRequest{Action: "prepare", ID: permit.Proposal.Challenge.ID, Permit: &permit}
+			if _, err := native.Handle(context.Background(), request); err != nil {
+				t.Fatal(err)
+			}
+			now := native.Now().Add(16 * time.Minute)
+			native.Now = func() time.Time { return now }
+			directory := filepath.Join(native.Policy.StateDir, request.ID)
+			backup := filepath.Join(directory, "before-upgrade.tar.age")
+			switch kind {
+			case "missing":
+				if err := os.Remove(backup); err != nil {
+					t.Fatal(err)
+				}
+			case "tampered":
+				if err := os.WriteFile(backup, []byte("changed encrypted bytes"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "symlink":
+				target := filepath.Join(directory, "relocated-backup")
+				if err := os.Rename(backup, target); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(target, backup); err != nil {
+					t.Fatal(err)
+				}
+			case "public":
+				if err := os.Chmod(backup, 0644); err != nil {
+					t.Fatal(err)
+				}
+			case "missing-digest":
+				path := filepath.Join(directory, "job.json")
+				var job nativeJob
+				if err := config.Read(path, &job); err != nil {
+					t.Fatal(err)
+				}
+				job.Backup = ""
+				if err := config.Write(path, job); err != nil {
+					t.Fatal(err)
+				}
+			case "rotated-ca":
+				other, err := pki.Generate(now)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(native.Policy.CAFile, other.CA, 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "expired-ca":
+				now = now.Add(100 * 365 * 24 * time.Hour)
+			}
+			before := len(recorder.calls)
+			request.Action = "apply"
+			if _, err := native.Handle(context.Background(), request); err == nil || len(recorder.calls) != before {
+				t.Fatal("unproved late completion caused native effects", err)
+			}
+		})
+	}
+}
+
+func TestNativeUpgradeExpiredUnadmittedPermitDoesNotStopServices(t *testing.T) {
+	native, recorder, signer, key := nativeFixture(t)
+	permit := preparePermit(t, native, recorder, signer, key)
+	now := native.Now().Add(16 * time.Minute)
+	native.Now = func() time.Time { return now }
+	before := len(recorder.calls)
+	request := domain.UpgradeNativeRequest{Action: "prepare", ID: permit.Proposal.Challenge.ID, Permit: &permit}
+	if _, err := native.Handle(context.Background(), request); domain.AsFault(err).Code != domain.Denied || len(recorder.calls) != before {
+		t.Fatal("expired unadmitted request performed native operations", err)
 	}
 }
 

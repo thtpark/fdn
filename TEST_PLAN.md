@@ -47,6 +47,14 @@ Scenario expectations:
   independently verified original SoftwarePermit and fresh lease; no
   signature relabeling, tar-as-ZIP shortcut, repeated manager effects or
   inferred Root/Founder authority.
+- Long paired-service cold backups cross the 15-minute deadline after valid
+  admission and complete only the original prepared job. Actual encrypted
+  backup bytes, private ownership, exact permit/policy and current CA remain
+  required. Missing/changed/linked/public backup evidence, changed authority,
+  expired/rotated CA and unadmitted expired requests cause no native effects.
+  Prepared/verified replay obtains no new lease, backup, stop or install.
+  Internal paired SoftwarePermits obey the same receipt boundary; generic
+  tool payload preparation remains strictly pre-admission and expiry-bound.
 - Companion source assets preserve the released commit/tree and clone ancestry
   without dirty/untracked/private files; native four-binary ZIP layout and
   official real-merge/pre-merge acceptance guards remain unchanged.

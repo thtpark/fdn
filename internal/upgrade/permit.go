@@ -79,10 +79,14 @@ func signAuthorization(data, keyPEM []byte) (string, error) {
 }
 
 func VerifyPermit(p domain.UpgradePermit, caPEM []byte, now time.Time) error {
+	return verifyPermit(p, caPEM, now, false)
+}
+
+func verifyPermit(p domain.UpgradePermit, caPEM []byte, now time.Time, admitted bool) error {
 	if err := ValidateProposal(p.Proposal); err != nil {
 		return err
 	}
-	if p.ActorID == "" || p.ActorGeneration < 1 || p.IssuedAt > now.Unix()+30 || p.ExpiresAt <= now.Unix() ||
+	if p.ActorID == "" || p.ActorGeneration < 1 || p.IssuedAt > now.Unix()+30 || !admitted && p.ExpiresAt <= now.Unix() ||
 		p.ExpiresAt-p.IssuedAt != 900 {
 		return domain.Fail(domain.Denied, "upgrade authorization is missing, expired or has an invalid fixed lifetime")
 	}

@@ -341,6 +341,13 @@ new permit, force clear or blind rollback. A binary rollback is not a database
 rollback. Stage a Foundation release before stopping the Foundation that
 hosts its artifacts; retain an independent operator recovery path.
 
+From 0.3.46, paired Foundation/Agent `prepared` records a successfully admitted
+stop and encrypted cold backup, unlike generic tool payload staging. A long
+backup may cross the admission deadline; only that exact original job may
+finish, after current signature/CA/policy and actual private backup-byte checks.
+No new permission, lease, stop or backup is obtained. Uncertain phases cannot
+use this completion path, and generic tool first admission remains expiry-bound.
+
 ## Releases, backups and evidence limits
 
 Official GitHub releases include companion source archive, Git bundle and
