@@ -277,11 +277,11 @@ func validNonce(value string) bool {
 
 func ValidateProposal(proposal domain.SoftwareProposal) error {
 	challenge := proposal.Challenge
-	foundation := proposal.Release.Manifest.Kind == "foundation"
+	foundation := challenge.TargetID == challenge.InstanceID
 	if !domain.ValidOperation(challenge.ID) || !validNonce(challenge.Nonce) ||
 		!domain.ValidOperation(challenge.InstanceID) || !domain.ValidOperation(challenge.TargetID) ||
 		(!foundation && (!domain.ValidOperation(challenge.BindingID) || challenge.Generation < 1)) ||
-		(foundation && (challenge.TargetID != challenge.InstanceID || challenge.BindingID != "" || challenge.Generation != 1)) ||
+		(foundation && (proposal.Release.Manifest.Kind != "foundation" || challenge.BindingID != "" || challenge.Generation != 1)) ||
 		!domain.ValidOperation(challenge.ProductID) || !validPlatform(challenge.Platform) ||
 		!domain.ValidHash(challenge.PolicySHA256) || challenge.ExpiresAt <= 0 ||
 		challenge.InstanceID != proposal.Release.Manifest.InstanceID || challenge.ProductID != proposal.Release.Manifest.ProductID {

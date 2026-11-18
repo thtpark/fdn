@@ -21,6 +21,9 @@ func (a *app) deliveryCommand(ctx context.Context, r *resources, group string, a
 	if group == "build" && leaf == "run" {
 		return a.runSoftwareBuild(ctx, r, tail)
 	}
+	if group == "build" && leaf == "download" {
+		return a.downloadSoftwareBuild(ctx, r, tail)
+	}
 	if group == "software" && (leaf == "plan" || leaf == "apply" || leaf == "status") {
 		return a.softwarePlanCommand(ctx, r, leaf, tail)
 	}

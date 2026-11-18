@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 	"errors"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -77,6 +78,13 @@ func (i *IdentityServiceInstaller) checkAccounts(ctx context.Context) error {
 }
 
 func (i *IdentityServiceInstaller) run(ctx context.Context, path string, args []string) ([]byte, error) {
+	stdout := process.NewBuffer(64 << 10)
+	err := i.runWithOutput(ctx, path, args, stdout)
+	data, outputErr := stdout.Bytes()
+	return data, errors.Join(err, outputErr)
+}
+
+func (i *IdentityServiceInstaller) runWithOutput(ctx context.Context, path string, args []string, stdout io.Writer) error {
 	o := i.options
 	environment := []string{"PATH=/usr/bin:/bin", "LC_ALL=C", "HOME=" + o.Home, "USER=" + o.User, "LOGNAME=" + o.User}
 	if o.OS == "linux" {
@@ -85,11 +93,10 @@ func (i *IdentityServiceInstaller) run(ctx context.Context, path string, args []
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	stdout, stderr := process.NewBuffer(64<<10), process.NewBuffer(8<<10)
+	stderr := process.NewBuffer(8 << 10)
 	err := i.runner.Run(ctx, process.Spec{Path: path, Args: args, Env: environment, Stdout: stdout, Stderr: stderr})
-	data, outputErr := stdout.Bytes()
 	_, diagnosticErr := stderr.Bytes()
-	return data, errors.Join(err, outputErr, diagnosticErr)
+	return errors.Join(err, diagnosticErr)
 }
 
 func (i *IdentityServiceInstaller) probe(ctx context.Context, worker bool) (IdentityUnitStatus, error) {
@@ -186,7 +193,7 @@ func (i *IdentityServiceInstaller) Install(ctx context.Context, apply bool) (Ide
 		return status, err
 	}
 	if o.OS == "darwin" {
-		if _, err := i.run(ctx, "/bin/launchctl", []string{"print", "gui/" + strconv.Itoa(o.UID)}); err != nil {
+		if err := i.runWithOutput(ctx, "/bin/launchctl", []string{"print", "gui/" + strconv.Itoa(o.UID)}, io.Discard); err != nil {
 			return status, domain.Fail(domain.Prerequisite, "the installing user's GUI domain is unavailable; log in as that existing user before installing both LaunchAgents")
 		}
 	}

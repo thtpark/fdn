@@ -106,6 +106,12 @@ early releases scheduling, not that charge; restart, new IDs and policy
 revision changes do not refund it. Counters use server-clock windows.
 An allowance is not permission to incur new provider/cloud costs.
 
+From 0.3.48, exhausted/paced allowances retain a server-clock-relative work
+deadline across restart. The next eligible window does not need a new message,
+policy revision or service restart to wake the controller. An occupied slice
+has a bounded eligibility recheck; no charge is refunded. A rejected
+preparation reply fences its semantic source, not other eligible work.
+
 Eligible improvement work uses spare capacity and a paced reserved share to
 avoid starvation when ordinary work stays ready. Both kinds of work use the
 same serial slot. Native cancellation, checkpoints, pending reports, uncertain
@@ -150,6 +156,26 @@ configured allowance. Unclear requirements remain feedback/blockers, not
 invented acceptance. Missing independent authority or capacity stays visible.
 Eligible server health episodes may create one source-bound proposal; this
 starts no inference, reset, login, retry or installation.
+
+### Current clarification and terminal-task attention
+
+Preparation remains tool-disabled. Its derived clarification review names only
+actual same-task answers from requested respondents to current questions.
+`task.waiting` remains recorded until the assignee reviews those answers; its
+presence alone does not mean they are missing. A clear review must identify
+every current answer in `answer_ids`; with no current clarification, that list
+is empty. Historical questions, missing optional model catalogs and the absence
+of a coding claim must not invent a new scope blocker. This review never grants
+readiness: the controller checks current independent approval separately.
+Malformed fully returned, unapplied replies retain their original bytes and
+source fence before any task mutation. Older possibly applied decisions still
+need exact operator recovery; they are not automatically adopted as unapplied.
+
+On terminal or archived tasks, implicit attention caused only by the old
+assignment is durably deferred without a provider call. The receipt pins the
+observed task revision and comment generation. An explicit `@{AGENT_ID}` mention
+still requests a normal response, including a deliberate post-completion
+follow-up; it never reopens execution or bypasses a retained work fence.
 
 ## New and existing tools
 
@@ -224,6 +250,11 @@ Set task `source` through a current project-authorized task change:
 ```
 
 Execution prepares an owned source workspace without replacing existing work.
+Ownership lives privately in `.git/foundation/source`, outside build inputs.
+An exact owned legacy root marker is validated against its repository, commit,
+work ref and real Git checkout before migration; its original bytes remain in
+`.git/foundation/legacy-source`. Missing, conflicting or foreign ownership and
+incomplete checkouts stay fenced, without replacing user files.
 Coding children receive local `FDN_WORK_TASK`/`FDN_WORK_RUN`; these identify
 the existing claim, not another identity or authority grant.
 Push exactly the approved work ref:
@@ -275,6 +306,7 @@ agent-cli build create --input build-task.json
 agent-cli build show BUILD_ID
 # Inside that admitted coding task:
 agent-cli build run BUILD_ID
+agent-cli build download BUILD_ID --output review-build.tar.gz
 agent-cli release create --input release.json
 agent-cli release show RELEASE_ID
 ```
@@ -283,6 +315,62 @@ Build creation binds an existing task/product/platform to the source recipe
 and invalidates prior readiness. Its result must be uploaded and natively
 checked before task completion. An interrupted running build is uncertain,
 not automatic compiler retry. Lost result responses reuse compiled bytes.
+Successful artifact submission is separate from the provider's final task report.
+After native cleanup and remote custody have been inspected, only a fresh normally
+authorized execution of the unchanged task/specification/source/product/builder
+may reuse an already submitted build. `build run` checks the retained original
+run and immutable bytes before returning without compilation, upload or a new
+build journal. Completion records the current report run; the build's original
+run, builder, artifact and payloads remain unchanged. This grants no retry,
+quota refund or additional slot. Missing/unverified custody and unknown partial
+outputs remain blockers; preserve their journals rather than adopting them.
+Stopped unsafe attempts still require exact prior-run/next-attempt retry approval.
+For deadline-bearing runs, `build run` checks the exact admitted reservation using
+fresh server-observed time and a conservative request-start monotonic deadline,
+not the builder's wall clock.
+Native steps retain bounded owner-only stdout/stderr and step/result metadata
+in private worker build evidence, bound to the exact build/run/step reference
+reported on failure. Overflow, persistence and process cleanup errors fail the
+build; partial evidence is not success. Inspect retained evidence locally;
+never publish raw logs or clear a running journal to repeat a compiler.
+Independent reviewers can download submitted custody bytes before release
+publication with `build download`; this verifies hashes and syncs an owner-only
+new file, but does not accept a task. On failure, partial bytes remain explicit
+evidence; inspect them and choose a new destination rather than overwriting.
+
+The tracked Foundation recipes are:
+
+- `software/recipes/foundation-linux-amd64.json`: the Foundation server Debian
+  payload, one exact role package.
+- `software/recipes/agent-linux-amd64.json`: the Agent Debian payload, separately
+  registered in its Agent-core product.
+- `software/recipes/foundation-darwin-arm64.json`: all four core executables and
+  license notices; the complete version-matched guide is embedded in the binaries.
+
+They use `go run ./tools/package --internal-platform PLATFORM`, which requires a
+clean exact source checkout and compares two native binary builds. This creates
+unsigned task payloads, not an official GitHub publication or an installation.
+The ordinary packager still requires its exact merged release event.
+Register separate Foundation-server and Agent-core products/releases at the
+same reviewed source so existing fixed-role Debian receivers need no exception.
+Verify the server release before applying the dependent Agent release.
+
+Both core products use manifest kind `foundation`; this is a product family,
+not the target's native role. From 0.3.49, only a challenge targeting the exact
+Foundation instance uses an empty enrolled binding and generation 1, and it
+must carry a core release. Core Agent challenges retain their current enrolled
+computer binding and positive generation, including independent Founder devices.
+Generic tools cannot target the Foundation instance. Native role/product,
+source, policy, signature, nonce, backup and expiry checks still apply.
+
+Builds are native-host-only by default. A Founder-registered product can opt into
+one exact pair with the capability label
+`cross-build:linux-amd64:darwin-arm64`. The build still requires its actual
+approved task/run/workspace, and records the real build host rather than claiming
+native target testing. Before accepting a cross-build, an independent verifier
+must exercise its unchanged payload on the target OS and check version/source,
+guide, executable architecture and representative consumer behavior. The label
+is no execution, installation, spending or OS-permission grant.
 
 All declared platforms must have independently accepted current builds before
 publication. A builder cannot promote itself. Artifacts enter explicit
@@ -350,6 +438,47 @@ backup may cross the admission deadline; only that exact original job may
 finish, after current signature/CA/policy and actual private backup-byte checks.
 No new permission, lease, stop or backup is obtained. Uncertain phases cannot
 use this completion path, and generic tool first admission remains expiry-bound.
+
+### Failed paired-Agent backup before installation
+
+From 0.3.50, each paired native backup retains owner-only `backup-command`
+metadata, its actual started PID, bounded stderr (8 KiB), exit/cancellation and
+process-join outcome, plus final stream/persistence outcome. Overflow and failed
+evidence persistence remain failures. Inspect these private files locally; never
+publish raw diagnostics or call a partial encrypted archive a verified backup.
+
+An explicitly authorized native operator can abort only an exact failed Agent
+`stopping` attempt before installation:
+
+```sh
+agent-service --operation-id recovery-original-001 software-recover \
+  --updater-policy /APPROVED/updater.json --input inspected-recovery.json
+```
+
+The private input identifies `id` (original native challenge/job ID),
+`expected_journal_sha256`, `expected_permit_sha256`, and a non-secret `reason`.
+The original receiver and worker must be joined. Only the original baseline
+identity may be restored, with explicit Founder/operator authority, to prove
+the current enrolled generation and report the failed outcome; this is not
+permission to start work or bypass the pause.
+
+Recovery checks the existing native locks, exact protected journal/permit,
+current pinned CA and distribution signature, policy/product/target, current
+enrollment, unchanged paired executable baseline, manual mode, empty reports
+and invocations, inactive session fence and joined daemon/work locks. It refuses
+prepared, installing, verified, unknown, foreign or replaced resources. A
+prepared valid cold backup still uses its original normal completion path.
+
+The operation preserves the original journal and partial archive, records a
+source-bound failed pre-install outcome and reports it through the target's own
+authenticated mailbox. It never installs, repeats a stop/backup, starts services,
+resumes automation, renews permission or clears an application/session fence.
+The partial archive digest is evidence of retained bytes, not backup validity.
+Exact operation replay settles only that same outcome, including a lost reply.
+Fresh diagnostics and a separately authorized new native plan are required
+before another installation attempt. Native operator access is not independent
+project authority; a recovery helper must be explicitly authorized and verified
+against its actual reviewed source, never relabelled as a published release.
 
 ## Releases, backups and evidence limits
 

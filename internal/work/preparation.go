@@ -125,22 +125,81 @@ func (e *Engine) prepare(ctx context.Context, c config.Worker, task domain.Task,
 }
 
 func hasAnswers(task domain.Task, entries []domain.Entry) bool {
-	if task.Waiting == nil {
-		return true
+	return len(clarificationReview(task, entries).MissingQuestionIDs) == 0
+}
+
+type clarificationContext struct {
+	Required           bool                `json:"required"`
+	AnswersByQuestion  map[string][]string `json:"answers_by_question"`
+	MissingQuestionIDs []string            `json:"missing_question_ids"`
+}
+
+func clarificationReview(task domain.Task, entries []domain.Entry) clarificationContext {
+	review := clarificationContext{AnswersByQuestion: map[string][]string{}, MissingQuestionIDs: []string{}}
+	if task.Waiting == nil || task.Waiting.Kind != "clarification" {
+		return review
 	}
+	review.Required = true
 	for _, question := range task.Waiting.QuestionIDs {
-		answered := false
+		answers := []string{}
 		for _, entry := range entries {
-			if entry.Kind == "comment" && entry.ParentID == question && slices.Contains(task.Waiting.RequestedIDs, entry.AuthorID) {
-				answered = true
+			if entry.TaskID == task.ID && entry.Kind == "comment" && entry.ParentID == question &&
+				slices.Contains(task.Waiting.RequestedIDs, entry.AuthorID) {
+				answers = append(answers, entry.ID)
+			}
+		}
+		review.AnswersByQuestion[question] = answers
+		if len(answers) == 0 {
+			review.MissingQuestionIDs = append(review.MissingQuestionIDs, question)
+		}
+	}
+	return review
+}
+
+func validatePreparationReply(launch Launch, reply provider.Reply) error {
+	if launch.Task == nil || !slices.Contains([]string{"scope", "acceptance", "preflight"}, launch.Phase) {
+		return nil
+	}
+	if reply.Outcome != "clear" {
+		if len(reply.Questions) == 0 {
+			return domain.Fail(domain.Provider, "blocked preparation must identify actionable questions")
+		}
+		return nil
+	}
+	if len(reply.Questions) != 0 {
+		return domain.Fail(domain.Provider, "clear preparation cannot also publish blocking questions")
+	}
+	review := clarificationReview(*launch.Task, launch.Discussion)
+	if !review.Required {
+		if len(reply.AnswerIDs) != 0 {
+			return domain.Fail(domain.Provider, "preparation has no current clarification requiring answer references")
+		}
+		return nil
+	}
+	if len(review.MissingQuestionIDs) != 0 {
+		return domain.Fail(domain.Provider, "clear preparation omitted an unanswered current clarification")
+	}
+	remaining := map[string]bool{}
+	for question := range review.AnswersByQuestion {
+		remaining[question] = true
+	}
+	for _, id := range reply.AnswerIDs {
+		found := false
+		for question, answers := range review.AnswersByQuestion {
+			if slices.Contains(answers, id) {
+				delete(remaining, question)
+				found = true
 				break
 			}
 		}
-		if !answered {
-			return false
+		if !found {
+			return domain.Fail(domain.Provider, "preparation answer must be an actual current reply from a requested respondent")
 		}
 	}
-	return true
+	if len(remaining) != 0 {
+		return domain.Fail(domain.Provider, "clear preparation must reference a current answer to every blocking question")
+	}
+	return nil
 }
 
 func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch, reply provider.Reply) (err error) {
@@ -149,6 +208,11 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 			return e.rejectTextResponse(ctx, j, launch, err)
 		}
 		return err
+	}
+	if j.State == "reply-prepared" {
+		if err := validatePreparationReply(launch, reply); err != nil {
+			return e.rejectTextResponse(ctx, j, launch, err)
+		}
 	}
 	if err := e.resolveTextRetry(ctx, launch); err != nil {
 		return err

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -338,6 +339,33 @@ func TestNativeServiceUncertaintyRetainsFenceAndNeverReruns(t *testing.T) {
 }
 
 func TestNativeDebianNewUpgradeAdoptionAndNoRootHooks(t *testing.T) {
+	testNativeDebianLifecycle(t)
+}
+
+func TestNativeDebianLongCheckout(t *testing.T) {
+	account, err := user.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent, err := os.MkdirTemp(account.HomeDir, ".fdn-checkout-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(parent); err != nil {
+			t.Error(err)
+		}
+	})
+	checkout := filepath.Join(parent, strings.Repeat("checkout", 10))
+	if err := os.Mkdir(checkout, 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(checkout)
+	testNativeDebianLifecycle(t)
+}
+
+func testNativeDebianLifecycle(t *testing.T) {
+	t.Helper()
 	fixture := nativeFixture(t)
 	useDebianFixture(fixture)
 	first := fixture.debianRelease(t, 1)

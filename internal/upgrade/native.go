@@ -630,12 +630,36 @@ func (n *Native) backupPaths() ([]string, error) {
 		}
 		paths = append(paths, identity.StateDir, n.Policy.IdentityConfig, n.Policy.ServiceOptions)
 	}
+	uid, _, err := n.Policy.account()
+	if err != nil {
+		return nil, err
+	}
 	for _, path := range paths {
+		if !filepath.IsAbs(path) || filepath.Clean(path) != path || path == "/" ||
+			inside(path, n.Policy.StateDir) || inside(n.Policy.StateDir, path) {
+			return nil, domain.Fail(domain.Denied, "cold-backup roots must be canonical and outside updater evidence")
+		}
 		if _, err := os.Lstat(path); err != nil {
 			return nil, domain.Fail(domain.Prerequisite, "an explicitly required cold-backup path is unavailable; fix native policy before stopping services")
 		}
+		if err := protected(path, uint32(uid)); err != nil {
+			return nil, err
+		}
 	}
-	return paths, nil
+	roots := make([]string, 0, len(paths))
+	for index, path := range paths {
+		covered := false
+		for other, parent := range paths {
+			if other != index && inside(parent, path) && (parent != path || other < index) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			roots = append(roots, path)
+		}
+	}
+	return roots, nil
 }
 
 func (n *Native) hasFilesystemFileStore(state string) (bool, error) {
@@ -699,10 +723,24 @@ func (n *Native) backup(ctx context.Context, directory, recipient string) (strin
 		return "", err
 	}
 	args := append([]string{"-czf", "-", "--"}, paths...)
-	err = n.command(ctx, "/usr/bin/tar", args, false, writer)
+	evidence, evidenceErr := newBackupEvidenceRunner(directory, n.Runner, n.Now)
+	if evidenceErr == nil {
+		recorded := *n
+		recorded.Runner = evidence
+		err = recorded.command(ctx, "/usr/bin/tar", args, false, writer)
+	}
+	err = errors.Join(err, evidenceErr)
 	err = errors.Join(err, writer.Close(), file.Sync(), file.Close())
+	result := struct {
+		State string `json:"state"`
+		Error string `json:"error,omitempty"`
+	}{State: "complete"}
 	if err != nil {
-		return "", err
+		result.State, result.Error = "failed", err.Error()
+	}
+	err = errors.Join(err, config.Write(filepath.Join(directory, "backup-result.json"), result))
+	if err != nil {
+		return "", backupEvidenceError(err)
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }

@@ -11,11 +11,11 @@ import (
 
 // Keep owned fixture roots private, short, and independent of the host's TMPDIR.
 func makeFixtureRoot() (string, error) {
-	root, err := os.MkdirTemp(".", ".fdn-")
+	root, err := os.MkdirTemp("/tmp", "fdn-e2e-")
 	if err != nil {
 		return "", err
 	}
-	absolute, err := filepath.Abs(root)
+	absolute, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return "", errors.Join(err, os.RemoveAll(root))
 	}

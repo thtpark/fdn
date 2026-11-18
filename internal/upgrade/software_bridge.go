@@ -248,10 +248,10 @@ func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNati
 		}
 		payload := filepath.Join(directory, "payload")
 		if p.Method == "archive" {
-			if err := secure.Dir(filepath.Join(p.Prefix, "releases")); err != nil {
+			if _, err := managedArchive(p.Prefix); err != nil {
 				return reply, err
 			}
-			payload = filepath.Join(p.Prefix, "releases", "internal-"+permit.Proposal.Release.ID)
+			payload = filepath.Join(archiveRoot(p.Prefix), "internal-"+permit.Proposal.Release.ID)
 		}
 		if err := b.Trust.Extract(data, payload, platform.Payloads); err != nil {
 			return reply, err
@@ -332,12 +332,13 @@ func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNati
 		return reply, err
 	}
 	if p.Method == "archive" {
-		link := filepath.Join(p.Prefix, "current")
-		temporary := filepath.Join(p.Prefix, "current-"+request.ID)
-		if err := os.Symlink(job.Payload, temporary); err != nil {
+		if job.Payload != filepath.Join(archiveRoot(p.Prefix), "internal-"+permit.Proposal.Release.ID) {
+			return reply, errors.Join(domain.Fail(domain.Denied, "prepared archive has a noncanonical immutable payload"), workLock.Close())
+		}
+		if err := verifyArchivePayload(job.Payload, *platform); err != nil {
 			return reply, errors.Join(err, workLock.Close())
 		}
-		if err := os.Rename(temporary, link); err != nil {
+		if err := activateArchive(p.Prefix, job.Payload, request.ID); err != nil {
 			return reply, errors.Join(err, workLock.Close())
 		}
 	} else {
@@ -368,10 +369,13 @@ func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNati
 
 func (b *SoftwareBridge) bridgeReply(ctx context.Context, job softwareBridgeJournal) (domain.SoftwareNativeReply, error) {
 	reply := domain.SoftwareNativeReply{State: job.State, Result: job.Result}
-	if job.State != "verified" {
+	if job.State != "verified" && job.State != "failed-before-managed-activation" && job.State != "aborted-before-install" {
 		if job.State != "prepared" {
 			reply.State = "operator-required"
 		}
+		return reply, nil
+	}
+	if job.State != "verified" {
 		return reply, nil
 	}
 

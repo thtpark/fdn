@@ -30,7 +30,7 @@ func (r *fixtureRunner) Run(_ context.Context, s process.Spec) error {
 		return err
 	}
 	if slices.Contains(s.Args, "--help") {
-		_, err := io.WriteString(s.Stdout, "--available-tools --allow-all --disable-builtin-mcps --no-custom-instructions --no-ask-user --no-auto-update --silent --dangerously-bypass-approvals-and-sandbox --ask-for-approval --json --output-last-message --ephemeral --sandbox --skip-git-repo-check")
+		_, err := io.WriteString(s.Stdout, "--available-tools --allow-all --disable-builtin-mcps --no-custom-instructions --no-ask-user --no-auto-update --output-format --dangerously-bypass-approvals-and-sandbox --ask-for-approval --json --output-last-message --ephemeral --sandbox --skip-git-repo-check")
 		return err
 	}
 	if slices.Contains(s.Args, "login") {
@@ -51,8 +51,11 @@ func (r *fixtureRunner) Run(_ context.Context, s process.Spec) error {
 	if i := slices.Index(s.Args, "--output-last-message"); i >= 0 {
 		return secure.Write(s.Args[i+1], data)
 	}
-	_, err = s.Stdout.Write(data)
-	return err
+	encoder := json.NewEncoder(s.Stdout)
+	if err := encoder.Encode(map[string]any{"type": "assistant.message", "data": map[string]string{"content": string(data)}}); err != nil {
+		return err
+	}
+	return encoder.Encode(map[string]any{"type": "result", "exitCode": 0})
 }
 
 func TestAdaptersPinPermissionsStdinAndPrivateOutput(t *testing.T) {
@@ -87,6 +90,12 @@ func TestAdaptersPinPermissionsStdinAndPrivateOutput(t *testing.T) {
 					}
 					if name == "codex" && !strings.Contains(args, "features.shell_tool=false") {
 						t.Fatal("shell tool enabled")
+					}
+				}
+				if name == "copilot" {
+					index := slices.Index(spec.Args, "--output-format")
+					if index < 0 || index+1 >= len(spec.Args) || spec.Args[index+1] != "json" || slices.Contains(spec.Args, "--silent") {
+						t.Fatal("Copilot reply still used human-formatted output", spec.Args)
 					}
 				}
 				if _, err := secure.Read(filepath.Join(root, "invocations", "invocation-one", "reply.json"), 256<<10); err != nil {

@@ -35,7 +35,7 @@ func (r *resources) close() error {
 	return nil
 }
 
-func (a *app) load(ctx context.Context, network bool) (*resources, error) {
+func (a *app) loadConfiguration() (*resources, error) {
 	c, err := config.LoadWorker(a.configFile)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -43,47 +43,70 @@ func (a *app) load(ctx context.Context, network bool) (*resources, error) {
 		}
 		return nil, err
 	}
-	state, err := local.Open(ctx, c.StateDir)
+	return &resources{config: c}, nil
+}
+
+func (a *app) load(ctx context.Context, network bool) (*resources, error) {
+	r, err := a.loadConfiguration()
 	if err != nil {
 		return nil, err
 	}
-	r := &resources{config: c, state: state}
+	state, err := local.Open(ctx, r.config.StateDir)
+	if err != nil {
+		return nil, err
+	}
+	r.state = state
 	if !network {
 		return r, nil
 	}
-	var credential config.Credential
-	if err := config.Read(c.CredentialFile, &credential); err != nil {
-		state.Close()
-		if os.IsNotExist(err) {
-			return nil, domain.Fail(domain.Prerequisite, "enroll this worker with connect first")
-		}
+	if err := r.authenticate(ctx); err != nil {
+		r.close()
 		return nil, err
+	}
+	if err := state.BindIdentity(ctx, r.client.Credential.AgentID); err != nil {
+		r.close()
+		return nil, err
+	}
+	return r, nil
+}
+
+func (a *app) loadTransport(ctx context.Context) (*resources, error) {
+	r, err := a.loadConfiguration()
+	if err != nil {
+		return nil, err
+	}
+	if err := r.authenticate(ctx); err != nil {
+		r.close()
+		return nil, err
+	}
+	return r, nil
+}
+
+func (r *resources) authenticate(ctx context.Context) error {
+	var credential config.Credential
+	if err := config.Read(r.config.CredentialFile, &credential); err != nil {
+		if os.IsNotExist(err) {
+			return domain.Fail(domain.Prerequisite, "enroll this worker with connect first")
+		}
+		return err
 	}
 	if credential.AgentID == "" {
-		state.Close()
-		return nil, domain.Fail(domain.Prerequisite, "connect this worker to its enrolled local identity first")
+		return domain.Fail(domain.Prerequisite, "connect this worker to its enrolled local identity first")
 	}
-	client, err := api.NewLocalClient(c)
+	client, err := api.NewLocalClient(r.config)
 	if err != nil {
-		state.Close()
-		return nil, err
+		return err
 	}
 	client.Credential = credential
 	r.client = client
 	me, err := api.Call[domain.Agent](ctx, client, "GET", "/v1/me", nil)
 	if err != nil {
-		r.close()
-		return nil, err
+		return err
 	}
 	if me.ID != credential.AgentID {
-		r.close()
-		return nil, domain.Fail(domain.Denied, "local identity service does not match the enrolled worker; never borrow another identity")
+		return domain.Fail(domain.Denied, "local identity service does not match the enrolled worker; never borrow another identity")
 	}
-	if err := state.BindIdentity(ctx, credential.AgentID); err != nil {
-		r.close()
-		return nil, err
-	}
-	return r, nil
+	return nil
 }
 
 func (a *app) engine(r *resources) *work.Engine {
@@ -93,6 +116,9 @@ func (a *app) engine(r *resources) *work.Engine {
 }
 
 func (a *app) service(ctx context.Context, args []string) (value any, err error) {
+	if len(args) > 0 && args[0] == "software-recover" {
+		return a.recoverSoftwareBeforeInstall(ctx, args[1:])
+	}
 	if len(args) > 0 && (args[0] == "software-helper" || args[0] == "software-worker") {
 		return a.softwareNativeCommand(ctx, args[1:], "agent", args[0] == "software-worker")
 	}

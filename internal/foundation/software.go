@@ -193,6 +193,61 @@ func (s *Store) SoftwareBuild(ctx context.Context, actor, id string) (domain.Sof
 	return build, err
 }
 
+func (s *Store) validateSubmittedBuild(ctx context.Context, q queryer, task domain.Task, current domain.Run, actor domain.Agent) error {
+	build, err := get[domain.SoftwareBuild](ctx, q, "software_builds", task.BuildID)
+	if err != nil {
+		return err
+	}
+	if build.State != "submitted" || build.TaskID != task.ID || build.SpecGeneration != task.SpecGeneration ||
+		task.Source == nil || build.Source != *task.Source || build.BuilderID != actor.ID || build.ArtifactID == "" ||
+		(build.Source.ProductID != "" && build.Source.ProductID != build.ProductID) ||
+		task.ArchivedAt != 0 || current.TaskID != task.ID || current.AgentID != actor.ID ||
+		current.SpecGeneration != task.SpecGeneration || current.State != "running" ||
+		current.Kind != domain.ExecutionRun || (!actor.Founder && actor.Mode != "ai") ||
+		(current.DeadlineAt != 0 && current.DeadlineAt <= s.timestamp()) {
+		return domain.Fail(domain.Prerequisite, "build completion requires matching submitted custody and a current authorized execution")
+	}
+	original, err := get[domain.Run](ctx, q, "runs", build.RunID)
+	if err != nil {
+		return err
+	}
+	if original.TaskID != task.ID || original.AgentID != actor.ID || original.SpecGeneration != task.SpecGeneration ||
+		original.Kind != domain.ExecutionRun || original.Attempt < 1 || original.Attempt > current.Attempt ||
+		(original.ID != current.ID && original.State == "running") ||
+		!slices.Contains([]string{"running", "completed", "paused", "stopped", "failed", "interrupted"}, original.State) {
+		return domain.Fail(domain.Prerequisite, "submitted build has no matching retained execution provenance")
+	}
+	product, err := get[domain.SoftwareProduct](ctx, q, "software_products", build.ProductID)
+	if err != nil {
+		return err
+	}
+	artifact, err := get[domain.DeliveryArtifact](ctx, q, "delivery_artifacts", build.ArtifactID)
+	if err != nil {
+		return err
+	}
+	if product.ProjectID != task.ProjectID || product.RepositoryID != build.Source.RepositoryID ||
+		artifact.ProjectID != task.ProjectID || artifact.OwnerID != actor.ID || artifact.Kind != "software-bundle" || artifact.RepositoryID != "" {
+		return domain.Fail(domain.Prerequisite, "submitted build custody belongs to different source or ownership")
+	}
+	data, err := s.registryBytes(ctx, q, artifact, domain.MaxSoftwareBundleBytes)
+	if err != nil {
+		return err
+	}
+	payloads, err := software.InspectBundle(data)
+	if err != nil {
+		return err
+	}
+	if !slices.Equal(payloads, build.Payloads) || len(payloads) != len(build.Recipe.Outputs) {
+		return domain.Fail(domain.Prerequisite, "submitted build payload evidence differs from verified custody")
+	}
+	for _, output := range build.Recipe.Outputs {
+		if !slices.ContainsFunc(payloads, func(p domain.SoftwarePayload) bool { return p.Path == output.Path && p.Mode == output.Mode }) {
+			return domain.Fail(domain.Prerequisite, "submitted build differs from its approved outputs")
+		}
+	}
+	return nil
+}
+
 func (s *Store) SubmitSoftwareBuild(ctx context.Context, actor, id string, req domain.SoftwareBuildResult) (domain.SoftwareBuild, error) {
 	return mutate(ctx, s, actor, "software.build-result:"+id, req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.SoftwareBuild, error) {
 		build, err := get[domain.SoftwareBuild](ctx, tx, "software_builds", id)

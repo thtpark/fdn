@@ -21,15 +21,12 @@ func TestInternalSoftwareBridgeRetainsPairedNativePolicyAndExactReceipts(t *test
 	if err := os.WriteFile(n.Policy.DistributionPublicKeyFile, []byte("independent public fixture key"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"agent-cli", "agent-service", "agent-identity", "fdn-service"} {
-		if err := os.WriteFile(filepath.Join(n.Policy.BinaryDir, name), []byte("original "+name), 0755); err != nil {
-			t.Fatal(err)
-		}
-	}
+	managedArchiveFixture(t, n)
+	assertArchiveExecutables(t, n, "0.3.2", strings.Repeat("b", 40))
 	payload := []byte("verified source archive fixture")
 	platform := domain.SoftwarePlatform{Platform: runtime.GOOS + "-" + runtime.GOARCH, ArtifactID: "artifact_internal", Size: int64(len(payload)), SHA256: domain.Hash(string(payload)), Profile: "archive"}
 	for _, name := range []string{"agent-cli", "agent-service", "agent-identity", "fdn-service"} {
-		content := []byte("new " + name)
+		content := fixtureExecutable(recorder.release.Version, recorder.release.Commit, name)
 		platform.Payloads = append(platform.Payloads, domain.SoftwarePayload{Path: "bin/" + name, Mode: 0755, Size: int64(len(content)), SHA256: domain.Hash(string(content))})
 	}
 	verifications, fetches, stops := 0, 0, 0
@@ -69,7 +66,7 @@ func TestInternalSoftwareBridgeRetainsPairedNativePolicyAndExactReceipts(t *test
 				return err
 			}
 			for _, entry := range entries {
-				if err := os.WriteFile(filepath.Join(path, entry.Path), []byte("new "+filepath.Base(entry.Path)), 0755); err != nil {
+				if err := os.WriteFile(filepath.Join(path, entry.Path), fixtureExecutable(recorder.release.Version, recorder.release.Commit, filepath.Base(entry.Path)), 0755); err != nil {
 					return err
 				}
 			}
@@ -79,7 +76,7 @@ func TestInternalSoftwareBridgeRetainsPairedNativePolicyAndExactReceipts(t *test
 	}}
 	recorder.clearFence = true
 	n.CheckServices = func(context.Context) error {
-		target, err := os.Readlink(filepath.Join(n.Policy.Prefix, "current"))
+		target, err := os.Readlink(filepath.Join(archiveRoot(n.Policy.Prefix), "current"))
 		if err != nil {
 			return err
 		}
@@ -125,6 +122,7 @@ func TestInternalSoftwareBridgeRetainsPairedNativePolicyAndExactReceipts(t *test
 	if err != nil || result.State != "verified" || result.Result == nil || result.Result.PermitID != permit.ID || !domain.ValidHash(result.Result.BackupSHA256) {
 		t.Fatal("bridge did not verify original software receipt", result, err)
 	}
+	assertArchiveExecutables(t, n, recorder.release.Version, recorder.release.Commit)
 	before := len(recorder.calls)
 	if _, err := bridge.Handle(ctx, domain.SoftwareNativeRequest{Action: "prepare", ID: "native_internal", ProductID: n.Policy.InternalProductID, Permit: &permit}); err != nil {
 		t.Fatal(err)

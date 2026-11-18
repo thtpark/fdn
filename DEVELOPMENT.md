@@ -22,7 +22,16 @@ archive tools support local integration/installer checks. Runtime Node/npm and
 provider accounts are not test prerequisites.
 Protocol regeneration/static checks also require protoc 36.2; CI installs its
 checksum-pinned upstream compiler. The Go plugin is built from the module's
-pinned protobuf dependency. No generation or source build runs on deployment targets.
+pinned protobuf dependency. Never generate protocol changes or run ad-hoc builds
+against live installation/configuration/state paths. Separately admitted
+internal build tasks compile only in owned source workspaces under the existing
+worker slot, even when that computer also runs an installed Agent.
+
+In 0.3.51, native mailbox/start-lease commands use the same enrolled local
+identity authentication without opening runner SQLite. Keep that transport-only
+boundary intact while services are stopped for a cold backup. Backup-root
+deduplication follows protected canonical-path validation and preserves all
+mandatory coverage, including configuration and CA files outside HOME.
 
 ```sh
 go mod download
@@ -35,8 +44,9 @@ bash scripts/test.sh all
 
 Install dependencies only after manifest changes or an actual missing-tool
 failure. Use the smallest related suite during development, then all independent
-suites before a release. Do not build a release package locally or on a deployed
-computer. Do not run test services against an existing Foundation/state directory.
+suites before a release. Do not build an official GitHub release package locally
+or on a deployed computer. Internal task payload compilation is not publication.
+Do not run test services against an existing Foundation/state directory.
 
 ### Embedded iOS development
 
@@ -80,6 +90,16 @@ acceptance and publication require separate authorization/evidence. Never copy
 desktop keys or run the desktop `agent-service serve` controller on the phone.
 
 ## Running source with an isolated testing identity
+
+For an explicitly authorized internal bootstrap, an already admitted coding
+task can invoke `go run ./cmd/agent-cli build run BUILD_ID` from its exact clean
+source. It inherits the controller's existing `FDN_WORKER_CONFIG`,
+`FDN_WORK_TASK` and `FDN_WORK_RUN`, validates the live claim and uses that
+computer's own proxy. This creates no identity, work slot, permission or signed
+release. Do not use the development wrappers for this: they deliberately change
+HOME and refresh their testing prefix. Independent build acceptance and exact
+native installation permits remain mandatory. See [IMPROVEMENT.md](IMPROVEMENT.md)
+for role-separated recipes, cross-build opt-in and target-native verification.
 
 No separate manual build/install is needed:
 
@@ -295,6 +315,16 @@ fixture, not substitute a direct in-process API call for that boundary.
 Managed Codex exec uses capability-checked `--json` events and its exact
 `--output-last-message` file. Keep stdout/stderr/final-reply bounds unchanged;
 real overflow remains an explicit failure, never successful truncation.
+Copilot uses capability-checked `--output-format json`, not human `--silent`
+text: native presentation can wrap JSON string contents even with Markdown
+rendering disabled. Select only the last complete root `assistant.message`,
+followed by the terminal `result` with explicit zero `exitCode`. Reasoning-boundary
+chunks share `apiCallId`, not `messageId`; validate their order but do not
+concatenate separate messages or select subagent output.
+Ignore metadata/deltas/tool output as reply candidates, reject failed or
+incomplete streams, and retain the normal strict reply-schema/phase validation.
+Never repair wrapped text, accept an earlier message after an incomplete final
+message, rewrite a retained reply, or retry a fenced source merely after upgrade.
 
 ### Founder desktop onboarding
 

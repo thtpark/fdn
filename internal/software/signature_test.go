@@ -238,6 +238,53 @@ func TestPermitExpiryPinnedCAAndFoundationBindingFailClosed(t *testing.T) {
 	}
 }
 
+func TestCoreAgentProposalRetainsEnrolledBinding(t *testing.T) {
+	permit, private, public, caKey, ca, now := signatureFixture(t)
+	permit.Proposal.Release.Manifest.Kind = "foundation"
+	var err error
+	permit.Proposal.Release.KeyID, permit.Proposal.Release.Signature, err = SignRelease(permit.Proposal.Release.Manifest, private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	permit.Signature, err = SignPermit(permit, caKey)
+	if err != nil {
+		t.Fatal("valid enrolled core-Agent challenge rejected", err)
+	}
+	if err := VerifyRelease(permit.Proposal.Release, public); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyPermit(permit, ca, now); err != nil {
+		t.Fatal(err)
+	}
+	for name, change := range map[string]func(*domain.SoftwarePermit){
+		"missing-binding":       func(p *domain.SoftwarePermit) { p.Proposal.Challenge.BindingID = "" },
+		"missing-generation":    func(p *domain.SoftwarePermit) { p.Proposal.Challenge.Generation = 0 },
+		"instance-with-binding": func(p *domain.SoftwarePermit) { p.Proposal.Challenge.TargetID = p.Proposal.Challenge.InstanceID },
+		"instance-generation": func(p *domain.SoftwarePermit) {
+			p.Proposal.Challenge.TargetID = p.Proposal.Challenge.InstanceID
+			p.Proposal.Challenge.BindingID = ""
+		},
+		"generic-instance": func(p *domain.SoftwarePermit) {
+			p.Proposal.Release.Manifest.Kind = "cli"
+			p.Proposal.Challenge.TargetID = p.Proposal.Challenge.InstanceID
+			p.Proposal.Challenge.BindingID = ""
+			p.Proposal.Challenge.Generation = 1
+		},
+		"generic-bound-instance": func(p *domain.SoftwarePermit) {
+			p.Proposal.Release.Manifest.Kind = "cli"
+			p.Proposal.Challenge.TargetID = p.Proposal.Challenge.InstanceID
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			changed := clonePermit(t, permit)
+			change(&changed)
+			if _, err := SignPermit(changed, caKey); err == nil {
+				t.Fatal("malformed core/instance binding was signed")
+			}
+		})
+	}
+}
+
 func TestRecipeValidationIsBoundedAndNeverExecutes(t *testing.T) {
 	recipe := domain.BuildRecipe{FormatVersion: 1, Version: "1.0.0", Platform: "linux-amd64", Profile: "archive",
 		TimeoutSeconds: 300, Steps: []domain.BuildStep{{Args: []string{"go", "build", "-o", "bin/tool", "./cmd/tool"}}},
