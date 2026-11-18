@@ -34,6 +34,12 @@ uncertain job. Generic tool `prepared` is payload staging before admission and
 still requires fresh unexpired authority. Older helpers need an explicitly
 authorized verified published-helper bootstrap, not a bypass or state edit.
 
+The paired receiver's 0.3.54+ protected `prune_obsolete_backups` option
+automatically retires proved obsolete archives before a fresh upgrade. Follow
+[backup retention](../../../DEPLOYMENT.md#retire-obsolete-paired-upgrade-backups).
+Retain the newest verified archive and take a new full cold backup; no manual
+or remote delete command, prior permit replay, or expiry renewal is implied.
+
 Fresh worker setup may be explicitly launched by Founder with `agent-cli agent
 add --host IP --user EXISTING_USER --name NAME` and a stable global
 `--operation-id`. It installs only under that existing non-root user's HOME,

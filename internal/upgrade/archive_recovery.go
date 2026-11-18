@@ -38,10 +38,7 @@ func (b *SoftwareBridge) proveBeforeManagedActivation(ctx context.Context, job s
 	if err := n.verifyColdBackup(directory, job.Backup); err != nil {
 		return nil, err
 	}
-	var backup struct {
-		State string `json:"state"`
-		Error string `json:"error,omitempty"`
-	}
+	var backup backupStreamResult
 	if err := config.Read(filepath.Join(directory, "backup-result.json"), &backup); err != nil {
 		return nil, err
 	}

@@ -15,6 +15,18 @@ go run ./tools/protocol --check
 
 Scenario expectations:
 
+- 0.3.55 opt-in paired backup retention removes real fixture archive bytes
+  before a newly admitted cold backup without touching original journals,
+  acknowledgements or the newest verified recovery point. Check the original
+  disabled policy fingerprint, a retained 0.3.50 failed-partial receipt, a
+  newer retained verified backup (including ties and missing/corrupt bytes),
+  actual installation after the new backup, and denial if its backup is
+  missing. Invalid permits or leases, a busy native lock, read-only requests
+  and prepared/verified replay must not prune. Preserve unacknowledged, foreign,
+  unproved, changed, linked or nonregular history. Interrupt retirement after
+  persisting intent and verify exact continuation under a fresh lease without
+  adopting a replacement file. Denied pre-admission archive staging stays
+  unactivated and does not obstruct a separately authorized new plan.
 - 0.3.54 upstream sync uses actual Git repositories through the Founder CLI:
   unconfigured or credential-bearing upstreams are refused; contained,
   initial, fast-forward and clean two-parent merges apply exactly; dry runs and

@@ -47,7 +47,11 @@ type nativeJob struct {
 }
 
 func (n *Native) policyHash() string {
-	data, _ := json.Marshal(n.Policy)
+	return nativePolicyHash(n.Policy)
+}
+
+func nativePolicyHash(policy Policy) string {
+	data, _ := json.Marshal(policy)
 	return domain.Hash(string(data))
 }
 
@@ -712,7 +716,7 @@ func (n *Native) backup(ctx context.Context, directory, recipient string) (strin
 	if err != nil {
 		return "", err
 	}
-	file, err := os.OpenFile(filepath.Join(directory, "before-upgrade.tar.age"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	file, err := os.OpenFile(filepath.Join(directory, coldBackupArchive), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return "", err
 	}
@@ -731,10 +735,7 @@ func (n *Native) backup(ctx context.Context, directory, recipient string) (strin
 	}
 	err = errors.Join(err, evidenceErr)
 	err = errors.Join(err, writer.Close(), file.Sync(), file.Close())
-	result := struct {
-		State string `json:"state"`
-		Error string `json:"error,omitempty"`
-	}{State: "complete"}
+	result := backupStreamResult{State: "complete"}
 	if err != nil {
 		result.State, result.Error = "failed", err.Error()
 	}
@@ -749,7 +750,7 @@ func (n *Native) verifyColdBackup(directory, expected string) (err error) {
 	if !domain.ValidHash(expected) {
 		return domain.Fail(domain.Conflict, "prepared native upgrade has no verified cold-backup digest")
 	}
-	path := filepath.Join(directory, "before-upgrade.tar.age")
+	path := filepath.Join(directory, coldBackupArchive)
 	if err := protected(path, uint32(os.Geteuid())); err != nil {
 		return err
 	}

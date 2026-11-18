@@ -15,6 +15,12 @@ import (
 )
 
 const backupDiagnosticLimit = 8192
+const coldBackupArchive = "before-upgrade.tar.age"
+
+type backupStreamResult struct {
+	State string `json:"state"`
+	Error string `json:"error,omitempty"`
+}
 
 type backupCommandEvidence struct {
 	Path          string   `json:"path"`
