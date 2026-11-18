@@ -74,7 +74,11 @@ func newBackupRetentionFixture(t *testing.T, enabled bool) backupRetentionFixtur
 		}
 		for _, entry := range payloads {
 			data := fixtureExecutable(recorder.release.Version, recorder.release.Commit, filepath.Base(entry.Path))
-			if err := os.WriteFile(filepath.Join(root, entry.Path), data, 0755); err != nil {
+			path := filepath.Join(root, entry.Path)
+			if err := os.WriteFile(path, data, 0600); err != nil {
+				return err
+			}
+			if err := os.Chmod(path, os.FileMode(entry.Mode)); err != nil {
 				return err
 			}
 		}
