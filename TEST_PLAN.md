@@ -9,12 +9,23 @@ Do not import a previous implementation's test counts/coverage as Go evidence.
 ### Continuous improvement and internal delivery (0.3.45)
 
 ```sh
-go test -race -count=1 . ./internal/gitrepo ./internal/software ./internal/foundation ./internal/api ./internal/cli ./internal/work ./internal/observe ./internal/identityservice ./internal/upgrade -run 'Improvement|InternalSoftwareBridge|Source|Publication|Guide'
+go test -race -count=1 . ./internal/gitrepo ./internal/software ./internal/foundation ./internal/api ./internal/cli ./internal/work ./internal/observe ./internal/identityservice ./internal/upgrade -run 'Improvement|InternalSoftwareBridge|Source|Publication|Guide|Upstream'
 go run ./tools/protocol --check
 ```
 
 Scenario expectations:
 
+- 0.3.54 upstream sync uses actual Git repositories through the Founder CLI:
+  unconfigured or credential-bearing upstreams are refused; contained,
+  initial, fast-forward and clean two-parent merges apply exactly; dry runs and
+  no-ops submit nothing; conflicts import only the tracking ref and create one
+  assigned source task on replay; Founder resolutions need exact parent order;
+  rewritten upstream history is refused and private scratch is removed. The
+  server refuses non-Founder imports, task fields, protected source refs, stale
+  revision/base, false fast-forwards, reversed merges, no-op and rewritten
+  imports and ordinary tracking-ref pushes. An assigned agent's resolution is
+  integrated only by an independent verifier. Local `file://` upstream
+  fixtures are not live GitHub credential qualification.
 - 0.3.53 paired archive activation executes all four standard managed wrappers
   before/after update and checks actual executable versions and hashes. Narrow
   installing-job recovery verifies signed-baseline and staged bytes, complete

@@ -38,6 +38,12 @@ operation receipts commit transactionally. Only the active assigned coding run
 updates its approved actor work ref. Independent current verification binds
 reported source/result, base/head and exact candidate. No raw Git command,
 private filesystem path, force ref update or database write is accepted.
+From 0.3.54, only Founder upstream imports write the protected
+`refs/heads/upstream/BRANCH` tracking refs: forward-only, revision- and
+base-bound, and recorded in a private `repository.upstream` history row.
+They reuse the existing ref JSON and repository-merge payload; no SQL
+migration or payload-schema change is involved. The upstream URL remains
+Founder-local CLI state.
 
 Explicit file submission transfers immutable registry custody without copying
 private owner credentials or inventing an enrolled service actor. Original

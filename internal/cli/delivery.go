@@ -18,6 +18,9 @@ func (a *app) deliveryCommand(ctx context.Context, r *resources, group string, a
 	if group == "repository" && (leaf == "remote" || leaf == "link" || leaf == "bundle") {
 		return a.repositoryLocal(ctx, r, leaf, tail)
 	}
+	if group == "repository" && (leaf == "upstream" || leaf == "sync") {
+		return a.repositoryUpstreamCommand(ctx, r, leaf, tail)
+	}
 	if group == "build" && leaf == "run" {
 		return a.runSoftwareBuild(ctx, r, tail)
 	}
