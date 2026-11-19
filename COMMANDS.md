@@ -111,6 +111,11 @@ retaining identity transport; never remove locks. Observe local failed settlemen
 and exact failed-result ACK. Recovery grants no automatic restart/resume/retry.
 See [the narrow recovery runbook](DEPLOYMENT.md#exact-local-archive-recovery-0353).
 
+The paired receiver's protected `prune_obsolete_backups` policy (0.3.55+) allows
+it to reclaim space from proven obsolete archives during a fresh authorized
+upgrade. It is not a CLI flag or a separate delete request. See
+[backup retention](DEPLOYMENT.md#retire-obsolete-paired-upgrade-backups).
+
 `task create` accepts optional `source`; `task change` kind `source` takes
 `source:{repository_id,commit,optional ref/product_id}` under current project
 authority. A contribution ref must use `refs/heads/work/AGENT_ID/...`.

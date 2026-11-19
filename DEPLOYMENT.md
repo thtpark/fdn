@@ -283,6 +283,47 @@ account (root for Debian); targets use the actual existing non-root service
 user/HOME. No worker account/group or key rotation is introduced. Changing a
 native policy invalidates its previously prepared challenge hash.
 
+#### Retire obsolete paired-upgrade backups
+
+With an independently provisioned 0.3.55-or-newer paired internal receiver,
+an OS administrator can set `"prune_obsolete_backups": true` in its existing
+protected updater policy. Omit the field to retain all archives, as before.
+Older receivers do not support the option; provision the compatible signed
+receiver first, and do not give an old receiver a policy it cannot read.
+Enabling it changes the native policy fingerprint. Use a fresh Founder
+challenge and permit, not an earlier queued or prepared operation.
+
+On fresh preparation, the receiver inspects only its own paired internal jobs.
+It stages the exact signed payload and verifies historical evidence before
+requesting the fresh start lease. After the lease is accepted, but before
+stopping services, it removes only these `before-upgrade.tar.age` files:
+
+- A failed partial with a completed pre-install abort, the exact acknowledged
+  failed result, and bytes matching the original recovery receipt.
+- An older acknowledged, verified archive, and only if a strictly newer
+  acknowledged, verified archive for the same target is present and matches
+  its recorded digest. A missing or corrupt newest archive cannot justify
+  removing older verified recovery points.
+
+The historical target, product, generation, signed permit and policy must match;
+the same policy with the option omitted is eligible. Unknown, active,
+unacknowledged, linked or changed archives are left alone. Complete snapshots
+of failed installations, official-upgrade and general-product archives,
+original receipts, release bytes, keys and logs are not deleted. The receiver
+records a private `backup-retirement.json` intent before unlinking each proven
+archive. An interrupted intent alone does not establish deletion; check the
+exact file and receipt. Each opted-in archive installation stages to its own
+immutable directory under the same managed `lib/fdn` root. A fresh approved
+plan after a proved pre-admission refusal does not overwrite or adopt the old
+plan's payload. There is no remote delete command.
+
+The upgrade still must write and verify its own full cold backup. The
+newest verified archive remains on disk while that happens, and there must be
+room to stage the payload and take the new snapshot after cleanup. If space
+is still insufficient, inspect the original result and arrange storage rather
+than skipping the backup, deleting the last known recovery point or replaying an
+uncertain upgrade.
+
 Provision only the exact operator entrypoint needed, for example a reviewed
 sudoers rule allowing this **fixed complete command**, not arbitrary service
 arguments, policy paths, shell commands or a general installer:

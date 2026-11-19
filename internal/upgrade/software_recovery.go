@@ -258,7 +258,7 @@ func (b *SoftwareBridge) abortSoftware(ctx context.Context, req SoftwareRecovery
 	if managed {
 		receipt.BaselineReleaseSHA256 = domain.Hash(string(baselineRaw))
 	}
-	partial := filepath.Join(directory, "before-upgrade.tar.age")
+	partial := filepath.Join(directory, coldBackupArchive)
 	if info, statErr := os.Lstat(partial); statErr == nil {
 		if err := protected(partial, uint32(os.Geteuid())); err != nil {
 			return receipt, err

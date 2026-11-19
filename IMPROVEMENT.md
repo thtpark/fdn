@@ -491,6 +491,15 @@ finish, after current signature/CA/policy and actual private backup-byte checks.
 No new permission, lease, stop or backup is obtained. Uncertain phases cannot
 use this completion path, and generic tool first admission remains expiry-bound.
 
+From 0.3.55 the paired receiver can use
+[opt-in backup retention](DEPLOYMENT.md#retire-obsolete-paired-upgrade-backups).
+During a fresh authorized upgrade it retires proved, acknowledged failed
+partials and older verified backups, preserving the newest verified recovery
+point, all historical receipts and keys, and every unresolved job. A queued
+install does not authorize a separate delete operation. No archives are pruned
+without the protected local opt-in or during a prepared or verified replay.
+A full new cold backup is still mandatory.
+
 ### Failed paired-Agent backup before installation
 
 From 0.3.50, each paired native backup retains owner-only `backup-command`
