@@ -34,6 +34,7 @@ type Policy struct {
 	IdentityConfig            string   `json:"identity_config,omitempty"`
 	ServiceOptions            string   `json:"service_options,omitempty"`
 	BackupPaths               []string `json:"backup_paths"`
+	PruneObsoleteBackups      bool     `json:"prune_obsolete_backups,omitempty"`
 	AllowNativeRestart        bool     `json:"allow_native_restart,omitempty"`
 	RestartTargets            []Target `json:"restart_targets,omitempty"`
 }
@@ -64,6 +65,9 @@ func protected(path string, owner uint32) error {
 }
 
 func (p Policy) Validate() error {
+	if p.PruneObsoleteBackups && !p.EnableInternalSoftware {
+		return domain.Fail(domain.Invalid, "obsolete backup retirement requires the paired internal software updater")
+	}
 	if p.EnableInternalSoftware && (!domain.ValidOperation(p.InternalProductID) || !filepath.IsAbs(p.DistributionPublicKeyFile) ||
 		filepath.Clean(p.DistributionPublicKeyFile) != p.DistributionPublicKeyFile) {
 		return domain.Fail(domain.Invalid, "internal Foundation updating requires an exact product and independently pinned distribution public key")

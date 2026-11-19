@@ -279,7 +279,7 @@ func (m *Manager) compatibility(ctx context.Context, name, path string) error {
 	if err != nil {
 		return domain.Fail(domain.Prerequisite, "provider help/capability probe failed")
 	}
-	required := []string{"--available-tools", "--allow-all", "--disable-builtin-mcps", "--no-custom-instructions", "--no-ask-user", "--no-auto-update", "--silent"}
+	required := []string{"--available-tools", "--allow-all", "--disable-builtin-mcps", "--no-custom-instructions", "--no-ask-user", "--no-auto-update", "--output-format"}
 	if name == "codex" {
 		required = []string{"--dangerously-bypass-approvals-and-sandbox", "--ask-for-approval"}
 		execHelp, err := m.capture(ctx, path, "", "exec", "--help")
@@ -435,7 +435,7 @@ func Arguments(name, workspace, output, model string, coding bool) ([]string, er
 	if coding {
 		args = append(args, "bash,list_bash,read_bash,write_bash,stop_bash,view,create,edit,apply_patch,glob,grep,web_fetch")
 	}
-	args = append(args, "--disable-builtin-mcps", "--no-custom-instructions", "--no-ask-user", "--no-auto-update", "--silent", "--stream", "off", "--log-level", "none")
+	args = append(args, "--disable-builtin-mcps", "--no-custom-instructions", "--no-ask-user", "--no-auto-update", "--output-format", "json", "--stream", "off", "--log-level", "none")
 	if model != "" {
 		args = append(args, "--model", model)
 	}
@@ -501,6 +501,11 @@ func (m *Manager) Invoke(ctx context.Context, inv Invocation) (reply Reply, err 
 	response := bytes.TrimSpace(out)
 	if inv.Provider == "codex" {
 		response, err = secure.Read(outputFile, 256<<10)
+		if err != nil {
+			return reply, err
+		}
+	} else if inv.Provider == "copilot" {
+		response, err = copilotFinalResponse(out)
 		if err != nil {
 			return reply, err
 		}

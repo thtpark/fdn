@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "version": "0.3.55",
+  "platform": "linux-amd64",
+  "timeout_seconds": 300,
+  "profile": "debian",
+  "steps": [
+    {"args": ["go", "test", "./internal/work", "./internal/upgrade", "./internal/software", "./tools/package"]},
+    {"args": ["go", "run", "./tools/package", "--internal-platform", "linux-amd64"]}
+  ],
+  "outputs": [
+    {"path": "dist/linux-amd64/fdn-agent_0.3.55_amd64.deb", "mode": 420}
+  ],
+  "dependencies": []
+}

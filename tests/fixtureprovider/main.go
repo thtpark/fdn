@@ -33,7 +33,7 @@ func main() {
 		return
 	}
 	if slices.Contains(args, "--help") {
-		fmt.Println("--available-tools --allow-all --disable-builtin-mcps --no-custom-instructions --no-ask-user --no-auto-update --silent --dangerously-bypass-approvals-and-sandbox --ask-for-approval --json --output-last-message --ephemeral --sandbox --skip-git-repo-check")
+		fmt.Println("--available-tools --allow-all --disable-builtin-mcps --no-custom-instructions --no-ask-user --no-auto-update --output-format --dangerously-bypass-approvals-and-sandbox --ask-for-approval --json --output-last-message --ephemeral --sandbox --skip-git-repo-check")
 		return
 	}
 	if slices.Contains(args, "--version") {
@@ -259,9 +259,19 @@ func codingProvider(args []string) string {
 func writeResponse(args []string, response []byte) {
 	if index := slices.Index(args, "--output-last-message"); index >= 0 {
 		check(os.WriteFile(args[index+1], response, 0600))
+		_, err := os.Stdout.Write(response)
+		check(err)
+		return
 	}
-	_, err := os.Stdout.Write(response)
-	check(err)
+	index := slices.Index(args, "--output-format")
+	if index < 0 || index+1 >= len(args) || args[index+1] != "json" || slices.Contains(args, "--silent") {
+		panic("Copilot invocation must request machine events, not rendered text")
+	}
+	encoder := json.NewEncoder(os.Stdout)
+	check(encoder.Encode(map[string]any{"type": "assistant.message", "data": map[string]any{
+		"messageId": "fixture-final", "content": string(response), "chunkIndex": 0, "chunkCount": 1,
+	}}))
+	check(encoder.Encode(map[string]any{"type": "result", "sessionId": "fixture-session", "exitCode": 0}))
 }
 
 func check(err error) {

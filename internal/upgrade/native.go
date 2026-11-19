@@ -47,7 +47,11 @@ type nativeJob struct {
 }
 
 func (n *Native) policyHash() string {
-	data, _ := json.Marshal(n.Policy)
+	return nativePolicyHash(n.Policy)
+}
+
+func nativePolicyHash(policy Policy) string {
+	data, _ := json.Marshal(policy)
 	return domain.Hash(string(data))
 }
 
@@ -630,12 +634,36 @@ func (n *Native) backupPaths() ([]string, error) {
 		}
 		paths = append(paths, identity.StateDir, n.Policy.IdentityConfig, n.Policy.ServiceOptions)
 	}
+	uid, _, err := n.Policy.account()
+	if err != nil {
+		return nil, err
+	}
 	for _, path := range paths {
+		if !filepath.IsAbs(path) || filepath.Clean(path) != path || path == "/" ||
+			inside(path, n.Policy.StateDir) || inside(n.Policy.StateDir, path) {
+			return nil, domain.Fail(domain.Denied, "cold-backup roots must be canonical and outside updater evidence")
+		}
 		if _, err := os.Lstat(path); err != nil {
 			return nil, domain.Fail(domain.Prerequisite, "an explicitly required cold-backup path is unavailable; fix native policy before stopping services")
 		}
+		if err := protected(path, uint32(uid)); err != nil {
+			return nil, err
+		}
 	}
-	return paths, nil
+	roots := make([]string, 0, len(paths))
+	for index, path := range paths {
+		covered := false
+		for other, parent := range paths {
+			if other != index && inside(parent, path) && (parent != path || other < index) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			roots = append(roots, path)
+		}
+	}
+	return roots, nil
 }
 
 func (n *Native) hasFilesystemFileStore(state string) (bool, error) {
@@ -688,7 +716,7 @@ func (n *Native) backup(ctx context.Context, directory, recipient string) (strin
 	if err != nil {
 		return "", err
 	}
-	file, err := os.OpenFile(filepath.Join(directory, "before-upgrade.tar.age"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	file, err := os.OpenFile(filepath.Join(directory, coldBackupArchive), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return "", err
 	}
@@ -699,10 +727,21 @@ func (n *Native) backup(ctx context.Context, directory, recipient string) (strin
 		return "", err
 	}
 	args := append([]string{"-czf", "-", "--"}, paths...)
-	err = n.command(ctx, "/usr/bin/tar", args, false, writer)
+	evidence, evidenceErr := newBackupEvidenceRunner(directory, n.Runner, n.Now)
+	if evidenceErr == nil {
+		recorded := *n
+		recorded.Runner = evidence
+		err = recorded.command(ctx, "/usr/bin/tar", args, false, writer)
+	}
+	err = errors.Join(err, evidenceErr)
 	err = errors.Join(err, writer.Close(), file.Sync(), file.Close())
+	result := backupStreamResult{State: "complete"}
 	if err != nil {
-		return "", err
+		result.State, result.Error = "failed", err.Error()
+	}
+	err = errors.Join(err, config.Write(filepath.Join(directory, "backup-result.json"), result))
+	if err != nil {
+		return "", backupEvidenceError(err)
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
@@ -711,7 +750,7 @@ func (n *Native) verifyColdBackup(directory, expected string) (err error) {
 	if !domain.ValidHash(expected) {
 		return domain.Fail(domain.Conflict, "prepared native upgrade has no verified cold-backup digest")
 	}
-	path := filepath.Join(directory, "before-upgrade.tar.age")
+	path := filepath.Join(directory, coldBackupArchive)
 	if err := protected(path, uint32(os.Geteuid())); err != nil {
 		return err
 	}

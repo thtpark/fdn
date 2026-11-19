@@ -47,6 +47,16 @@ func (b *SoftwareBridge) bridgeDirectory(id string) (string, error) {
 	return path, secure.Dir(path)
 }
 
+func (b *SoftwareBridge) archivePayload(permit domain.SoftwarePermit) string {
+	name := "internal-" + permit.Proposal.Release.ID
+	if b.Native.Policy.PruneObsoleteBackups {
+		// A refused retirement must not strand a later, separately authorized plan
+		// behind the first plan's retained, unactivated payload.
+		name += "." + domain.Hash(permit.Proposal.Challenge.ID)[:32]
+	}
+	return filepath.Join(archiveRoot(b.Native.Policy.Prefix), name)
+}
+
 func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNativeRequest) (domain.SoftwareNativeReply, error) {
 	var reply domain.SoftwareNativeReply
 	n, p := b.Native, b.Native.Policy
@@ -248,10 +258,10 @@ func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNati
 		}
 		payload := filepath.Join(directory, "payload")
 		if p.Method == "archive" {
-			if err := secure.Dir(filepath.Join(p.Prefix, "releases")); err != nil {
+			if _, err := managedArchive(p.Prefix); err != nil {
 				return reply, err
 			}
-			payload = filepath.Join(p.Prefix, "releases", "internal-"+permit.Proposal.Release.ID)
+			payload = b.archivePayload(permit)
 		}
 		if err := b.Trust.Extract(data, payload, platform.Payloads); err != nil {
 			return reply, err
@@ -288,6 +298,20 @@ func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNati
 		if _, err := n.backupPaths(); err != nil {
 			return reply, err
 		}
+		var retirement *backupRetirementPlan
+		if p.PruneObsoleteBackups {
+			// Share the native exclusion with the official updater and both recovery paths.
+			nativeLock, err := secure.Acquire(filepath.Join(p.StateDir, "upgrade.lock"))
+			if err != nil {
+				return reply, err
+			}
+			defer nativeLock.Close()
+			retirement, err = b.planBackupRetirement(ctx, permit, ca, public)
+			if err != nil {
+				return reply, err
+			}
+			defer retirement.root.Close()
+		}
 		nonce := domain.NewToken()
 		leaseReq := domain.UpgradeLeaseRequest{PermitSHA256: domain.Hash(permit.Signature), Nonce: nonce}
 		start := time.Now()
@@ -295,11 +319,25 @@ func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNati
 		if err != nil {
 			return reply, err
 		}
-		if time.Since(start) > 30*time.Second {
-			return reply, domain.Fail(domain.Denied, "internal start proof exceeded its monotonic lifetime")
+		checkLease := func() error {
+			if time.Since(start) > 30*time.Second {
+				return domain.Fail(domain.Denied, "internal start proof exceeded its monotonic lifetime")
+			}
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			return VerifyLease(lease, leaseReq, ca, n.Now())
 		}
-		if err := VerifyLease(lease, leaseReq, ca, n.Now()); err != nil {
+		if err := checkLease(); err != nil {
 			return reply, err
+		}
+		if retirement != nil {
+			if err := retirement.prune(checkLease); err != nil {
+				return reply, err
+			}
+			if err := checkLease(); err != nil {
+				return reply, err
+			}
 		}
 		job = softwareBridgeJournal{Permit: permit, State: "stopping", Payload: payload}
 		if err := config.Write(jobPath, job); err != nil {
@@ -332,12 +370,13 @@ func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNati
 		return reply, err
 	}
 	if p.Method == "archive" {
-		link := filepath.Join(p.Prefix, "current")
-		temporary := filepath.Join(p.Prefix, "current-"+request.ID)
-		if err := os.Symlink(job.Payload, temporary); err != nil {
+		if job.Payload != b.archivePayload(permit) {
+			return reply, errors.Join(domain.Fail(domain.Denied, "prepared archive has a noncanonical immutable payload"), workLock.Close())
+		}
+		if err := verifyArchivePayload(job.Payload, *platform); err != nil {
 			return reply, errors.Join(err, workLock.Close())
 		}
-		if err := os.Rename(temporary, link); err != nil {
+		if err := activateArchive(p.Prefix, job.Payload, request.ID); err != nil {
 			return reply, errors.Join(err, workLock.Close())
 		}
 	} else {
@@ -368,10 +407,13 @@ func (b *SoftwareBridge) Handle(ctx context.Context, request domain.SoftwareNati
 
 func (b *SoftwareBridge) bridgeReply(ctx context.Context, job softwareBridgeJournal) (domain.SoftwareNativeReply, error) {
 	reply := domain.SoftwareNativeReply{State: job.State, Result: job.Result}
-	if job.State != "verified" {
+	if job.State != "verified" && job.State != "failed-before-managed-activation" && job.State != "aborted-before-install" {
 		if job.State != "prepared" {
 			reply.State = "operator-required"
 		}
+		return reply, nil
+	}
+	if job.State != "verified" {
 		return reply, nil
 	}
 

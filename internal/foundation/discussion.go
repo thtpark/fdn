@@ -269,6 +269,9 @@ func (s *Store) AttentionReceipt(ctx context.Context, actor, entryID string, req
 		if err != nil {
 			return domain.Attention{}, err
 		}
+		if req.ExpectedRevision != 0 && req.ExpectedRevision != task.Revision {
+			return domain.Attention{}, domain.Fail(domain.Conflict, "task changed before the source-bound attention receipt")
+		}
 		if !domain.RelevantComment(e, task, a.ID) || e.Generation != req.Generation {
 			return domain.Attention{}, domain.Fail(domain.Conflict, "comment assignment, mention or body generation changed")
 		}

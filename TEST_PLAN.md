@@ -9,12 +9,62 @@ Do not import a previous implementation's test counts/coverage as Go evidence.
 ### Continuous improvement and internal delivery (0.3.45)
 
 ```sh
-go test -race -count=1 . ./internal/gitrepo ./internal/software ./internal/foundation ./internal/api ./internal/cli ./internal/work ./internal/observe ./internal/identityservice ./internal/upgrade -run 'Improvement|InternalSoftwareBridge|Source|Publication|Guide'
+go test -race -count=1 . ./internal/gitrepo ./internal/software ./internal/foundation ./internal/api ./internal/cli ./internal/work ./internal/observe ./internal/identityservice ./internal/upgrade -run 'Improvement|InternalSoftwareBridge|Source|Publication|Guide|Upstream'
 go run ./tools/protocol --check
 ```
 
 Scenario expectations:
 
+- 0.3.55 opt-in paired backup retention removes real fixture archive bytes
+  before a newly admitted cold backup without touching original journals,
+  acknowledgements or the newest verified recovery point. Check the original
+  disabled policy fingerprint, a retained 0.3.50 failed-partial receipt, a
+  newer retained verified backup (including ties and missing/corrupt bytes),
+  actual installation after the new backup, and denial if its backup is
+  missing. Invalid permits or leases, a busy native lock, read-only requests
+  and prepared/verified replay must not prune. Preserve unacknowledged, foreign,
+  unproved, changed, linked or nonregular history. Interrupt retirement after
+  persisting intent and verify exact continuation under a fresh lease without
+  adopting a replacement file. Denied pre-admission archive staging stays
+  unactivated and does not obstruct a separately authorized new plan.
+- 0.3.54 upstream sync uses actual Git repositories through the Founder CLI:
+  unconfigured or credential-bearing upstreams are refused; contained,
+  initial, fast-forward and clean two-parent merges apply exactly; dry runs and
+  no-ops submit nothing; conflicts import only the tracking ref and create one
+  assigned source task on replay; Founder resolutions need exact parent order;
+  rewritten upstream history is refused and private scratch is removed. The
+  server refuses non-Founder imports, task fields, protected source refs, stale
+  revision/base, false fast-forwards, reversed merges, no-op and rewritten
+  imports and ordinary tracking-ref pushes. An assigned agent's resolution is
+  integrated only by an independent verifier. Local `file://` upstream
+  fixtures are not live GitHub credential qualification.
+- 0.3.53 paired archive activation executes all four standard managed wrappers
+  before/after update and checks actual executable versions and hashes. Narrow
+  installing-job recovery verifies signed-baseline and staged bytes, complete
+  backup, original authority and current manual/identity/fence observations.
+  Changed/activated/unprovable state stays unchanged; prepared-intent replay on
+  either side of journal settlement retains a failed outbox result and exact ACK.
+  Occupied receiver/updater/upgrade/daemon/work locks produce neither intent nor
+  result. Partial evidence before receipt is reused only byte-for-byte; changed
+  retained evidence denies both prepared and completed replay without overwrites.
+  These isolated Linux fixtures are not real macOS recovery qualification.
+- 0.3.51 native mailbox and start-lease dispatch authenticates the enrolled local
+  subject without creating runner state or changing a stopped database/directory,
+  including transport, subject and request failures. Cold-backup root deduplication
+  validates every root before removing covered paths, retaining mandatory coverage
+  and rejecting covered symlinks or unavailable roots.
+- 0.3.50 paired-Agent pre-install recovery reproduces an admitted stop followed
+  by actual backup-command failure, preserves private bounded diagnostics and
+  partial bytes, and settles only an exact failed outcome without another
+  stop/backup/install/service start or mode change. Deny unknown/installation
+  phases, changed hashes/policy/baseline/generation, occupied native/daemon/work
+  locks and independent report/session fences; exact lost-response recovery is
+  idempotent. stderr accepts exactly 8192 bytes and rejects 8193, retaining
+  owner-only output and actual native cancellation/exit/join evidence.
+- 0.3.49 core-Agent challenges retain exact enrolled bindings despite sharing
+  the `foundation` product kind. Exercise signed proposal/server authorization,
+  paired native preparation/install/result and unchanged replay; reject malformed
+  instance bindings and generic-tool instance targets without native effects.
 - Feature requests without incidents; new and existing internal tools; correct
   owning project and related original task, never cross-project parenting,
   Adhoc self-approval or implicit original-task completion.
@@ -24,6 +74,15 @@ Scenario expectations:
 - Exact per-agent/fleet/window/slice thresholds and server clocks; conservative
   reservation charges survive response loss, settlement, restart and policy
   revision; native/provider calls use the same work slot and bounded timeout.
+- 0.3.48 regressions use actual current answer IDs before preparation side
+  effects, reject missing/foreign/stale references without global replay
+  starvation, preserve possibly applied old journals, and expose exact
+  same-task clarification answers without rewriting the retained context.
+  Terminal/archived implicit assignment attention defers without inference;
+  explicit follow-ups remain eligible and task/comment drift cannot falsely
+  settle them. Exhausted/paced/occupied maintenance schedules a bounded
+  server-relative eligibility deadline that survives restart without
+  refunding charges, policy churn or busy polling.
 - Actual Git v2/v3 bundle clone/fsck/history; commit/tree/blob hashes, closure,
   expanded-object/count/ref quotas, invalid paths/objects/deltas, corruption and
   unsupported formats; SHA256 historical content fingerprints prevent
@@ -38,6 +97,14 @@ Scenario expectations:
 - Exact source/recipe/platform/dependency/native output shape; no sentence-only
   completion or builder self-promotion. All declared platforms and immutable
   source/payload bytes precede separately signed atomic release publication.
+  Native-only build admission remains the default; an exact registered
+  `cross-build:HOST:TARGET` pair opts in only that direction. Wrong/missing
+  pairs create no effects journal. Cross-build host metadata is truthful,
+  completed upload replay does not rerun a compiler, and production acceptance
+  still needs a different actor's actual target-OS consumer checks.
+  Tracked role recipes match VERSION, exact fixed-role Debian payloads and
+  all four macOS binaries/notices. Internal payload compilation never weakens
+  the official merged-release publisher admission.
   `TestBundleBuildRootPinsOwnedWorkspaceBelowSharedAncestor` proves ordinary
   owner-controlled build roots work under shared temporary ancestors while
   direct symlinks/foreign-writable roots and native privileged-policy ancestry
@@ -46,6 +113,14 @@ Scenario expectations:
   verified adoption, pinned dependencies and consumers, retained old files,
   unsupported manager/privilege/trust denial, hashes/modes/paths/symlinks,
   wrong target/platform, fixed expiry/nonce, backup and uncertain receipt replay.
+- Software fixtures use short, canonical, owned temporary roots beneath the
+  installing user's HOME, with exact scoped cleanup, rather than checkout paths.
+  `TestNativeDebianLongCheckout` repeats Debian install/upgrade/adoption/replay
+  from a deliberately long checkout parent; the runtime archive parent-path
+  limit remains 155 bytes and unsafe/duplicate archive checks are unchanged.
+  `TestBundleParentPathBoundary` proves otherwise-valid paths with exactly
+  155-byte parents are accepted and 156-byte parents are rejected as invalid
+  by relative-path validation, bundle creation and actual USTAR inspection.
 - Foundation paired-service bridge retains actual updater bindings, current
   source baseline, all four archive binaries/exact Debian role payload,
   independently verified original SoftwarePermit and fresh lease; no
@@ -840,6 +915,11 @@ Current-user regressions prove:
   current-user GUI LaunchAgents. No root/system worker service, sudo, runuser,
   hidden account, named group, managed marker or no-login shell is required.
   Missing existing user-manager/login prerequisites fail before writes.
+- 0.3.52 GUI availability discards at least 129,689 bytes of successful
+  whole-domain stdout without capture, accepts 8 KiB stderr and rejects overflow.
+  Missing domains, nonzero exits, command errors, timeout and cancellation fail
+  before definition writes/registration. Parsed Linux/macOS unit output accepts
+  64 KiB and rejects 64 KiB + 1 without relaxing parsing or native user guards.
 - Real owner-only Unix IPC accepts that same user with omitted UID/GID defaults,
   refuses a foreign peer and retains one owner across ordinary CLI traffic.
   The user can read its own key files; this is not same-user key isolation.
@@ -1142,7 +1222,18 @@ tests cover explicit flag precedence, missing-context failure without fallback,
 both providers' coding-only export and no prompt/argv disclosure.
 Codex machine-output tests keep event bytes distinct from the final reply file,
 reproduce human diagnostic overflow rejecting a valid response, and require
-actual stderr overflow to remain failure in machine mode. Native owner
+actual stderr overflow to remain failure in machine mode.
+Copilot machine-output tests preserve long/escaped JSON strings independently
+of native text wrapping and Markdown settings. Cover metadata/delta/tool
+separation, final root-message selection, subagent exclusion, ordered
+reasoning-boundary messages with distinct IDs and a shared API call, explicit
+successful terminal results, malformed/truncated/human output, missing or
+failed completion, duplicate/post-terminal events, incomplete chunks and real
+stdout/stderr/final-reply bounds. Both text and coding fixtures must require
+machine flags while retaining their exact tool/model/stdin controls. The
+compiled binary workflow fixture emits native-shaped events, not raw reply JSON.
+These synthetic cases do not certify a live provider account or model.
+Native owner
 readiness/ping/revocation uses a real Unix socket rather than an unbuffered
 in-memory pipe; safe fixture status is emitted on failures without credentials.
 Native terminal fixture failures retain a bounded synthetic-output tail and

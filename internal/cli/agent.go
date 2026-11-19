@@ -37,6 +37,21 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 	if group == "service" && len(tail) > 0 && tail[0] != "status" {
 		return a.nativeService(ctx, tail, "agent")
 	}
+	if group == "upgrade-lease" || group == "message-worker" || group == "software-mailbox" {
+		r, loadErr := a.loadTransport(ctx)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		defer func() { err = errors.Join(err, r.close()) }()
+		switch group {
+		case "upgrade-lease":
+			return a.upgradeLease(ctx, r, tail)
+		case "message-worker":
+			return a.messageWorker(ctx, r, tail)
+		default:
+			return a.softwareMailboxCommand(ctx, r, tail)
+		}
+	}
 	localOnly := slices.Contains([]string{"config", "knowledge", "inventory", "workspace", "provider", "preferences", "service", "screen"}, group) ||
 		(group == "repository" && len(tail) > 0 && (tail[0] == "link" || tail[0] == "bundle")) ||
 		(group == "file" && len(tail) > 0 && slices.Contains([]string{"upload-status", "download-status"}, tail[0])) ||
@@ -117,12 +132,6 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.assistanceCommand(ctx, r, tail)
 	case "upgrade":
 		return a.upgradeCommand(ctx, r, tail)
-	case "upgrade-lease":
-		return a.upgradeLease(ctx, r, tail)
-	case "message-worker":
-		return a.messageWorker(ctx, r, tail)
-	case "software-mailbox":
-		return a.softwareMailboxCommand(ctx, r, tail)
 	case "watch":
 		return a.watchCommand(ctx, r, tail)
 	default:

@@ -5,6 +5,61 @@ binary help. This guide is complete without a development/legacy checkout.
 Installation, enrollment, provider authentication, local tool permission, mode
 and task approval are distinct states.
 
+## Exact local archive recovery (0.3.53)
+
+The paired internal archive updater uses the existing installer layout:
+`PREFIX/lib/fdn/current`, with all four `PREFIX/bin` executable links unchanged.
+It refuses unmanaged or foreign links and activates only its immutable staged
+release. `PREFIX/current` is not a managed activation path.
+
+An authorized local operator may use `agent-service software-recover` with an
+explicit operation ID and the existing protected updater policy. The ordinary
+stopping-only abort remains unchanged. For the original archive bridge defect
+only, add `baseline_release_file` (an absolute local signed previous release
+JSON file) and `expected_mode_revision` to the exact job ID, original journal
+and permit SHA256 values and reason. Never supply stopped/source assertions.
+The baseline file is the raw signed `SoftwareRelease` object, not the CLI/API
+`{"ok":true,"data":...}` response envelope. Preserve its signed manifest,
+signature and key ID; extracting the object does not establish trust.
+
+Use only an independently qualified, published 0.3.53-or-later helper with this
+supported recovery behavior and separate exact Founder authorization. A source
+checkout, fixture result or old installed helper is not a deployment permit.
+Before invocation, separately authorize and join the existing software receiver
+and runner through their native supervisor, retaining the enrolled identity
+transport for read-only identity, authority and fence checks and result delivery.
+Do not delete lock files or interrupt unknown/live work to obtain a free slot.
+
+The helper independently verifies current pinned trust, the original admitted
+permission/challenge, platform/product/device/generation/policy, the complete
+encrypted backup, all four signed old and staged new executable hashes, exact
+canonical wrappers and unused auxiliary link, unchanged Founder manual intent,
+and native/application/report/session locks. Only an original `installing` job
+with unchanged managed activation can settle as `failed-before-managed-activation`.
+Unknown, changed, activated, occupied or unprovable state is denied unchanged.
+
+A self-Founder whose pre-existing manual state has no requester/timestamp must
+still match the exact current revision, predate the original permit, and prove
+the original issuing device and key generation through current local identity.
+This exception never applies to non-Founders, foreign devices or newer intent.
+Original identities may omit `device_id`: their canonical binding is `agent_id`;
+separately keyed identities must match their exact `device_id`.
+The signed baseline must name the same Foundation instance as the original
+challenge and current protected policy, not merely the same product.
+
+Recovery retains original journal and signed-baseline bytes, backup, payload,
+auxiliary link and durable prepared/completed receipt. It reports a failed
+result through the existing outbox/acknowledgement path; exact replay never
+repeats native effects. It does not activate, back up, install, stop/start
+services, change mode, clear independent fences or authorize a retry.
+Observe both the local `failed-before-managed-activation` job/receipt and the
+exact remotely acknowledged `failed` result. A delivery failure leaves the
+failed result pending; replay only the same operation and unchanged input to
+deliver/ACK it, never another installation. Recovery does not automatically
+restart receivers/runners, resume AI or retry the original upgrade. Those actions
+require their own current authority and unchanged independent prerequisites.
+Source fixture results do not qualify real macOS recovery or deployment.
+
 ## Plan and prerequisites
 
 Before writes, establish target machine/role, OS account/HOME, approved source/
@@ -227,6 +282,47 @@ symlink or group/other-write substitution. The policy is private to the updater
 account (root for Debian); targets use the actual existing non-root service
 user/HOME. No worker account/group or key rotation is introduced. Changing a
 native policy invalidates its previously prepared challenge hash.
+
+#### Retire obsolete paired-upgrade backups
+
+With an independently provisioned 0.3.55-or-newer paired internal receiver,
+an OS administrator can set `"prune_obsolete_backups": true` in its existing
+protected updater policy. Omit the field to retain all archives, as before.
+Older receivers do not support the option; provision the compatible signed
+receiver first, and do not give an old receiver a policy it cannot read.
+Enabling it changes the native policy fingerprint. Use a fresh Founder
+challenge and permit, not an earlier queued or prepared operation.
+
+On fresh preparation, the receiver inspects only its own paired internal jobs.
+It stages the exact signed payload and verifies historical evidence before
+requesting the fresh start lease. After the lease is accepted, but before
+stopping services, it removes only these `before-upgrade.tar.age` files:
+
+- A failed partial with a completed pre-install abort, the exact acknowledged
+  failed result, and bytes matching the original recovery receipt.
+- An older acknowledged, verified archive, and only if a strictly newer
+  acknowledged, verified archive for the same target is present and matches
+  its recorded digest. A missing or corrupt newest archive cannot justify
+  removing older verified recovery points.
+
+The historical target, product, generation, signed permit and policy must match;
+the same policy with the option omitted is eligible. Unknown, active,
+unacknowledged, linked or changed archives are left alone. Complete snapshots
+of failed installations, official-upgrade and general-product archives,
+original receipts, release bytes, keys and logs are not deleted. The receiver
+records a private `backup-retirement.json` intent before unlinking each proven
+archive. An interrupted intent alone does not establish deletion; check the
+exact file and receipt. Each opted-in archive installation stages to its own
+immutable directory under the same managed `lib/fdn` root. A fresh approved
+plan after a proved pre-admission refusal does not overwrite or adopt the old
+plan's payload. There is no remote delete command.
+
+The upgrade still must write and verify its own full cold backup. The
+newest verified archive remains on disk while that happens, and there must be
+room to stage the payload and take the new snapshot after cleanup. If space
+is still insufficient, inspect the original result and arrange storage rather
+than skipping the backup, deleting the last known recovery point or replaying an
+uncertain upgrade.
 
 Provision only the exact operator entrypoint needed, for example a reviewed
 sudoers rule allowing this **fixed complete command**, not arbitrary service
@@ -869,7 +965,12 @@ invoked by installation.
 macOS registers **both** LaunchAgents in `gui/UID` as the existing logged-in
 user. It creates no hidden account or LaunchDaemon and invokes no `sudo` or
 `launchctl asuser`. Missing GUI/login domains are explicit prerequisites;
-registration grants no desktop/TCC consent. Recording fixtures do not qualify
+registration grants no desktop/TCC consent. From 0.3.52, the GUI availability
+probe discards unparsed whole-domain stdout, so large valid domains do not
+hit the parsed-unit capture limit. Its 30-second deadline, real command-failure
+checks and 8 KiB stderr bound remain enforced before definition writes.
+Parsed service status retains its strict 64 KiB capture/parsing bound.
+Recording fixtures do not qualify
 live native manager, desktop or reboot behavior. Windows service/IPC support
 is still separate, unimplemented work.
 

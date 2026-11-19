@@ -135,6 +135,9 @@ func (s *Server) deliveryRoutes() {
 	deliveryBody(s, "POST /v1/repositories/{id}/merge", func(r *operationRequest, a domain.Agent, q domain.RepositoryMerge) (domain.HostedRepository, error) {
 		return s.Store.MergeRepository(r.Context(), a.ID, r.PathValue("id"), q)
 	})
+	deliveryBody(s, "POST /v1/repositories/{id}/upstream", func(r *operationRequest, a domain.Agent, q domain.RepositoryMerge) (domain.HostedRepository, error) {
+		return s.Store.UpstreamRepository(r.Context(), a.ID, r.PathValue("id"), q)
+	})
 	read(s, "GET /v1/artifacts/{id}", func(r *operationRequest, a domain.Agent) (domain.DeliveryArtifact, error) {
 		if err := publicationRead(r); err != nil {
 			return domain.DeliveryArtifact{}, err

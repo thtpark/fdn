@@ -29,8 +29,19 @@ var workerBinaries = []string{"agent-cli", "agent-service", "agent-identity"}
 
 func main() {
 	sourceOnly := flag.Bool("source-only", false, "create source companion assets only, still requiring the exact merged release event")
+	internalPlatform := flag.String("internal-platform", "", "build unsigned internal task payloads for this platform; does not publish a release")
 	flag.Parse()
-	if err := run(*sourceOnly); err != nil {
+	var err error
+	if *internalPlatform != "" {
+		if *sourceOnly {
+			err = domain.Fail(domain.Invalid, "internal payloads and official source publication are separate build modes")
+		} else {
+			err = runInternal(*internalPlatform)
+		}
+	} else {
+		err = run(*sourceOnly)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, domain.AsFault(err).Message)
 		os.Exit(1)
 	}
@@ -62,13 +73,9 @@ func run(sourceOnly bool) error {
 	if err := distribution.CheckReleaseEvent(os.Getenv("GITHUB_ACTIONS"), os.Getenv("GITHUB_EVENT_NAME"), event, commit); err != nil {
 		return err
 	}
-	versionBytes, err := os.ReadFile("VERSION")
+	version, err := checkoutVersion()
 	if err != nil {
 		return err
-	}
-	version := strings.TrimSpace(string(versionBytes))
-	if !regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?$`).MatchString(version) {
-		return domain.Fail(domain.Invalid, "VERSION must contain an exact semantic version")
 	}
 	domain.Version, domain.Commit = version, commit
 	if sourceOnly {
@@ -78,6 +85,39 @@ func run(sourceOnly bool) error {
 	if !((goos == "linux" && (arch == "amd64" || arch == "arm64")) || (goos == "darwin" && arch == "arm64")) {
 		return domain.Fail(domain.Invalid, "unsupported release target")
 	}
+	return packageNative(ctx, version, commit, goos, arch, false)
+}
+
+func checkoutVersion() (string, error) {
+	data, err := os.ReadFile("VERSION")
+	if err != nil {
+		return "", err
+	}
+	version := strings.TrimSpace(string(data))
+	if !regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?$`).MatchString(version) {
+		return "", domain.Fail(domain.Invalid, "VERSION must contain an exact semantic version")
+	}
+	return version, nil
+}
+
+func runInternal(target string) error {
+	if target != "linux-amd64" && target != "linux-arm64" && target != "darwin-arm64" {
+		return domain.Fail(domain.Invalid, "unsupported internal payload target")
+	}
+	commit, err := command("git", "rev-parse", "HEAD")
+	if err != nil {
+		return err
+	}
+	version, err := checkoutVersion()
+	if err != nil {
+		return err
+	}
+	domain.Version, domain.Commit = version, commit
+	goos, arch, _ := strings.Cut(target, "-")
+	return packageNative(context.Background(), version, commit, goos, arch, true)
+}
+
+func packageNative(ctx context.Context, version, commit, goos, arch string, internal bool) error {
 	source, err := distribution.CheckSourceCheckout(ctx, ".", version, commit)
 	if err != nil {
 		return err
@@ -133,6 +173,32 @@ func run(sourceOnly bool) error {
 	if err := distribution.CheckTrackedBuildInputs(ctx, "."); err != nil {
 		return err
 	}
+	if internal && goos == "darwin" {
+		if err := os.MkdirAll("bin", 0755); err != nil {
+			return err
+		}
+		for _, name := range nativeBinaries {
+			input, err := os.Open(filepath.Join(stage, "first", name))
+			if err != nil {
+				return err
+			}
+			output := filepath.Join("bin", name)
+			err = write(output, func(w io.Writer) error {
+				_, err := io.Copy(w, input)
+				return err
+			})
+			if err := errors.Join(err, input.Close()); err != nil {
+				return err
+			}
+			if err := os.Chmod(output, 0755); err != nil {
+				return err
+			}
+		}
+		return write("THIRD_PARTY_NOTICES", func(w io.Writer) error {
+			_, err := w.Write(notices)
+			return err
+		})
+	}
 	native := []distribution.Entry{{Name: "THIRD_PARTY_NOTICES", Data: notices, Mode: 0644}}
 	guideEntries, err := distribution.GuideEntries("guide")
 	if err != nil {
@@ -141,11 +207,13 @@ func run(sourceOnly bool) error {
 	native = append(native, guideEntries...)
 	native = append(native, binaryEntries(filepath.Join(stage, "first"), "bin", names)...)
 	artifacts := []string{}
-	archiveName := "fdn-" + version + "-" + target + ".tar.gz"
-	if err := write(filepath.Join(out, archiveName), func(w io.Writer) error { return distribution.TarGzip(w, native, epoch) }); err != nil {
-		return err
+	if !internal {
+		archiveName := "fdn-" + version + "-" + target + ".tar.gz"
+		if err := write(filepath.Join(out, archiveName), func(w io.Writer) error { return distribution.TarGzip(w, native, epoch) }); err != nil {
+			return err
+		}
+		artifacts = append(artifacts, archiveName)
 	}
-	artifacts = append(artifacts, archiveName)
 	if goos == "linux" {
 		for _, role := range []string{"foundation", "agent"} {
 			pkg := "fdn-" + role

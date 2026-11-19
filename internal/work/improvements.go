@@ -28,6 +28,25 @@ func reserveDue(usage domain.MaintenanceUsage, now int64) bool {
 		now-usage.WindowStart >= int64(usage.AgentSeconds)*int64(policy.WindowSeconds)/int64(policy.PerAgentSeconds)
 }
 
+func (e *Engine) scheduleMaintenance(ctx context.Context, usage domain.MaintenanceUsage, occupied bool) {
+	policy := usage.Policy
+	if !policy.Enabled || policy.WindowSeconds <= 0 || policy.PerAgentSeconds <= 0 {
+		return
+	}
+	next := usage.WindowStart + int64(policy.WindowSeconds)
+	if usage.AgentSeconds+policy.SliceSeconds <= policy.PerAgentSeconds &&
+		usage.FleetSeconds+policy.SliceSeconds <= policy.FleetSeconds {
+		next = usage.WindowStart + int64(usage.AgentSeconds)*int64(policy.WindowSeconds)/int64(policy.PerAgentSeconds)
+		if next <= usage.ServerObservedAt {
+			if !occupied {
+				return
+			}
+			next = min(usage.ServerObservedAt+int64(policy.SliceSeconds), usage.WindowStart+int64(policy.WindowSeconds))
+		}
+	}
+	deferWorkUntil(ctx, e.Now().Add(time.Duration(max(1, next-usage.ServerObservedAt))*time.Second))
+}
+
 func (e *Engine) improvementStep(ctx context.Context, c config.Worker, manual bool, policy domain.ImprovementPolicy, tasks []domain.Task) (bool, error) {
 	if !policy.Enabled {
 		return false, nil
@@ -43,6 +62,10 @@ func (e *Engine) improvementStep(ctx context.Context, c config.Worker, manual bo
 		}
 		acted, err := e.prepare(ctx, c, task, manual)
 		if err != nil {
+			var fenced textResponseFenced
+			if errors.As(err, &fenced) {
+				continue
+			}
 			if slices.Contains([]domain.Code{domain.Prerequisite, domain.Conflict, domain.Denied}, domain.AsFault(err).Code) && !acted {
 				continue
 			}
@@ -81,6 +104,10 @@ func (e *Engine) improvementStep(ctx context.Context, c config.Worker, manual bo
 				}
 			}
 			_, err = e.text(ctx, c, launch, manual)
+			var fenced textResponseFenced
+			if errors.As(err, &fenced) {
+				continue
+			}
 			return true, err
 		}
 		candidates, err := api.Call[domain.Page[domain.Task]](ctx, e.Client, http.MethodGet,
@@ -107,6 +134,10 @@ func (e *Engine) improvementStep(ctx context.Context, c config.Worker, manual bo
 				return false, err
 			}
 			_, err = e.text(ctx, c, launch, manual)
+			var fenced textResponseFenced
+			if errors.As(err, &fenced) {
+				continue
+			}
 			return true, err
 		}
 	}
@@ -156,6 +187,14 @@ func (e *Engine) reserveImprovement(ctx context.Context, launch *Launch) error {
 		ProjectID: project, SourceID: source, Kind: kind, Seconds: policy.SliceSeconds}
 	reservation, err := api.Call[domain.MaintenanceReservation](ctx, e.Client, http.MethodPost, "/v1/maintenance-reservations", request)
 	if err != nil {
+		if domain.AsFault(err).Code == domain.Prerequisite {
+			usage, observationErr := api.Call[domain.MaintenanceUsage](ctx, e.Client, http.MethodGet, "/v1/maintenance-usage", nil)
+			if observationErr != nil {
+				deferWorkUntil(ctx, e.Now().Add(time.Duration(max(1, e.Config.PollSeconds))*time.Second))
+				return errors.Join(err, observationErr)
+			}
+			e.scheduleMaintenance(ctx, usage, true)
+		}
 		return err
 	}
 	launch.Maintenance = &reservation

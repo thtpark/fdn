@@ -10,6 +10,10 @@ Read `guide show DEVELOPMENT.md`, `guide show SCHEMA.md`,
 The checkout's root documents are canonical; no old source tree is required.
 
 From 0.3.45, read `guide show IMPROVEMENT.md` for internal features and tools.
+From 0.3.51, native mailbox/start-lease CLI commands authenticate through the
+local identity proxy without opening runner state, preserving cold-backup
+quiescence. Backup roots are deduplicated only after protected-path validation;
+required coverage and strict archive failures remain unchanged.
 Keep reserved Foundation project identity, ordinary scoped delegated authority,
 independent source/build acceptance and durable maintenance allowance separate.
 Git is bundle-backed over the existing identity transport; source/release files
@@ -40,6 +44,10 @@ native cancellation and no-inference authentication/model probes locally.
 2. Find existing helpers first. Keep server authority transactional, DTO/input
    validation narrow, errors explicit, and transport/provider/native boundaries
    testable. Do not enforce security only in a friendly CLI.
+   Source ownership belongs in private Git metadata, never ignored root build
+   inputs. Inspect exact retained build/run/step evidence after native failures;
+   bounded output overflow, persistence or cleanup failures are not success.
+   Never remove a running journal or replay a compiler to obtain diagnostics.
    For all routine tool-enabled jobs, install missing ordinary needed tools
    autonomously and non-interactively within existing OS permissions and task
    scope. Prefer trusted per-user or environment-local package managers.
