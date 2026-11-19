@@ -491,7 +491,7 @@ finish, after current signature/CA/policy and actual private backup-byte checks.
 No new permission, lease, stop or backup is obtained. Uncertain phases cannot
 use this completion path, and generic tool first admission remains expiry-bound.
 
-From 0.3.54 the paired receiver can use
+From 0.3.55 the paired receiver can use
 [opt-in backup retention](DEPLOYMENT.md#retire-obsolete-paired-upgrade-backups).
 During a fresh authorized upgrade it retires proved, acknowledged failed
 partials and older verified backups, preserving the newest verified recovery

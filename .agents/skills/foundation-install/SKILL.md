@@ -34,7 +34,7 @@ uncertain job. Generic tool `prepared` is payload staging before admission and
 still requires fresh unexpired authority. Older helpers need an explicitly
 authorized verified published-helper bootstrap, not a bypass or state edit.
 
-The paired receiver's 0.3.54+ protected `prune_obsolete_backups` option
+The paired receiver's 0.3.55+ protected `prune_obsolete_backups` option
 automatically retires proved obsolete archives before a fresh upgrade. Follow
 [backup retention](../../../DEPLOYMENT.md#retire-obsolete-paired-upgrade-backups).
 Retain the newest verified archive and take a new full cold backup; no manual

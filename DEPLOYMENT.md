@@ -285,7 +285,7 @@ native policy invalidates its previously prepared challenge hash.
 
 #### Retire obsolete paired-upgrade backups
 
-With an independently provisioned 0.3.54-or-newer paired internal receiver,
+With an independently provisioned 0.3.55-or-newer paired internal receiver,
 an OS administrator can set `"prune_obsolete_backups": true` in its existing
 protected updater policy. Omit the field to retain all archives, as before.
 Older receivers do not support the option; provision the compatible signed
