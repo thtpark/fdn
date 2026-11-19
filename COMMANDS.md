@@ -72,6 +72,8 @@ All ordinary commands below use the same JSON envelope and enrolled identity.
 | `agent-cli repository remote` | Internal Git-helper stdin/stdout protocol; `REMOTE_NAME fdn::REPOSITORY_ID`; not a raw shell/SSH gateway |
 | `agent-cli repository push` | `ID --input FILE`: task_id, run_id, private bundle_file_id, updates with name/old/new; one exact assigned actor work ref under active coding ownership; no force/delete/protected-ref write |
 | `agent-cli repository merge` | `ID --input FILE`: current verifier task_id/run_id/spec_generation/result_generation, source_ref/source_commit/base_commit/commit/bundle_file_id/reason; exact independently checked fast-forward or two-parent candidate |
+| `agent-cli repository upstream` | `ID [--input FILE]`: url and optional branch (default `main`); this computer's private upstream selection, stored locally and never sent to Foundation; empty url clears; no input shows it. https, ssh, scp-style SSH or absolute local/`file://` URLs only, without embedded credentials |
+| `agent-cli repository sync` | `ID --input FILE`: reason, optional assign_to agent ID, dry_run, or resolution {workspace, ref}; Founder-only. Fetches the configured upstream with this account's own Git credentials, records `refs/heads/upstream/BRANCH`, and fast-forwards or cleanly merges the protected default. Conflicts import only the tracking ref and can create an assigned source task; reuse `--operation-id` after uncertainty |
 | `agent-cli software register` | `--input FILE`: project_id/name/kind/provenance/license/reason, optional repository_id/recipe_path/platform recipe_paths/capabilities; Founder-only; vendor/unknown tools cannot become internally built sources |
 | `agent-cli software list` | `[--project ID --cursor CURSOR --limit N]`; product/tool catalog metadata, not execution permission |
 | `agent-cli software show` | `PRODUCT_ID`; owner/source/profile metadata |
@@ -138,6 +140,60 @@ are rejected. Mutations are queryless and reject protected provenance/identity/
 state fields. Native maintenance inbox/result/lease/artifact operations for the
 Foundation instance remain root-private; ordinary Founder/worker traffic
 cannot select them.
+
+### Pull upstream changes into a hosted repository
+
+Any hosted repository can track one upstream branch per Founder computer:
+Foundation itself, existing internal tools, or new tools adopted from an
+external project. Configure it once on the Founder device that holds the Git
+credentials, then sync:
+
+```sh
+agent-cli repository upstream REPOSITORY_ID --input upstream.json
+agent-cli --operation-id upstream-sync-001 repository sync REPOSITORY_ID --input sync.json
+```
+
+```json
+{"url": "https://github.com/thtpark/fdn.git", "branch": "main"}
+```
+
+```json
+{"reason": "Pull the reviewed upstream main", "assign_to": "AGENT_ID"}
+```
+
+`sync` fetches into a private scratch repository with this account's Git
+configuration and credential helpers (protocols https/ssh/file only, no hooks
+or prompts). Foundation never contacts the upstream. The result `outcome` is:
+
+| Outcome | Effect |
+| --- | --- |
+| `initial` | Empty hosted repository adopts the upstream tip as its default branch |
+| `up-to-date` | Upstream is already contained; only a newer tracking ref is recorded |
+| `fast-forward` | Default advances to the upstream tip |
+| `merged` | Default advances to a clean two-parent merge (hosted default first, upstream second) authored with this account's Git identity |
+| `conflict` | Only `refs/heads/upstream/BRANCH` is imported; `conflicts` lists paths and the default is unchanged |
+| `resolved` | A Founder-submitted resolution merge became the default |
+
+Add `"dry_run": true` to classify without importing anything. With
+`assign_to`, a conflict creates a source task bound to the exact base commit and
+`refs/heads/work/AGENT_ID/upstream-...`, then assigns it. That task follows
+ordinary readiness, approval, push and independent `repository merge`; the
+resolver fetches both refs from `fdn::REPOSITORY_ID` and needs no upstream
+credentials. Founder can instead resolve locally and submit
+`{"reason": "...", "resolution": {"workspace": "WORKSPACE_REF", "ref": "refs/heads/RESOLUTION"}}`,
+whose commit must have exactly the current default and imported tracking tip as
+first and second parents.
+
+Foundation refuses stale revisions or bases, non-Founder imports, rewritten
+upstream history, substituted bytes behind retained commits, other merge
+shapes and ordinary pushes to the tracking namespace. Each submission is a
+full self-contained bundle counted against the repository quota. Upstream
+publication from Foundation remains a separate Founder-approved action.
+
+From 0.3.54 the Foundation server, Founder `agent-cli` and its identity proxy
+add the queryless `POST /v1/repositories/ID/upstream` route. It reuses the
+existing repository-merge payload (task fields empty), so the native payload
+schema and older workers are unchanged.
 
 ## Read-only desktop observation
 

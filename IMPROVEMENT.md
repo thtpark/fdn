@@ -24,6 +24,10 @@ Feature request / enhancement / bug / eligible health incident
   -> installed-byte and consumer/health verification
 ```
 
+Pulling reviewed upstream changes *into* a hosted repository is the Founder's
+`repository sync` workflow (see [Pull upstream changes](#pull-upstream-changes));
+conflicts become ordinary assigned source tasks.
+
 Upstream PR contribution is optional and separate. Founder can perform it, or
 authorize any agent with that computer's own GitHub credentials. Internal
 integration/release approval is not permission to publish externally.
@@ -40,6 +44,7 @@ passing checks; this feature does not bypass that policy.
 | Triage, assign, approve and independently review ordinary improvement tasks | Founder or current delegates of that exact project |
 | Write/push a work branch | Its assigned approved task and current coding run |
 | Integrate a contribution | An independent current verifier, exact source/result/base |
+| Import an upstream tip or advance a default branch from it | Founder (`repository sync`); conflict fixes go to an assigned source task and independent verifier, or a Founder-submitted two-parent resolution |
 | Publish an internal release | Current project authority, independently accepted build tasks, separate distribution signer |
 | Plan/apply installation | Founder plus independently provisioned native target policy |
 | Enter protected credentials, change OS privilege, spend or publish upstream | Their separate explicit authority; task text is insufficient |
@@ -273,6 +278,53 @@ verification run. It binds task/spec/result/run, source ref/head, base,
 candidate commit and candidate bundle. Only an exact reviewed fast-forward
 or two-parent candidate may advance integration. Base/head drift fails.
 Acceptance requires actual integration, not a success sentence or PR URL.
+
+### Pull upstream changes
+
+Foundation, an existing internal tool or a new tool can track an external
+upstream such as `https://github.com/thtpark/fdn.git`. The Founder device that
+holds the Git credentials selects it once; the URL stays in that computer's
+private local state and Foundation never contacts the upstream:
+
+```sh
+agent-cli repository upstream REPOSITORY_ID --input upstream.json   # {"url": "...", "branch": "main"}
+agent-cli --operation-id upstream-main-2026-11-18 repository sync REPOSITORY_ID --input sync.json
+```
+
+`sync.json` needs a `reason`; add `"dry_run": true` to preview. The CLI fetches
+the upstream branch with this account's own credentials into private scratch
+space and compares it with the hosted default branch:
+
+1. Already contained: it records only a newer `refs/heads/upstream/BRANCH`.
+2. Fast-forward or initial import: the default moves to the upstream tip.
+3. Clean divergence: it creates a two-parent merge (hosted default first,
+   upstream second) with this account's Git identity and applies it.
+4. Conflict: it imports only the tracking ref and reports conflicting paths.
+   The protected default is unchanged.
+
+For a conflict, either let the Founder resolve it locally (merge the imported
+tracking tip into the current default in an owned workspace, then rerun
+`sync` with `"resolution": {"workspace": "WORKSPACE_REF", "ref": "refs/heads/RESOLUTION"}`),
+or pass `"assign_to": "AGENT_ID"` so `sync` creates a source task for that
+agent. The task pins the current default commit and the agent's
+`refs/heads/work/AGENT_ID/upstream-...` ref and lists the conflicts. The agent
+fetches both refs from `fdn::REPOSITORY_ID`, so it needs no upstream
+credentials:
+
+```sh
+git fetch origin                              # clone of fdn::REPOSITORY_ID
+git checkout -B resolve origin/main
+git merge origin/upstream/main                # resolve, test, commit
+git push origin HEAD:refs/heads/work/AGENT_ID/upstream-main-COMMIT
+```
+
+The task then needs normal readiness and approval, and an independent current
+verifier integrates the exact merge with `repository merge`. Only Founder can
+import an upstream tip or apply it to a default branch. Ordinary pushes cannot
+write the tracking namespace, and rewritten upstream history, stale bases,
+other merge shapes and substituted retained bytes are refused. Reuse the same
+`--operation-id` after an uncertain result; the CLI journal replays its exact
+prepared bundle and task assignment instead of fetching again.
 
 Limits: 64 MiB packed bundle, 256 MiB expanded objects, 65,536 objects,
 128 refs, and 1 GiB retained bundles per repository. Prerequisites, filtered

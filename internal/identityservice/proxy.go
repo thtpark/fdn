@@ -41,7 +41,7 @@ var ordinaryRoutes = map[string][]string{
 	http.MethodPost: {
 		"/v1/improvement-policy", "/v1/improvements", "/v1/improvements/*/decision",
 		"/v1/maintenance-reservations", "/v1/maintenance-reservations/*/settle",
-		"/v1/repositories", "/v1/repositories/*/push", "/v1/repositories/*/merge", "/v1/software-products",
+		"/v1/repositories", "/v1/repositories/*/push", "/v1/repositories/*/merge", "/v1/repositories/*/upstream", "/v1/software-products",
 		"/v1/software-builds", "/v1/software-builds/*/result", "/v1/software-releases", "/v1/software-releases/*/revoke",
 		"/v1/software-observations", "/v1/software-consumers", "/v1/software-preflights", "/v1/software-preflight-results",
 		"/v1/software-deployments", "/v1/software-results", "/v1/software-leases",
@@ -111,7 +111,7 @@ func ordinaryPath(method string, u *url.URL) bool {
 				}
 			case "/v1/improvement-policy", "/v1/improvements/*", "/v1/improvements/*/decision",
 				"/v1/maintenance-usage", "/v1/maintenance-reservations", "/v1/maintenance-reservations/*", "/v1/maintenance-reservations/*/settle",
-				"/v1/repositories/*", "/v1/repositories/*/push", "/v1/repositories/*/merge", "/v1/artifacts/*",
+				"/v1/repositories/*", "/v1/repositories/*/push", "/v1/repositories/*/merge", "/v1/repositories/*/upstream", "/v1/artifacts/*",
 				"/v1/software-products/*", "/v1/software-builds", "/v1/software-builds/*", "/v1/software-builds/*/result",
 				"/v1/software-releases/*", "/v1/software-releases/*/revoke", "/v1/software-inventory", "/v1/software-observations",
 				"/v1/software-preflights", "/v1/software-preflights/*", "/v1/software-preflight-requests", "/v1/software-preflight-results",

@@ -35,7 +35,7 @@ type app struct {
 
 var AgentCommands = []string{
 	"improvement configure", "improvement policy", "improvement create", "improvement list", "improvement show", "improvement decide", "improvement usage",
-	"repository create", "repository list", "repository show", "repository link", "repository bundle", "repository remote", "repository push", "repository merge",
+	"repository create", "repository list", "repository show", "repository link", "repository bundle", "repository remote", "repository push", "repository merge", "repository upstream", "repository sync",
 	"software register", "software list", "software show", "software observe", "software inventory", "software bind-consumer", "software consumers",
 	"software preflight", "software control", "software plan", "software apply", "software status", "software deployment", "software maintenance",
 	"build create", "build show", "build run", "build result", "build download", "release create", "release list", "release show", "release revoke",
