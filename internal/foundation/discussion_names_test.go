@@ -20,6 +20,44 @@ func setFixtureName(t *testing.T, f *fixture, agent domain.Agent, name string) {
 	}
 }
 
+func TestAttentionDispositionPinsTaskRevisionAndReplaysOriginalReceipt(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	task := f.ready(t)
+	entry, err := f.s.CreateEntry(ctx, f.founder.ID, task.ID, domain.EntryRequest{Command: op(), Kind: "comment", Body: "Before cancellation"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := f.s.Task(ctx, f.worker.ID, task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := domain.AttentionRequest{Command: domain.Command{OperationID: op().OperationID, ExpectedRevision: current.Revision - 1},
+		Generation: entry.Generation, State: "deferred"}
+	_, err = f.s.AttentionReceipt(ctx, f.worker.ID, entry.ID, request)
+	assertCode(t, err, domain.Conflict)
+	pending, err := f.s.Attention(ctx, f.worker.ID, "", 200)
+	if err != nil || len(pending.Items) != 1 {
+		t.Fatal("stale task observation disposed current attention", pending, err)
+	}
+	request.Command = domain.Command{OperationID: op().OperationID, ExpectedRevision: current.Revision}
+	first, err := f.s.AttentionReceipt(ctx, f.worker.ID, entry.ID, request)
+	if err != nil || first.State != "deferred" {
+		t.Fatal(first, err)
+	}
+	if _, err := f.s.CreateEntry(ctx, f.founder.ID, task.ID, domain.EntryRequest{Command: op(), Kind: "comment", Body: "Later @{" + f.worker.ID + "}"}); err != nil {
+		t.Fatal(err)
+	}
+	replayed, err := f.s.AttentionReceipt(ctx, f.worker.ID, entry.ID, request)
+	if err != nil || replayed != first {
+		t.Fatal("lost response replay changed its original receipt after task drift", replayed, err)
+	}
+	pending, err = f.s.Attention(ctx, f.worker.ID, "", 200)
+	if err != nil || len(pending.Items) != 1 || pending.Items[0].EntryID == entry.ID {
+		t.Fatal("later explicit attention was suppressed by an older disposition", pending, err)
+	}
+}
+
 func TestAgentNameMentionsResolveOnceAndRetainBodyGenerationFences(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)

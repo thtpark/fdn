@@ -40,6 +40,13 @@ Fixed isolated agent profiles disable text tools, client file/terminal access,
 MCP, hooks/plugins and delegation, while coding permits only the documented
 file/search/command tools. Do not weaken capability checks or copy credentials.
 
+Copilot controller calls require capability-checked `--output-format json`.
+Human `--silent` text can wrap valid JSON strings even with Markdown disabled.
+The adapter accepts only complete assistant-message content and an explicit
+successful terminal result, then applies the normal strict reply/phase contract.
+Do not repair rendered text, coerce a retained reply or retry a fenced source
+after an upgrade without its exact supported stopped-process recovery.
+
 1. Resolve the worker's actual account/HOME/configuration/identity and mode.
    Inspect `provider status --provider NAME`, `preferences show`, `agent
    preferences AGENT`, `agent model-options AGENT`, `work status`

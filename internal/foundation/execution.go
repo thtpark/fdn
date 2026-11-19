@@ -252,6 +252,22 @@ func (s *Store) Report(ctx context.Context, actor, taskID string, req domain.Rep
 			return outcome, err
 		}
 		stale := t.SpecGeneration != run.SpecGeneration || t.AssigneeID != a.ID || t.ActiveRun.StopRequested || !approved || project.Archived
+		if !stale && req.Outcome == "completed" && t.BuildID != "" {
+			if run.ProjectEpoch != project.Epoch {
+				return outcome, domain.Fail(domain.Prerequisite, "build execution project authority changed")
+			}
+			if err := s.validateSubmittedBuild(ctx, tx, t, run, a); err != nil {
+				return outcome, err
+			}
+			build, err := get[domain.SoftwareBuild](ctx, tx, "software_builds", t.BuildID)
+			if err != nil {
+				return outcome, err
+			}
+			if build.RunID != run.ID {
+				req.Evidence = append(req.Evidence, "Reused immutable @"+build.ID+" submitted by @"+build.BuilderID+
+					" under original @"+build.RunID+"; artifact @"+build.ArtifactID+" unchanged")
+			}
+		}
 		run.State, run.Summary, run.Evidence, run.Checkpoint, run.FinishedAt = req.Outcome, req.Summary, req.Evidence, req.Checkpoint, s.timestamp()
 		afterStop := t.ActiveRun.AfterStop
 		t.ActiveRun, t.Clarity = nil, nil
@@ -265,15 +281,6 @@ func (s *Store) Report(ctx context.Context, actor, taskID string, req domain.Rep
 		} else {
 			switch req.Outcome {
 			case "completed":
-				if t.BuildID != "" {
-					build, err := get[domain.SoftwareBuild](ctx, tx, "software_builds", t.BuildID)
-					if err != nil {
-						return outcome, err
-					}
-					if build.State != "submitted" || build.RunID != run.ID || build.SpecGeneration != t.SpecGeneration {
-						return outcome, domain.Fail(domain.Prerequisite, "build task completion requires its exact verified native output submission")
-					}
-				}
 				if err := s.captureResultSource(ctx, tx, &t); err != nil {
 					return outcome, err
 				}

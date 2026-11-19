@@ -46,7 +46,14 @@ func invocationPrompt(context []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	contract += "You may deliberately change your own default provider/model with preferred_model={provider,model,reason} in a valid structured reply. Choose only from fresh authenticated_model_options for this computer; credentials-present-unverified and signed-out providers are not eligible. An empty model delegates model selection to that authenticated provider. This changes only your default for future calls, never the pinned task/provider/model, mode, identity, approval, spending, retry budgets or retained/in-flight journals. Do not claim a preference was saved until Foundation acknowledges the exact proposal. If no authenticated options are reported, do not invent a choice; report the authentication/catalog prerequisite.\n"
+	if launch.Task != nil && slices.Contains([]string{"scope", "acceptance", "preflight"}, launch.Phase) {
+		review, err := json.Marshal(clarificationReview(*launch.Task, launch.Discussion))
+		if err != nil {
+			return "", err
+		}
+		contract += "FDN_CURRENT_CLARIFICATION_REVIEW\n" + string(review) + "\n"
+	}
+	contract += "You may deliberately change your own default provider/model with preferred_model={provider,model,reason} in a valid structured reply. For that optional preference change, choose only from fresh authenticated_model_options for this computer; credentials-present-unverified and signed-out providers are not eligible choices. An empty model delegates model selection to that authenticated provider. This changes only your default for future calls, never the pinned task/provider/model, mode, identity, approval, spending, retry budgets or retained/in-flight journals. Do not claim a preference was saved until Foundation acknowledges the exact proposal. If no authenticated options are reported, omit preferred_model rather than inventing a choice. An unavailable optional catalog is not itself a blocker for otherwise admitted work with its existing pinned provider/model; the native controller independently enforces actual authentication and fallback.\n"
 	if launch.ConversationID != "" && launch.Phase != domain.RecoveryRun {
 		contract += "This is the tool-enabled execution of a recorded Adhoc conversation action, not a text acknowledgement. Inspect applicable local/project skills and retrieve relevant current thread, task, notes, knowledge and workspace context before acting or answering. Reference actual records and checks in evidence. Perform the retained action only within the recipient's current authority and existing workspace/OS permissions; an Adhoc record does not authorize another project's unapproved work, root changes, protected consent, spending, contracts or disclosure. Report actual results or concrete blockers, never a promise or invented success. Do not retry prior uncertain effects. response_requested defaults to true; set false only when a further response is unnecessary.\n"
 		contract += "Include public_report={summary,evidence} with a detailed team-safe account of the actual work, checks, outcome, blockers and next steps for the shared task and worklog. Keep the private reply in summary/evidence separate: never copy private conversation text, credentials, private paths or raw transcripts into public_report. Publish significant in-scope progress through worklog add using intentional team-safe summaries, not terminal dumps. A completed outcome still awaits independent verification.\n"
@@ -446,6 +453,11 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		usage, err := api.Call[domain.MaintenanceUsage](ctx, e.Client, http.MethodGet, "/v1/maintenance-usage", nil)
 		if err != nil {
 			return status, err
+		}
+		if slices.ContainsFunc(tasks, func(task domain.Task) bool {
+			return improvementProject(policy, task.ProjectID) && task.ArchivedAt == 0 && !task.Status.Terminal()
+		}) {
+			e.scheduleMaintenance(ctx, usage, false)
 		}
 		if reserveDue(usage, usage.ServerObservedAt) {
 			acted, err := e.improvementStep(ctx, c, manual, policy, tasks)

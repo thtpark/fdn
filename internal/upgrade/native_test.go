@@ -165,6 +165,57 @@ func preparePermit(t *testing.T, native *Native, recorder *nativeRecorder, signe
 	return permit
 }
 
+func TestNativeColdBackupDeduplicatesOnlyValidatedCoverage(t *testing.T) {
+	native, _, _, _ := nativeFixture(t)
+	parent := filepath.Dir(native.Policy.ConfigFile)
+	outside, err := os.MkdirTemp(native.Policy.Home, ".fdn-backup-ca-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(outside) })
+	native.Policy.CAFile = filepath.Join(outside, "ca.pem")
+	if err := os.WriteFile(native.Policy.CAFile, []byte("separately rooted CA"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	original, err := native.backupPaths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	native.Policy.BackupPaths = append(native.Policy.BackupPaths, parent, parent)
+	// Updater evidence must remain outside the selected application root.
+	native.Policy.StateDir = filepath.Join(native.Policy.Home, ".fdn-outside-backup-evidence")
+	roots, err := native.backupPaths()
+	if err != nil || len(roots) != 2 || !slices.Contains(roots, parent) || !slices.Contains(roots, native.Policy.CAFile) {
+		t.Fatal("nested mandatory roots were archived more than once", roots, err)
+	}
+	for _, path := range original {
+		if !inside(parent, path) && path != native.Policy.CAFile {
+			t.Fatal("mandatory backup coverage was lost", path)
+		}
+	}
+	link := filepath.Join(parent, "linked-state")
+	if err := os.Symlink(filepath.Join(parent, "worker"), link); err != nil {
+		t.Fatal(err)
+	}
+	native.Policy.BackupPaths = append(native.Policy.BackupPaths, link)
+	if _, err := native.backupPaths(); err == nil {
+		t.Fatal("covered symlink bypassed validation")
+	}
+	native.Policy.BackupPaths[len(native.Policy.BackupPaths)-1] = filepath.Join(parent, "missing")
+	if _, err := native.backupPaths(); err == nil {
+		t.Fatal("covered missing mandatory root bypassed validation")
+	}
+	native.Policy.BackupPaths[len(native.Policy.BackupPaths)-1] = parent + "/worker/.."
+	if _, err := native.backupPaths(); err == nil {
+		t.Fatal("covered noncanonical root bypassed validation")
+	}
+	native.Policy.BackupPaths[len(native.Policy.BackupPaths)-1] = parent
+	native.Policy.StateDir = filepath.Join(parent, "updater")
+	if _, err := native.backupPaths(); err == nil {
+		t.Fatal("updater evidence overlap bypassed validation")
+	}
+}
+
 func TestNativeFoundationColdBackupRequiresPinnedFilesystemContent(t *testing.T) {
 	native, _, _, _ := nativeFixture(t)
 	native.Policy.Role = "foundation"

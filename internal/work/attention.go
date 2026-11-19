@@ -3,6 +3,7 @@ package work
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"slices"
 	"strings"
@@ -113,6 +114,7 @@ func (e *Engine) acknowledgeProcessingMessage(ctx context.Context, message domai
 
 func (e *Engine) attention(ctx context.Context, c config.Worker, manual bool) (bool, error) {
 	cursor := ""
+	retired := false
 	for {
 		path := "/v1/attention?limit=200"
 		if cursor != "" {
@@ -126,6 +128,26 @@ func (e *Engine) attention(ctx context.Context, c config.Worker, manual bool) (b
 			task, err := api.Call[domain.Task](ctx, e.Client, "GET", api.Path("tasks", item.TaskID), nil)
 			if err != nil {
 				return false, err
+			}
+			if task.Status.Terminal() || task.ArchivedAt != 0 {
+				entry, err := api.Call[domain.Entry](ctx, e.Client, "GET", api.Path("entries", item.EntryID), nil)
+				if err != nil {
+					return false, err
+				}
+				if entry.TaskID != task.ID || entry.Generation != item.Generation {
+					return false, domain.Fail(domain.Conflict, "terminal-task attention changed before disposition")
+				}
+				if !slices.Contains(entry.Mentions, e.Client.Credential.AgentID) {
+					operation := "attention.obsolete." + domain.Hash(fmt.Sprintf("%s:%d:%d", item.EntryID, item.Generation, task.Revision))[:32]
+					_, err := commit[domain.Attention](ctx, e, "POST", api.Path("attention", item.EntryID),
+						domain.AttentionRequest{Command: domain.Command{OperationID: operation, ExpectedRevision: task.Revision},
+							Generation: item.Generation, State: "deferred"})
+					if err != nil {
+						return false, err
+					}
+					retired = true
+					continue
+				}
 			}
 			launch, err := e.launch(ctx, "attention", &task)
 			if err != nil {
@@ -151,7 +173,7 @@ func (e *Engine) attention(ctx context.Context, c config.Worker, manual bool) (b
 		}
 		cursor = page.NextCursor
 		if cursor == "" {
-			return false, nil
+			return retired, nil
 		}
 	}
 }

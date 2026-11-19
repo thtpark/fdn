@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -29,15 +28,16 @@ import (
 
 func testDirectory(t *testing.T) string {
 	t.Helper()
-	base, err := filepath.Abs(".software-test-state")
+	account, err := user.Current()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(base, 0700); err != nil {
+	base, err := filepath.EvalSymlinks(account.HomeDir)
+	if err != nil {
 		t.Fatal(err)
 	}
-	directory := filepath.Join(base, domain.NewID("case"))
-	if err := os.Mkdir(directory, 0700); err != nil {
+	directory, err := os.MkdirTemp(base, ".fdn-software-")
+	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -48,9 +48,6 @@ func testDirectory(t *testing.T) string {
 			return walkErr
 		})
 		if err := os.RemoveAll(directory); err != nil {
-			t.Error(err)
-		}
-		if err := os.Remove(base); err != nil && !errors.Is(err, syscall.ENOTEMPTY) && !errors.Is(err, os.ErrNotExist) {
 			t.Error(err)
 		}
 	})

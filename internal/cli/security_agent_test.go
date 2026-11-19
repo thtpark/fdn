@@ -16,15 +16,16 @@ import (
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
 	"github.com/thtpark/fdn/internal/local"
+	"github.com/thtpark/fdn/internal/message"
 )
 
 func identityAttachmentFixture(t *testing.T, actualID, statusID string, connected bool) (config.Worker, string) {
 	t.Helper()
-	root, err := os.MkdirTemp(".", ".identity-attachment-")
+	root, err := os.MkdirTemp("/tmp", "fdn-identity-")
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err = filepath.Abs(root)
+	root, err = filepath.EvalSymlinks(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,6 +46,12 @@ func identityAttachmentFixture(t *testing.T, actualID, statusID string, connecte
 			value = map[string]any{"agent": domain.Agent{ID: statusID, Mode: "ai", Active: true}, "identity": domain.AgentIdentity{AgentID: statusID, State: "active"}, "connected": connected}
 		case "/v1/me":
 			value = domain.Agent{ID: actualID, Mode: "ai", Active: true}
+		case "/v1/message-requests":
+			value = []domain.Message{}
+		case "/v1/software-requests":
+			value = []domain.SoftwareDeployment{}
+		case "/v1/upgrades/lease":
+			value = domain.UpgradeLease{}
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -62,6 +69,105 @@ func identityAttachmentFixture(t *testing.T, actualID, statusID string, connecte
 		t.Fatal(err)
 	}
 	return worker, path
+}
+
+func TestNativeTransportDispatchLeavesRunnerStateUntouched(t *testing.T) {
+	for _, command := range []struct {
+		name  string
+		input any
+	}{
+		{"message-worker", domain.MessageWorkerCommand{}},
+		{"software-mailbox", domain.SoftwareMailboxRequest{Action: "inbox"}},
+		{"upgrade-lease", domain.UpgradeLeaseRequest{}},
+	} {
+		for _, failure := range []string{"", "foreign-subject", "missing-credential", "transport", "request"} {
+			for _, existing := range []bool{false, true} {
+				t.Run(command.name+"/"+failure+"/"+strconv.FormatBool(existing), func(t *testing.T) {
+					id := domain.NewID("agent")
+					actual := id
+					if failure == "foreign-subject" {
+						actual = domain.NewID("agent")
+					}
+					c, path := identityAttachmentFixture(t, actual, actual, true)
+					c.CredentialFile = filepath.Join(filepath.Dir(path), "credential.json")
+					if err := config.Write(path, c); err != nil {
+						t.Fatal(err)
+					}
+					if err := config.Write(c.CredentialFile, config.Credential{AgentID: id}); err != nil {
+						t.Fatal(err)
+					}
+					if failure == "missing-credential" {
+						if err := os.Remove(c.CredentialFile); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if failure == "transport" {
+						c.IdentitySocket = filepath.Join(filepath.Dir(c.IdentitySocket), "missing.sock")
+						if err := config.Write(path, c); err != nil {
+							t.Fatal(err)
+						}
+					}
+					var before []byte
+					var beforeInfo os.FileInfo
+					var databaseInfo os.FileInfo
+					database := filepath.Join(c.StateDir, "local.sqlite")
+					if existing {
+						state, err := local.Open(context.Background(), c.StateDir)
+						if err != nil {
+							t.Fatal(err)
+						}
+						if err := state.Close(); err != nil {
+							t.Fatal(err)
+						}
+						before, err = os.ReadFile(database)
+						if err != nil {
+							t.Fatal(err)
+						}
+						beforeInfo, err = os.Stat(c.StateDir)
+						if err != nil {
+							t.Fatal(err)
+						}
+						databaseInfo, err = os.Stat(database)
+						if err != nil {
+							t.Fatal(err)
+						}
+					}
+					input, err := message.MarshalPayload(command.input)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if failure == "request" {
+						input = []byte{0xff}
+					}
+					var out, diagnostic bytes.Buffer
+					code := RunAgent(context.Background(), []string{"--config", path, command.name},
+						bytes.NewReader(input), &out, &diagnostic)
+					if (code == 0) != (failure == "") {
+						t.Fatalf("unexpected result %d: %s %s", code, &out, &diagnostic)
+					}
+					if !existing {
+						if _, err := os.Stat(c.StateDir); !os.IsNotExist(err) {
+							t.Fatal("native dispatcher created runner state", err)
+						}
+						return
+					}
+					after, err := os.ReadFile(database)
+					if err != nil || !bytes.Equal(before, after) {
+						t.Fatal("native dispatcher modified the stopped database", err)
+					}
+					afterDatabaseInfo, err := os.Stat(database)
+					if err != nil || !databaseInfo.ModTime().Equal(afterDatabaseInfo.ModTime()) ||
+						!os.SameFile(databaseInfo, afterDatabaseInfo) {
+						t.Fatal("native dispatcher touched or replaced the stopped database", err)
+					}
+					afterInfo, err := os.Stat(c.StateDir)
+					if err != nil || !beforeInfo.ModTime().Equal(afterInfo.ModTime()) {
+						t.Fatal("native dispatcher created/deleted runner files such as WAL/SHM", err)
+					}
+				})
+			}
+		}
+	}
 }
 
 func attach(t *testing.T, path string, flags ...string) (api.Envelope, int) {

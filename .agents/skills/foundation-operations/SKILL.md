@@ -5,6 +5,19 @@ description: "Use when inspecting agent OS/CPU/memory/storage and Foundation exe
 
 # Operate and recover without hiding uncertainty
 
+For the narrowly supported paired archive failure before managed activation,
+follow [DEPLOYMENT.md](../../../DEPLOYMENT.md#exact-local-archive-recovery-0353).
+Use only the original local job/permit/journal and independently signed previous
+release with exact manual revision. This is failed settlement, not activation,
+service control, a force-clear or retry authority; stopping-only abort remains
+separate. Keep every original payload, auxiliary link, backup and recovery receipt.
+Require an independently qualified published helper and separate Founder
+authorization, not source-test success. Supply the raw signed `SoftwareRelease`,
+not its API envelope. Separately authorize native join of receiver/runner while
+retaining identity transport; never delete lock files. Observe local failed
+settlement and exact remote failed-result ACK. No automatic restart, resume or
+upgrade retry follows; lost delivery replays only the exact recovery operation.
+
 Use `agent environment AGENT` for safe reported OS/resources and Foundation
 binary versions/source/hashes. Reports identify the actual enrolled computer
 and key generation; Founder can see each independently keyed device. Missing

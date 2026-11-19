@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -116,6 +117,45 @@ func TestBundleRejectsPathsLinksDuplicatesModesAndExtensions(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if _, err := InspectBundle(gzipTar(t, test.headers, test.data)); err == nil {
 				t.Fatal("unsafe archive was accepted")
+			}
+		})
+	}
+}
+
+func TestBundleParentPathBoundary(t *testing.T) {
+	for _, test := range []struct {
+		parentBytes int
+		accepted    bool
+	}{{155, true}, {156, false}} {
+		t.Run(strconv.Itoa(test.parentBytes), func(t *testing.T) {
+			parent := strings.Repeat("a", 77) + "/" + strings.Repeat("b", test.parentBytes-78)
+			name := parent + "/tool"
+			root := testDirectory(t)
+			writeTestFile(t, filepath.Join(root, filepath.FromSlash(name)), []byte("data"), 0644)
+
+			var bundle bytes.Buffer
+			payloads, createErr := CreateBundle(&bundle, root, []domain.BuildOutput{{Path: name, Mode: 0644}}, 0)
+			inspected, inspectErr := InspectBundle(gzipTar(t, []*tar.Header{{
+				Name: name, Mode: 0644, Size: 4, Typeflag: tar.TypeReg, Format: tar.FormatUSTAR,
+			}}, [][]byte{[]byte("data")}))
+			for _, result := range []struct {
+				operation string
+				err       error
+			}{
+				{"relative path", relativePath(name)},
+				{"bundle creation", createErr},
+				{"archive inspection", inspectErr},
+			} {
+				if test.accepted {
+					if result.err != nil {
+						t.Fatalf("%s rejected a %d-byte parent: %v", result.operation, test.parentBytes, result.err)
+					}
+				} else if result.err == nil || domain.AsFault(result.err).Code != domain.Invalid {
+					t.Fatalf("%s must reject a %d-byte parent as invalid: %v", result.operation, test.parentBytes, result.err)
+				}
+			}
+			if test.accepted && !reflect.DeepEqual(payloads, inspected) {
+				t.Fatalf("boundary payload inventory changed: created %#v, inspected %#v", payloads, inspected)
 			}
 		})
 	}

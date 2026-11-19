@@ -81,8 +81,9 @@ All ordinary commands below use the same JSON envelope and enrolled identity.
 | `agent-cli software consumers` | `--project PROJECT_ID`; exact declared version/interface dependencies |
 | `agent-cli build create` | `--input FILE`: product_id/task_id/platform; project authority; read the tracked recipe at the task's pinned commit, invalidate old readiness and bind immutable build inputs |
 | `agent-cli build show` | `BUILD_ID`; exact source/recipe/run/output provenance |
-| `agent-cli build run` | `BUILD_ID`; only inside its admitted coding task using local FDN_WORK_TASK/FDN_WORK_RUN; native bounded steps/output verification under the existing workspace/slot |
+| `agent-cli build run` | `BUILD_ID`; only inside its admitted coding task using local FDN_WORK_TASK/FDN_WORK_RUN; matching verified submitted custody returns without compilation/upload/new journal, retaining original provenance; other builds use bounded steps/output verification under the existing workspace/slot; foreign targets require the registered product's exact `cross-build:HOST:TARGET` label and independent native consumer verification |
 | `agent-cli build result` | `BUILD_ID --input FILE`: run_id/bundle_file_id/toolchain/summary; exact active assignee, complete output hashes/modes; not task acceptance |
+| `agent-cli build download` | `BUILD_ID --output NEW_FILE`; authenticated hash-verified immutable submitted build bytes for independent review; owner-only new destination, no overwrite or task acceptance |
 | `agent-cli release create` | `--input FILE`: product_id/build_ids/reason; current authority, distinct declared platform builds and independent accepted task results, separate configured distribution signer |
 | `agent-cli release list` | `--product ID [--cursor CURSOR --limit N]`; immutable release versions |
 | `agent-cli release show` | `RELEASE_ID`; signed exact internal manifest; not installation authority |
@@ -97,8 +98,16 @@ All ordinary commands below use the same JSON envelope and enrolled identity.
 | `agent-cli software-mailbox` | Internal bounded protobuf stdin/stdout; this installing user's exact software inbox/result/lease/artifact capabilities, no paths or caller identity substitution |
 | `agent-service software-helper` | `--policy FILE` for a separately provisioned general product, or `--updater-policy FILE` for the explicitly enabled Foundation/Agent paired updater; bounded protobuf input/output |
 | `agent-service software-worker` | Same explicit policy choice, optional `--once`; independently supervised native preflight/installation receiver with durable result replay |
+| `agent-service software-recover` | `--updater-policy FILE --input FILE` and explicit global `--operation-id`; authorized local operator only, exact failed paired-Agent journal/permit/baseline/identity/lock checks; stopping-only abort by default, or narrowly proved archive failure before managed activation with `baseline_release_file` and `expected_mode_revision`; preserves original evidence and reports failed, never repeats backup/install or starts work |
 | `fdn-service software-helper` | Same explicit policy choices; Foundation instance inbox/lease/artifacts use its root-private native maintenance boundary |
 | `fdn-service software-worker` | Independently supervised root maintenance receiver, outside the Foundation/account services it stops; optional `--once` |
+
+For archive `software-recover`, `baseline_release_file` contains the raw signed
+`SoftwareRelease`, not a CLI/API envelope. Require the independently qualified
+published helper and separately authorized native receiver/runner join while
+retaining identity transport; never remove locks. Observe local failed settlement
+and exact failed-result ACK. Recovery grants no automatic restart/resume/retry.
+See [the narrow recovery runbook](DEPLOYMENT.md#exact-local-archive-recovery-0353).
 
 `task create` accepts optional `source`; `task change` kind `source` takes
 `source:{repository_id,commit,optional ref/product_id}` under current project
@@ -1040,7 +1049,7 @@ Example current signoff (substitute the actual generation):
 | `agent-cli discussion list` | `TASK [--cursor CURSOR --limit N]`; comments and worklogs |
 | `agent-cli discussion show` | `ENTRY`; read one comment/worklog and its original parent metadata without acknowledging mentions or changing a task |
 | `agent-cli mention list` | `[--cursor CURSOR --limit N]`; current recipient's pending mentions |
-| `agent-cli mention acknowledge` | `COMMENT --input FILE`: exact generation, state handled/deferred |
+| `agent-cli mention acknowledge` | `COMMENT --input FILE`: exact generation, state handled/deferred; optional global `--expected-rev` pins the parent task revision |
 | `agent-cli watch` | `[--project ID --task ID --since CURSOR --limit N --once]`; bounded pages or NDJSON stream/checkpoint |
 
 Literal mentions accept `@{Agent1}` by agent name (case-insensitive), or

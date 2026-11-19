@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/domain"
@@ -53,6 +55,13 @@ type identityInstallRecorder struct {
 	fail   string
 	active map[string]bool
 	os     string
+	guiRun identityInstallRunFunc
+}
+
+type identityInstallRunFunc func(context.Context, process.Spec) error
+
+func (f identityInstallRunFunc) Run(ctx context.Context, spec process.Spec) error {
+	return f(ctx, spec)
 }
 
 type identityNativeExit int
@@ -83,6 +92,9 @@ func (r *identityInstallRecorder) Run(ctx context.Context, spec process.Spec) er
 	switch args[0] {
 	case "print":
 		if strings.HasPrefix(args[1], "gui/") && !strings.Contains(args[1], "org.foundation") {
+			if r.guiRun != nil {
+				return r.guiRun(ctx, spec)
+			}
 			_, err := io.WriteString(spec.Stdout, "type = login\n")
 			return err
 		}
@@ -140,6 +152,20 @@ func TestIdentityNativeInstallUsesOnlyExistingMacOSUserGUI(t *testing.T) {
 	o := darwinIdentityOptions()
 	host := identityInstallFixture(o)
 	record := &identityInstallRecorder{t: t, os: o.OS, active: map[string]bool{}}
+	record.guiRun = func(ctx context.Context, spec process.Spec) error {
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) > 30*time.Second {
+			t.Fatal("GUI availability probe lost its finite timeout")
+		}
+		if spec.Stdout != io.Discard {
+			t.Fatal("GUI availability retained unneeded whole-domain stdout")
+		}
+		if _, err := io.WriteString(spec.Stdout, strings.Repeat("x", 129689)); err != nil {
+			return err
+		}
+		_, err := io.WriteString(spec.Stderr, strings.Repeat("d", 8<<10))
+		return err
+	}
 	installer, err := NewIdentityServiceInstaller(o, host, record)
 	if err != nil {
 		t.Fatal(err)
@@ -167,6 +193,84 @@ func TestIdentityNativeInstallUsesOnlyExistingMacOSUserGUI(t *testing.T) {
 	for _, call := range record.calls[before:] {
 		if strings.Contains(strings.Join(call.Args, " "), "bootstrap") || strings.Contains(strings.Join(call.Args, " "), "kickstart") {
 			t.Fatal("exact retry restarted a live owner/service")
+		}
+	}
+}
+
+func TestIdentityNativeInstallMacOSGUIFailuresPrecedeDefinitionWrites(t *testing.T) {
+	for _, name := range []string{"missing-domain", "nonzero", "command-error", "timeout", "cancellation", "stderr-overflow"} {
+		t.Run(name, func(t *testing.T) {
+			o := darwinIdentityOptions()
+			host := identityInstallFixture(o)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if name == "timeout" {
+				var stop context.CancelFunc
+				ctx, stop = context.WithTimeout(ctx, 10*time.Millisecond)
+				defer stop()
+			}
+			record := &identityInstallRecorder{t: t, os: o.OS}
+			record.guiRun = func(ctx context.Context, spec process.Spec) error {
+				switch name {
+				case "missing-domain":
+					return identityNativeExit(113)
+				case "nonzero":
+					return identityNativeExit(1)
+				case "command-error":
+					return os.ErrNotExist
+				case "cancellation":
+					cancel()
+					fallthrough
+				case "timeout":
+					<-ctx.Done()
+					return ctx.Err()
+				default:
+					_, err := io.WriteString(spec.Stderr, strings.Repeat("d", (8<<10)+1))
+					return err
+				}
+			}
+			installer, err := NewIdentityServiceInstaller(o, host, record)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := installer.Install(ctx, true); domain.AsFault(err).Code != domain.Prerequisite {
+				t.Fatal("failed GUI availability probe was accepted", err)
+			}
+			if host.writes != 0 || len(record.calls) != 1 {
+				t.Fatal("failed GUI probe reached definition writes or service registration")
+			}
+		})
+	}
+}
+
+func TestIdentityNativeParsedUnitOutputRemainsBounded(t *testing.T) {
+	for _, osName := range []string{"linux", "darwin"} {
+		for _, size := range []int{64 << 10, (64 << 10) + 1} {
+			t.Run(osName+"/"+strconv.Itoa(size), func(t *testing.T) {
+				o := identityOptions()
+				output := "LoadState=loaded\nActiveState=active"
+				if osName == "darwin" {
+					o = darwinIdentityOptions()
+					output = "state = running\n"
+				}
+				output += strings.Repeat(" ", size-len(output))
+				runner := identityInstallRunFunc(func(_ context.Context, spec process.Spec) error {
+					_, err := io.WriteString(spec.Stdout, output)
+					return err
+				})
+				installer, err := NewIdentityServiceInstaller(o, identityInstallFixture(o), runner)
+				if err != nil {
+					t.Fatal(err)
+				}
+				status, err := installer.probe(context.Background(), false)
+				if size > 64<<10 {
+					if err == nil {
+						t.Fatal("parsed unit output overflow was accepted")
+					}
+				} else if err != nil || !status.Running {
+					t.Fatal("bounded parsed unit output failed", status, err)
+				}
+			})
 		}
 	}
 }

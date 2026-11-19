@@ -7,16 +7,15 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/domain"
-	"github.com/thtpark/fdn/internal/process"
 	"github.com/thtpark/fdn/internal/software"
 	"github.com/thtpark/fdn/internal/work"
 )
@@ -28,6 +27,40 @@ type buildRunJournal struct {
 	Path    string                     `json:"path"`
 	Upload  domain.FileUploadRequest   `json:"upload"`
 	Result  domain.SoftwareBuildResult `json:"result"`
+}
+
+func (a *app) downloadSoftwareBuild(ctx context.Context, r *resources, args []string) (any, error) {
+	id, tail, err := idArgs(args)
+	if err != nil {
+		return nil, err
+	}
+	flags := flag.NewFlagSet("build download", flag.ContinueOnError)
+	output := flags.String("output", "", "new owner-only destination; existing or partial files are never overwritten")
+	if err := parse(flags, tail); err != nil {
+		return nil, err
+	}
+	if *output == "" {
+		return nil, domain.Fail(domain.Invalid, "build download requires --output NEW_FILE")
+	}
+	build, err := api.Call[domain.SoftwareBuild](ctx, r.client, "GET", api.Path("software-builds", id), nil)
+	if err != nil {
+		return nil, err
+	}
+	if build.State != "submitted" || build.ArtifactID == "" {
+		return nil, domain.Fail(domain.Prerequisite, "only an actually submitted immutable build can be downloaded for review")
+	}
+	file, err := os.OpenFile(*output, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if errors.Is(err, os.ErrExist) {
+		return nil, domain.Fail(domain.Conflict, "build review destination already exists; original or partial bytes were preserved")
+	}
+	if err != nil {
+		return nil, err
+	}
+	artifact, downloadErr := r.client.DownloadArtifact(ctx, build.ArtifactID, file, false)
+	if err := errors.Join(downloadErr, file.Sync(), file.Close()); err != nil {
+		return nil, errors.Join(err, domain.Fail(domain.Prerequisite, "build download did not complete; inspect preserved destination bytes before another read-only attempt"))
+	}
+	return map[string]any{"build_id": build.ID, "artifact": artifact, "state": "downloaded"}, nil
 }
 
 func (a *app) runSoftwareBuild(ctx context.Context, r *resources, args []string) (any, error) {
@@ -49,13 +82,104 @@ func (a *app) runSoftwareBuild(ctx context.Context, r *resources, args []string)
 	}
 	runID := os.Getenv(workRunEnvironment)
 	if os.Getenv(workTaskEnvironment) != task.ID || task.ActiveRun == nil || task.ActiveRun.ID != runID ||
-		task.ActiveRun.AgentID != r.client.Credential.AgentID || task.ActiveRun.StopRequested || task.ActiveRun.Kind == domain.VerificationRun ||
-		task.BuildID != build.ID || task.SpecGeneration != build.SpecGeneration {
+		task.ActiveRun.AgentID != r.client.Credential.AgentID || task.ActiveRun.StopRequested || task.ActiveRun.Kind != domain.ExecutionRun ||
+		task.AssigneeID != r.client.Credential.AgentID || task.Status != domain.Running || task.ArchivedAt != 0 ||
+		task.Source == nil || *task.Source != build.Source || task.BuildID != build.ID || task.SpecGeneration != build.SpecGeneration {
 		return nil, domain.Fail(domain.Denied, "build run is a child of its exact admitted coding task, not another execution slot")
+	}
+	current, err := api.Call[domain.Run](ctx, r.client, "GET", api.Path("runs", runID), nil)
+	if err != nil {
+		return nil, err
+	}
+	if current.TaskID != task.ID || current.AgentID != r.client.Credential.AgentID || current.State != "running" ||
+		current.SpecGeneration != task.SpecGeneration || current.Kind != domain.ExecutionRun {
+		return nil, domain.Fail(domain.Denied, "build execution is not current or its maintenance admission expired")
+	}
+	if current.MaintenanceID != "" || current.DeadlineAt != 0 {
+		if current.MaintenanceID == "" || current.DeadlineAt <= 0 {
+			return nil, domain.Fail(domain.Denied, "build execution has incomplete maintenance admission")
+		}
+		started := time.Now()
+		status, err := api.Call[domain.MaintenanceStatus](ctx, r.client, "GET",
+			api.Path("maintenance-reservations", current.MaintenanceID), nil)
+		if err != nil {
+			return nil, err
+		}
+		reservation := status.Reservation
+		if reservation.ID != current.MaintenanceID || reservation.RunID != current.ID ||
+			reservation.AgentID != current.AgentID || reservation.ProjectID != task.ProjectID ||
+			reservation.SourceID != task.ID || reservation.Kind != current.Kind || reservation.State != "admitted" ||
+			reservation.ExpiresAt != current.DeadlineAt || status.ServerObservedAt <= 0 ||
+			reservation.ExpiresAt <= status.ServerObservedAt {
+			return nil, domain.Fail(domain.Denied, "build maintenance admission changed or expired")
+		}
+		// Anchor the server's remaining allowance before the request, including its latency.
+		deadline := started.Add(time.Duration(reservation.ExpiresAt-status.ServerObservedAt) * time.Second)
+		if !time.Now().Before(deadline) {
+			return nil, domain.Fail(domain.Denied, "build maintenance observation expired in transit")
+		}
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, deadline)
+		defer cancel()
+	}
+	actor, err := api.Call[domain.Agent](ctx, r.client, "GET", api.Path("agents", current.AgentID), nil)
+	if err != nil {
+		return nil, err
+	}
+	project, err := api.Call[domain.Project](ctx, r.client, "GET", api.Path("projects", task.ProjectID), nil)
+	if err != nil {
+		return nil, err
+	}
+	if !actor.Active || actor.Banned || (!actor.Founder && actor.Mode != "ai") || project.Archived ||
+		current.ProjectEpoch != project.Epoch || task.Readiness == nil ||
+		task.Readiness.SpecGeneration != task.SpecGeneration || task.Readiness.ProjectEpoch != project.Epoch {
+		return nil, domain.Fail(domain.Denied, "build execution no longer has current mode and readiness authority")
+	}
+	approver, err := api.Call[domain.Agent](ctx, r.client, "GET", api.Path("agents", task.Readiness.ActorID), nil)
+	if err != nil {
+		return nil, err
+	}
+	if !domain.EligibleApprover(approver, project, task, false) {
+		return nil, domain.Fail(domain.Denied, "build readiness authority was revoked")
 	}
 	binding, err := r.state.Workspace(ctx, task.WorkspaceRef)
 	if err != nil {
 		return nil, err
+	}
+	if build.State == "submitted" {
+		product, err := api.Call[domain.SoftwareProduct](ctx, r.client, "GET", api.Path("software-products", build.ProductID), nil)
+		if err != nil {
+			return nil, err
+		}
+		if product.ProjectID != task.ProjectID || product.RepositoryID != build.Source.RepositoryID {
+			return nil, domain.Fail(domain.Prerequisite, "submitted build belongs to different product source")
+		}
+		original, err := api.Call[domain.Run](ctx, r.client, "GET", api.Path("runs", build.RunID), nil)
+		if err != nil {
+			return nil, err
+		}
+		if build.BuilderID != current.AgentID || build.ArtifactID == "" ||
+			(build.Source.ProductID != "" && build.Source.ProductID != build.ProductID) ||
+			original.TaskID != task.ID || original.AgentID != current.AgentID || original.SpecGeneration != task.SpecGeneration ||
+			original.Kind != domain.ExecutionRun || original.Attempt < 1 || original.Attempt > current.Attempt ||
+			(original.ID != current.ID && original.State == "running") ||
+			!slices.Contains([]string{"running", "completed", "paused", "stopped", "failed", "interrupted"}, original.State) {
+			return nil, domain.Fail(domain.Prerequisite, "submitted build does not match retained builder execution provenance")
+		}
+		artifact, err := r.client.DownloadArtifact(ctx, build.ArtifactID, io.Discard, false)
+		if err != nil {
+			return nil, err
+		}
+		if artifact.ProjectID != task.ProjectID || artifact.OwnerID != actor.ID || artifact.Kind != "software-bundle" || artifact.RepositoryID != "" {
+			return nil, domain.Fail(domain.Prerequisite, "submitted artifact custody has different ownership")
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return build, nil
+	}
+	if build.State != "prepared" {
+		return nil, domain.Fail(domain.Prerequisite, "build has neither prepared inputs nor verified submitted custody")
 	}
 	key := "build-run:" + build.ID + ":" + runID
 	var journal buildRunJournal
@@ -70,11 +194,18 @@ func (a *app) runSoftwareBuild(ctx context.Context, r *resources, args []string)
 		return nil, domain.Fail(domain.Prerequisite, "interrupted native build has uncertain effects; inspect retained evidence, never blindly rerun it")
 	}
 	if found && journal.State == "submitted" {
-		return api.Call[domain.SoftwareBuild](ctx, r.client, "GET", api.Path("software-builds", id), nil)
+		return nil, domain.Fail(domain.Prerequisite, "local submitted journal has no matching verified remote custody")
 	}
 	if !found {
-		if build.Recipe.Platform != runtime.GOOS+"-"+runtime.GOARCH {
-			return nil, domain.Fail(domain.Prerequisite, "build recipe targets a different native computer; use its assigned build-capable agent")
+		host := runtime.GOOS + "-" + runtime.GOARCH
+		if build.Recipe.Platform != host {
+			product, err := api.Call[domain.SoftwareProduct](ctx, r.client, "GET", api.Path("software-products", build.ProductID), nil)
+			if err != nil {
+				return nil, err
+			}
+			if product.ID != build.ProductID || !slices.Contains(product.Capabilities, "cross-build:"+host+":"+build.Recipe.Platform) {
+				return nil, domain.Fail(domain.Prerequisite, "cross-build requires the product's exact explicit host/target capability and later native consumer verification")
+			}
 		}
 		journal = buildRunJournal{BuildID: id, RunID: runID, State: "prepared",
 			Path: filepath.Join(r.config.StateDir, "build-"+id+"-"+runID+".tar.gz")}
@@ -113,36 +244,8 @@ func (a *app) runSoftwareBuild(ctx context.Context, r *resources, args []string)
 		}
 		buildCtx, cancel := context.WithTimeout(ctx, time.Duration(build.Recipe.TimeoutSeconds)*time.Second)
 		defer cancel()
-		for _, step := range build.Recipe.Steps {
-			binary, err := exec.LookPath(step.Args[0])
-			if extraPath != "" {
-				for _, directory := range filepath.SplitList(extraPath) {
-					candidate := filepath.Join(directory, step.Args[0])
-					if info, probeErr := os.Stat(candidate); probeErr == nil && info.Mode().IsRegular() && info.Mode().Perm()&0111 != 0 {
-						binary, err = candidate, nil
-						break
-					}
-				}
-			}
-			if err != nil {
-				return nil, err
-			}
-			output, diagnostic := process.NewBuffer(256<<10), process.NewBuffer(256<<10)
-			env := process.Environment()
-			if extraPath != "" {
-				for i, entry := range env {
-					if strings.HasPrefix(entry, "PATH=") {
-						env[i] = "PATH=" + extraPath + string(os.PathListSeparator) + strings.TrimPrefix(entry, "PATH=")
-					}
-				}
-			}
-			if err := (process.Native{}).Run(buildCtx, process.Spec{Path: binary, Args: step.Args[1:], Dir: workspace, Env: env, Stdout: output, Stderr: diagnostic}); err != nil {
-				return nil, errors.Join(domain.Fail(domain.Prerequisite, "approved native build step failed; original run and private outputs were retained"), err)
-			}
-			if _, err := output.Bytes(); err != nil {
-				return nil, err
-			}
-			if _, err := diagnostic.Bytes(); err != nil {
+		for index, step := range build.Recipe.Steps {
+			if err := runNativeBuildStep(buildCtx, r.config.StateDir, build.ID, runID, index+1, workspace, extraPath, step); err != nil {
 				return nil, err
 			}
 		}
@@ -177,7 +280,7 @@ func (a *app) runSoftwareBuild(ctx context.Context, r *resources, args []string)
 		journal.Upload = domain.FileUploadRequest{Command: domain.Command{OperationID: "op_" + domain.Hash(key+":upload")},
 			Name: "build-" + build.ID + ".tar.gz", MediaType: "application/gzip", Size: size, SHA256: digest}
 		journal.Result = domain.SoftwareBuildResult{Command: domain.Command{OperationID: "op_" + domain.Hash(key+":result")}, RunID: runID,
-			Toolchain: "Native approved recipe; Foundation runtime " + runtime.Version(),
+			Toolchain: "Approved " + build.Recipe.Platform + " recipe executed on " + runtime.GOOS + "-" + runtime.GOARCH + "; Foundation runtime " + runtime.Version(),
 			Summary:   fmt.Sprintf("Executed %d approved native recipe steps and verified every declared output", len(build.Recipe.Steps))}
 		journal.State = "compiled"
 		if err := r.state.Put(ctx, key, journal); err != nil {
