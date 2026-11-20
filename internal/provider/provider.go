@@ -208,8 +208,10 @@ type Executor interface {
 }
 
 type Manager struct {
-	Config config.Worker
-	Runner process.Runner
+	Config              config.Worker
+	Runner              process.Runner
+	MemoryProbe         func(context.Context) (LocalMemory, error)
+	LocalReleaseBaseURL string
 }
 
 func New(c config.Worker) *Manager { return &Manager{Config: c, Runner: process.Native{}} }
@@ -235,7 +237,7 @@ func (m *Manager) Resolve(name string) (string, error) {
 		return "", err
 	}
 	verified := installed.SignaturesVerified
-	if name == "antigravity" && domain.ValidHash(installed.ArtifactSHA256) && domain.ValidHash(installed.ExecutableSHA256) {
+	if (name == "antigravity" || name == "local") && domain.ValidHash(installed.ArtifactSHA256) && domain.ValidHash(installed.ExecutableSHA256) {
 		hash, err := hashProviderExecutable(installed.Path)
 		if err != nil {
 			return "", err
@@ -274,6 +276,9 @@ func (m *Manager) capture(ctx context.Context, path, dir string, args ...string)
 func (m *Manager) compatibility(ctx context.Context, name, path string) error {
 	if name == "antigravity" {
 		return m.antigravityCompatibility(ctx, path)
+	}
+	if name == "local" {
+		return m.localCompatibility(ctx, path)
 	}
 	help, err := m.capture(ctx, path, "", "--help")
 	if err != nil {
@@ -320,6 +325,17 @@ func (m *Manager) Check(ctx context.Context, name string) (Health, error) {
 	health.Version = string(match[1])
 	if err := m.compatibility(ctx, name, path); err != nil {
 		return health, err
+	}
+	if name == "local" {
+		ready, models, err := m.localReadiness(ctx)
+		if err != nil {
+			return health, err
+		}
+		if ready {
+			health.Authentication = "authenticated"
+			health.Models = models
+		}
+		return health, nil
 	}
 	if name == "antigravity" {
 		authenticated, models, err := m.antigravityReadiness(ctx, path)
@@ -386,6 +402,9 @@ func NativeArguments(name string, arguments []string) ([]string, error) {
 	if name == "antigravity" && len(arguments) != 0 && (arguments[0] == "update" || arguments[0] == "install") {
 		return nil, domain.Fail(domain.Prerequisite, "use Foundation provider install/update to preserve exact verified Antigravity CLI activation")
 	}
+	if name == "local" && len(arguments) != 0 && (arguments[0] == "pull" || arguments[0] == "rm" || arguments[0] == "serve") {
+		return nil, domain.Fail(domain.Prerequisite, "use agent-cli local-model init to manage verified local model weights and loopback runtime")
+	}
 	if name != "copilot" {
 		return slices.Clone(arguments), nil
 	}
@@ -404,6 +423,9 @@ func Arguments(name, workspace, output, model string, coding bool) ([]string, er
 	}
 	if name == "antigravity" {
 		return append(antigravityACPArguments(coding), "--agent", antigravityAgent), nil
+	}
+	if name == "local" {
+		return []string{"serve"}, nil
 	}
 	var args []string
 	if name == "codex" {
@@ -458,6 +480,9 @@ func (m *Manager) Invoke(ctx context.Context, inv Invocation) (reply Reply, err 
 	}
 	if inv.Provider == "antigravity" {
 		return m.invokeAntigravity(ctx, inv, dir)
+	}
+	if inv.Provider == "local" {
+		return m.invokeLocal(ctx, inv, dir)
 	}
 	outputFile := filepath.Join(dir, "reply.json")
 	if inv.Provider == "codex" {

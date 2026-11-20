@@ -50,7 +50,25 @@ func (s *Store) RequestSessionRecovery(ctx context.Context, actor, target string
 	return s.agentOperationResponse(ctx, actor, operation, err, false)
 }
 
+func (s *Store) RequestLocalModelInit(ctx context.Context, actor, target string, req domain.LocalModelInitRequest) (domain.AgentOperation, error) {
+	operation, err := mutate(ctx, s, actor, "agent-operation.local-model-init:"+target, req.Command, req, func(tx *sql.Tx, a domain.Agent) (domain.AgentOperation, error) {
+		if !a.Founder {
+			return domain.AgentOperation{}, domain.Fail(domain.Denied, "only Founder may request remote local model initialization")
+		}
+		spec, err := domain.ValidateLocalModelInitRequest(req)
+		if err != nil {
+			return domain.AgentOperation{}, err
+		}
+		return s.createAgentOperationWithModel(ctx, tx, a, target, "local-model-init", req.Reason, "", "", &spec)
+	})
+	return s.agentOperationResponse(ctx, actor, operation, err, false)
+}
+
 func (s *Store) createAgentOperation(ctx context.Context, tx *sql.Tx, requester domain.Agent, targetID, kind, reason, sessionID, fence string) (domain.AgentOperation, error) {
+	return s.createAgentOperationWithModel(ctx, tx, requester, targetID, kind, reason, sessionID, fence, nil)
+}
+
+func (s *Store) createAgentOperationWithModel(ctx context.Context, tx *sql.Tx, requester domain.Agent, targetID, kind, reason, sessionID, fence string, localModel *domain.LocalModelSpec) (domain.AgentOperation, error) {
 	target, err := activeIdentitySubject(ctx, tx, targetID)
 	if err != nil {
 		return domain.AgentOperation{}, err
@@ -67,9 +85,10 @@ func (s *Store) createAgentOperation(ctx context.Context, tx *sql.Tx, requester 
 		return domain.AgentOperation{}, domain.Fail(domain.Denied, "agent operation requires active issuer and target identities")
 	}
 	now := s.timestamp()
+	ttl := domain.AgentOperationTTLForKind(kind)
 	operation := domain.AgentOperation{Version: domain.AgentOperationVersion, ID: domain.NewID("agent_operation"), Revision: 1,
 		Kind: kind, RequesterID: requester.ID, TargetID: target.ID, RequesterGeneration: requesterGeneration, TargetGeneration: targetGeneration,
-		State: "queued", Reason: reason, SessionID: sessionID, ExpectedFence: fence, CreatedAt: now, ExpiresAt: now + domain.AgentOperationTTL}
+		State: "queued", Reason: reason, SessionID: sessionID, ExpectedFence: fence, LocalModel: localModel, CreatedAt: now, ExpiresAt: now + ttl}
 	if err := domain.ValidateAgentOperation(operation); err != nil {
 		return domain.AgentOperation{}, err
 	}
@@ -136,7 +155,7 @@ func (s *Store) ListAgentOperations(ctx context.Context, actor, cursor string, l
 	for len(page.Items) <= limit {
 		rows, err := tx.QueryContext(ctx, `SELECT data FROM messages WHERE recipient_id=? AND state='pending' AND id>?
 AND json_extract(data,'$.kind')='agent-operation' AND json_extract(data,'$.origin')='service'
-AND json_extract(data,'$.agent_operation.kind') IN ('diagnostics','session-recovery','runtime-reset')
+AND json_extract(data,'$.agent_operation.kind') IN ('diagnostics','session-recovery','runtime-reset','local-model-init')
 AND json_extract(data,'$.agent_operation.state') IN ('queued','checking')
 AND json_extract(data,'$.agent_operation.target_generation')=? AND json_extract(data,'$.agent_operation.expires_at')>?
 ORDER BY id LIMIT ?`, actor, last, generation, now, limit+1)

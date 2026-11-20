@@ -34,6 +34,12 @@ func (s *Server) agentOperationRoutes() {
 		}
 		return s.Store.RequestSessionRecovery(r.Context(), a.ID, r.PathValue("id"), req)
 	})
+	body(s, "POST /v1/agents/{id}/local-models", false, func(r *operationRequest, a domain.Agent, req domain.LocalModelInitRequest) (domain.AgentOperation, error) {
+		if r.URL.RawQuery != "" {
+			return domain.AgentOperation{}, domain.Fail(domain.Invalid, "agent operation requests do not accept query parameters")
+		}
+		return s.Store.RequestLocalModelInit(r.Context(), a.ID, r.PathValue("id"), req)
+	})
 	read(s, "GET /v1/agent-operations", func(r *operationRequest, a domain.Agent) (domain.Page[domain.AgentOperation], error) {
 		if err := agentOperationRead(r, true); err != nil {
 			return domain.Page[domain.AgentOperation]{}, err

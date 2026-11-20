@@ -56,6 +56,7 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		(group == "repository" && len(tail) > 0 && (tail[0] == "link" || tail[0] == "bundle")) ||
 		(group == "file" && len(tail) > 0 && slices.Contains([]string{"upload-status", "download-status"}, tail[0])) ||
 		(group == "agent" && len(tail) > 0 && tail[0] == "add-status") ||
+		(group == "local-model" && isLocalOnlyModelCommand(tail)) ||
 		(group == "upgrade" && len(tail) > 0 && tail[0] == "status") ||
 		(group == "mode" && len(tail) > 0 && tail[0] == "show") ||
 		(group == "work" && len(tail) > 0 && tail[0] == "status")
@@ -77,6 +78,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.screenCommand(ctx, r, tail)
 	case "share":
 		return a.sharingCommand(ctx, r, tail)
+	case "local-model":
+		return a.localModelCommand(ctx, r, tail)
 	case "config", "mode", "knowledge", "inventory", "workspace", "provider", "preferences", "service", "work":
 		return a.localCommand(ctx, r, group, tail)
 	case "status":

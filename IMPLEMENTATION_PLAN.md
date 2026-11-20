@@ -6,6 +6,18 @@ approvals, run models, or publish sensitive data.
 
 ## Product and architecture decisions
 
+### Managed local Qwen 3.8 27B provider and Founder-requested initialization (0.3.56 source)
+
+Workers support `provider:"local"` alongside Codex, Copilot and Antigravity.
+`agent-cli local-model init` initializes `qwen3.8:27b` locally or queues a
+Founder-only 60-minute `local-model-init` `AgentOperation` (`POST /v1/agents/{id}/local-models`).
+Targets probe NVIDIA VRAM (falling back to physical RAM) before downloading the
+digest-verified runtime and model weights: `--quantized` / `--quantization`
+selects `q8_0` (>=36 GiB) or `q4_K_M` (>=22 GiB), while unquantized `bf16`
+requires >=64 GiB. Verified weights publish `authenticated` `model-options` and
+can immediately set the agent's preferred model (`--set-preference`), waking
+eligible `ai` onboarding/work without cloud provider login.
+
 ### Internal continuous improvement and tools (0.3.45 source)
 
 Feature requests, enhancements, bugs, incident-derived proposals and new/existing

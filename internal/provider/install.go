@@ -44,6 +44,10 @@ func Latest(ctx context.Context, name string, client *http.Client) (string, erro
 		release, err := antigravityReleaseMetadata(ctx, client, "latest")
 		return release.Version, err
 	}
+	if name == "local" {
+		_, version, err := ollamaReleaseMetadata(ctx, "", client, "latest")
+		return version, err
+	}
 	pkg, err := packageName(name)
 	if err != nil {
 		return "", err
@@ -83,6 +87,9 @@ func Latest(ctx context.Context, name string, client *http.Client) (string, erro
 func (m *Manager) Install(ctx context.Context, name, version string) (installed Installed, err error) {
 	if name == "antigravity" {
 		return m.installAntigravity(ctx, version, antigravityDownloadClient())
+	}
+	if name == "local" {
+		return m.installLocalRuntime(ctx, version, localDownloadClient())
 	}
 	pkg, err := packageName(name)
 	if err != nil {
@@ -183,7 +190,7 @@ func (m *Manager) MaybeUpdate(ctx context.Context) error {
 		return nil
 	}
 	for _, name := range domain.ProviderNames() {
-		if m.Config.ProviderPaths[name] != "" {
+		if name == "local" || m.Config.ProviderPaths[name] != "" {
 			continue
 		}
 		root := filepath.Join(m.Config.StateDir, "providers", name)
