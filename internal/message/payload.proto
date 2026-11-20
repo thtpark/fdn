@@ -154,6 +154,7 @@ message Go_AgentOperation {
   Signed finished_at = 16;
   Signed server_observed_at = 17;
   Go_AgentOperationResult result = 18;
+  Go_LocalModelSpec local_model = 19;
 }
 
 message Go_AgentOperationReport {
@@ -170,6 +171,7 @@ message Go_AgentOperationResult {
   Bool automation_may_resume = 4;
   Go_AgentInspection observation = 5;
   Go_NativeRuntimeObservation native_runtime = 6;
+  Go_LocalModelObservation local_model = 7;
 }
 
 message Go_AgentPreferencesRequest {
@@ -844,6 +846,38 @@ message Go_ListQuery {
   Bool include_archived = 4;
   Signed limit = 5;
   String cursor = 6;
+}
+
+message Go_LocalModelInitRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String model = 3;
+  Bool quantized = 4;
+  String quantization = 5;
+  Bool set_preference = 6;
+  String reason = 7;
+}
+
+message Go_LocalModelObservation {
+  String provider = 1;
+  String runtime_version = 2;
+  String family = 3;
+  String model = 4;
+  String quantization = 5;
+  String memory_source = 6;
+  Signed memory_bytes = 7;
+  Signed required_bytes = 8;
+  Signed gpu_count = 9;
+  Bool catalog_published = 10;
+  Bool preference_applied = 11;
+}
+
+message Go_LocalModelSpec {
+  String family = 1;
+  String model = 2;
+  Bool quantized = 3;
+  String quantization = 4;
+  Bool set_preference = 5;
 }
 
 message Go_LocalStatus {
@@ -2641,6 +2675,21 @@ message List_Go_ListQuery {
   bool present = 2;
 }
 
+message List_Go_LocalModelInitRequest {
+  repeated Go_LocalModelInitRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_LocalModelObservation {
+  repeated Go_LocalModelObservation items = 1;
+  bool present = 2;
+}
+
+message List_Go_LocalModelSpec {
+  repeated Go_LocalModelSpec items = 1;
+  bool present = 2;
+}
+
 message List_Go_LocalStatus {
   repeated Go_LocalStatus items = 1;
   bool present = 2;
@@ -3733,6 +3782,21 @@ message List_Page_Go_ImprovementResult {
 
 message List_Page_Go_ListQuery {
   repeated Page_Go_ListQuery items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_LocalModelInitRequest {
+  repeated Page_Go_LocalModelInitRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_LocalModelObservation {
+  repeated Page_Go_LocalModelObservation items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_LocalModelSpec {
+  repeated Page_Go_LocalModelSpec items = 1;
   bool present = 2;
 }
 
@@ -5324,6 +5388,36 @@ message Map_Go_ListQuery {
 message Map_Go_ListQuery_Entry {
   optional string key = 1;
   Go_ListQuery value = 2;
+}
+
+message Map_Go_LocalModelInitRequest {
+  repeated Map_Go_LocalModelInitRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_LocalModelInitRequest_Entry {
+  optional string key = 1;
+  Go_LocalModelInitRequest value = 2;
+}
+
+message Map_Go_LocalModelObservation {
+  repeated Map_Go_LocalModelObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_LocalModelObservation_Entry {
+  optional string key = 1;
+  Go_LocalModelObservation value = 2;
+}
+
+message Map_Go_LocalModelSpec {
+  repeated Map_Go_LocalModelSpec_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_LocalModelSpec_Entry {
+  optional string key = 1;
+  Go_LocalModelSpec value = 2;
 }
 
 message Map_Go_LocalStatus {
@@ -7516,6 +7610,36 @@ message Map_Page_Go_ListQuery_Entry {
   Page_Go_ListQuery value = 2;
 }
 
+message Map_Page_Go_LocalModelInitRequest {
+  repeated Map_Page_Go_LocalModelInitRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_LocalModelInitRequest_Entry {
+  optional string key = 1;
+  Page_Go_LocalModelInitRequest value = 2;
+}
+
+message Map_Page_Go_LocalModelObservation {
+  repeated Map_Page_Go_LocalModelObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_LocalModelObservation_Entry {
+  optional string key = 1;
+  Page_Go_LocalModelObservation value = 2;
+}
+
+message Map_Page_Go_LocalModelSpec {
+  repeated Map_Page_Go_LocalModelSpec_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_LocalModelSpec_Entry {
+  optional string key = 1;
+  Page_Go_LocalModelSpec value = 2;
+}
+
 message Map_Page_Go_LocalStatus {
   repeated Map_Page_Go_LocalStatus_Entry items = 1;
   bool present = 2;
@@ -9273,6 +9397,21 @@ message Page_Go_ImprovementResult {
 
 message Page_Go_ListQuery {
   List_Go_ListQuery items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_LocalModelInitRequest {
+  List_Go_LocalModelInitRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_LocalModelObservation {
+  List_Go_LocalModelObservation items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_LocalModelSpec {
+  List_Go_LocalModelSpec items = 1;
   String next_cursor = 2;
 }
 

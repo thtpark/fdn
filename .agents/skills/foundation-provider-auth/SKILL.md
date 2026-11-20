@@ -180,6 +180,12 @@ after an upgrade without its exact supported stopped-process recovery.
 Provider references: [Codex headless authentication](https://developers.openai.com/codex/auth/#login-on-headless-devices)
 and [Copilot login options](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#copilot-login-options).
 Installed `login --help` remains authoritative for version-specific flags.
+For managed on-device models (`provider:"local"`, currently `qwen3.8:27b`), use
+`agent-cli local-model init` locally or `agent-cli local-model init AGENT_ID`
+as Founder (`--quantized` or `--quantization auto|q4_K_M|q8_0|bf16`, optional
+`--set-preference`); no vendor login is used, memory bounds are checked before
+downloading runtime/weights, and verified weights publish `authenticated`
+`model-options` for preference selection.
 
 Report redacted installed/authentication/model/session states, pending human
 action/expiry, and authorized next step. Never claim sign-in, spending consent

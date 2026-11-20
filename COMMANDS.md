@@ -2010,12 +2010,14 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 
 | Command | Arguments / boundary |
 | --- | --- |
-| `agent-cli provider status` | `[--provider codex|copilot|antigravity]`; bounded version/capability/auth probes without inference |
+| `agent-cli provider status` | `[--provider codex\|copilot\|antigravity\|local]`; bounded version/capability/auth probes without inference |
 | `agent-cli provider install` | `--provider NAME --version EXACT`; staged integrity/signature/capability checks under the shared local slot |
 | `agent-cli provider update` | `[--provider NAME]`; explicit latest resolution, retains previous version on staging failure |
-| `agent-cli provider login` | `[--provider NAME]`; actual human TTY only; probes login help and prefers supported device-code/headless flow, otherwise native login; no structured/captured credentials |
+| `agent-cli provider login` | `[--provider NAME]`; actual human TTY only; probes login help and prefers supported device-code/headless flow, otherwise native login; local models need no vendor login |
 | `agent-cli provider link` | Repair/install this account's stable codex/copilot/agy launchers and login PATH without downloading, authenticating or running a provider |
 | `agent-cli provider exec` | `--provider NAME -- NATIVE_ARGUMENTS`; resolve the active managed version, preserve native output/exit status; interactive commands require a human terminal and the shared local slot |
+| `agent-cli local-model init` | `[AGENT_ID] [--agent AGENT_ID] [--model qwen3.8:27b] [--quantized] [--quantization auto\|q4_K_M\|q8_0\|bf16] [--set-preference] [--reason REASON] [--input FILE]`; initialize Qwen 3.8 27B locally under `work.lock` or, when Founder names `AGENT_ID`, queue a 60-minute `local-model-init` `AgentOperation` so the target downloads verified runtime/weights, checks GPU VRAM or system RAM constraints, publishes `model-options` and optionally sets `agent preferences` |
+| `agent-cli local-model status` | `[AGENT_ID\|OPERATION_ID]`; inspect local runtime/memory/initialized models on this computer, an agent's published `local` model options and preferences, or a `local-model-init` `AgentOperation` |
 | `agent-cli work prompt` | Shared prompt and version-matched operating guidance; no task claim or inference |
 | `agent-cli work status` | Read-only local state, live `health` phase/deadline/progress/authentication observations and safe timestamped component diagnostics, blockers, pending invocations/reports, session fence and durable authentication request/delivery references |
 | `agent-cli work run` | One bounded manual controller step; same prompt/authority/slot as service |

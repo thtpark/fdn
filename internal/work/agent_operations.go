@@ -185,7 +185,7 @@ func (e *Engine) currentAgentOperation(ctx context.Context, id string) (domain.A
 	}
 	clock.serverAt = operation.ServerObservedAt
 	if operation.Version != domain.AgentOperationVersion || operation.ID != id || operation.TargetID != e.Client.Credential.AgentID ||
-		!domain.ValidOperation(operation.ID) || operation.Revision < 1 || operation.ServerObservedAt <= 0 || !slices.Contains([]string{"diagnostics", "session-recovery", "runtime-reset"}, operation.Kind) {
+		!domain.ValidOperation(operation.ID) || operation.Revision < 1 || operation.ServerObservedAt <= 0 || !slices.Contains([]string{"diagnostics", "session-recovery", "runtime-reset", "local-model-init"}, operation.Kind) {
 		return operation, domain.Agent{}, clock, domain.Fail(domain.Denied, "agent operation does not match this enrolled worker")
 	}
 	me, err := api.Call[domain.Agent](ctx, e.Client, http.MethodGet, "/v1/me", nil)
@@ -268,6 +268,9 @@ func (e *Engine) handleAgentOperation(ctx context.Context, id string) (bool, err
 	if operation.Kind == "runtime-reset" {
 		return e.resetAgentRuntime(ctx, c, operation, me)
 	}
+	if operation.Kind == "local-model-init" {
+		return e.initializeLocalModelOperation(ctx, c, operation, me)
+	}
 	return e.recoverAgentSession(ctx, c, operation, me)
 }
 
@@ -334,6 +337,10 @@ func (e *Engine) inspectAgent(ctx context.Context, c config.Worker, probeProvide
 }
 
 func (e *Engine) operationReceipt(ctx context.Context, operation domain.AgentOperation, me domain.Agent, state, code string, observation *domain.AgentInspection) (local.AgentOperationReceipt, error) {
+	return e.operationReceiptWithLocalModel(ctx, operation, me, state, code, observation, nil)
+}
+
+func (e *Engine) operationReceiptWithLocalModel(ctx context.Context, operation domain.AgentOperation, me domain.Agent, state, code string, observation *domain.AgentInspection, localModel *domain.LocalModelObservation) (local.AgentOperationReceipt, error) {
 	fingerprint, err := agentOperationHash(operation)
 	if err != nil {
 		return local.AgentOperationReceipt{}, err
@@ -342,16 +349,20 @@ func (e *Engine) operationReceipt(ctx context.Context, operation domain.AgentOpe
 	if captured <= 0 {
 		return local.AgentOperationReceipt{}, domain.Fail(domain.Prerequisite, "agent operation capture lacks a current authenticated server clock")
 	}
-	if captured >= operation.ExpiresAt && (state == "refreshed" || state == "reset") {
-		state, code, observation = "expired", "operation-expired", nil
+	if captured >= operation.ExpiresAt && (state == "refreshed" || state == "reset" || state == "initialized") {
+		state, code, observation, localModel = "expired", "operation-expired", nil, nil
 	}
 	return local.AgentOperationReceipt{Version: domain.AgentOperationVersion, OperationID: operation.ID, RequestHash: fingerprint, DeliveryState: "pending",
 		Report: domain.AgentOperationReport{Command: domain.Command{OperationID: operation.ID + ".result", ExpectedRevision: operation.Revision}, State: state,
-			Result: &domain.AgentOperationResult{Code: code, CapturedAt: captured, ModeAtCheck: me.Mode, AutomationMayResume: (state == "recovered" || state == "reset") && me.Mode == "ai", Observation: observation}}}, nil
+			Result: &domain.AgentOperationResult{Code: code, CapturedAt: captured, ModeAtCheck: me.Mode, AutomationMayResume: (state == "recovered" || state == "reset" || state == "initialized") && me.Mode == "ai", Observation: observation, LocalModel: localModel}}}, nil
 }
 
 func (e *Engine) recordAgentOperationResult(ctx context.Context, operation domain.AgentOperation, me domain.Agent, state, code string, observation *domain.AgentInspection) error {
-	receipt, err := e.operationReceipt(ctx, operation, me, state, code, observation)
+	return e.recordAgentOperationResultWithLocalModel(ctx, operation, me, state, code, observation, nil)
+}
+
+func (e *Engine) recordAgentOperationResultWithLocalModel(ctx context.Context, operation domain.AgentOperation, me domain.Agent, state, code string, observation *domain.AgentInspection, localModel *domain.LocalModelObservation) error {
+	receipt, err := e.operationReceiptWithLocalModel(ctx, operation, me, state, code, observation, localModel)
 	if err != nil {
 		return err
 	}

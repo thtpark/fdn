@@ -161,6 +161,9 @@ func InstallShellCommands(home, configFile, cliPath, shell string) (result Shell
 	}
 	files := []shellFile{}
 	for _, name := range domain.ProviderNames() {
+		if name == "local" {
+			continue
+		}
 		command := name
 		if name == "antigravity" {
 			command = "agy"

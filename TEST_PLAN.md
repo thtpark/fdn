@@ -15,6 +15,14 @@ go run ./tools/protocol --check
 
 Scenario expectations:
 
+- 0.3.56 managed local model initialization (`agent-cli local-model init` and
+  `local-model status`) checks GPU VRAM or system memory bounds before staging
+  the SHA256-verified official Ollama archive and Qwen 3.8 27B weights
+  (`qwen3.8:27b-bf16`, `qwen3.8:27b-q8_0`, `qwen3.8:27b-q4_K_M`), denies
+  non-Founder remote requests, rejects oversized unquantized variants with
+  `memory-insufficient`, publishes `authenticated` `local` `model-options`,
+  applies optional `set_preference`, and enforces tool-disabled text schemas
+  versus workspace-contained coding tools.
 - 0.3.55 opt-in paired backup retention removes real fixture archive bytes
   before a newly admitted cold backup without touching original journals,
   acknowledgements or the newest verified recovery point. Check the original

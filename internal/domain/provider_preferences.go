@@ -19,7 +19,7 @@ type AgentPreferencesRequest struct {
 
 func ValidateProviderModel(provider, model string) error {
 	if provider != "" && !ValidProvider(provider) {
-		return Fail(Invalid, "provider must be codex, copilot, antigravity, or empty to inherit")
+		return Fail(Invalid, "provider must be codex, copilot, antigravity, local, or empty to inherit")
 	}
 	if model != "" && provider == "" {
 		return Fail(Invalid, "a model preference requires an explicit provider")

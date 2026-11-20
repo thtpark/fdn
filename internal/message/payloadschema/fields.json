@@ -396,6 +396,10 @@
       "id": 4,
       "name": "kind"
     },
+    "LocalModel": {
+      "id": 19,
+      "name": "local_model"
+    },
     "Reason": {
       "id": 10,
       "name": "reason"
@@ -475,6 +479,10 @@
     "Code": {
       "id": 1,
       "name": "code"
+    },
+    "LocalModel": {
+      "id": 7,
+      "name": "local_model"
     },
     "ModeAtCheck": {
       "id": 3,
@@ -2475,6 +2483,104 @@
     "Status": {
       "id": 3,
       "name": "status"
+    }
+  },
+  "LocalModelInitRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Model": {
+      "id": 3,
+      "name": "model"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Quantization": {
+      "id": 5,
+      "name": "quantization"
+    },
+    "Quantized": {
+      "id": 4,
+      "name": "quantized"
+    },
+    "Reason": {
+      "id": 7,
+      "name": "reason"
+    },
+    "SetPreference": {
+      "id": 6,
+      "name": "set_preference"
+    }
+  },
+  "LocalModelObservation": {
+    "CatalogPublished": {
+      "id": 10,
+      "name": "catalog_published"
+    },
+    "Family": {
+      "id": 3,
+      "name": "family"
+    },
+    "GPUCount": {
+      "id": 9,
+      "name": "gpu_count"
+    },
+    "MemoryBytes": {
+      "id": 7,
+      "name": "memory_bytes"
+    },
+    "MemorySource": {
+      "id": 6,
+      "name": "memory_source"
+    },
+    "Model": {
+      "id": 4,
+      "name": "model"
+    },
+    "PreferenceApplied": {
+      "id": 11,
+      "name": "preference_applied"
+    },
+    "Provider": {
+      "id": 1,
+      "name": "provider"
+    },
+    "Quantization": {
+      "id": 5,
+      "name": "quantization"
+    },
+    "RequiredBytes": {
+      "id": 8,
+      "name": "required_bytes"
+    },
+    "RuntimeVersion": {
+      "id": 2,
+      "name": "runtime_version"
+    }
+  },
+  "LocalModelSpec": {
+    "Family": {
+      "id": 1,
+      "name": "family"
+    },
+    "Model": {
+      "id": 2,
+      "name": "model"
+    },
+    "Quantization": {
+      "id": 4,
+      "name": "quantization"
+    },
+    "Quantized": {
+      "id": 3,
+      "name": "quantized"
+    },
+    "SetPreference": {
+      "id": 5,
+      "name": "set_preference"
     }
   },
   "LocalStatus": {

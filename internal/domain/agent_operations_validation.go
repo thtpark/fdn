@@ -28,7 +28,7 @@ func validateAgentOperationRequest(command Command, reason string) error {
 }
 
 func AgentOperationTerminal(state string) bool {
-	return slices.Contains([]string{"refreshed", "recovered", "reset", "restarted", "rejected", "operator-required", "expired"}, state)
+	return slices.Contains([]string{"refreshed", "recovered", "reset", "restarted", "initialized", "rejected", "operator-required", "expired"}, state)
 }
 
 func TerminalSessionState(state string) bool {
@@ -42,6 +42,7 @@ func ValidAgentOperationCode(code string) bool {
 		"operation-expired", "authority-changed", "unsupported-operation", "inspection-unavailable", "recovery-unavailable",
 		"runtime-reset", "reset-interrupted", "invocation-uncertain", "work-pending", "report-pending", "maintenance-active", "runtime-unavailable",
 		"native-services-restarted", "native-restart-unavailable", "native-restart-interrupted",
+		"local-model-initialized", "memory-insufficient", "local-model-unavailable",
 	}, code)
 }
 
@@ -123,8 +124,13 @@ func ValidateAgentOperationReport(req AgentOperationReport) error {
 			return Fail(Invalid, "native runtime requires exact source, identity generation and bounded pending counts")
 		}
 	}
-	if r.AutomationMayResume && (!slices.Contains([]string{"recovered", "reset", "restarted"}, req.State) || r.ModeAtCheck != "ai") {
-		return Fail(Invalid, "only a recovered or reset runtime in ai mode may indicate automation eligibility")
+	if l := r.LocalModel; l != nil {
+		if err := ValidateLocalModelObservation(*l); err != nil {
+			return err
+		}
+	}
+	if r.AutomationMayResume && (!slices.Contains([]string{"recovered", "reset", "restarted", "initialized"}, req.State) || r.ModeAtCheck != "ai") {
+		return Fail(Invalid, "only a recovered, reset or initialized runtime in ai mode may indicate automation eligibility")
 	}
 	if r.Code == "cleanup-unproven" && req.State != "operator-required" {
 		return Fail(Invalid, "unproven session cleanup requires an explicit operator-required outcome")
@@ -146,16 +152,20 @@ func ValidateAgentOperationReport(req AgentOperationReport) error {
 		if r.Code != "native-services-restarted" || r.NativeRuntime == nil || !r.NativeRuntime.ServicesRunning {
 			return Fail(Invalid, "restarted requires verified native identity and worker services")
 		}
+	case "initialized":
+		if r.Code != "local-model-initialized" || r.LocalModel == nil || r.LocalModel.Model == "" || r.LocalModel.Quantization == "" || !r.LocalModel.CatalogPublished {
+			return Fail(Invalid, "initialized requires verified local model weights and a published model catalog")
+		}
 	case "expired":
 		if r.Code != "operation-expired" {
 			return Fail(Invalid, "expired requires operation-expired")
 		}
 	case "operator-required":
-		if !slices.Contains([]string{"cleanup-unproven", "fence-mismatch", "session-unavailable", "recovery-unavailable", "inspection-unavailable", "configuration-unavailable", "slot-occupied", "reset-interrupted", "invocation-uncertain", "work-pending", "report-pending", "maintenance-active", "runtime-unavailable", "native-restart-unavailable", "native-restart-interrupted"}, r.Code) {
+		if !slices.Contains([]string{"cleanup-unproven", "fence-mismatch", "session-unavailable", "recovery-unavailable", "inspection-unavailable", "configuration-unavailable", "slot-occupied", "reset-interrupted", "invocation-uncertain", "work-pending", "report-pending", "maintenance-active", "runtime-unavailable", "native-restart-unavailable", "native-restart-interrupted", "local-model-unavailable"}, r.Code) {
 			return Fail(Invalid, "operator-required requires a safe unresolved-evidence code")
 		}
 	case "rejected":
-		if slices.Contains([]string{"observations-collected", "session-recovered", "runtime-reset", "operation-expired"}, r.Code) {
+		if slices.Contains([]string{"observations-collected", "session-recovered", "runtime-reset", "local-model-initialized", "operation-expired"}, r.Code) {
 			return Fail(Invalid, "rejected cannot assert completion or expiry")
 		}
 	}
@@ -167,13 +177,34 @@ func ValidateAgentOperationOutcome(operation AgentOperation, req AgentOperationR
 	if err := ValidateAgentOperationReport(req); err != nil {
 		return err
 	}
-	if operation.Version != AgentOperationVersion || !slices.Contains([]string{"diagnostics", "session-recovery", "runtime-reset", "native-restart"}, operation.Kind) {
+	if operation.Version != AgentOperationVersion || !slices.Contains([]string{"diagnostics", "session-recovery", "runtime-reset", "native-restart", "local-model-init"}, operation.Kind) {
 		return Fail(Invalid, "agent operation version or kind is unsupported")
 	}
 	if req.Result == nil {
 		return nil
 	}
 	r := req.Result
+	if operation.Kind == "local-model-init" {
+		if operation.LocalModel == nil {
+			return Fail(Invalid, "local model initialization requires its pinned specification")
+		}
+		if r.NativeRuntime != nil || !slices.Contains([]string{"initialized", "operator-required", "rejected", "expired"}, req.State) ||
+			!slices.Contains([]string{"local-model-initialized", "memory-insufficient", "local-model-unavailable", "configuration-unavailable", "slot-occupied", "invocation-uncertain", "work-pending", "report-pending", "maintenance-active", "operation-expired", "authority-changed"}, r.Code) {
+			return Fail(Invalid, "local model initialization cannot report diagnostics, reset, restart or session repair")
+		}
+		if req.State == "initialized" {
+			if r.LocalModel == nil || r.LocalModel.Family != operation.LocalModel.Family ||
+				(operation.LocalModel.SetPreference && !r.LocalModel.PreferenceApplied) ||
+				(operation.LocalModel.Quantization != "auto" && r.LocalModel.Quantization != operation.LocalModel.Quantization) {
+				return Fail(Invalid, "local model initialization result does not match the requested specification")
+			}
+		}
+		return nil
+	}
+	if req.State == "initialized" || r.LocalModel != nil ||
+		slices.Contains([]string{"local-model-initialized", "memory-insufficient", "local-model-unavailable"}, r.Code) {
+		return Fail(Invalid, "only a local model initialization may report local model outcomes")
+	}
 	if operation.Kind == "native-restart" {
 		if !slices.Contains([]string{"restarted", "operator-required", "rejected", "expired"}, req.State) ||
 			!slices.Contains([]string{"native-services-restarted", "native-restart-unavailable", "native-restart-interrupted", "operation-expired", "authority-changed"}, r.Code) {
@@ -222,7 +253,8 @@ func ValidateAgentOperation(operation AgentOperation) error {
 	if operation.Version != AgentOperationVersion || !ValidOperation(operation.ID) || operation.Revision < 1 || !ValidOperation(operation.RequesterID) || !ValidOperation(operation.TargetID) || operation.RequesterGeneration < 0 || operation.TargetGeneration < 0 {
 		return Fail(Invalid, "agent operation identity, version or revision is unsupported")
 	}
-	if operation.CreatedAt <= 0 || operation.CreatedAt > maxHealthTimestamp-AgentOperationTTL || operation.ExpiresAt != operation.CreatedAt+AgentOperationTTL || operation.StartedAt < 0 || operation.StartedAt > maxHealthTimestamp || operation.FinishedAt < 0 || operation.FinishedAt > maxHealthTimestamp || operation.ServerObservedAt < 0 || operation.ServerObservedAt > maxHealthTimestamp {
+	ttl := AgentOperationTTLForKind(operation.Kind)
+	if operation.CreatedAt <= 0 || operation.CreatedAt > maxHealthTimestamp-ttl || operation.ExpiresAt != operation.CreatedAt+ttl || operation.StartedAt < 0 || operation.StartedAt > maxHealthTimestamp || operation.FinishedAt < 0 || operation.FinishedAt > maxHealthTimestamp || operation.ServerObservedAt < 0 || operation.ServerObservedAt > maxHealthTimestamp {
 		return Fail(Invalid, "agent operation has inconsistent bounded server clocks")
 	}
 	if err := CheckText(operation.Reason, "nonsecret agent operation reason", 8192, true); err != nil {
@@ -230,12 +262,19 @@ func ValidateAgentOperation(operation AgentOperation) error {
 	}
 	switch operation.Kind {
 	case "diagnostics", "runtime-reset", "native-restart":
-		if operation.SessionID != "" || operation.ExpectedFence != "" {
-			return Fail(Invalid, "diagnostics and runtime reset cannot carry exact session-recovery authority")
+		if operation.SessionID != "" || operation.ExpectedFence != "" || operation.LocalModel != nil {
+			return Fail(Invalid, "diagnostics and runtime reset cannot carry exact session-recovery or local-model authority")
 		}
 	case "session-recovery":
-		if !ValidOperation(operation.SessionID) || !ValidHash(operation.ExpectedFence) {
+		if !ValidOperation(operation.SessionID) || !ValidHash(operation.ExpectedFence) || operation.LocalModel != nil {
 			return Fail(Invalid, "session recovery requires an exact safe fence")
+		}
+	case "local-model-init":
+		if operation.SessionID != "" || operation.ExpectedFence != "" || operation.LocalModel == nil {
+			return Fail(Invalid, "local model initialization requires a model specification without session-recovery fields")
+		}
+		if err := ValidateLocalModelSpec(*operation.LocalModel); err != nil {
+			return err
 		}
 	default:
 		return Fail(Invalid, "agent operation kind is unsupported")
