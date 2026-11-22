@@ -87,6 +87,7 @@ var embeddedWrites = []string{
 	"agent status", "agent mode", "project create", "project change", "task create", "task change",
 	"agent preferences",
 	"agent diagnose", "agent reset", "agent repair", "agent restart",
+	"local-model init",
 	"comment add", "comment edit", "worklog add", "message send", "message read", "message receipt",
 	"message request-report", "note set", "mention acknowledge", "knowledge put",
 	"announcement send",
@@ -110,6 +111,7 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 		"agent mode", "project change", "task change", "comment add", "comment edit", "worklog add",
 		"agent preferences",
 		"agent diagnose", "agent reset", "agent repair", "agent restart",
+		"local-model init",
 		"message read", "message receipt", "message request-report", "mention acknowledge",
 		"file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded", "publication change",
 		"assistance revoke", "session change",
@@ -159,7 +161,8 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 	}
 	pause := args[0] == "agent" && args[1] == "mode"
 	sharing := args[0] == "share"
-	agentControl := args[0] == "agent" && slices.Contains([]string{"diagnose", "reset", "repair", "restart"}, args[1])
+	agentControl := (args[0] == "agent" && slices.Contains([]string{"diagnose", "reset", "repair", "restart"}, args[1])) ||
+		(args[0] == "local-model" && args[1] == "init")
 	if me.Mode != "manual" && !pause && !sharing && !agentControl {
 		return nil, domain.Fail(domain.Prerequisite, "human publishing requires freshly confirmed manual mode")
 	}
@@ -169,6 +172,8 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 	switch args[0] {
 	case "agent":
 		value, err = a.agentCommand(ctx, &e.res, args[1:])
+	case "local-model":
+		value, err = a.localModelCommand(ctx, &e.res, args[1:])
 	case "announcement":
 		value, err = a.announcementCommand(ctx, &e.res, args[1:])
 	case "assistance":
