@@ -10,7 +10,7 @@ import (
 
 func copilotFinalResponse(output []byte) ([]byte, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(output))
-	scanner.Buffer(make([]byte, 4096), 2<<20)
+	scanner.Buffer(make([]byte, 4096), 16<<20)
 	var response []byte
 	var apiCallID, phase string
 	var nextChunk, chunkCount int

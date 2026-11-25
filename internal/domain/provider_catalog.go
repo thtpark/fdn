@@ -102,3 +102,27 @@ func (c ComputerModelOptions) Allows(provider, model string, now int64) bool {
 	}
 	return false
 }
+
+var copilotLongContextModels = []string{
+	"claude-fable-5", "claude-fable-5.1", "claude-haiku-5.5", "claude-opus-5.5", "claude-sonnet-5.5",
+	"gemini-3.8-flash", "gemini-4-argon", "gemini-4-carbon", "gemini-4-neon",
+	"gpt-5.6-sol", "gpt-6-astra", "gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol", "gpt-6.1-terra", "gpt-6.2-astra", "gpt-6.2-sol",
+	"grok-4.6", "grok-4.7",
+}
+
+func SupportsCopilotLongContextTier(model string) bool {
+	return slices.Contains(copilotLongContextModels, model)
+}
+
+func MaxPromptBytesForModel(provider, model string) int {
+	if provider == "antigravity" || len(model) >= 6 && model[:6] == "gemini" {
+		return 8 << 20
+	}
+	if SupportsCopilotLongContextTier(model) {
+		return 8 << 20
+	}
+	if provider == "local" {
+		return 4 << 20
+	}
+	return 4 << 20
+}

@@ -921,7 +921,7 @@ func callOllamaChat(ctx context.Context, address string, reqBody map[string]any)
 		return ollamaChatMessage{}, nil, domain.Fail(domain.Provider, "local model chat request failed")
 	}
 	defer resp.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if err != nil {
 		return ollamaChatMessage{}, nil, err
 	}
@@ -936,6 +936,61 @@ func callOllamaChat(ctx context.Context, address string, reqBody map[string]any)
 		return ollamaChatMessage{}, raw, domain.Fail(domain.Provider, "local model chat response is invalid")
 	}
 	return parsed.Message, raw, nil
+}
+
+func (m *Manager) resolveLocalContextLength(ctx context.Context, address, model string) int {
+	maxTokens := 32768
+	if mem, err := m.ProbeLocalMemory(ctx); err == nil {
+		switch {
+		case mem.TotalBytes >= 128<<30:
+			maxTokens = 262144
+		case mem.TotalBytes >= 64<<30:
+			maxTokens = 131072
+		case mem.TotalBytes >= 36<<30:
+			maxTokens = 65536
+		}
+	}
+	payload, err := json.Marshal(map[string]string{"model": model})
+	if err != nil {
+		return maxTokens
+	}
+	showCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(showCtx, http.MethodPost, "http://"+address+"/api/show", bytes.NewReader(payload))
+	if err != nil {
+		return maxTokens
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := (&http.Client{Timeout: 2 * time.Second}).Do(req)
+	if err != nil {
+		return maxTokens
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return maxTokens
+	}
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 512<<10))
+	if err != nil {
+		return maxTokens
+	}
+	var info struct {
+		ModelInfo map[string]any `json:"model_info"`
+	}
+	if json.Unmarshal(raw, &info) != nil || info.ModelInfo == nil {
+		return maxTokens
+	}
+	advertised := 0
+	for key, val := range info.ModelInfo {
+		if strings.HasSuffix(key, ".context_length") {
+			if n, ok := val.(float64); ok && int(n) > advertised {
+				advertised = int(n)
+			}
+		}
+	}
+	if advertised > 0 && advertised < maxTokens {
+		return advertised
+	}
+	return maxTokens
 }
 
 func (m *Manager) invokeLocal(ctx context.Context, inv Invocation, directory string) (reply Reply, err error) {
@@ -970,7 +1025,7 @@ func (m *Manager) invokeLocal(ctx context.Context, inv Invocation, directory str
 		}
 	}
 
-	stdout, err := newInvocationOutput(filepath.Join(directory, "stdout.log"), 2<<20)
+	stdout, err := newInvocationOutput(filepath.Join(directory, "stdout.log"), 16<<20)
 	if err != nil {
 		return reply, err
 	}
@@ -987,7 +1042,8 @@ func (m *Manager) invokeLocal(ctx context.Context, inv Invocation, directory str
 
 	phase, isConversation := promptPhaseMeta(inv.Prompt)
 	schema := localReplySchema(phase, inv.Coding, isConversation)
-	options := map[string]any{"num_ctx": 32768, "temperature": 0.1}
+	numCtx := m.resolveLocalContextLength(ctx, address, model)
+	options := map[string]any{"num_ctx": numCtx, "temperature": 0.1}
 
 	messages := []ollamaChatMessage{
 		{
