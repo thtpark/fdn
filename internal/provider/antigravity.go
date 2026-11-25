@@ -20,6 +20,7 @@ import (
 )
 
 const antigravityAgent = "fdn-controller"
+const maxACPFrameBytes = 16 << 20
 
 type acpFrame struct {
 	JSONRPC string          `json:"jsonrpc"`
@@ -60,7 +61,7 @@ func acpCall(reader *bufio.Reader, writer io.Writer, id int, method string, para
 	}); err != nil {
 		return nil, err
 	}
-	for range 4096 {
+	for range 65536 {
 		data, err := reader.ReadSlice('\n')
 		if err != nil {
 			if errors.Is(err, bufio.ErrBufferFull) {
@@ -68,7 +69,7 @@ func acpCall(reader *bufio.Reader, writer io.Writer, id int, method string, para
 			}
 			return nil, err
 		}
-		if len(data) > domain.MaxBody {
+		if len(data) > maxACPFrameBytes {
 			return nil, domain.Fail(domain.Provider, "Antigravity ACP frame exceeds its bound")
 		}
 		var frame acpFrame
@@ -264,7 +265,7 @@ func (m *Manager) invokeAntigravity(ctx context.Context, inv Invocation, directo
 	environment := invocationEnvironment(m.Config, inv)
 	ctx, cancel := context.WithTimeout(ctx, inv.Timeout)
 	defer cancel()
-	stdout, err := newInvocationOutput(filepath.Join(directory, "stdout.log"), 2<<20)
+	stdout, err := newInvocationOutput(filepath.Join(directory, "stdout.log"), 16<<20)
 	if err != nil {
 		return reply, err
 	}
@@ -276,7 +277,7 @@ func (m *Manager) invokeAntigravity(ctx context.Context, inv Invocation, directo
 	var response strings.Builder
 	err = m.exchangeProcess(ctx, process.Spec{Path: inv.Path, Args: args, Dir: workspace, Env: environment,
 		Stdout: stdout, Stderr: stderr, Started: inv.Started}, func(input io.Reader, output io.Writer) error {
-		reader := bufio.NewReaderSize(input, domain.MaxBody)
+		reader := bufio.NewReaderSize(input, maxACPFrameBytes)
 		if err := acpInitialize(reader, output); err != nil {
 			return err
 		}

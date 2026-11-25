@@ -464,6 +464,13 @@ func Arguments(name, workspace, output, model string, coding bool) ([]string, er
 	return args, nil
 }
 
+func (m *Manager) copilotSupportsContextFlag(ctx context.Context, path string) bool {
+	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	help, err := m.capture(probeCtx, path, "", "--help")
+	return err == nil && bytes.Contains(help, []byte("--context"))
+}
+
 func (m *Manager) Invoke(ctx context.Context, inv Invocation) (reply Reply, err error) {
 	if !domain.ValidOperation(inv.ID) || inv.Timeout <= 0 {
 		return reply, domain.Fail(domain.Invalid, "invocation needs an ID and timeout")
@@ -494,6 +501,9 @@ func (m *Manager) Invoke(ctx context.Context, inv Invocation) (reply Reply, err 
 	if err != nil {
 		return reply, err
 	}
+	if inv.Provider == "copilot" && domain.SupportsCopilotLongContextTier(inv.Model) && m.copilotSupportsContextFlag(ctx, inv.Path) {
+		args = append(args, "--context", "long_context")
+	}
 	cwd := dir
 	if inv.Coding {
 		if inv.Workspace == "" {
@@ -503,7 +513,7 @@ func (m *Manager) Invoke(ctx context.Context, inv Invocation) (reply Reply, err 
 	}
 	ctx, cancel := context.WithTimeout(ctx, inv.Timeout)
 	defer cancel()
-	stdout, err := newInvocationOutput(filepath.Join(dir, "stdout.log"), 2<<20)
+	stdout, err := newInvocationOutput(filepath.Join(dir, "stdout.log"), 16<<20)
 	if err != nil {
 		return reply, err
 	}

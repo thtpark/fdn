@@ -186,6 +186,7 @@ func (e *Engine) watch(ctx context.Context, wake chan<- struct{}, ready chan<- s
 	initial := true
 	resync := true
 	backoff := time.Second
+	var unavailableSince time.Time
 	for ctx.Err() == nil {
 		checkpoint, err := e.updateCheckpoint(ctx, nil)
 		if err == nil {
@@ -197,6 +198,7 @@ func (e *Engine) watch(ctx context.Context, wake chan<- struct{}, ready chan<- s
 			resync = false
 		}
 		if err == nil {
+			unavailableSince = time.Time{}
 			e.clearProblem(ctx, "watch-problem")
 			if initial {
 				close(ready)
@@ -210,7 +212,17 @@ func (e *Engine) watch(ctx context.Context, wake chan<- struct{}, ready chan<- s
 		if ctx.Err() != nil {
 			return
 		}
-		e.recordProblem(ctx, "watch-problem", err)
+		if domain.AsFault(err).Code == domain.Unavailable {
+			now := e.Now()
+			if unavailableSince.IsZero() {
+				unavailableSince = now
+			}
+			if !now.Before(unavailableSince.Add(30 * time.Second)) {
+				e.recordProblem(ctx, "watch-problem", err)
+			}
+		} else {
+			e.recordProblem(ctx, "watch-problem", err)
+		}
 		timer := time.NewTimer(backoff)
 		select {
 		case <-ctx.Done():

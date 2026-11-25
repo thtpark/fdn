@@ -220,6 +220,11 @@ func (s *Store) assessHealth(ctx context.Context, q queryer, a domain.Agent, now
 		if problem.ResolvedAt != 0 {
 			continue
 		}
+		// Non-blocking background telemetry and optional update checks stay visible in
+		// Health.Problems without marking healthy/working automation blocked or firing alerts.
+		if problem.Component == "environment" || problem.Component == "provider-update" {
+			continue
+		}
 		// The controller fault also records the same step's concrete safety blocker.
 		if problem.Component == "controller" && h.Blocker != "" && h.Blocker != "controller-error" && h.Blocker != "work-prerequisite" {
 			continue

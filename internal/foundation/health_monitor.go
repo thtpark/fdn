@@ -300,7 +300,7 @@ func (s *Store) deliverHealthEpisode(ctx context.Context, tx *sql.Tx, agent doma
 				body += " The earlier cause is no longer the current observed condition; retained fences and results still require their normal authority."
 			}
 			message := domain.Message{ID: id, SenderID: agent.ID, RecipientID: recipient, Body: body,
-				Origin: "service", Kind: "health", Urgent: true, ResponseRequest: false, State: "pending", CreatedAt: observed, Revision: 1}
+				Origin: "service", Kind: "health", Urgent: state == "active", ResponseRequest: false, State: "pending", CreatedAt: observed, Revision: 1}
 			if _, err := insertMessage(ctx, tx, message); err != nil {
 				return err
 			}

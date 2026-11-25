@@ -792,7 +792,7 @@ func (e *Engine) newJournal(launch Launch, health provider.Health, model string)
 	if err != nil {
 		return local.Journal{}, err
 	}
-	if len(prompt) > 512<<10 {
+	if len(prompt) > domain.MaxPromptBytesForModel(health.Provider, model) {
 		return local.Journal{}, domain.Fail(domain.Prerequisite, "selected context exceeds the bounded prompt budget")
 	}
 	j := local.Journal{ID: domain.NewID("invocation"), Kind: launch.Phase, State: "prepared", Provider: health.Provider, ProviderVersion: health.Version, Model: model, Context: data, PromptHash: domain.Hash(prompt), CreatedAt: e.Now().UTC().Unix()}
