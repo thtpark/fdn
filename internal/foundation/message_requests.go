@@ -179,8 +179,8 @@ func (s *Store) messageActionCurrent(ctx context.Context, tx *sql.Tx, m domain.M
 			if err != nil {
 				return err
 			}
-			if !approved || task.Status != domain.Todo || task.Repetitive || task.ActiveRun != nil || task.Waiting != nil || task.WorkspaceRef == "" {
-				return domain.Fail(domain.Prerequisite, "accepting task execution requires current readiness, assignment, workspace and resolved blockers")
+			if !approved || task.Status != domain.Todo || task.Repetitive || task.ActiveRun != nil || task.Waiting != nil {
+				return domain.Fail(domain.Prerequisite, "accepting task execution requires current readiness, assignment and resolved blockers")
 			}
 		}
 		if next == "executing" && (task.ActiveRun == nil || task.ActiveRun.Kind == domain.VerificationRun ||
