@@ -443,7 +443,7 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent operation` | Exactly `REQUEST_ID` from `data.id`; bodyless GET of the common diagnostic-refresh/session-recovery state and safe result, visible only to its requester Founder or target |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
 | `agent-cli agent preferences` | `AGENT [--input FILE]`; Founder or self may set optional `provider`/`model` with required `reason`; optional `catalog:{binding_id,generation}` pins currently authenticated computer/model choices; independent revision/exact replay, no mode or running-call changes |
-| `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot/antigravity), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
+| `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot/antigravity), required `reason`, optional `project_id`; Founder-only protected sign-in handoff request (including account/API-key change when already signed in), valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban applies only to non-Founders |
 | `agent-cli agent register` | `--input SIGNED_PUBLIC [--output PUBLIC_PROFILE]`; Founder-only new signed public-key registration |
 | `agent-cli agent add` | `--host IP --user SSH_USER --name NAME [--port 22 --identity-file ABS --via-foundation]`; Founder-only new-worker installation and signed registration in a protected human terminal; direct SSH by default, optional authenticated Foundation-host relay |
@@ -2162,7 +2162,9 @@ show MESSAGE` retains their deadline/history and reports expired pending/deferre
 state. A receipt cannot revive an expired notice. Legacy requests/messages derive
 the deadline from their original creation; upgrade/restart does not renew them.
 
-Founder can explicitly ask an agent to check again, even while it remains paused:
+Founder can explicitly ask an agent to issue a fresh protected sign-in handoff,
+including while paused or when the provider is already signed in and Founder
+wants to switch accounts or configure a replacement API key:
 
 ```sh
 agent-cli --operation-id STABLE_NEW_REFRESH agent request-sign-in AGENT --input FILE
@@ -2176,10 +2178,11 @@ Include `project_id` to refresh a project-scoped episode. Server authority, not 
 message body or declared origin, enforces Founder-only issuance. The result is a
 protected urgent `authentication-refresh` message with a 15-minute expiry, not
 proof of delivery or sign-in. Its `handled` receipt means the target processed the
-check. The target probes the selected provider without inference and, only if
-sign-in is explicitly required/rejected, issues a fresh superseding request under
-its own identity. Healthy/credentials-present-unverified status does not produce
-a sign-in notice; unknown/outage status remains an explicit blocker. An offline
+check. The target probes the selected provider without inference and, when the
+provider is installed and reports `login-required`, `credentials-rejected`,
+`authenticated` or `credentials-present-unverified`, issues a fresh superseding
+sign-in handoff notice under its own identity without interrupting running work
+until a session is opened. Unknown/outage status remains an explicit blocker. An offline
 or fenced target may not process the refresh before it expires; Founder can issue
 a new operation when appropriate. Retry the same operation/input after a lost
 acknowledgement; a new intentional refresh needs a new operation ID.

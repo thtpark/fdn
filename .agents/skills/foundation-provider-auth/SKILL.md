@@ -78,8 +78,10 @@ after an upgrade without its exact supported stopped-process recovery.
    intentional refresh and reuse it after uncertainty. The protected urgent
    control also expires after 15 minutes; its handled receipt means the target
    checked, not that authentication succeeded. The target can check while
-   paused without resuming inference, sends a fresh superseding notice only
-   for explicit login-required/rejected status, and never opens login itself.
+   paused without resuming inference, sends a fresh superseding sign-in handoff
+   notice when the provider reports login-required, credentials-rejected,
+   authenticated or credentials-present-unverified (supporting account or API-key
+   replacement), and never opens login itself.
    Reuse existing episode/message operations for delivery uncertainty instead
    of repeating notices. Provider device-code and session/grant expiry are
    separate. A reply/receipt never proves sign-in; unknown provider status

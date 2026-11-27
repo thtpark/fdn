@@ -11,6 +11,8 @@ import (
 	"github.com/thtpark/fdn/internal/api"
 	"github.com/thtpark/fdn/internal/config"
 	"github.com/thtpark/fdn/internal/local"
+	"github.com/thtpark/fdn/internal/process"
+	"github.com/thtpark/fdn/internal/provider"
 	"github.com/thtpark/fdn/internal/secure"
 )
 
@@ -87,4 +89,65 @@ func TestTerminalAdmissionPreservesPendingInvocationAndSessionFences(t *testing.
 		t.Fatal("admission left a slot locked", err)
 	}
 	reopened.Close()
+}
+
+type nonForegroundRunner struct{}
+
+func (nonForegroundRunner) Run(ctx context.Context, spec process.Spec) error {
+	spec.Terminal = nil
+	return (process.Native{}).Run(ctx, spec)
+}
+
+func TestAntigravityLoginClearsSavedAPIKeyWhenSwitchingToOAuth(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "home")
+	t.Setenv("HOME", home)
+	stateDir := filepath.Join(home, "state")
+	executable := filepath.Join(home, "fixture-agy")
+	script := "#!/bin/sh\nif [ \"$1\" = \"--help\" ]; then\n  printf '%s\\n' '--json-schema --output-format --agent --settings --disable-slash-commands'\n  exit 0\nfi\nif [ \"$1\" = \"acp\" ] && [ \"$2\" = \"--help\" ]; then\n  printf '%s\\n' '--stdio --include-default-customizations --gemini-dir --dangerously-skip-permissions --disable-telemetry --login'\n  exit 0\nfi\nif [ \"$1\" = \"acp\" ] && [ \"$2\" = \"--login\" ]; then\n  exit 0\nfi\nexit 1\n"
+	if err := secure.Create(executable, []byte(script)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(executable, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.SaveAntigravityAPIKey(stateDir, "AIzaSyPreviousSavedKey123456"); err != nil {
+		t.Fatal(err)
+	}
+	c := config.DefaultWorker(stateDir)
+	c.ProviderPaths = map[string]string{"antigravity": executable}
+	inFile := filepath.Join(home, "stdin")
+	outFile := filepath.Join(home, "stdout")
+	errFile := filepath.Join(home, "stderr")
+	if err := os.WriteFile(inFile, []byte("2\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	input, err := os.Open(inFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer input.Close()
+	output, err := os.Create(outFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer output.Close()
+	diagnostic, err := os.Create(errFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer diagnostic.Close()
+
+	res := &resources{config: c}
+	manager := &provider.Manager{Config: c, Runner: nonForegroundRunner{}}
+	result, err := (&app{}).runAntigravityLogin(context.Background(), res, manager, input, output, diagnostic, false, false, false)
+	if err != nil {
+		t.Fatal("OAuth switch failed", err)
+	}
+	rendered, readErr := os.ReadFile(outFile)
+	if readErr != nil || !bytes.Contains(rendered, []byte("Current credential: saved GEMINI_API_KEY")) {
+		t.Fatalf("expected menu to disclose active saved API key presence, got %q (%v)", string(rendered), readErr)
+	}
+	if _, statErr := os.Stat(provider.AntigravityAPIKeyPath(stateDir)); !os.IsNotExist(statErr) {
+		t.Fatal("switching Antigravity to Google OAuth left the saved GEMINI_API_KEY active", statErr, result)
+	}
 }

@@ -100,6 +100,11 @@ func (a *app) runAntigravityLogin(ctx context.Context, r *resources, manager *pr
 		choice = "2"
 	default:
 		_, _ = fmt.Fprintln(output, "Antigravity authentication (protected human terminal)")
+		if r.config.StateDir != "" {
+			if _, statErr := os.Stat(provider.AntigravityAPIKeyPath(r.config.StateDir)); statErr == nil {
+				_, _ = fmt.Fprintln(output, "  Current credential: saved GEMINI_API_KEY (select 1 to replace key, 2 to switch to Google OAuth, or 3 to clear key)")
+			}
+		}
 		_, _ = fmt.Fprintln(output, "  1) Configure GEMINI_API_KEY (recommended — unlocks Gemini 4 Carbon, Neon, Argon, Hydrogen)")
 		_, _ = fmt.Fprintln(output, "  2) Sign in with Google OAuth (agy acp --login)")
 		_, _ = fmt.Fprintln(output, "  3) Clear saved GEMINI_API_KEY")
@@ -151,8 +156,11 @@ func (a *app) runAntigravityLogin(ctx context.Context, r *resources, manager *pr
 		if err != nil {
 			return nil, err
 		}
-		err = (process.Native{}).Run(ctx, process.Spec{Path: path, Args: arguments, Dir: r.config.StateDir, Env: process.Environment(), Stdin: input, Stdout: output, Stderr: diagnostic, Terminal: input})
+		err = manager.Runner.Run(ctx, process.Spec{Path: path, Args: arguments, Dir: r.config.StateDir, Env: process.Environment(), Stdin: input, Stdout: output, Stderr: diagnostic, Terminal: input})
 		if err == nil {
+			if clearErr := provider.ClearAntigravityAPIKey(r.config.StateDir); clearErr != nil {
+				return nil, clearErr
+			}
 			publishCatalogBestEffort(ctx, r)
 		}
 		return map[string]bool{"login_command_finished": err == nil, "authentication_validated": false}, err

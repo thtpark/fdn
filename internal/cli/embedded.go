@@ -84,7 +84,7 @@ func (e *Embedded) Snapshot(ctx context.Context, q observe.Query) (json.RawMessa
 }
 
 var embeddedWrites = []string{
-	"agent status", "agent mode", "project create", "project change", "task create", "task change",
+	"agent status", "agent mode", "agent request-sign-in", "project create", "project change", "task create", "task change",
 	"agent preferences",
 	"agent diagnose", "agent reset", "agent repair", "agent restart",
 	"local-model init",
@@ -108,7 +108,7 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 		}
 	}
 	targeted := slices.Contains([]string{
-		"agent mode", "project change", "task change", "comment add", "comment edit", "worklog add",
+		"agent mode", "agent request-sign-in", "project change", "task change", "comment add", "comment edit", "worklog add",
 		"agent preferences",
 		"agent diagnose", "agent reset", "agent repair", "agent restart",
 		"local-model init",
@@ -161,7 +161,7 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 	}
 	pause := args[0] == "agent" && args[1] == "mode"
 	sharing := args[0] == "share"
-	agentControl := (args[0] == "agent" && slices.Contains([]string{"diagnose", "reset", "repair", "restart"}, args[1])) ||
+	agentControl := (args[0] == "agent" && slices.Contains([]string{"diagnose", "reset", "repair", "restart", "request-sign-in"}, args[1])) ||
 		(args[0] == "local-model" && args[1] == "init")
 	if me.Mode != "manual" && !pause && !sharing && !agentControl {
 		return nil, domain.Fail(domain.Prerequisite, "human publishing requires freshly confirmed manual mode")
