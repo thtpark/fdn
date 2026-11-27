@@ -423,14 +423,27 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		}
 		launch.Capabilities, launch.InventoryHash = inventory.Summary(), inventory.Hash()
 		launch.SystemCapabilities = inventory.SystemCapabilities
-		status.State, status.JournalID = "onboarding", ""
 		journal, err := e.text(ctx, c, launch, manual)
-		status.JournalID = journal.ID
-		return status, err
+		if err == nil {
+			status.State, status.JournalID = "onboarding", journal.ID
+			return status, nil
+		}
+		var fenced textResponseFenced
+		if !errors.As(err, &fenced) {
+			status.State, status.JournalID = "onboarding", journal.ID
+			return status, err
+		}
+		fault := domain.AsFault(err)
+		status.Blockers = append(status.Blockers, Blocker{Code: fault.Code, Reason: fault.Message})
+	} else {
+		status.InitialReviewDone = true
 	}
-	status.InitialReviewDone = true
 	if acted, err := e.continueConversationActions(ctx, c, manual); err != nil {
-		return status, err
+		fault := domain.AsFault(err)
+		if acted || !slices.Contains([]domain.Code{domain.Prerequisite, domain.Conflict, domain.NotFound, domain.Denied}, fault.Code) {
+			return status, err
+		}
+		status.Blockers = append(status.Blockers, Blocker{Code: fault.Code, Reason: fault.Message})
 	} else if acted {
 		status.State = "task"
 		return status, nil

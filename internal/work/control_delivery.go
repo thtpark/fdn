@@ -53,7 +53,7 @@ func (e *Engine) retryHelpDeliveries(ctx context.Context) error {
 			task = &domain.Task{ID: request.TaskID, ProjectID: request.ProjectID, SpecGeneration: request.SpecGeneration}
 		}
 		actionCtx := context.WithValue(ctx, requestedActionContext{}, request.ActionKey)
-		_, err := e.refreshAuthentication(actionCtx, c, request.Provider, task, request.RefreshID)
+		_, err := e.refreshAuthenticationWithStatus(actionCtx, c, request.Provider, task, request.RefreshID, request.ObservedAuthentication)
 		blocked = errors.Join(blocked, err)
 	}
 	permission, err := e.permissionRequests(ctx)

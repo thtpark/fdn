@@ -117,6 +117,7 @@ func TestEmbeddedCLIFailsClosedBeforeDesktopOrFileInputDispatch(t *testing.T) {
 		{"work", "run"}, {"provider", "exec"}, {"service", "install"}, {"agent", "register"},
 		{"device", "register"}, {"session", "open"}, {"upgrade", "apply"},
 		{"agent", "add"}, {"agent", "request-sign-in"}, {"assistance", "grant"}, {"assistance", "open"},
+		{"agent", "request-sign-in", "agent_target", "--input", "/private/must-not-read"},
 		{"local-model", "init", "--input", "-"},
 		{"local-model", "status"},
 		{"message", "send", "--input", "/private/must-not-read"},
@@ -210,5 +211,81 @@ func TestEmbeddedCLILocalModelInitWorksForFounderControlAndRejectsLocalExecution
 	last := recorded[len(recorded)-1]
 	if last.method != http.MethodPost || last.path != "/v1/agents/agent_target/local-models" {
 		t.Fatal("embedded local-model init routed unexpectedly", last)
+	}
+}
+
+func TestEmbeddedCLIRequestSignInWorksForFounderInAIOrManualMode(t *testing.T) {
+	ctx := context.Background()
+	founderMode := "ai"
+	worker, _, requests := operationCLIFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v1/me" {
+			diagnosticsEnvelope(t, w, domain.Agent{ID: "agent_founder", Name: "Founder", Founder: true, Active: true, Mode: founderMode}, nil)
+			return
+		}
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/agents/agent_target/authentication" {
+			var req domain.AuthenticationRefreshRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				diagnosticsEnvelope(t, w, nil, domain.Fail(domain.Invalid, "invalid input"))
+				return
+			}
+			diagnosticsEnvelope(t, w, domain.Message{
+				ID:                    "message_refresh_mobile",
+				SenderID:              "agent_founder",
+				RecipientID:           "agent_target",
+				Kind:                  "authentication-refresh",
+				Origin:                "service",
+				Urgent:                true,
+				State:                 "pending",
+				Revision:              1,
+				AuthenticationRefresh: &domain.AuthenticationRefresh{Provider: req.Provider, ProjectID: req.ProjectID, Reason: req.Reason},
+			}, nil)
+			return
+		}
+		diagnosticsEnvelope(t, w, nil, domain.Fail(domain.NotFound, "unexpected route"))
+	})
+	state, err := local.Open(ctx, worker.StateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { state.Close() })
+	client, err := api.NewLocalClient(worker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { client.Close() })
+	if err := config.Read(worker.CredentialFile, &client.Credential); err != nil {
+		t.Fatal(err)
+	}
+	embedded, err := NewEmbedded(worker, state, client, func() any {
+		return map[string]any{"runtime": "foreground-founder", "ready": true}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"ai", "manual"} {
+		founderMode = mode
+		opID := "mobile-request-sign-in-" + mode
+		body := json.RawMessage(`{"provider":"antigravity","reason":"Switch Antigravity to GEMINI_API_KEY from iPhone"}`)
+		data, err := embedded.Mutate(ctx, []string{"agent", "request-sign-in", "agent_target", "--input", "-"}, body, opID, 0)
+		if err != nil {
+			t.Fatalf("mode %s failed: %v", mode, err)
+		}
+		var msg domain.Message
+		if err := json.Unmarshal(data, &msg); err != nil || msg.ID != "message_refresh_mobile" || msg.AuthenticationRefresh == nil || msg.AuthenticationRefresh.Provider != "antigravity" {
+			t.Fatalf("unexpected embedded request-sign-in response in mode %s: %+v (%v)", mode, msg, err)
+		}
+		replay, err := embedded.Mutate(ctx, []string{"agent", "request-sign-in", "agent_target", "--input", "-"}, body, opID, 0)
+		if err != nil || !bytes.Equal(data, replay) {
+			t.Fatalf("embedded request-sign-in replay mismatch in mode %s: %v", mode, err)
+		}
+	}
+	var posts []operationCLIRequest
+	for _, req := range requests() {
+		if req.method == http.MethodPost {
+			posts = append(posts, req)
+		}
+	}
+	if len(posts) != 4 || posts[0].path != "/v1/agents/agent_target/authentication" || !bytes.Equal(posts[0].body, posts[1].body) {
+		t.Fatal("embedded request-sign-in did not preserve exact route/proposal across replay", posts)
 	}
 }

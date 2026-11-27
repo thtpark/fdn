@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -62,6 +63,15 @@ func (n Native) OpenOwned(ctx context.Context, s domain.Session, c config.Worker
 		if err != nil {
 			return nil, &startupFailure{error: err, clean: true}
 		}
+		if s.Provider == "antigravity" && c.SourcePath() != "" {
+			if selfExe, exeErr := os.Executable(); exeErr == nil {
+				siblingCLI := filepath.Join(filepath.Dir(selfExe), "agent-cli")
+				if info, statErr := os.Stat(siblingCLI); statErr == nil && !info.IsDir() && info.Mode()&0111 != 0 {
+					path = siblingCLI
+					native = []string{"--config", c.SourcePath(), "provider", "login", "--provider", "antigravity", "--session-admitted"}
+				}
+			}
+		}
 		args = append(append(args, path), native...)
 	} else if len(n.Command) != 0 {
 		args = append(args, n.Command...)
@@ -75,7 +85,14 @@ func (n Native) OpenOwned(ctx context.Context, s domain.Session, c config.Worker
 		return nil, &startupFailure{error: err, clean: !errors.Is(err, os.ErrExist)}
 	}
 	cmd := exec.Command("tmux", args...)
-	cmd.Env = process.Environment("TERM=xterm-256color")
+	extraEnv := []string{"TERM=xterm-256color"}
+	if c.SourcePath() != "" {
+		extraEnv = append(extraEnv, config.WorkerConfigEnvironment+"="+c.SourcePath())
+	}
+	if s.Purpose == "authentication" {
+		extraEnv = append(extraEnv, "FDN_SESSION_ADMITTED=1")
+	}
+	cmd.Env = process.Environment(extraEnv...)
 	cmd.Dir = directory
 	if socketDirectory != "" {
 		cmd.Dir = socketDirectory

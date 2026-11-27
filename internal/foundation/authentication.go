@@ -15,8 +15,8 @@ func (s *Store) RequestAuthentication(ctx context.Context, actor, target string,
 		if _, err := activeIdentitySubject(ctx, tx, target); err != nil {
 			return domain.Message{}, err
 		}
-		if !domain.ValidProvider(req.Provider) {
-			return domain.Message{}, domain.Fail(domain.Invalid, "authentication refresh requires codex or copilot")
+		if !domain.ValidProvider(req.Provider) || req.Provider == "local" {
+			return domain.Message{}, domain.Fail(domain.Invalid, "authentication refresh requires codex, copilot or antigravity")
 		}
 		if err := domain.CheckText(req.Reason, "nonsecret authentication refresh reason", 8192, true); err != nil {
 			return domain.Message{}, err
@@ -33,7 +33,7 @@ func (s *Store) RequestAuthentication(ctx context.Context, actor, target string,
 		now := s.timestamp()
 		message := domain.Message{
 			ID: domain.NewID("message"), SenderID: a.ID, RecipientID: target,
-			Body:   "Founder requested a fresh " + req.Provider + " sign-in status notice if sign-in is required. This is not a sign-in, assistance grant, mode change, or inference request.",
+			Body:   "Founder requested a fresh " + req.Provider + " sign-in handoff notice (including re-authentication or account/API-key change when already signed in). This is not a sign-in, assistance grant, mode change, or inference request.",
 			Origin: "service", Kind: "authentication-refresh", Urgent: true,
 			State: "pending", CreatedAt: now, ExpiresAt: now + domain.AuthenticationRequestTTL, Revision: 1,
 			AuthenticationRefresh: &domain.AuthenticationRefresh{Provider: req.Provider, ProjectID: req.ProjectID, Reason: req.Reason},
