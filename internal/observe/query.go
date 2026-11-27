@@ -90,7 +90,7 @@ func (q Query) Matches(u domain.Update, actor string) bool {
 		return u.SourceID == actor && (u.Topic == "agent" || u.Topic == "agent-mode" || u.Topic == "agent-status")
 	case "agents":
 		return u.Topic == "agent" || u.Topic == "agent-mode" || u.Topic == "agent-status"
-	case "agent", "diagnostics":
+	case "agent", "diagnostics", "environment":
 		return u.SourceID == q.ID
 	case "modelOptions":
 		return u.SourceID == q.ID && u.Topic == "agent-model-options"
@@ -185,7 +185,7 @@ func Filters(queries []Query, actor string) (domain.UpdateFilter, domain.UpdateF
 			}
 		case "agents":
 			public.Topics = append(public.Topics, "agent", "agent-mode", "agent-status")
-		case "agent", "diagnostics", "modelOptions":
+		case "agent", "diagnostics", "modelOptions", "environment":
 			public.Sources = append(public.Sources, q.ID)
 		case "projects":
 			public.Topics = append(public.Topics, "project", "project-creation")

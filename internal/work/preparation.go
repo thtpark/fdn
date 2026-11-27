@@ -78,12 +78,11 @@ func (e *Engine) prepare(ctx context.Context, c config.Worker, task domain.Task,
 	}
 	if ready || task.Waiting != nil {
 		if ready {
-			if _, err := e.State.Workspace(ctx, task.WorkspaceRef); err != nil {
-				return false, e.permissionBlocked(ctx, c, launch, "workspace", err)
-			}
-			if err := e.resolvePermission(ctx, requestedAction(ctx, launch), "workspace"); err != nil {
+			task, _, err = e.workspace(ctx, c, task)
+			if err != nil {
 				return false, err
 			}
+			launch.Task = &task
 		}
 		if task.Clarity == nil || task.Clarity.SpecGeneration != task.SpecGeneration || task.Clarity.DiscussionGeneration != task.DiscussionGeneration || task.Clarity.ProjectEpoch != project.Epoch || task.Waiting != nil {
 			launch.Phase = "preflight"

@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "version": "0.3.58",
+  "version": "0.3.59",
   "platform": "linux-amd64",
   "timeout_seconds": 300,
   "profile": "debian",
@@ -26,7 +26,7 @@
     }
   ],
   "outputs": [
-    { "path": "dist/linux-amd64/fdn-agent_0.3.58_amd64.deb", "mode": 420 }
+    { "path": "dist/linux-amd64/fdn-agent_0.3.59_amd64.deb", "mode": 420 }
   ],
   "dependencies": []
 }

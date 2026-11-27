@@ -127,6 +127,47 @@ func assertCode(t *testing.T, err error, code domain.Code) {
 	}
 }
 
+func TestApproveWithoutWorkspaceAllowsAssigneeInitialBindWithoutInvalidatingReadiness(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	project, err := f.s.CreateProject(ctx, f.founder.ID, domain.ProjectRequest{Command: op(), Name: "assignee-workspace"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := f.s.CreateTask(ctx, f.founder.ID, domain.TaskRequest{
+		Command: op(), ProjectID: project.ID, Title: "assignee-owned workspace",
+		Description: "Assignee selects and binds its own local workspace.", AcceptanceCriteria: "Executes without manual Founder workspace binding.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task = f.change(t, f.founder.ID, task.ID, "assign", func(r *domain.TaskChange) { r.AgentID = f.worker.ID; r.Provider = "codex" })
+	task = f.change(t, f.founder.ID, task.ID, "status", func(r *domain.TaskChange) { r.Status = domain.Todo })
+	if task.WorkspaceRef != "" {
+		t.Fatalf("expected empty workspace_ref after assignment, got %q", task.WorkspaceRef)
+	}
+	approved := f.change(t, f.founder.ID, task.ID, "approve", func(r *domain.TaskChange) { r.SpecGeneration = task.SpecGeneration })
+	if approved.Readiness == nil || approved.WorkspaceRef != "" {
+		t.Fatalf("expected approval to succeed without pre-bound workspace: %+v", approved)
+	}
+	bound := f.change(t, f.worker.ID, task.ID, "workspace", func(r *domain.TaskChange) { r.WorkspaceRef = "workspace_assignee_default" })
+	if bound.WorkspaceRef != "workspace_assignee_default" || bound.SpecGeneration != approved.SpecGeneration || bound.Readiness == nil {
+		t.Fatalf("assignee initial workspace bind invalidated existing readiness: %+v", bound)
+	}
+	bound = f.change(t, f.worker.ID, task.ID, "clarity", func(r *domain.TaskChange) { r.SpecGeneration = bound.SpecGeneration })
+	run, err := f.s.Claim(ctx, f.worker.ID, task.ID, domain.ClaimRequest{
+		Command:        domain.Command{OperationID: op().OperationID, ExpectedRevision: bound.Revision},
+		SpecGeneration: bound.SpecGeneration, Provider: "codex", TokenHash: domain.Hash(domain.NewToken()),
+	})
+	if err != nil || run.State != "running" {
+		t.Fatalf("expected claim to succeed after assignee bound workspace: %+v %v", run, err)
+	}
+	_, err = f.s.Report(ctx, f.worker.ID, task.ID, domain.ReportRequest{
+		Command: op(), RunID: run.ID, Token: "invalid_short_token", Outcome: "paused", Summary: "check",
+	})
+	assertCode(t, err, domain.Denied)
+}
+
 func TestProjectEpochAndRetainedReasons(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()

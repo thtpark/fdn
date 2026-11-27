@@ -33,7 +33,10 @@ func (s *Store) PublishEnvironment(ctx context.Context, actor string, req domain
 		}
 		result = domain.ComputerEnvironment{BindingID: binding, DeviceName: name, Generation: identity.Generation,
 			ReceivedAt: s.timestamp(), Observation: req.Observation}
-		return result, saveHealthSetting(ctx, tx, environmentReportKey+binding, result)
+		if err := saveHealthSetting(ctx, tx, environmentReportKey+binding, result); err != nil {
+			return result, err
+		}
+		return result, s.event(ctx, tx, "agent", a.ID, "", "")
 	})
 }
 
