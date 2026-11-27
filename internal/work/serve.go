@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -343,13 +344,17 @@ func (e *Engine) localSafetyFingerprint(ctx context.Context) (string, error) {
 		Problem string
 	}
 	observation := struct {
-		Config     config.Worker
-		Values     map[string]json.RawMessage
-		Journals   []journalState
-		Workspaces []workspaceState
-		Blocks     []TextResponseBlock
-		Reports    int
+		Config            config.Worker
+		Values            map[string]json.RawMessage
+		Journals          []journalState
+		Workspaces        []workspaceState
+		Blocks            []TextResponseBlock
+		Reports           int
+		AntigravityKeyTag string
 	}{Config: c, Values: snapshot.Values, Reports: snapshot.PendingReports}
+	if keyData, keyErr := os.ReadFile(provider.AntigravityAPIKeyPath(c.StateDir)); keyErr == nil && len(keyData) > 0 {
+		observation.AntigravityKeyTag = domain.Hash(string(keyData))
+	}
 	for _, journal := range snapshot.Journals {
 		observation.Journals = append(observation.Journals, journalState{journal.ID, journal.State})
 	}

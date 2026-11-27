@@ -133,7 +133,8 @@ func (b *BoundedBuffer) Bytes() ([]byte, error) {
 
 func Environment(extra ...string) []string {
 	allowed := map[string]bool{"HOME": true, "USER": true, "LOGNAME": true, "PATH": true, "SHELL": true, "TMPDIR": true, "LANG": true, "LC_ALL": true, "TERM": true,
-		"CODEX_HOME": true, "COPILOT_HOME": true, "XDG_CONFIG_HOME": true, "XDG_DATA_HOME": true, "XDG_STATE_HOME": true}
+		"CODEX_HOME": true, "COPILOT_HOME": true, "XDG_CONFIG_HOME": true, "XDG_DATA_HOME": true, "XDG_STATE_HOME": true,
+		"AGY_ADC_AUTH": true, "GOOGLE_CLOUD_PROJECT": true, "GOOGLE_CLOUD_LOCATION": true, "GOOGLE_APPLICATION_CREDENTIALS": true}
 	env := []string{}
 	for _, item := range os.Environ() {
 		for i, c := range item {

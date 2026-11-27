@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "version": "0.3.59",
+  "version": "0.3.60",
   "platform": "darwin-arm64",
   "timeout_seconds": 300,
   "profile": "archive",

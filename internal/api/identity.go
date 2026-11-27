@@ -38,7 +38,7 @@ type controllerOwner struct {
 	generation    int64
 	conn          ownerConnection
 	ctx           context.Context
-	cancel        context.CancelFunc
+	cancel        context.CancelCauseFunc
 }
 
 type ownerReference struct {
@@ -114,7 +114,7 @@ func (s *identityServer) retire(id string) {
 	}
 	s.mu.Unlock()
 	for _, owner := range owners {
-		owner.cancel()
+		owner.cancel(domain.Fail(domain.Denied, "identity owner authority was withdrawn"))
 		owner.conn.CloseNow()
 		s.release(owner)
 	}
@@ -131,7 +131,7 @@ func (s *identityServer) denyOlder(id string, generation int64, reason string) {
 	}
 	s.mu.Unlock()
 	for _, owner := range owners {
-		owner.cancel()
+		owner.cancel(domain.Fail(domain.Denied, reason))
 		owner.conn.Close(websocket.StatusPolicyViolation, reason)
 		s.release(owner)
 	}
@@ -192,7 +192,7 @@ func (s *identityServer) close() {
 	s.owners = map[ownerReference]*controllerOwner{}
 	s.mu.Unlock()
 	for _, o := range owners {
-		o.cancel()
+		o.cancel(domain.Fail(domain.Unavailable, "Foundation is stopping"))
 		o.conn.CloseNow()
 		s.release(o)
 	}
@@ -465,7 +465,7 @@ func (s *Server) admitOwner(ctx, lifetime context.Context, actor domain.Agent, i
 			delete(s.identity.owners, ownerReference{old.binding, old.generation})
 			s.identity.mu.Unlock()
 			_ = old.conn.Close(websocket.StatusPolicyViolation, "duplicate identity banned; explicit recovery required")
-			old.cancel()
+			old.cancel(domain.Fail(domain.Denied, "duplicate identity banned; explicit recovery required"))
 			_ = conn.Close(websocket.StatusPolicyViolation, "duplicate identity banned; explicit recovery required")
 			s.Log.Warn("identity banned after confirmed duplicate ownership", "agent_id", actor.ID)
 			s.disableIdentity(ctx, actor.ID)
@@ -476,14 +476,14 @@ func (s *Server) admitOwner(ctx, lifetime context.Context, actor domain.Agent, i
 	if err != nil {
 		return nil, identity, err
 	}
-	ownerCtx, cancel := context.WithCancel(lifetime)
+	ownerCtx, cancel := context.WithCancelCause(lifetime)
 	entry := &controllerOwner{actor: actor.ID, binding: identity.BindingID(), founder: actor.Founder,
 		key: request.OwnerKey, keyGeneration: identity.Generation, instance: identity.InstanceID,
 		generation: identity.OwnerGeneration, conn: conn, ctx: ownerCtx, cancel: cancel}
 	s.identity.mu.Lock()
 	if s.identity.closed {
 		s.identity.mu.Unlock()
-		cancel()
+		cancel(domain.Fail(domain.Unavailable, "Foundation is stopping"))
 		s.identity.release(entry)
 		return nil, identity, domain.Fail(domain.Unavailable, "Foundation is stopping")
 	}
@@ -493,14 +493,14 @@ func (s *Server) admitOwner(ctx, lifetime context.Context, actor domain.Agent, i
 	s.identity.owners[ownerReference{entry.binding, entry.generation}] = entry
 	s.identity.mu.Unlock()
 	if old != nil {
-		old.cancel()
+		old.cancel(domain.Fail(domain.Unavailable, "owner session replaced by a renewed connection"))
 		_ = old.conn.CloseNow()
 	}
 	return entry, identity, nil
 }
 
 func (s *Server) releaseOwner(entry *controllerOwner) {
-	entry.cancel()
+	entry.cancel(domain.Fail(domain.Unavailable, "owner session closed; reconnect required"))
 	lock := s.identity.lock(entry.binding)
 	lock.Lock()
 	defer lock.Unlock()

@@ -2013,7 +2013,7 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 | `agent-cli provider status` | `[--provider codex\|copilot\|antigravity\|local]`; bounded version/capability/auth probes without inference |
 | `agent-cli provider install` | `--provider NAME --version EXACT`; staged integrity/signature/capability checks under the shared local slot |
 | `agent-cli provider update` | `[--provider NAME]`; explicit latest resolution, retains previous version on staging failure |
-| `agent-cli provider login` | `[--provider NAME]`; actual human TTY only; probes login help and prefers supported device-code/headless flow, otherwise native login; local models need no vendor login |
+| `agent-cli provider login` | `[--provider NAME] [--gemini-api-key\|--oauth\|--clear-api-key]`; actual human TTY only; probes login help and prefers supported device-code/headless flow (or masked `GEMINI_API_KEY` / OAuth selection for `antigravity`), otherwise native login; local models need no vendor login |
 | `agent-cli provider link` | Repair/install this account's stable codex/copilot/agy launchers and login PATH without downloading, authenticating or running a provider |
 | `agent-cli provider exec` | `--provider NAME -- NATIVE_ARGUMENTS`; resolve the active managed version, preserve native output/exit status; interactive commands require a human terminal and the shared local slot |
 | `agent-cli local-model init` | `[AGENT_ID] [--agent AGENT_ID] [--model qwen3.8:27b] [--quantized] [--quantization auto\|q4_K_M\|q8_0\|bf16] [--set-preference] [--reason REASON] [--input FILE]`; initialize Qwen 3.8 27B locally under `work.lock` or, when Founder names `AGENT_ID`, queue a 60-minute `local-model-init` `AgentOperation` so the target downloads verified runtime/weights, checks GPU VRAM or system RAM constraints, publishes `model-options` and optionally sets `agent preferences` |
@@ -2214,10 +2214,13 @@ executable hashes are checked again on resolution; native `update`/`install`
 commands cannot bypass Foundation activation. Automatic updates consider
 Antigravity only after explicit installation.
 
-Readiness uses only ACP initialize/session admission/model metadata/close; an
-`Authentication required` response remains login-required and starts no login.
-Human `provider login --provider antigravity` uses the advertised `agy acp --login`
-flow through the existing protected terminal. Text calls select a fixed custom
+Readiness uses only ACP initialize/session admission/model metadata/close (with
+non-interactive `gemini-api-key` selection when a private `GEMINI_API_KEY` is
+configured); an `Authentication required` response remains login-required and
+starts no login. Human `provider login --provider antigravity` offers masked
+`GEMINI_API_KEY` entry (persisted owner-only in provider state and supporting
+`gemini-4-carbon` and effort variants) or the advertised `agy acp --login` flow
+through the existing protected terminal. Text calls select a fixed custom
 agent with no tools and strict deny rules; coding selects only the documented
 file/search/command tools, with unattended permissions. Client file/terminal
 capabilities, MCP, inherited customizations, hooks/plugins and subagent tools are

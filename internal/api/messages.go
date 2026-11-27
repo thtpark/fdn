@@ -433,7 +433,11 @@ func (s *Server) ServeMessageConnection(ctx context.Context, conn net.Conn, purp
 	}
 	defer session.Close()
 	stop := context.AfterFunc(owner, func() {
-		_ = session.Shutdown(domain.Fail(domain.Denied, "identity owner authority was withdrawn"))
+		cause := context.Cause(owner)
+		if domain.AsFault(cause).Code != domain.Denied {
+			cause = domain.Fail(domain.Unavailable, "owner session closed; reconnect required")
+		}
+		_ = session.Shutdown(cause)
 	})
 	defer stop()
 	<-session.Done()

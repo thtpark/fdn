@@ -191,6 +191,9 @@ func (e *Engine) continueConversationActions(ctx context.Context, c config.Worke
 			if action.State == "reporting" {
 				return true, errors.Join(err, e.deliverConversationAction(ctx, &action))
 			}
+			if slices.Contains([]domain.Code{domain.Prerequisite, domain.Conflict, domain.NotFound, domain.Denied}, domain.AsFault(err).Code) {
+				continue
+			}
 			return true, err
 		}
 		launch, err := e.launch(ctx, domain.ExecutionRun, &task)

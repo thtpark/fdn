@@ -255,6 +255,10 @@ func (e *Engine) research(ctx context.Context, c config.Worker, tasks []domain.T
 			return false, err
 		}
 		_, err = e.text(ctx, c, launch, manual)
+		var fenced textResponseFenced
+		if errors.As(err, &fenced) {
+			continue
+		}
 		return true, err
 	}
 	return false, nil
