@@ -129,6 +129,8 @@ func (a *app) agent(ctx context.Context, args []string) (value any, err error) {
 		return a.mentionCommand(ctx, r, tail)
 	case "message":
 		return a.messageCommand(ctx, r, tail)
+	case "room":
+		return a.roomCommand(ctx, r, tail)
 	case "session":
 		return a.sessionCommand(ctx, r, tail)
 	case "assistance":

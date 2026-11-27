@@ -56,7 +56,11 @@ func invocationPrompt(context []byte) (string, error) {
 	contract += "You may deliberately change your own default provider/model with preferred_model={provider,model,reason} in a valid structured reply. For that optional preference change, choose only from fresh authenticated_model_options for this computer; credentials-present-unverified and signed-out providers are not eligible choices. An empty model delegates model selection to that authenticated provider. This changes only your default for future calls, never the pinned task/provider/model, mode, identity, approval, spending, retry budgets or retained/in-flight journals. Do not claim a preference was saved until Foundation acknowledges the exact proposal. If no authenticated options are reported, omit preferred_model rather than inventing a choice. An unavailable optional catalog is not itself a blocker for otherwise admitted work with its existing pinned provider/model; the native controller independently enforces actual authentication and fallback.\n"
 	if launch.ConversationID != "" && launch.Phase != domain.RecoveryRun {
 		contract += "This is the tool-enabled execution of a recorded Adhoc conversation action, not a text acknowledgement. Inspect applicable local/project skills and retrieve relevant current thread, task, notes, knowledge and workspace context before acting or answering. Reference actual records and checks in evidence. Perform the retained action only within the recipient's current authority and existing workspace/OS permissions; an Adhoc record does not authorize another project's unapproved work, root changes, protected consent, spending, contracts or disclosure. Report actual results or concrete blockers, never a promise or invented success. Do not retry prior uncertain effects. response_requested defaults to true; set false only when a further response is unnecessary.\n"
+		contract += "To share a generated or local file, image or video in a room reply, upload it first with agent-cli file upload --path FILE and reference ![filename](foundation-file://FILE_ID) for inline images/videos or @FILE_ID for downloadable files in summary; the controller will attach those finalized files automatically.\n"
 		contract += "Include public_report={summary,evidence} with a detailed team-safe account of the actual work, checks, outcome, blockers and next steps for the shared task and worklog. Keep the private reply in summary/evidence separate: never copy private conversation text, credentials, private paths or raw transcripts into public_report. Publish significant in-scope progress through worklog add using intentional team-safe summaries, not terminal dumps. A completed outcome still awaits independent verification.\n"
+	}
+	if launch.Room != nil {
+		contract += "This message is from a realtime Messages room (kind=" + launch.Room.Kind + "). Review message_room, room_members, room_message and room_history for full multi-party context and any reply_to_id quote. Only mention another agent with @{NAME} when intentionally requesting their attention.\n"
 	}
 	if launch.Message != nil && launch.Message.Announcement != nil {
 		contract += "This is an authenticated scoped announcement. Action requests use the same autonomous source-bound action workflow: act within current authority and granted OS/workspace permissions, then report actual results or blockers. Do not add per-message approval for already permitted nondestructive work. Destructive changes, new resource costs and native software replacement require explicit Founder approval; an upgrade request is not an exact native installation permit. Never bypass native upgrade policy, pause, work-slot, retry, identity or uncertainty fences.\n"
@@ -103,6 +107,12 @@ type Launch struct {
 	Knowledge          []local.Knowledge                  `json:"selected_private_knowledge"`
 	SharedNotes        []domain.Note                      `json:"shared_notes"`
 	Message            *domain.Message                    `json:"message,omitempty"`
+	Room               *domain.MessageRoom                `json:"message_room,omitempty"`
+	RoomMessage        *domain.RoomMessage                `json:"room_message,omitempty"`
+	RoomDelivery       *domain.RoomDelivery               `json:"room_delivery,omitempty"`
+	RoomHistory        []domain.RoomMessage               `json:"room_history,omitempty"`
+	RoomHistoryCursor  string                             `json:"room_history_cursor,omitempty"`
+	RoomMembers        []domain.Agent                     `json:"room_members,omitempty"`
 	RequestParent      *domain.Message                    `json:"request_parent,omitempty"`
 	Attention          *domain.Attention                  `json:"attention,omitempty"`
 	InventoryHash      string                             `json:"inventory_hash,omitempty"`
@@ -454,6 +464,12 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		status.State = "urgent-message"
 		return status, nil
 	}
+	if acted, err := e.roomMessages(ctx, c, true, manual); err != nil {
+		return status, err
+	} else if acted {
+		status.State = "urgent-message"
+		return status, nil
+	}
 	tasks, err := e.assigned(ctx, me.ID)
 	if err != nil {
 		return status, err
@@ -593,6 +609,12 @@ func (e *Engine) Step(ctx context.Context, manual bool) (status Status, err erro
 		return status, nil
 	}
 	if acted, err := e.messages(ctx, c, false, manual); err != nil {
+		return status, err
+	} else if acted {
+		status.State = "message"
+		return status, nil
+	}
+	if acted, err := e.roomMessages(ctx, c, false, manual); err != nil {
 		return status, err
 	} else if acted {
 		status.State = "message"
@@ -876,11 +898,17 @@ func (e *Engine) invokeText(ctx context.Context, c config.Worker, j *local.Journ
 		return err
 	}
 	if launch.Phase == "message" || launch.Phase == "request" {
-		if launch.Message == nil {
-			return domain.Fail(domain.Internal, "message processing requires its exact recipient-owned ordinary source")
-		}
-		if err := e.acknowledgeProcessingMessage(invocationCtx, *launch.Message); err != nil {
-			return err
+		if launch.RoomMessage != nil {
+			if err := e.acknowledgeProcessingRoomMessage(invocationCtx, *launch.RoomMessage); err != nil {
+				return err
+			}
+		} else {
+			if launch.Message == nil {
+				return domain.Fail(domain.Internal, "message processing requires its exact recipient-owned ordinary source")
+			}
+			if err := e.acknowledgeProcessingMessage(invocationCtx, *launch.Message); err != nil {
+				return err
+			}
 		}
 	}
 	if err := e.phaseHealth(ctx, "invoking", &launch, j.ID, min(c.InvocationTimeoutSeconds, 300), true); err != nil {

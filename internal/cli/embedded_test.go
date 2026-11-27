@@ -66,6 +66,15 @@ func TestEmbeddedCLIManualMessageCommentAndTaskWrites(t *testing.T) {
 		{name: "task", args: []string{"task", "change", "task_fixture", "--input", "-"},
 			body: `{"title":"Phone task title"}`, path: "/v1/tasks/task_fixture/change",
 			revision: 7, field: "title", value: "Phone task title"},
+		{name: "room-create", args: []string{"room", "create", "--input", "-"},
+			body: `{"kind":"group","name":"Mobile Team","member_ids":["agent_peer"]}`,
+			path: "/v1/rooms", field: "name", value: "Mobile Team"},
+		{name: "room-send", args: []string{"room", "send", "room_fixture", "--input", "-"},
+			body: `{"body":"Phone room message","origin":"human"}`,
+			path: "/v1/rooms/room_fixture/messages", field: "body", value: "Phone room message"},
+		{name: "room-change", args: []string{"room", "change", "room_fixture", "--input", "-"},
+			body: `{"name":"Renamed Mobile Team"}`,
+			path: "/v1/rooms/room_fixture/change", revision: 2, field: "name", value: "Renamed Mobile Team"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			operation := "embedded-" + test.name
@@ -106,7 +115,7 @@ func TestEmbeddedCLIManualMessageCommentAndTaskWrites(t *testing.T) {
 			writes = append(writes, request)
 		}
 	}
-	if len(writes) != 4 || !bytes.Equal(writes[0].body, writes[3].body) {
+	if len(writes) != 7 || !bytes.Equal(writes[0].body, writes[6].body) {
 		t.Fatal("embedded message replay changed the exact retained proposal", writes)
 	}
 }

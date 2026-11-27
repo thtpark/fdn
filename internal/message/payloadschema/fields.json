@@ -3175,6 +3175,76 @@
       "name": "urgent"
     }
   },
+  "MessageRoom": {
+    "AddedMemberIDs": {
+      "id": 6,
+      "name": "added_member_ids"
+    },
+    "CreatedAt": {
+      "id": 8,
+      "name": "created_at"
+    },
+    "CreatedBy": {
+      "id": 7,
+      "name": "created_by"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 2,
+      "name": "kind"
+    },
+    "LastMessageAt": {
+      "id": 10,
+      "name": "last_message_at"
+    },
+    "LastMessageID": {
+      "id": 11,
+      "name": "last_message_id"
+    },
+    "LastMessagePreview": {
+      "id": 12,
+      "name": "last_message_preview"
+    },
+    "LastReadAt": {
+      "id": 17,
+      "name": "last_read_at"
+    },
+    "LastSenderID": {
+      "id": 13,
+      "name": "last_sender_id"
+    },
+    "MemberIDs": {
+      "id": 5,
+      "name": "member_ids"
+    },
+    "MentionCount": {
+      "id": 16,
+      "name": "mention_count"
+    },
+    "Name": {
+      "id": 3,
+      "name": "name"
+    },
+    "ProjectID": {
+      "id": 4,
+      "name": "project_id"
+    },
+    "Revision": {
+      "id": 14,
+      "name": "revision"
+    },
+    "UnreadCount": {
+      "id": 15,
+      "name": "unread_count"
+    },
+    "UpdatedAt": {
+      "id": 9,
+      "name": "updated_at"
+    }
+  },
   "MessageWorkerCommand": {
     "MessageID": {
       "id": 1,
@@ -4091,6 +4161,266 @@
     "Reason": {
       "id": 3,
       "name": "reason"
+    }
+  },
+  "RoomChangeRequest": {
+    "AddMemberIDs": {
+      "id": 4,
+      "name": "add_member_ids"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Name": {
+      "id": 3,
+      "name": "name"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    }
+  },
+  "RoomCreateRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "Kind": {
+      "id": 3,
+      "name": "kind"
+    },
+    "MemberIDs": {
+      "id": 6,
+      "name": "member_ids"
+    },
+    "Name": {
+      "id": 4,
+      "name": "name"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "ProjectID": {
+      "id": 5,
+      "name": "project_id"
+    }
+  },
+  "RoomDelivery": {
+    "AgentID": {
+      "id": 3,
+      "name": "agent_id"
+    },
+    "HandledAt": {
+      "id": 8,
+      "name": "handled_at"
+    },
+    "Message": {
+      "id": 1,
+      "name": "message"
+    },
+    "ReadAt": {
+      "id": 7,
+      "name": "read_at"
+    },
+    "ResponseRequest": {
+      "id": 5,
+      "name": "response_requested"
+    },
+    "Revision": {
+      "id": 9,
+      "name": "revision"
+    },
+    "Room": {
+      "id": 2,
+      "name": "room"
+    },
+    "State": {
+      "id": 4,
+      "name": "state"
+    },
+    "Urgent": {
+      "id": 6,
+      "name": "urgent"
+    }
+  },
+  "RoomDeliveryReceipt": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "State": {
+      "id": 3,
+      "name": "state"
+    }
+  },
+  "RoomMessage": {
+    "Attachments": {
+      "id": 15,
+      "name": "attachments"
+    },
+    "Body": {
+      "id": 6,
+      "name": "body"
+    },
+    "CreatedAt": {
+      "id": 17,
+      "name": "created_at"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "Kind": {
+      "id": 8,
+      "name": "kind"
+    },
+    "Mentions": {
+      "id": 13,
+      "name": "mentions"
+    },
+    "Origin": {
+      "id": 7,
+      "name": "origin"
+    },
+    "ProjectID": {
+      "id": 4,
+      "name": "project_id"
+    },
+    "ReadBy": {
+      "id": 16,
+      "name": "read_by"
+    },
+    "ReplyPreview": {
+      "id": 12,
+      "name": "reply_preview"
+    },
+    "ReplyToID": {
+      "id": 11,
+      "name": "reply_to_id"
+    },
+    "ResponseRequest": {
+      "id": 10,
+      "name": "response_requested"
+    },
+    "Revision": {
+      "id": 18,
+      "name": "revision"
+    },
+    "RoomID": {
+      "id": 2,
+      "name": "room_id"
+    },
+    "RoomKind": {
+      "id": 3,
+      "name": "room_kind"
+    },
+    "SenderID": {
+      "id": 5,
+      "name": "sender_id"
+    },
+    "TargetAgentIDs": {
+      "id": 14,
+      "name": "target_agent_ids"
+    },
+    "Urgent": {
+      "id": 9,
+      "name": "urgent"
+    }
+  },
+  "RoomMessageRequest": {
+    "AttachmentIDs": {
+      "id": 8,
+      "name": "attachment_ids"
+    },
+    "Body": {
+      "id": 3,
+      "name": "body"
+    },
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "Origin": {
+      "id": 4,
+      "name": "origin"
+    },
+    "ReplyToID": {
+      "id": 7,
+      "name": "reply_to_id"
+    },
+    "ResponseRequest": {
+      "id": 6,
+      "name": "response_requested"
+    },
+    "Urgent": {
+      "id": 5,
+      "name": "urgent"
+    }
+  },
+  "RoomReadReceipt": {
+    "AgentID": {
+      "id": 1,
+      "name": "agent_id"
+    },
+    "ReadAt": {
+      "id": 2,
+      "name": "read_at"
+    }
+  },
+  "RoomReadRequest": {
+    "ExpectedRevision": {
+      "id": 2,
+      "name": "expected_revision"
+    },
+    "OperationID": {
+      "id": 1,
+      "name": "operation_id"
+    },
+    "UpToMessageID": {
+      "id": 3,
+      "name": "up_to_message_id"
+    }
+  },
+  "RoomReadResult": {
+    "ReadAt": {
+      "id": 3,
+      "name": "read_at"
+    },
+    "ReadCount": {
+      "id": 2,
+      "name": "read_count"
+    },
+    "RoomID": {
+      "id": 1,
+      "name": "room_id"
+    }
+  },
+  "RoomReplyPreview": {
+    "AttachmentCount": {
+      "id": 4,
+      "name": "attachment_count"
+    },
+    "Body": {
+      "id": 3,
+      "name": "body"
+    },
+    "ID": {
+      "id": 1,
+      "name": "id"
+    },
+    "SenderID": {
+      "id": 2,
+      "name": "sender_id"
     }
   },
   "Run": {

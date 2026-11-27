@@ -399,6 +399,40 @@ func (e *Engine) applyText(ctx context.Context, j *local.Journal, launch Launch,
 			}
 		}
 	case "message":
+		if launch.RoomMessage != nil {
+			if reply.Outcome != "responded" || len(reply.Questions) != 0 {
+				return domain.Fail(domain.Provider, "room message reply must be a tool-disabled text response")
+			}
+			if err := e.validateRoomConversationSource(ctx, launch); err != nil {
+				var previous proposal
+				found, stateErr := e.State.Get(ctx, "proposal:"+j.ID+".receipt", &previous)
+				if stateErr != nil {
+					return stateErr
+				}
+				if found && len(previous.Result) != 0 {
+					return e.done(ctx, j)
+				}
+				return err
+			}
+			if reply.MessageRead {
+				if _, err := commit[domain.RoomMessage](ctx, e, "POST", api.Path("room-messages", launch.RoomMessage.ID, "read"),
+					domain.MessageReadRequest{Command: domain.Command{OperationID: j.ID + ".read"}}); err != nil {
+					return errors.Join(domain.Fail(domain.Prerequisite, "explicit room message read acknowledgement remains pending; reconcile the exact receipt without another model call"), err)
+				}
+			}
+			if err := e.sendRoomConversationReply(ctx, j.ID+".reply", *launch.RoomMessage, reply); err != nil {
+				return err
+			}
+			rev := int64(1)
+			if launch.RoomDelivery != nil && launch.RoomDelivery.Revision > 0 {
+				rev = launch.RoomDelivery.Revision
+			}
+			if _, err := commit[domain.RoomDelivery](ctx, e, "POST", api.Path("room-deliveries", launch.RoomMessage.ID, "receipt"),
+				domain.RoomDeliveryReceipt{Command: domain.Command{OperationID: j.ID + ".receipt", ExpectedRevision: rev}, State: "handled"}); err != nil {
+				return err
+			}
+			break
+		}
 		if launch.Message == nil || launch.Message.Kind != "direct" || reply.Outcome != "responded" || len(reply.Questions) != 0 {
 			return domain.Fail(domain.Provider, "message reply must be a tool-disabled text response")
 		}

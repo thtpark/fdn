@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "version": "0.3.61",
+  "version": "0.3.62",
   "platform": "linux-amd64",
   "timeout_seconds": 300,
   "profile": "debian",
@@ -26,7 +26,7 @@
     }
   ],
   "outputs": [
-    {     "path": "dist/linux-amd64/fdn-foundation_0.3.61_amd64.deb", "mode": 420 }
+    {     "path": "dist/linux-amd64/fdn-foundation_0.3.62_amd64.deb", "mode": 420 }
   ],
   "dependencies": []
 }

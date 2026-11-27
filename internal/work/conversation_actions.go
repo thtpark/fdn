@@ -35,7 +35,13 @@ type conversationAction struct {
 
 func conversationActionID(launch Launch) string {
 	source := ""
-	if launch.Message != nil {
+	if launch.RoomMessage != nil {
+		rev := int64(1)
+		if launch.RoomDelivery != nil && launch.RoomDelivery.Revision > 0 {
+			rev = launch.RoomDelivery.Revision
+		}
+		source = fmt.Sprintf("room-message:%s:%d", launch.RoomMessage.ID, rev)
+	} else if launch.Message != nil {
 		source = fmt.Sprintf("message:%s:%d", launch.Message.ID, launch.Message.Revision)
 	} else if launch.Attention != nil {
 		source = fmt.Sprintf("comment:%s:%d", launch.Attention.EntryID, launch.Attention.Generation)
@@ -93,7 +99,43 @@ func (e *Engine) queueConversationAction(ctx context.Context, journal *local.Jou
 	return e.done(ctx, journal)
 }
 
+func (e *Engine) validateRoomConversationSource(ctx context.Context, launch Launch) error {
+	if launch.RoomMessage == nil {
+		return domain.Fail(domain.Internal, "room conversation action has no room message source")
+	}
+	cursor := ""
+	for {
+		path := "/v1/room-deliveries?limit=200"
+		if cursor != "" {
+			path += "&cursor=" + cursor
+		}
+		page, err := api.Call[domain.Page[domain.RoomDelivery]](ctx, e.Client, "GET", path, nil)
+		if err != nil {
+			return err
+		}
+		for _, d := range page.Items {
+			if d.Message.ID == launch.RoomMessage.ID {
+				expectedRev := int64(1)
+				if launch.RoomDelivery != nil && launch.RoomDelivery.Revision > 0 {
+					expectedRev = launch.RoomDelivery.Revision
+				}
+				if d.State != "pending" || !d.ResponseRequest || d.Revision != expectedRev {
+					return domain.Fail(domain.Conflict, "source room message delivery state changed")
+				}
+				return nil
+			}
+		}
+		cursor = page.NextCursor
+		if cursor == "" {
+			return domain.Fail(domain.Conflict, "source room message delivery is no longer pending")
+		}
+	}
+}
+
 func (e *Engine) validateConversationSource(ctx context.Context, launch Launch) error {
+	if launch.RoomMessage != nil {
+		return e.validateRoomConversationSource(ctx, launch)
+	}
 	actor := e.Client.Credential.AgentID
 	if source := launch.Message; source != nil {
 		current, err := api.Call[domain.Message](ctx, e.Client, "GET", api.Path("messages", source.ID), nil)
@@ -201,6 +243,8 @@ func (e *Engine) continueConversationActions(ctx context.Context, c config.Worke
 			return true, err
 		}
 		launch.Message, launch.Attention = action.Source.Message, action.Source.Attention
+		launch.Room, launch.RoomMessage, launch.RoomDelivery = action.Source.Room, action.Source.RoomMessage, action.Source.RoomDelivery
+		launch.RoomHistory, launch.RoomHistoryCursor, launch.RoomMembers = action.Source.RoomHistory, action.Source.RoomHistoryCursor, action.Source.RoomMembers
 		launch.Thread, launch.ThreadCursor = action.Source.Thread, action.Source.ThreadCursor
 		launch.ContextIncomplete, launch.Requester = action.Source.ContextIncomplete, action.Source.Requester
 		launch.ReferencedTasks = slices.Clone(action.Source.ReferencedTasks)
@@ -400,7 +444,27 @@ func (e *Engine) deliverConversationAction(ctx context.Context, action *conversa
 	result.Evidence = append(slices.Clone(result.Evidence), "Adhoc task: "+action.TaskID, "Execution run: "+run.ID)
 	source := action.Source
 	operation := conversationOperation(*action)
-	if source.Message != nil {
+	if source.RoomMessage != nil {
+		if action.Read && !action.SourceHandled {
+			if _, err := commit[domain.RoomMessage](ctx, e, "POST", api.Path("room-messages", source.RoomMessage.ID, "read"),
+				domain.MessageReadRequest{Command: domain.Command{OperationID: operation + ".read"}}); err != nil {
+				return err
+			}
+		}
+		if err := e.sendRoomConversationReply(ctx, operation+".reply", *source.RoomMessage, result); err != nil {
+			return err
+		}
+		if !action.SourceHandled {
+			rev := int64(1)
+			if source.RoomDelivery != nil && source.RoomDelivery.Revision > 0 {
+				rev = source.RoomDelivery.Revision
+			}
+			if _, err := commit[domain.RoomDelivery](ctx, e, "POST", api.Path("room-deliveries", source.RoomMessage.ID, "receipt"),
+				domain.RoomDeliveryReceipt{Command: domain.Command{OperationID: operation + ".receipt", ExpectedRevision: rev}, State: "handled"}); err != nil {
+				return err
+			}
+		}
+	} else if source.Message != nil {
 		if action.Read && !action.SourceHandled {
 			if _, err := commit[domain.Message](ctx, e, "POST", api.Path("messages", source.Message.ID, "read"),
 				domain.MessageReadRequest{Command: domain.Command{OperationID: operation + ".read"}}); err != nil {
@@ -454,6 +518,13 @@ func (e *Engine) guardConversationAction(ctx context.Context, cancel context.Can
 	}
 	for _, source := range sources {
 		subscription := &authoritySubscription{}
+		if source.RoomMessage != nil {
+			subscription.roomID = source.RoomMessage.RoomID
+			subscription.messageID = source.RoomMessage.ID
+			if source.Room != nil && source.Room.ProjectID != "" {
+				subscription.projectID = source.Room.ProjectID
+			}
+		}
 		if source.Message != nil {
 			subscription.messageID = source.Message.ID
 			if source.Message.Announcement != nil {

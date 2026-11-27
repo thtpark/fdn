@@ -31,12 +31,28 @@ func healthSince(report healthReport, eventAt int64) int64 {
 }
 
 func pendingHealthReplies(ctx context.Context, q queryer, agent string) (int, int64, error) {
-	var count int
-	var oldest sql.NullInt64
-	err := q.QueryRowContext(ctx, `SELECT count(*), min(json_extract(data,'$.created_at')) FROM messages
+	var msgCount, roomCount int
+	var msgOldest, roomOldest sql.NullInt64
+	if err := q.QueryRowContext(ctx, `SELECT count(*), min(json_extract(data,'$.created_at')) FROM messages
 WHERE recipient_id=? AND state='pending' AND json_extract(data,'$.kind')='direct'
-AND json_extract(data,'$.response_requested')=1`, agent).Scan(&count, &oldest)
-	return count, oldest.Int64, err
+AND json_extract(data,'$.response_requested')=1`, agent).Scan(&msgCount, &msgOldest); err != nil {
+		return 0, 0, err
+	}
+	if err := q.QueryRowContext(ctx, `SELECT count(*), min(m.created_at) FROM room_deliveries d
+JOIN room_messages m ON m.id=d.message_id
+WHERE d.agent_id=? AND d.state='pending' AND d.response_requested=1`, agent).Scan(&roomCount, &roomOldest); err != nil {
+		return 0, 0, err
+	}
+	total := msgCount + roomCount
+	var oldest int64
+	if msgOldest.Valid && roomOldest.Valid {
+		oldest = min(msgOldest.Int64, roomOldest.Int64)
+	} else if msgOldest.Valid {
+		oldest = msgOldest.Int64
+	} else if roomOldest.Valid {
+		oldest = roomOldest.Int64
+	}
+	return total, oldest, nil
 }
 
 func healthScopedTask(ctx context.Context, q queryer, a domain.Agent, h *domain.WorkerHealth) (string, error) {
@@ -282,8 +298,14 @@ func (s *Store) assessHealth(ctx context.Context, q queryer, a domain.Agent, now
 	if d.PendingReplies != 0 {
 		if now-d.OldestReplyAt > domain.HealthReplyWaitSeconds {
 			var messageID string
-			if err := q.QueryRowContext(ctx, `SELECT id FROM messages WHERE recipient_id=? AND state='pending'
-AND json_extract(data,'$.kind')='direct' AND json_extract(data,'$.response_requested')=1 ORDER BY json_extract(data,'$.created_at'),id LIMIT 1`, a.ID).Scan(&messageID); err != nil {
+			err := q.QueryRowContext(ctx, `SELECT id FROM (
+SELECT id, json_extract(data,'$.created_at') AS ts FROM messages WHERE recipient_id=? AND state='pending'
+AND json_extract(data,'$.kind')='direct' AND json_extract(data,'$.response_requested')=1
+UNION ALL
+SELECT d.message_id AS id, m.created_at AS ts FROM room_deliveries d JOIN room_messages m ON m.id=d.message_id
+WHERE d.agent_id=? AND d.state='pending' AND d.response_requested=1
+) ORDER BY ts, id LIMIT 1`, a.ID, a.ID).Scan(&messageID)
+			if err != nil {
 				return assessment, err
 			}
 			assessment.actionKey, assessment.taskID = "message:"+messageID, ""
@@ -338,12 +360,30 @@ func (s *Store) AgentDiagnostics(ctx context.Context, actor, target string) (dom
 			id   *string
 		}{{d.Health.ActionKind, &d.Health.ActionID}, {d.Health.LastActionKind, &d.Health.LastActionID}} {
 			if action.kind == "message" && *action.id != "" {
-				m, err := get[domain.Message](ctx, tx, "messages", *action.id)
-				if err != nil {
-					return d, err
-				}
-				if m.SenderID != actor && m.RecipientID != actor {
-					*action.id = ""
+				if len(*action.id) > 13 && (*action.id)[:13] == "room_message_" {
+					rm, err := get[domain.RoomMessage](ctx, tx, "room_messages", *action.id)
+					if err != nil {
+						return d, err
+					}
+					room, _, err := loadOrSynthesizeRoom(ctx, tx, rm.RoomID)
+					if err != nil {
+						return d, err
+					}
+					visible, err := hydrateRoom(ctx, tx, actor, &room)
+					if err != nil {
+						return d, err
+					}
+					if !visible || !slices.Contains(room.MemberIDs, actor) {
+						*action.id = ""
+					}
+				} else {
+					m, err := get[domain.Message](ctx, tx, "messages", *action.id)
+					if err != nil {
+						return d, err
+					}
+					if m.SenderID != actor && m.RecipientID != actor {
+						*action.id = ""
+					}
 				}
 			} else if action.kind == "onboarding" || action.kind == "research" {
 				*action.id = ""

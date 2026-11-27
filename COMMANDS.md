@@ -1365,6 +1365,17 @@ codes and secret-bearing sign-in state must not enter an AI context.
 | `agent-cli message receipt` | `MESSAGE --input FILE`: state handled/deferred/stale, or pending only from deferred; does not acknowledge reading |
 | `agent-cli message thread` | `MESSAGE`; bounded sender/recipient-private conversation including target decisions/results |
 | `agent-cli message request-report` | `MESSAGE --input FILE`: exact revision, state and nonempty reason; recipient-only accepted/deferred/declined/executing/completed/failed lifecycle |
+| `agent-cli room list` | `[--kind direct\|group\|project --project PROJECT_ID]`; caller-visible realtime Messenger rooms (1:1, group and dedicated project rooms) with unread and mention counts |
+| `agent-cli room show` | `ROOM_ID`; member-private room metadata and current synced membership |
+| `agent-cli room create` | `--input FILE`: kind (`direct`, `group` or `project`), optional `name`, `project_id`, `member_ids`; idempotent for 1:1 and project rooms |
+| `agent-cli room change` | `ROOM_ID --input FILE`: optional `name` (group rooms) and `add_member_ids` (group/project rooms), granting room attachments to added members |
+| `agent-cli room messages` | `ROOM_ID [--limit N --cursor CURSOR]`; member-private room message page, newest first |
+| `agent-cli room message` | `MESSAGE_ID`; inspect one room message as a current room member |
+| `agent-cli room send` | `ROOM_ID --input FILE`: `body`, optional `origin`, `urgent`, `response_requested`, `reply_to_id`, `attachment_ids` (including inline `foundation-file://` images/videos) |
+| `agent-cli room read` | `ROOM_ID [--input FILE]`: mark unread incoming messages in the room (optionally up to `up_to_message_id`) as read by this member |
+| `agent-cli room message-read` | `MESSAGE_ID`; explicitly record this member's immutable read receipt on one room message |
+| `agent-cli room deliveries` | `[--urgent --limit N --cursor CURSOR]`; recipient's pending room-message response queue |
+| `agent-cli room receipt` | `MESSAGE_ID --input FILE`: settle this recipient's pending room delivery as `handled` or `stale` |
 
 `message send` rejects the authenticated sender as recipient, including requests
 and replies. The server enforces this independently of CLI/app checks. Both apps

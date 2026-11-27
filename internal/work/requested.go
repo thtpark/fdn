@@ -28,6 +28,13 @@ func requestedAction(ctx context.Context, launch Launch) string {
 	if operation, _ := ctx.Value(requestedActionContext{}).(string); operation != "" {
 		return "explicit:" + operation
 	}
+	if launch.RoomMessage != nil {
+		rev := int64(1)
+		if launch.RoomDelivery != nil && launch.RoomDelivery.Revision > 0 {
+			rev = launch.RoomDelivery.Revision
+		}
+		return fmt.Sprintf("room-message:%s:%d", launch.RoomMessage.ID, rev)
+	}
 	if launch.Message != nil {
 		return fmt.Sprintf("message:%s:%d", launch.Message.ID, launch.Message.Revision)
 	}
@@ -82,6 +89,27 @@ func (e *Engine) requestedAuthentication(ctx context.Context, c config.Worker, m
 		}
 		cursor = page.NextCursor
 		if cursor == "" {
+			break
+		}
+	}
+	roomCursor := ""
+	for {
+		path := "/v1/room-deliveries?limit=200"
+		if roomCursor != "" {
+			path += "&cursor=" + url.QueryEscape(roomCursor)
+		}
+		page, err := api.Call[domain.Page[domain.RoomDelivery]](ctx, e.Client, "GET", path, nil)
+		if err != nil {
+			return err
+		}
+		for index := range page.Items {
+			delivery := page.Items[index]
+			room := delivery.Room
+			msg := delivery.Message
+			launches = append(launches, Launch{Room: &room, RoomMessage: &msg, RoomDelivery: &delivery})
+		}
+		roomCursor = page.NextCursor
+		if roomCursor == "" {
 			break
 		}
 	}

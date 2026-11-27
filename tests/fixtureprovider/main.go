@@ -87,6 +87,15 @@ func main() {
 				WorkspaceRef:       strings.TrimPrefix(launch.Message.Body, "fixture-conversation-action "),
 			}
 		}
+		if launch.RoomMessage != nil && strings.HasPrefix(launch.RoomMessage.Body, "fixture-conversation-action ") {
+			reply.Action = &provider.ConversationAction{
+				Title:              "Write and verify the requested fixture room result",
+				Description:        "Read the applicable skill and relevant room context, write the requested result, and check the saved contents.",
+				AcceptanceCriteria: "Verify the actual output and deliver checked results to the source room.",
+				Instructions:       "Read the matching fixture skill and relevant room context, perform the local action, and report actual checks.",
+				WorkspaceRef:       strings.TrimPrefix(launch.RoomMessage.Body, "fixture-conversation-action "),
+			}
+		}
 	case "research":
 		reply.Outcome = "researched"
 	case "recovery":

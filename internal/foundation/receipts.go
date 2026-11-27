@@ -71,6 +71,10 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "entries", ID: v.ID}
 	case domain.Message:
 		ref = storedResult{Kind: "messages", ID: v.ID}
+	case domain.MessageRoom:
+		ref = storedResult{Kind: "message_rooms", ID: v.ID}
+	case domain.RoomMessage:
+		ref = storedResult{Kind: "room_messages", ID: v.ID}
 	case domain.AgentOperation:
 		ref = storedResult{Kind: "agent-operation", ID: v.ID}
 	case domain.UpgradePermit:
@@ -93,7 +97,7 @@ func resultReceipt(value any) ([]byte, error) {
 		ref = storedResult{Kind: "assistance-help", ID: v.ID, Value: data}
 	case domain.ReportOutcome:
 		ref = storedResult{Kind: "report", ID: v.Run.ID, TaskID: v.Task.ID, Accepted: v.Accepted, Stale: v.Stale}
-	case domain.Attention, map[string]bool, []domain.Screen, domain.Sharing, domain.ComputerEnvironment, domain.ComputerModelOptions, domain.AnnouncementReceipt, domain.FileProgress, domain.FileDownloadReceipt, domain.UpgradeMaintenance, domain.ProviderPreferences, domain.UpgradeLease, domain.ImprovementPolicy, domain.SoftwareInventory, domain.SoftwareConsumer, domain.SoftwareMaintenance:
+	case domain.Attention, map[string]bool, []domain.Screen, domain.Sharing, domain.ComputerEnvironment, domain.ComputerModelOptions, domain.AnnouncementReceipt, domain.FileProgress, domain.FileDownloadReceipt, domain.UpgradeMaintenance, domain.ProviderPreferences, domain.UpgradeLease, domain.ImprovementPolicy, domain.SoftwareInventory, domain.SoftwareConsumer, domain.SoftwareMaintenance, domain.RoomDelivery, domain.RoomReadResult:
 		data, err := json.Marshal(v)
 		if err != nil {
 			return nil, err
@@ -191,6 +195,15 @@ func replayResult[T any](ctx context.Context, tx *sql.Tx, actor string, data []b
 		value, err = get[domain.Entry](ctx, tx, ref.Kind, ref.ID)
 	case "messages":
 		value, err = get[domain.Message](ctx, tx, ref.Kind, ref.ID)
+	case "message_rooms":
+		var room domain.MessageRoom
+		room, err = get[domain.MessageRoom](ctx, tx, ref.Kind, ref.ID)
+		if err == nil {
+			_, err = hydrateRoom(ctx, tx, actor, &room)
+		}
+		value = room
+	case "room_messages":
+		value, err = get[domain.RoomMessage](ctx, tx, ref.Kind, ref.ID)
 	case "agent-operation":
 		value, err = getAgentOperation(ctx, tx, ref.ID)
 	case "upgrade-permit":

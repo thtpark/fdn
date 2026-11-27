@@ -28,7 +28,9 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/software-maintenance/*",
 		"/healthz", "/v1/me", "/v1/identity/status", "/v1/identity/devices", "/v1/agents", "/v1/agents/*", "/v1/agents/*/screens", "/v1/agents/*/diagnostics", "/v1/ownership", "/v1/projects", "/v1/projects/*",
 		"/v1/tasks", "/v1/tasks/*", "/v1/tasks/*/entries", "/v1/tasks/*/runs", "/v1/runs/*", "/v1/history/*", "/v1/attention", "/v1/events",
-		"/v1/messages", "/v1/messages/*", "/v1/messages/*/diagnostics", "/v1/messages/*/thread", "/v1/sessions", "/v1/sessions/*", "/v1/sessions/*/relay/requester", "/v1/sessions/*/relay/target",
+		"/v1/messages", "/v1/messages/*", "/v1/messages/*/diagnostics", "/v1/messages/*/thread",
+		"/v1/rooms", "/v1/rooms/*", "/v1/rooms/*/messages", "/v1/room-messages/*", "/v1/room-deliveries",
+		"/v1/sessions", "/v1/sessions/*", "/v1/sessions/*/relay/requester", "/v1/sessions/*/relay/target",
 		"/v1/assistance", "/v1/assistance/*", "/v1/agent-operations", "/v1/agent-operations/*", "/v1/upgrades/context", "/v1/message-requests",
 		"/v1/notes", "/v1/note-context",
 		"/v1/agents/*/environment", "/v1/announcements/audience", "/v1/messages/*/announcement-authority",
@@ -50,7 +52,9 @@ var ordinaryRoutes = map[string][]string{
 		"/v1/identity/register", "/v1/identity/*/recover", "/v1/identity/devices", "/v1/identity/devices/*/revoke",
 		"/v1/heartbeat", "/v1/agents/*/screens", "/v1/agents/*/mode", "/v1/agents/*/revoke", "/v1/agents/*/authentication", "/v1/agents/*/diagnostics", "/v1/agents/*/repairs", "/v1/agents/*/reset", "/v1/agents/*/local-models", "/v1/agents/*/status", "/v1/agent-operations/*/result", "/v1/projects", "/v1/projects/*/change", "/v1/project-creation-grants", "/v1/projects/*/delegates",
 		"/v1/tasks", "/v1/tasks/*/change", "/v1/tasks/*/entries", "/v1/tasks/*/claim", "/v1/tasks/*/report", "/v1/entries/*", "/v1/attention/*",
-		"/v1/messages", "/v1/messages/*/receipt", "/v1/messages/*/read", "/v1/messages/*/request", "/v1/sessions", "/v1/sessions/*", "/v1/assistance", "/v1/assistance/requests", "/v1/assistance/*/revoke", "/v1/upgrades/authorize", "/v1/upgrades/lease", "/v1/upgrades/maintenance",
+		"/v1/messages", "/v1/messages/*/receipt", "/v1/messages/*/read", "/v1/messages/*/request",
+		"/v1/rooms", "/v1/rooms/*/change", "/v1/rooms/*/messages", "/v1/rooms/*/read", "/v1/room-messages/*/read", "/v1/room-deliveries/*/receipt",
+		"/v1/sessions", "/v1/sessions/*", "/v1/assistance", "/v1/assistance/requests", "/v1/assistance/*/revoke", "/v1/upgrades/authorize", "/v1/upgrades/lease", "/v1/upgrades/maintenance",
 		"/v1/notes",
 		"/v1/agents/*/environment", "/v1/announcements",
 		"/v1/files", "/v1/files/*/chunks", "/v1/files/*/finalize", "/v1/files/*/publish", "/v1/files/*/grants", "/v1/files/*/delete", "/v1/files/*/downloaded",
@@ -178,6 +182,25 @@ func ordinaryPath(method string, u *url.URL) bool {
 						return false
 					}
 				}
+			case "/v1/rooms", "/v1/rooms/*/messages", "/v1/room-deliveries":
+				query, err := url.ParseQuery(u.RawQuery)
+				if err != nil {
+					return false
+				}
+				if method == http.MethodPost {
+					return u.RawQuery == ""
+				}
+				for name, values := range query {
+					allowed := method == http.MethodGet &&
+						((pattern == "/v1/rooms" && (name == "kind" || name == "project")) ||
+							(pattern == "/v1/rooms/*/messages" && (name == "cursor" || name == "limit")) ||
+							(pattern == "/v1/room-deliveries" && (name == "cursor" || name == "limit" || name == "urgent")))
+					if !allowed || len(values) != 1 {
+						return false
+					}
+				}
+			case "/v1/rooms/*", "/v1/rooms/*/change", "/v1/rooms/*/read", "/v1/room-messages/*", "/v1/room-messages/*/read", "/v1/room-deliveries/*/receipt":
+				return u.RawQuery == ""
 			case "/v1/identity/devices", "/v1/identity/devices/*/revoke", "/v1/agent-operations/*", "/v1/agent-operations/*/result", "/v1/agents/*/diagnostics", "/v1/agents/*/repairs", "/v1/agents/*/reset", "/v1/agents/*/local-models", "/v1/messages/*/read", "/v1/messages/*/thread", "/v1/messages/*/request", "/v1/agents/*/status", "/v1/upgrades/context", "/v1/upgrades/authorize", "/v1/upgrades/lease", "/v1/upgrades/maintenance", "/v1/message-requests":
 				return u.RawQuery == ""
 			}

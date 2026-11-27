@@ -50,6 +50,9 @@ ON CONFLICT(id) DO UPDATE SET data=excluded.data, assignee_id=excluded.assignee_
 	if err != nil {
 		return err
 	}
+	if err := s.syncProjectRoomFileGrants(ctx, tx, t.ProjectID); err != nil {
+		return err
+	}
 	if err := s.history(ctx, tx, t.ID, actor, action, t, reasons...); err != nil {
 		return err
 	}

@@ -112,6 +112,8 @@ func healthAction(launch Launch) (kind, id, taskID string) {
 		taskID = launch.Task.ID
 	}
 	switch {
+	case launch.RoomMessage != nil:
+		return "message", launch.RoomMessage.ID, taskID
 	case launch.Message != nil:
 		return "message", launch.Message.ID, taskID
 	case launch.Attention != nil:

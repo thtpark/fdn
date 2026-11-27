@@ -5,8 +5,8 @@ Go implementation contract, not a direct-database client protocol. Read
 [COMMANDS.md](COMMANDS.md) for wire inputs and [DEVELOPMENT.md](DEVELOPMENT.md)
 for migrations.
 Native message protocol version is **2**; server SQLite migration version is
-**12**; local-worker SQLite remains **1**. Existing SQL5-SQL11 databases advance
-through ordered SQL12 after verified SQL10 filesystem materialization; earlier server-state formats remain unsupported.
+**13**; local-worker SQLite remains **1**. Existing SQL5-SQL12 databases advance
+through ordered SQL13 after verified SQL10 filesystem materialization; earlier server-state formats remain unsupported.
 Deploy the server first. Version 2 requires account-bound public-key admission
 and mutual TLS; legacy bearer credentials/invitations cannot authenticate or
 create new runtime identities. Native multi-UID qualification is separate from
@@ -17,7 +17,10 @@ source-bound software tests and has not been performed.
 Read [IMPROVEMENT.md](IMPROVEMENT.md). SQL12 appends improvement requests,
 repositories, registry artifacts, software products/builds/releases, installed
 inventory, consumers, private native preflights/deployments and durable
-maintenance reservations. SQL1-SQL11 are unchanged.
+maintenance reservations. SQL13 appends realtime Messenger rooms (`direct`,
+`group` and `project`), room messages (`reply_to_id`, mentions, inline media and
+file attachments, per-member read receipts) and per-recipient room response
+deliveries without rewriting SQL1-SQL12.
 
 `project_foundation` is initialized exactly once by Founder configuration;
 name collisions never confer authority. Requests are shared safe context, not

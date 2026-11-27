@@ -21,7 +21,7 @@ func TestGuideDocumentsFounderDevicesAndNonFounderExclusivity(t *testing.T) {
 		".agents/skills/foundation-enroll/SKILL.md":     {"additional Founder devices", "device register", "device revoke", "prepare fresh keys there"},
 		".agents/skills/foundation-install/SKILL.md":    {"Current server SQL11", "SQL6 binaries cannot read SQL7"},
 		".agents/skills/foundation-operations/SKILL.md": {"live non-Founder owner key", "device revoke", "all old devices"},
-		".agents/skills/foundation-develop/SKILL.md":    {"server SQL migration 12", "device-bound proofs/certificates", "one work slot per agent"},
+		".agents/skills/foundation-develop/SKILL.md":    {"server SQL migration 13", "device-bound proofs/certificates", "one work slot per agent"},
 	} {
 		data, err := guidance.Read(file)
 		if err != nil {

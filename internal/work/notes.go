@@ -17,6 +17,8 @@ func (e *Engine) refreshNotes(ctx context.Context, launch *Launch) error {
 		project = launch.Task.ProjectID
 	case launch.Project != nil:
 		project = launch.Project.ID
+	case launch.Room != nil && launch.Room.ProjectID != "":
+		project = launch.Room.ProjectID
 	case launch.Message != nil && launch.Message.Request != nil:
 		project = launch.Message.Request.Action.ProjectID
 	}
