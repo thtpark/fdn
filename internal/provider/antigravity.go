@@ -517,10 +517,15 @@ func antigravityAgentDefinition(coding bool) string {
 		execution = "eager"
 		excludeDefaults = ""
 	}
+	extraRule := "Do NOT call send_message, schedule, or any native tool; respond ONLY with the structured JSON object as plain text. "
+	if coding {
+		extraRule = "Do NOT call send_message or schedule; use only the four permitted workspace tools when needed, then return the structured JSON reply. "
+	}
 	return "---\nname: " + antigravityAgent + "\ndescription: Foundation source-bound controller adapter.\n" +
 		"tools: " + tools + "\n" + excludeDefaults + "inheritMcp: false\ninheritCustomizations: false\n" +
 		"mainAgent: true\nsubagent: false\nmodel: inherit\ncommandExecutionPolicy: " + execution +
 		"\nmcpServers: []\nskills: []\nplugins: []\n---\n\n# Instructions\n\n" +
+		extraRule +
 		"Follow the supplied Foundation context and return exactly its structured JSON reply. " +
 		"Never delegate to subagents, open credential/consent UI, or expand task, OS or spending authority.\n"
 }

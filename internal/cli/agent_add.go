@@ -266,6 +266,11 @@ printf '%s\n' "$(uname -s)" "$(uname -m)" "$(id -u)" "$(id -g)" "$(id -un)" "$HO
 		}
 		release, err := catalog.Published(ctx, authority.Version, saved.Release.Platform)
 		if err != nil {
+			if domain.AsFault(err).Code == domain.Prerequisite {
+				return nil, domain.Fail(domain.Prerequisite, fmt.Sprintf(
+					"no published GitHub release v%s (%s) exists for running Foundation server %s; publish v%s via a release PR or enroll manually with agent-identity prepare and agent-cli agent register",
+					authority.Version, saved.Release.Platform, authority.Version, authority.Version))
+			}
 			return nil, err
 		}
 		if release.Commit != authority.Commit {
