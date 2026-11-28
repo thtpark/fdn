@@ -250,6 +250,9 @@ func (a *app) providerCommand(ctx context.Context, r *resources, args []string) 
 			return nil, err
 		}
 		err = (process.Native{}).Run(ctx, process.Spec{Path: path, Args: arguments, Dir: r.config.StateDir, Env: process.Environment(), Stdin: input, Stdout: output, Stderr: diagnostic, Terminal: input})
+		if err == nil {
+			publishCatalogBestEffort(ctx, r)
+		}
 		return map[string]bool{"login_command_finished": err == nil, "authentication_validated": false}, err
 	default:
 		return nil, domain.Fail(domain.Invalid, "unknown provider command")

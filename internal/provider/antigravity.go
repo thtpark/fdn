@@ -224,6 +224,23 @@ func VerifyGeminiAPIKey(ctx context.Context, client *http.Client, rawKey string)
 	return nil
 }
 
+func antigravityHomeDirs(home, stateDir string) []string {
+	var dirs []string
+	if stateDir != "" {
+		foundationDir := filepath.Dir(filepath.Clean(stateDir))
+		if filepath.Base(foundationDir) == config.UserDirectory {
+			stateHome := filepath.Dir(foundationDir)
+			if info, err := os.Lstat(stateHome); err == nil && info.IsDir() && secure.CheckOwner(info) == nil {
+				dirs = append(dirs, stateHome)
+			}
+		}
+	}
+	if home != "" && !slices.Contains(dirs, home) {
+		dirs = append(dirs, home)
+	}
+	return dirs
+}
+
 func (m *Manager) LoadAntigravityAPIKey() (string, error) {
 	if m.Config.StateDir != "" {
 		data, err := secure.Read(AntigravityAPIKeyPath(m.Config.StateDir), 1024)
@@ -237,8 +254,9 @@ func (m *Manager) LoadAntigravityAPIKey() (string, error) {
 	if envKey := strings.TrimSpace(os.Getenv("GEMINI_API_KEY")); envKey != "" {
 		return ValidateGeminiAPIKey(envKey)
 	}
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		data, err := secure.Read(filepath.Join(home, ".gemini", "antigravity-cli", "gemini-api-key"), 1024)
+	home, _ := os.UserHomeDir()
+	for _, dir := range antigravityHomeDirs(home, m.Config.StateDir) {
+		data, err := secure.Read(filepath.Join(dir, ".gemini", "antigravity-cli", "gemini-api-key"), 1024)
 		if err == nil {
 			return ValidateGeminiAPIKey(string(data))
 		}
@@ -349,6 +367,22 @@ func (m *Manager) prepareAntigravityGeminiDir(home, root string, coding, writeAg
 	}
 	if apiKey == "" {
 		sourceCLI := filepath.Join(home, ".gemini", "antigravity-cli")
+		for _, dir := range antigravityHomeDirs(home, m.Config.StateDir) {
+			candidate := filepath.Join(dir, ".gemini", "antigravity-cli")
+			info, statErr := os.Lstat(candidate)
+			if statErr != nil || !info.IsDir() || secure.CheckOwner(info) != nil {
+				continue
+			}
+			for _, name := range antigravitySharedAuthFiles {
+				if _, fileErr := os.Stat(filepath.Join(candidate, name)); fileErr == nil {
+					sourceCLI = candidate
+					break
+				}
+			}
+			if sourceCLI == candidate {
+				break
+			}
+		}
 		for _, name := range antigravitySharedAuthFiles {
 			src := filepath.Join(sourceCLI, name)
 			if _, statErr := os.Stat(src); statErr != nil {

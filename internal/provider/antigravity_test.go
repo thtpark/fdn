@@ -468,4 +468,36 @@ func TestAntigravityIsolatedGeminiDirBridgesLinuxOAuthAndSyncsRefreshedToken(t *
 	}
 }
 
+func TestAntigravityStateHomeOAuthBridgesWhenLaunchAgentHomeDiffers(t *testing.T) {
+	realHome := t.TempDir()
+	t.Setenv("HOME", realHome)
+	localHome := filepath.Join(realHome, "workspace", "fdn", ".local")
+	state := filepath.Join(localHome, ".foundation", "state")
+	if err := secure.Dir(state); err != nil {
+		t.Fatal(err)
+	}
+	c := config.DefaultWorker(state)
+	c.ProviderPaths["antigravity"] = filepath.Join(realHome, "agy")
+	runner := &carbonAntigravityRunner{requireOAuthFile: true, replaceOAuthFile: "refreshed-local-oauth"}
+	manager := &Manager{Config: c, Runner: runner}
+
+	oauthDir := filepath.Join(localHome, ".gemini", "antigravity-cli")
+	if err := secure.Dir(oauthDir); err != nil {
+		t.Fatal(err)
+	}
+	tokenFile := filepath.Join(oauthDir, "antigravity-oauth-token")
+	if err := secure.Write(tokenFile, []byte("local-oauth-token")); err != nil {
+		t.Fatal(err)
+	}
+
+	health, err := manager.Check(context.Background(), "antigravity")
+	if err != nil || health.Authentication != "authenticated" {
+		t.Fatal("expected OAuth stored under stateHome/.gemini/antigravity-cli to authenticate under real HOME", health, err)
+	}
+	updated, err := os.ReadFile(tokenFile)
+	if err != nil || string(updated) != "refreshed-local-oauth" {
+		t.Fatal("expected refreshed OAuth token to sync back to stateHome/.gemini/antigravity-cli", string(updated), err)
+	}
+}
+
 var _ process.Runner = (*antigravityRunner)(nil)
