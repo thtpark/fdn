@@ -151,8 +151,8 @@ func acpNewSession(reader *bufio.Reader, writer io.Writer, id int, workspace str
 	}
 	if disableBuiltInTools {
 		params["_meta"] = map[string]bool{
-			"disableBuiltInTools":     true,
-			"disable_built_in_tools":  true,
+			"disableBuiltInTools":    true,
+			"disable_built_in_tools": true,
 		}
 	}
 	result, err := acpCall(reader, writer, id, "session/new", params, nil)
