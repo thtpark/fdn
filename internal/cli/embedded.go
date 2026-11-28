@@ -51,7 +51,7 @@ func (e *Embedded) Events(ctx context.Context, cursor string, filter domain.Upda
 	return e.source().Events(ctx, cursor, filter, wait)
 }
 
-var embeddedReads = strings.Fields("version help status identity work agents agent environment modelOptions announcementAudience projects project tasks task taskHistory runs run discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory sessions session grants grant assistanceStatus sharing sharingSessions sharingStatus devices diagnostics operation configuration guides guide events improvementPolicy improvements improvement repositories repository products product build releases release softwareInventory softwareConsumers softwareControl softwareDeployment softwareMaintenance maintenanceUsage")
+var embeddedReads = strings.Fields("version help status identity work agents agent environment modelOptions announcementAudience projects project tasks task taskHistory runs run discussion entry inbox message messageHistory thread threadPage messageDiagnostics rooms room roomMessages roomMessage mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory sessions session grants grant assistanceStatus sharing sharingSessions sharingStatus devices diagnostics operation configuration guides guide events improvementPolicy improvements improvement repositories repository products product build releases release softwareInventory softwareConsumers softwareControl softwareDeployment softwareMaintenance maintenanceUsage")
 
 func (e *Embedded) ValidateQuery(q observe.Query) error {
 	if err := q.Validate(); err != nil {
@@ -84,10 +84,12 @@ func (e *Embedded) Snapshot(ctx context.Context, q observe.Query) (json.RawMessa
 }
 
 var embeddedWrites = []string{
-	"agent status", "agent mode", "project create", "project change", "task create", "task change",
+	"agent status", "agent mode", "agent request-sign-in", "project create", "project change", "task create", "task change",
 	"agent preferences",
 	"agent diagnose", "agent reset", "agent repair", "agent restart",
+	"local-model init",
 	"comment add", "comment edit", "worklog add", "message send", "message read", "message receipt",
+	"room create", "room change", "room send", "room read", "room message-read",
 	"message request-report", "note set", "mention acknowledge", "knowledge put",
 	"announcement send",
 	"file begin", "file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded",
@@ -107,10 +109,12 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 		}
 	}
 	targeted := slices.Contains([]string{
-		"agent mode", "project change", "task change", "comment add", "comment edit", "worklog add",
+		"agent mode", "agent request-sign-in", "project change", "task change", "comment add", "comment edit", "worklog add",
 		"agent preferences",
 		"agent diagnose", "agent reset", "agent repair", "agent restart",
+		"local-model init",
 		"message read", "message receipt", "message request-report", "mention acknowledge",
+		"room change", "room send", "room read", "room message-read",
 		"file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded", "publication change",
 		"assistance revoke", "session change",
 		"share select", "share revoke", "share input", "share release-input",
@@ -142,7 +146,7 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 		if err := decoder.Decode(new(any)); err != io.EOF {
 			return nil, domain.Fail(domain.Invalid, "mobile diagnostic input must contain exactly one JSON object")
 		}
-	} else if args[0] == "message" && args[1] == "read" {
+	} else if (args[0] == "message" && args[1] == "read") || (args[0] == "room" && args[1] == "message-read") {
 		expected = 3
 	} else if len(args) < 2 || args[len(args)-2] != "--input" || args[len(args)-1] != "-" {
 		return nil, domain.Fail(domain.Denied, "mobile inputs must be bounded in-memory JSON, never file paths")
@@ -159,7 +163,8 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 	}
 	pause := args[0] == "agent" && args[1] == "mode"
 	sharing := args[0] == "share"
-	agentControl := args[0] == "agent" && slices.Contains([]string{"diagnose", "reset", "repair", "restart"}, args[1])
+	agentControl := (args[0] == "agent" && slices.Contains([]string{"diagnose", "reset", "repair", "restart", "request-sign-in"}, args[1])) ||
+		(args[0] == "local-model" && args[1] == "init")
 	if me.Mode != "manual" && !pause && !sharing && !agentControl {
 		return nil, domain.Fail(domain.Prerequisite, "human publishing requires freshly confirmed manual mode")
 	}
@@ -169,6 +174,8 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 	switch args[0] {
 	case "agent":
 		value, err = a.agentCommand(ctx, &e.res, args[1:])
+	case "local-model":
+		value, err = a.localModelCommand(ctx, &e.res, args[1:])
 	case "announcement":
 		value, err = a.announcementCommand(ctx, &e.res, args[1:])
 	case "assistance":
@@ -185,6 +192,8 @@ func (e *Embedded) Mutate(ctx context.Context, args []string, body json.RawMessa
 		value, err = a.discussionCommand(ctx, &e.res, args[0], args[1:])
 	case "message":
 		value, err = a.messageCommand(ctx, &e.res, args[1:])
+	case "room":
+		value, err = a.roomCommand(ctx, &e.res, args[1:])
 	case "note":
 		value, err = a.noteCommand(ctx, &e.res, args[1:])
 	case "file":

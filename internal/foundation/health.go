@@ -167,6 +167,11 @@ func healthTaskRelevant(ctx context.Context, q queryer, a domain.Agent, id strin
 func healthActionRelevant(ctx context.Context, q queryer, a domain.Agent, kind, id string, current bool) (bool, error) {
 	switch kind {
 	case "message":
+		if len(id) > 13 && id[:13] == "room_message_" {
+			var exists bool
+			err := q.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM room_deliveries WHERE message_id=? AND agent_id=? AND response_requested=1)", id, a.ID).Scan(&exists)
+			return exists, err
+		}
 		m, err := get[domain.Message](ctx, q, "messages", id)
 		if err != nil {
 			if domain.AsFault(err).Code == domain.NotFound {

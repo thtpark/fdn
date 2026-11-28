@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -39,9 +40,10 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 	}()
 	wake := make(chan struct{}, 1)
 	ready := make(chan struct{})
-	watchDone, heartbeatDone, localDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	watchDone, heartbeatDone, environmentDone, localDone := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})
 	go func() { defer close(watchDone); e.watch(ctx, wake, ready, sessions) }()
 	go func() { defer close(heartbeatDone); e.heartbeatLoop(ctx) }()
+	go func() { defer close(environmentDone); e.environmentLoop(ctx) }()
 	go func() { defer close(localDone); e.observeLocal(ctx, wake, sessions) }()
 	var operationDone chan struct{}
 	var sessionDone chan error
@@ -60,6 +62,7 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 		cancel()
 		<-watchDone
 		<-heartbeatDone
+		<-environmentDone
 		<-localDone
 		if operationDone != nil {
 			<-operationDone
@@ -110,7 +113,9 @@ func (e *Engine) Serve(ctx context.Context, sessions SessionRunner) (err error) 
 				if lastUpdate.IsZero() || !e.Now().Before(lastUpdate.Add(time.Hour)) {
 					lastUpdate = e.Now()
 					if updateErr := manager.MaybeUpdate(ctx); updateErr != nil {
-						e.recordProblem(context.WithoutCancel(ctx), "provider-update-problem", updateErr)
+						if domain.AsFault(updateErr).Code != domain.Unavailable {
+							e.recordProblem(context.WithoutCancel(ctx), "provider-update-problem", updateErr)
+						}
 					} else {
 						e.clearProblem(ctx, "provider-update-problem")
 					}
@@ -248,7 +253,6 @@ func (e *Engine) heartbeatLoop(ctx context.Context) {
 	transition.Stop()
 	defer transition.Stop()
 	var pending <-chan time.Time
-	var nextEnvironment time.Time
 	for {
 		select {
 		case <-ctx.Done():
@@ -268,29 +272,56 @@ func (e *Engine) heartbeatLoop(ctx context.Context) {
 		transition.Stop()
 		pending = nil
 		health, healthErr := e.health(ctx)
-		e.observeProjectedActivity(health)
 		if healthErr != nil {
 			e.recordProblem(ctx, "heartbeat-problem", healthErr)
+		} else if health != nil {
+			for _, p := range health.Problems {
+				if p.Component == "heartbeat" && p.ResolvedAt == 0 {
+					e.clearProblem(ctx, "heartbeat-problem")
+					health, healthErr = e.health(ctx)
+					break
+				}
+			}
 		}
+		e.observeProjectedActivity(health)
 		_, err := api.Call[domain.Agent](ctx, e.Client, "POST", "/v1/heartbeat", domain.HeartbeatRequest{Health: health})
 		if err != nil {
-			if ctx.Err() == nil {
+			if ctx.Err() == nil && domain.AsFault(err).Code != domain.Unavailable {
 				e.recordProblem(ctx, "heartbeat-problem", err)
 			}
 		} else if healthErr == nil {
 			e.clearProblem(ctx, "heartbeat-problem")
 		}
-		if err == nil && !e.Now().Before(nextEnvironment) {
-			nextEnvironment = e.Now().Add(60 * time.Second)
-			if reportErr := e.publishEnvironment(ctx); reportErr != nil {
-				if ctx.Err() == nil {
+		timer.Reset(30 * time.Second)
+	}
+}
+
+func (e *Engine) environmentLoop(ctx context.Context) {
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+	consecutiveUnavailable := 0
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+		if reportErr := e.publishEnvironment(ctx); reportErr != nil {
+			if ctx.Err() == nil {
+				if domain.AsFault(reportErr).Code == domain.Unavailable {
+					consecutiveUnavailable++
+					if consecutiveUnavailable >= 3 {
+						e.recordProblem(ctx, "environment-problem", reportErr)
+					}
+				} else {
 					e.recordProblem(ctx, "environment-problem", reportErr)
 				}
-			} else {
-				e.clearProblem(ctx, "environment-problem")
 			}
+		} else {
+			consecutiveUnavailable = 0
+			e.clearProblem(ctx, "environment-problem")
 		}
-		timer.Reset(30 * time.Second)
+		timer.Reset(60 * time.Second)
 	}
 }
 
@@ -313,13 +344,17 @@ func (e *Engine) localSafetyFingerprint(ctx context.Context) (string, error) {
 		Problem string
 	}
 	observation := struct {
-		Config     config.Worker
-		Values     map[string]json.RawMessage
-		Journals   []journalState
-		Workspaces []workspaceState
-		Blocks     []TextResponseBlock
-		Reports    int
+		Config            config.Worker
+		Values            map[string]json.RawMessage
+		Journals          []journalState
+		Workspaces        []workspaceState
+		Blocks            []TextResponseBlock
+		Reports           int
+		AntigravityKeyTag string
 	}{Config: c, Values: snapshot.Values, Reports: snapshot.PendingReports}
+	if keyData, keyErr := os.ReadFile(provider.AntigravityAPIKeyPath(c.StateDir)); keyErr == nil && len(keyData) > 0 {
+		observation.AntigravityKeyTag = domain.Hash(string(keyData))
+	}
 	for _, journal := range snapshot.Journals {
 		observation.Journals = append(observation.Journals, journalState{journal.ID, journal.State})
 	}

@@ -154,6 +154,7 @@ message Go_AgentOperation {
   Signed finished_at = 16;
   Signed server_observed_at = 17;
   Go_AgentOperationResult result = 18;
+  Go_LocalModelSpec local_model = 19;
 }
 
 message Go_AgentOperationReport {
@@ -170,6 +171,7 @@ message Go_AgentOperationResult {
   Bool automation_may_resume = 4;
   Go_AgentInspection observation = 5;
   Go_NativeRuntimeObservation native_runtime = 6;
+  Go_LocalModelObservation local_model = 7;
 }
 
 message Go_AgentPreferencesRequest {
@@ -846,6 +848,38 @@ message Go_ListQuery {
   String cursor = 6;
 }
 
+message Go_LocalModelInitRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String model = 3;
+  Bool quantized = 4;
+  String quantization = 5;
+  Bool set_preference = 6;
+  String reason = 7;
+}
+
+message Go_LocalModelObservation {
+  String provider = 1;
+  String runtime_version = 2;
+  String family = 3;
+  String model = 4;
+  String quantization = 5;
+  String memory_source = 6;
+  Signed memory_bytes = 7;
+  Signed required_bytes = 8;
+  Signed gpu_count = 9;
+  Bool catalog_published = 10;
+  Bool preference_applied = 11;
+}
+
+message Go_LocalModelSpec {
+  String family = 1;
+  String model = 2;
+  Bool quantized = 3;
+  String quantization = 4;
+  Bool set_preference = 5;
+}
+
 message Go_LocalStatus {
   Go_Agent agent = 1;
   Go_AgentIdentity identity = 2;
@@ -1037,6 +1071,26 @@ message Go_MessageRequest {
   Go_MessageAction request = 12;
   List_String attachment_ids = 13;
   Go_AssistanceHelpRequest help = 14;
+}
+
+message Go_MessageRoom {
+  String id = 1;
+  String kind = 2;
+  String name = 3;
+  String project_id = 4;
+  List_String member_ids = 5;
+  List_String added_member_ids = 6;
+  String created_by = 7;
+  Signed created_at = 8;
+  Signed updated_at = 9;
+  Signed last_message_at = 10;
+  String last_message_id = 11;
+  String last_message_preview = 12;
+  String last_sender_id = 13;
+  Signed revision = 14;
+  Signed unread_count = 15;
+  Signed mention_count = 16;
+  Signed last_read_at = 17;
 }
 
 message Go_MessageWorkerCommand {
@@ -1360,6 +1414,96 @@ message Go_RevokeDeviceRequest {
   String operation_id = 1;
   Signed expected_revision = 2;
   String reason = 3;
+}
+
+message Go_RoomChangeRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String name = 3;
+  List_String add_member_ids = 4;
+}
+
+message Go_RoomCreateRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String kind = 3;
+  String name = 4;
+  String project_id = 5;
+  List_String member_ids = 6;
+}
+
+message Go_RoomDelivery {
+  Go_RoomMessage message = 1;
+  Go_MessageRoom room = 2;
+  String agent_id = 3;
+  String state = 4;
+  Bool response_requested = 5;
+  Bool urgent = 6;
+  Signed read_at = 7;
+  Signed handled_at = 8;
+  Signed revision = 9;
+}
+
+message Go_RoomDeliveryReceipt {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String state = 3;
+}
+
+message Go_RoomMessage {
+  String id = 1;
+  String room_id = 2;
+  String room_kind = 3;
+  String project_id = 4;
+  String sender_id = 5;
+  String body = 6;
+  String origin = 7;
+  String kind = 8;
+  Bool urgent = 9;
+  Bool response_requested = 10;
+  String reply_to_id = 11;
+  Go_RoomReplyPreview reply_preview = 12;
+  List_String mentions = 13;
+  List_String target_agent_ids = 14;
+  List_Go_FileReference attachments = 15;
+  List_Go_RoomReadReceipt read_by = 16;
+  Signed created_at = 17;
+  Signed revision = 18;
+}
+
+message Go_RoomMessageRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String body = 3;
+  String origin = 4;
+  Bool urgent = 5;
+  Bool response_requested = 6;
+  String reply_to_id = 7;
+  List_String attachment_ids = 8;
+}
+
+message Go_RoomReadReceipt {
+  String agent_id = 1;
+  Signed read_at = 2;
+}
+
+message Go_RoomReadRequest {
+  String operation_id = 1;
+  Signed expected_revision = 2;
+  String up_to_message_id = 3;
+}
+
+message Go_RoomReadResult {
+  String room_id = 1;
+  Signed read_count = 2;
+  Signed read_at = 3;
+}
+
+message Go_RoomReplyPreview {
+  String id = 1;
+  String sender_id = 2;
+  String body = 3;
+  Signed attachment_count = 4;
 }
 
 message Go_Run {
@@ -2641,6 +2785,21 @@ message List_Go_ListQuery {
   bool present = 2;
 }
 
+message List_Go_LocalModelInitRequest {
+  repeated Go_LocalModelInitRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_LocalModelObservation {
+  repeated Go_LocalModelObservation items = 1;
+  bool present = 2;
+}
+
+message List_Go_LocalModelSpec {
+  repeated Go_LocalModelSpec items = 1;
+  bool present = 2;
+}
+
 message List_Go_LocalStatus {
   repeated Go_LocalStatus items = 1;
   bool present = 2;
@@ -2728,6 +2887,11 @@ message List_Go_MessageReceipt {
 
 message List_Go_MessageRequest {
   repeated Go_MessageRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_MessageRoom {
+  repeated Go_MessageRoom items = 1;
   bool present = 2;
 }
 
@@ -2913,6 +3077,56 @@ message List_Go_ReviewReference {
 
 message List_Go_RevokeDeviceRequest {
   repeated Go_RevokeDeviceRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_RoomChangeRequest {
+  repeated Go_RoomChangeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_RoomCreateRequest {
+  repeated Go_RoomCreateRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_RoomDelivery {
+  repeated Go_RoomDelivery items = 1;
+  bool present = 2;
+}
+
+message List_Go_RoomDeliveryReceipt {
+  repeated Go_RoomDeliveryReceipt items = 1;
+  bool present = 2;
+}
+
+message List_Go_RoomMessage {
+  repeated Go_RoomMessage items = 1;
+  bool present = 2;
+}
+
+message List_Go_RoomMessageRequest {
+  repeated Go_RoomMessageRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_RoomReadReceipt {
+  repeated Go_RoomReadReceipt items = 1;
+  bool present = 2;
+}
+
+message List_Go_RoomReadRequest {
+  repeated Go_RoomReadRequest items = 1;
+  bool present = 2;
+}
+
+message List_Go_RoomReadResult {
+  repeated Go_RoomReadResult items = 1;
+  bool present = 2;
+}
+
+message List_Go_RoomReplyPreview {
+  repeated Go_RoomReplyPreview items = 1;
   bool present = 2;
 }
 
@@ -3736,6 +3950,21 @@ message List_Page_Go_ListQuery {
   bool present = 2;
 }
 
+message List_Page_Go_LocalModelInitRequest {
+  repeated Page_Go_LocalModelInitRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_LocalModelObservation {
+  repeated Page_Go_LocalModelObservation items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_LocalModelSpec {
+  repeated Page_Go_LocalModelSpec items = 1;
+  bool present = 2;
+}
+
 message List_Page_Go_LocalStatus {
   repeated Page_Go_LocalStatus items = 1;
   bool present = 2;
@@ -3823,6 +4052,11 @@ message List_Page_Go_MessageReceipt {
 
 message List_Page_Go_MessageRequest {
   repeated Page_Go_MessageRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_MessageRoom {
+  repeated Page_Go_MessageRoom items = 1;
   bool present = 2;
 }
 
@@ -4008,6 +4242,56 @@ message List_Page_Go_ReviewReference {
 
 message List_Page_Go_RevokeDeviceRequest {
   repeated Page_Go_RevokeDeviceRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RoomChangeRequest {
+  repeated Page_Go_RoomChangeRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RoomCreateRequest {
+  repeated Page_Go_RoomCreateRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RoomDelivery {
+  repeated Page_Go_RoomDelivery items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RoomDeliveryReceipt {
+  repeated Page_Go_RoomDeliveryReceipt items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RoomMessage {
+  repeated Page_Go_RoomMessage items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RoomMessageRequest {
+  repeated Page_Go_RoomMessageRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RoomReadReceipt {
+  repeated Page_Go_RoomReadReceipt items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RoomReadRequest {
+  repeated Page_Go_RoomReadRequest items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RoomReadResult {
+  repeated Page_Go_RoomReadResult items = 1;
+  bool present = 2;
+}
+
+message List_Page_Go_RoomReplyPreview {
+  repeated Page_Go_RoomReplyPreview items = 1;
   bool present = 2;
 }
 
@@ -5326,6 +5610,36 @@ message Map_Go_ListQuery_Entry {
   Go_ListQuery value = 2;
 }
 
+message Map_Go_LocalModelInitRequest {
+  repeated Map_Go_LocalModelInitRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_LocalModelInitRequest_Entry {
+  optional string key = 1;
+  Go_LocalModelInitRequest value = 2;
+}
+
+message Map_Go_LocalModelObservation {
+  repeated Map_Go_LocalModelObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_LocalModelObservation_Entry {
+  optional string key = 1;
+  Go_LocalModelObservation value = 2;
+}
+
+message Map_Go_LocalModelSpec {
+  repeated Map_Go_LocalModelSpec_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_LocalModelSpec_Entry {
+  optional string key = 1;
+  Go_LocalModelSpec value = 2;
+}
+
 message Map_Go_LocalStatus {
   repeated Map_Go_LocalStatus_Entry items = 1;
   bool present = 2;
@@ -5499,6 +5813,16 @@ message Map_Go_MessageRequest {
 message Map_Go_MessageRequest_Entry {
   optional string key = 1;
   Go_MessageRequest value = 2;
+}
+
+message Map_Go_MessageRoom {
+  repeated Map_Go_MessageRoom_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_MessageRoom_Entry {
+  optional string key = 1;
+  Go_MessageRoom value = 2;
 }
 
 message Map_Go_MessageWorkerCommand {
@@ -5874,6 +6198,106 @@ message Map_Go_RevokeDeviceRequest {
 message Map_Go_RevokeDeviceRequest_Entry {
   optional string key = 1;
   Go_RevokeDeviceRequest value = 2;
+}
+
+message Map_Go_RoomChangeRequest {
+  repeated Map_Go_RoomChangeRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RoomChangeRequest_Entry {
+  optional string key = 1;
+  Go_RoomChangeRequest value = 2;
+}
+
+message Map_Go_RoomCreateRequest {
+  repeated Map_Go_RoomCreateRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RoomCreateRequest_Entry {
+  optional string key = 1;
+  Go_RoomCreateRequest value = 2;
+}
+
+message Map_Go_RoomDelivery {
+  repeated Map_Go_RoomDelivery_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RoomDeliveryReceipt {
+  repeated Map_Go_RoomDeliveryReceipt_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RoomDeliveryReceipt_Entry {
+  optional string key = 1;
+  Go_RoomDeliveryReceipt value = 2;
+}
+
+message Map_Go_RoomDelivery_Entry {
+  optional string key = 1;
+  Go_RoomDelivery value = 2;
+}
+
+message Map_Go_RoomMessage {
+  repeated Map_Go_RoomMessage_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RoomMessageRequest {
+  repeated Map_Go_RoomMessageRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RoomMessageRequest_Entry {
+  optional string key = 1;
+  Go_RoomMessageRequest value = 2;
+}
+
+message Map_Go_RoomMessage_Entry {
+  optional string key = 1;
+  Go_RoomMessage value = 2;
+}
+
+message Map_Go_RoomReadReceipt {
+  repeated Map_Go_RoomReadReceipt_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RoomReadReceipt_Entry {
+  optional string key = 1;
+  Go_RoomReadReceipt value = 2;
+}
+
+message Map_Go_RoomReadRequest {
+  repeated Map_Go_RoomReadRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RoomReadRequest_Entry {
+  optional string key = 1;
+  Go_RoomReadRequest value = 2;
+}
+
+message Map_Go_RoomReadResult {
+  repeated Map_Go_RoomReadResult_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RoomReadResult_Entry {
+  optional string key = 1;
+  Go_RoomReadResult value = 2;
+}
+
+message Map_Go_RoomReplyPreview {
+  repeated Map_Go_RoomReplyPreview_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Go_RoomReplyPreview_Entry {
+  optional string key = 1;
+  Go_RoomReplyPreview value = 2;
 }
 
 message Map_Go_Run {
@@ -7516,6 +7940,36 @@ message Map_Page_Go_ListQuery_Entry {
   Page_Go_ListQuery value = 2;
 }
 
+message Map_Page_Go_LocalModelInitRequest {
+  repeated Map_Page_Go_LocalModelInitRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_LocalModelInitRequest_Entry {
+  optional string key = 1;
+  Page_Go_LocalModelInitRequest value = 2;
+}
+
+message Map_Page_Go_LocalModelObservation {
+  repeated Map_Page_Go_LocalModelObservation_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_LocalModelObservation_Entry {
+  optional string key = 1;
+  Page_Go_LocalModelObservation value = 2;
+}
+
+message Map_Page_Go_LocalModelSpec {
+  repeated Map_Page_Go_LocalModelSpec_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_LocalModelSpec_Entry {
+  optional string key = 1;
+  Page_Go_LocalModelSpec value = 2;
+}
+
 message Map_Page_Go_LocalStatus {
   repeated Map_Page_Go_LocalStatus_Entry items = 1;
   bool present = 2;
@@ -7689,6 +8143,16 @@ message Map_Page_Go_MessageRequest {
 message Map_Page_Go_MessageRequest_Entry {
   optional string key = 1;
   Page_Go_MessageRequest value = 2;
+}
+
+message Map_Page_Go_MessageRoom {
+  repeated Map_Page_Go_MessageRoom_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_MessageRoom_Entry {
+  optional string key = 1;
+  Page_Go_MessageRoom value = 2;
 }
 
 message Map_Page_Go_MessageWorkerCommand {
@@ -8064,6 +8528,106 @@ message Map_Page_Go_RevokeDeviceRequest {
 message Map_Page_Go_RevokeDeviceRequest_Entry {
   optional string key = 1;
   Page_Go_RevokeDeviceRequest value = 2;
+}
+
+message Map_Page_Go_RoomChangeRequest {
+  repeated Map_Page_Go_RoomChangeRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RoomChangeRequest_Entry {
+  optional string key = 1;
+  Page_Go_RoomChangeRequest value = 2;
+}
+
+message Map_Page_Go_RoomCreateRequest {
+  repeated Map_Page_Go_RoomCreateRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RoomCreateRequest_Entry {
+  optional string key = 1;
+  Page_Go_RoomCreateRequest value = 2;
+}
+
+message Map_Page_Go_RoomDelivery {
+  repeated Map_Page_Go_RoomDelivery_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RoomDeliveryReceipt {
+  repeated Map_Page_Go_RoomDeliveryReceipt_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RoomDeliveryReceipt_Entry {
+  optional string key = 1;
+  Page_Go_RoomDeliveryReceipt value = 2;
+}
+
+message Map_Page_Go_RoomDelivery_Entry {
+  optional string key = 1;
+  Page_Go_RoomDelivery value = 2;
+}
+
+message Map_Page_Go_RoomMessage {
+  repeated Map_Page_Go_RoomMessage_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RoomMessageRequest {
+  repeated Map_Page_Go_RoomMessageRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RoomMessageRequest_Entry {
+  optional string key = 1;
+  Page_Go_RoomMessageRequest value = 2;
+}
+
+message Map_Page_Go_RoomMessage_Entry {
+  optional string key = 1;
+  Page_Go_RoomMessage value = 2;
+}
+
+message Map_Page_Go_RoomReadReceipt {
+  repeated Map_Page_Go_RoomReadReceipt_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RoomReadReceipt_Entry {
+  optional string key = 1;
+  Page_Go_RoomReadReceipt value = 2;
+}
+
+message Map_Page_Go_RoomReadRequest {
+  repeated Map_Page_Go_RoomReadRequest_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RoomReadRequest_Entry {
+  optional string key = 1;
+  Page_Go_RoomReadRequest value = 2;
+}
+
+message Map_Page_Go_RoomReadResult {
+  repeated Map_Page_Go_RoomReadResult_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RoomReadResult_Entry {
+  optional string key = 1;
+  Page_Go_RoomReadResult value = 2;
+}
+
+message Map_Page_Go_RoomReplyPreview {
+  repeated Map_Page_Go_RoomReplyPreview_Entry items = 1;
+  bool present = 2;
+}
+
+message Map_Page_Go_RoomReplyPreview_Entry {
+  optional string key = 1;
+  Page_Go_RoomReplyPreview value = 2;
 }
 
 message Map_Page_Go_Run {
@@ -9276,6 +9840,21 @@ message Page_Go_ListQuery {
   String next_cursor = 2;
 }
 
+message Page_Go_LocalModelInitRequest {
+  List_Go_LocalModelInitRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_LocalModelObservation {
+  List_Go_LocalModelObservation items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_LocalModelSpec {
+  List_Go_LocalModelSpec items = 1;
+  String next_cursor = 2;
+}
+
 message Page_Go_LocalStatus {
   List_Go_LocalStatus items = 1;
   String next_cursor = 2;
@@ -9363,6 +9942,11 @@ message Page_Go_MessageReceipt {
 
 message Page_Go_MessageRequest {
   List_Go_MessageRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_MessageRoom {
+  List_Go_MessageRoom items = 1;
   String next_cursor = 2;
 }
 
@@ -9548,6 +10132,56 @@ message Page_Go_ReviewReference {
 
 message Page_Go_RevokeDeviceRequest {
   List_Go_RevokeDeviceRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RoomChangeRequest {
+  List_Go_RoomChangeRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RoomCreateRequest {
+  List_Go_RoomCreateRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RoomDelivery {
+  List_Go_RoomDelivery items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RoomDeliveryReceipt {
+  List_Go_RoomDeliveryReceipt items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RoomMessage {
+  List_Go_RoomMessage items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RoomMessageRequest {
+  List_Go_RoomMessageRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RoomReadReceipt {
+  List_Go_RoomReadReceipt items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RoomReadRequest {
+  List_Go_RoomReadRequest items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RoomReadResult {
+  List_Go_RoomReadResult items = 1;
+  String next_cursor = 2;
+}
+
+message Page_Go_RoomReplyPreview {
+  List_Go_RoomReplyPreview items = 1;
   String next_cursor = 2;
 }
 

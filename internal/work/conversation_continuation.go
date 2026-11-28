@@ -29,10 +29,36 @@ func conversationInstructions(action conversationAction) string {
 func (e *Engine) validateActionSource(ctx context.Context, action conversationAction) error {
 	if action.OriginalSource != nil {
 		original := conversationAction{ID: conversationActionID(*action.OriginalSource), Source: *action.OriginalSource,
-			SourceHandled: action.OriginalSource.Message != nil}
+			SourceHandled: action.OriginalSource.Message != nil || action.OriginalSource.RoomMessage != nil}
 		if err := e.validateActionSource(ctx, original); err != nil {
 			return err
 		}
+	}
+	if action.SourceHandled && action.Source.RoomMessage != nil {
+		var receipt proposal
+		found, err := e.State.Get(ctx, "proposal:"+action.ID+".receipt", &receipt)
+		if err != nil {
+			return err
+		}
+		if !found || len(receipt.Result) == 0 || receipt.Method != "POST" ||
+			receipt.Path != api.Path("room-deliveries", action.Source.RoomMessage.ID, "receipt") {
+			return domain.Fail(domain.Prerequisite, "the original room source's exact acknowledged receipt is required for continuation")
+		}
+		current, err := api.Call[domain.RoomMessage](ctx, e.Client, "GET", api.Path("room-messages", action.Source.RoomMessage.ID), nil)
+		if err != nil {
+			return err
+		}
+		if current.ID != action.Source.RoomMessage.ID || current.RoomID != action.Source.RoomMessage.RoomID || current.Body != action.Source.RoomMessage.Body {
+			return domain.Fail(domain.Conflict, "the original room conversation source changed; its old action cannot resume")
+		}
+		requester, err := api.Call[domain.Agent](ctx, e.Client, "GET", api.Path("agents", current.SenderID), nil)
+		if err != nil {
+			return err
+		}
+		if !requester.Active || requester.Banned {
+			return domain.Fail(domain.Denied, "the original action requester is no longer active")
+		}
+		return nil
 	}
 	if !action.SourceHandled || action.Source.Message == nil {
 		return e.validateConversationSource(ctx, action.Source)
@@ -80,7 +106,7 @@ func (e *Engine) validateActionSource(ctx context.Context, action conversationAc
 }
 
 func (e *Engine) resolveConversationContinuation(ctx context.Context, action *conversationAction) error {
-	if action.Plan.TaskID != "" || action.Source.Message == nil {
+	if action.Plan.TaskID != "" || (action.Source.Message == nil && action.Source.RoomMessage == nil) {
 		return nil
 	}
 	for _, task := range action.Source.ReferencedTasks {
@@ -104,7 +130,9 @@ func (e *Engine) resolveConversationContinuation(ctx context.Context, action *co
 		if !found {
 			return domain.Fail(domain.Prerequisite, "the referenced interrupted action is unavailable; do not create a replacement")
 		}
-		if parent.Source.Message == nil || parent.Source.Message.ThreadID != action.Source.Message.ThreadID {
+		sameThread := (action.Source.Message != nil && parent.Source.Message != nil && parent.Source.Message.ThreadID == action.Source.Message.ThreadID) ||
+			(action.Source.RoomMessage != nil && parent.Source.RoomMessage != nil && parent.Source.RoomMessage.RoomID == action.Source.RoomMessage.RoomID)
+		if !sameThread {
 			continue
 		}
 		if action.Plan.TaskID != "" && action.Plan.TaskID != task.ID {
@@ -163,6 +191,8 @@ func (e *Engine) continuationLaunch(ctx context.Context, task domain.Task, actio
 		return launch, err
 	}
 	launch.Message, launch.Attention = action.Source.Message, action.Source.Attention
+	launch.Room, launch.RoomMessage, launch.RoomDelivery = action.Source.Room, action.Source.RoomMessage, action.Source.RoomDelivery
+	launch.RoomHistory, launch.RoomHistoryCursor, launch.RoomMembers = action.Source.RoomHistory, action.Source.RoomHistoryCursor, action.Source.RoomMembers
 	launch.Thread, launch.Discussion = action.Source.Thread, action.Source.Discussion
 	launch.ConversationID, launch.ActionInstructions = action.ID, conversationInstructions(action)
 	if err := e.refreshActionContext(ctx, &launch, action.Source); err != nil {
@@ -188,6 +218,7 @@ func (e *Engine) refreshActionContext(ctx context.Context, launch *Launch, sourc
 		return err
 	}
 	launch.Thread, launch.ThreadCursor, launch.ContextIncomplete = source.Thread, source.ThreadCursor, source.ContextIncomplete
+	launch.Room, launch.RoomHistory, launch.RoomHistoryCursor, launch.RoomMembers = source.Room, source.RoomHistory, source.RoomHistoryCursor, source.RoomMembers
 	launch.Requester, launch.ReferencedTasks, launch.ReferencedProjects = source.Requester, source.ReferencedTasks, source.ReferencedProjects
 	if source.Task != nil && (launch.Task == nil || source.Task.ID != launch.Task.ID) {
 		launch.ReferencedTasks = append(launch.ReferencedTasks, *source.Task)

@@ -11,10 +11,10 @@ import (
 var errAuthorityFeedInterrupted = domain.Fail(domain.Unavailable, "current authority update reception was interrupted")
 
 type authoritySubscription struct {
-	taskID, projectID, messageID, fileID string
-	modeOnly                             bool
-	wake                                 chan struct{}
-	failure                              error
+	taskID, projectID, messageID, roomID, fileID string
+	modeOnly                                     bool
+	wake                                         chan struct{}
+	failure                                      error
 }
 
 func (s *authoritySubscription) relevant(update domain.Update) bool {
@@ -27,6 +27,8 @@ func (s *authoritySubscription) relevant(update domain.Update) bool {
 		return s.fileID != "" || (!s.modeOnly && (update.TaskID == s.taskID || update.SourceID == s.taskID))
 	case "message":
 		return s.messageID != "" && update.SourceID == s.messageID
+	case "room", "room-message":
+		return s.roomID != "" && (update.SourceID == s.roomID || update.SourceID == s.messageID)
 	case "session", "assistance":
 		return s.fileID != ""
 	case "file", "file-grant":

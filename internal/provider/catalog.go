@@ -24,13 +24,15 @@ func CollectCatalog(ctx context.Context, executor Executor, now func() time.Time
 			observation.ProblemCode = domain.AsFault(err).Code
 		} else {
 			if !domain.ValidProviderAuthentication(health.Authentication) || !domain.ValidHealthVersion(health.Version) {
-				return catalog, domain.Fail(domain.Invalid, "provider returned an unsupported authentication or version observation")
-			}
-			observation.Authentication, observation.Version = health.Authentication, health.Version
-			if health.ModelCatalogError != "" {
-				observation.ModelProblem = domain.Unavailable
-			} else if health.Authentication == "authenticated" {
-				observation.Models = append(observation.Models, health.Models...)
+				observation.Authentication = "unknown"
+				observation.ProblemCode = domain.Invalid
+			} else {
+				observation.Authentication, observation.Version = health.Authentication, health.Version
+				if health.ModelCatalogError != "" {
+					observation.ModelProblem = domain.Unavailable
+				} else if health.Authentication == "authenticated" {
+					observation.Models = append(observation.Models, health.Models...)
+				}
 			}
 		}
 		catalog.Providers = append(catalog.Providers, observation)

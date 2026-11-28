@@ -13,6 +13,7 @@ import (
 )
 
 var conversationTaskID = regexp.MustCompile(`\btask_[0-9a-f]{32}\b`)
+var conversationFileID = regexp.MustCompile(`\bfile_[0-9a-f]{32}\b`)
 
 func (e *Engine) conversationContext(ctx context.Context, launch *Launch) error {
 	body, author := "", ""
@@ -108,6 +109,92 @@ func (e *Engine) conversationContext(ctx context.Context, launch *Launch) error 
 			return strings.Compare(a.ID, b.ID)
 		})
 	}
+	if source := launch.RoomMessage; source != nil {
+		body, author = source.Body, source.SenderID
+		room, err := api.Call[domain.MessageRoom](ctx, e.Client, "GET", api.Path("rooms", source.RoomID), nil)
+		if err != nil {
+			return err
+		}
+		launch.Room = &room
+		if room.ProjectID != "" {
+			project, err := api.Call[domain.Project](ctx, e.Client, "GET", api.Path("projects", room.ProjectID), nil)
+			if err != nil {
+				return err
+			}
+			if !slices.ContainsFunc(launch.ReferencedProjects, func(value domain.Project) bool { return value.ID == project.ID }) {
+				launch.ReferencedProjects = append(launch.ReferencedProjects, project)
+			}
+		}
+		agents, err := api.Call[[]domain.Agent](ctx, e.Client, "GET", "/v1/agents", nil)
+		if err != nil {
+			return err
+		}
+		members := make([]domain.Agent, 0, len(room.MemberIDs))
+		for _, agent := range agents {
+			if slices.Contains(room.MemberIDs, agent.ID) {
+				members = append(members, agent)
+			}
+		}
+		launch.RoomMembers = members
+		page, err := api.Call[domain.Page[domain.RoomMessage]](ctx, e.Client, "GET", api.Path("rooms", room.ID, "messages")+"?limit=30", nil)
+		if err != nil {
+			return err
+		}
+		history := []domain.RoomMessage{*source}
+		size, err := roomMessageContextSize(*source)
+		if err != nil {
+			return err
+		}
+		seen := map[string]bool{source.ID: true}
+		if source.ReplyToID != "" && !seen[source.ReplyToID] {
+			var quoted domain.RoomMessage
+			cached := false
+			for _, item := range page.Items {
+				if item.ID == source.ReplyToID {
+					quoted, cached = item, true
+					break
+				}
+			}
+			if !cached {
+				quoted, err = api.Call[domain.RoomMessage](ctx, e.Client, "GET", api.Path("room-messages", source.ReplyToID), nil)
+				if err != nil {
+					return err
+				}
+			}
+			qSize, err := roomMessageContextSize(quoted)
+			if err != nil {
+				return err
+			}
+			seen[quoted.ID], size = true, size+qSize
+			history = append(history, quoted)
+		}
+		for _, item := range page.Items {
+			if seen[item.ID] {
+				continue
+			}
+			mSize, err := roomMessageContextSize(item)
+			if err != nil {
+				return err
+			}
+			if size+mSize > 128<<10 {
+				launch.ContextIncomplete = true
+				continue
+			}
+			seen[item.ID], size = true, size+mSize
+			history = append(history, item)
+		}
+		launch.ContextIncomplete = launch.ContextIncomplete || page.NextCursor != ""
+		slices.SortStableFunc(history, func(a, b domain.RoomMessage) int {
+			if a.CreatedAt < b.CreatedAt {
+				return -1
+			}
+			if a.CreatedAt > b.CreatedAt {
+				return 1
+			}
+			return strings.Compare(a.ID, b.ID)
+		})
+		launch.RoomHistory, launch.RoomHistoryCursor = history, page.NextCursor
+	}
 	if item := launch.Attention; item != nil {
 		source, err := api.Call[domain.Entry](ctx, e.Client, "GET", api.Path("entries", item.EntryID), nil)
 		if err != nil {
@@ -161,6 +248,9 @@ func (e *Engine) conversationContext(ctx context.Context, launch *Launch) error 
 	}
 	contextBodies := []string{body}
 	for _, message := range launch.Thread {
+		contextBodies = append(contextBodies, message.Body)
+	}
+	for _, message := range launch.RoomHistory {
 		contextBodies = append(contextBodies, message.Body)
 	}
 	for _, id := range conversationTaskID.FindAllString(strings.Join(contextBodies, "\n"), -1) {
@@ -228,5 +318,53 @@ func (e *Engine) sendConversationReply(ctx context.Context, operation string, so
 		}
 	}
 	_, err = commit[domain.Message](ctx, e, "POST", "/v1/messages", request)
+	return err
+}
+
+func (e *Engine) sendRoomConversationReply(ctx context.Context, operation string, source domain.RoomMessage, reply provider.Reply) error {
+	var retained proposal
+	found, err := e.State.Get(ctx, "proposal:"+operation, &retained)
+	if err != nil {
+		return err
+	}
+	respReq := reply.RequestsResponse()
+	request := domain.RoomMessageRequest{
+		Command:         domain.Command{OperationID: operation},
+		Origin:          "ai",
+		ReplyToID:       source.ID,
+		ResponseRequest: &respReq,
+	}
+	targetPath := api.Path("rooms", source.RoomID, "messages")
+	if found {
+		if retained.Method != "POST" || retained.Path != targetPath {
+			return domain.Fail(domain.Conflict, "retained room conversation operation belongs to another command")
+		}
+		if err := json.Unmarshal(retained.Body, &request); err != nil {
+			return err
+		}
+		if request.OperationID != operation || request.ReplyToID != source.ID {
+			return domain.Fail(domain.Conflict, "retained room reply belongs to another source")
+		}
+	} else {
+		request.Body, err = conversationBody(reply)
+		if err != nil {
+			return err
+		}
+		actor := e.Client.Credential.AgentID
+		var attachments []string
+		for _, id := range conversationFileID.FindAllString(request.Body, -1) {
+			if slices.Contains(attachments, id) || len(attachments) >= domain.MaxAttachments {
+				continue
+			}
+			file, fileErr := api.Call[domain.SharedFile](ctx, e.Client, "GET", api.Path("files", id), nil)
+			if fileErr == nil && file.State == "ready" && (file.OwnerID == actor || file.TeamReadable) && file.TransferTo == "" {
+				attachments = append(attachments, id)
+			}
+		}
+		if len(attachments) != 0 {
+			request.AttachmentIDs = attachments
+		}
+	}
+	_, err = commit[domain.RoomMessage](ctx, e, "POST", targetPath, request)
 	return err
 }

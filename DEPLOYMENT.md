@@ -1384,14 +1384,16 @@ an explicit diagnostic, not a guessed sign-in request. Acknowledgement is not
 authentication; a successful readiness observation resolves the local episode
 without editing the recipient's old message receipt.
 
-After expiry, Founder uses `agent request-sign-in AGENT --input FILE`, supplying
-`provider`, a non-secret `reason` and optional matching `project_id`. Use a stable
-new operation ID for this intentional refresh; reuse it for an uncertain retry.
-The server queues a protected urgent control, also valid for 15 minutes. The
-unattended target processes it under its own identity, including in manual mode,
-and only sends a fresh superseding notice if a read-only probe still explicitly
-requires sign-in. Check the control's receipt and the target's work status; an
-offline/fenced target may need another explicit request after control expiry.
+After expiry—or to switch accounts/API keys on an already signed-in provider—Founder
+uses `agent request-sign-in AGENT --input FILE`, supplying `provider`
+(`codex`, `copilot` or `antigravity`), a non-secret `reason` and optional matching
+`project_id`. Use a stable new operation ID for this intentional refresh; reuse it
+for an uncertain retry. The server queues a protected urgent control, also valid
+for 15 minutes. The unattended target processes it under its own identity,
+including in manual mode, probes the provider read-only, and sends a fresh
+superseding sign-in handoff notice unless provider status is unknown/unavailable.
+Check the control's receipt and the target's work status; an offline/fenced target
+may need another explicit request after control expiry.
 Workspace/provider-access/task-authority/retry-approval blockers also send
 protected `permission` help to Founder/current relevant project delegates, with
 public references and no raw errors/private paths. Inspect `permission_requests`

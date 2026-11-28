@@ -110,6 +110,12 @@ func operationQueries(pattern string) map[string]bool {
 		names = []string{"limit", "since", "wait", "filter"}
 	case "GET /v1/messages":
 		names = []string{"cursor", "limit", "urgent"}
+	case "GET /v1/rooms":
+		names = []string{"kind", "project"}
+	case "GET /v1/rooms/{id}/messages":
+		names = []string{"cursor", "limit"}
+	case "GET /v1/room-deliveries":
+		names = []string{"cursor", "limit", "urgent"}
 	case "GET /v1/message-history":
 		names = []string{"cursor", "limit", "folder", "state", "peer"}
 	case "GET /v1/messages/{id}/thread-page":
@@ -433,7 +439,11 @@ func (s *Server) ServeMessageConnection(ctx context.Context, conn net.Conn, purp
 	}
 	defer session.Close()
 	stop := context.AfterFunc(owner, func() {
-		_ = session.Shutdown(domain.Fail(domain.Denied, "identity owner authority was withdrawn"))
+		cause := context.Cause(owner)
+		if domain.AsFault(cause).Code != domain.Denied {
+			cause = domain.Fail(domain.Unavailable, "owner session closed; reconnect required")
+		}
+		_ = session.Shutdown(cause)
 	})
 	defer stop()
 	<-session.Done()

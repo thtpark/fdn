@@ -158,6 +158,21 @@ func (s observationSource) snapshot(ctx context.Context, q observe.Query) (any, 
 	case "message", "thread", "messageDiagnostics":
 		leaf := map[string]string{"message": "show", "thread": "thread", "messageDiagnostics": "diagnose"}[q.Kind]
 		return a.messageCommand(ctx, r, []string{leaf, q.ID})
+	case "rooms":
+		args := []string{"list"}
+		if q.Scope != "" {
+			args = append(args, "--kind", q.Scope)
+		}
+		if q.Project != "" {
+			args = append(args, "--project", q.Project)
+		}
+		return a.roomCommand(ctx, r, args)
+	case "room":
+		return a.roomCommand(ctx, r, []string{"show", q.ID})
+	case "roomMessages":
+		return a.roomCommand(ctx, r, append([]string{"messages", q.ID}, page...))
+	case "roomMessage":
+		return a.roomCommand(ctx, r, []string{"message", q.ID})
 	case "note", "noteHistory":
 		args := []string{"show", q.Scope}
 		if q.Kind == "noteHistory" {

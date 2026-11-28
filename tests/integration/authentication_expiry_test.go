@@ -75,8 +75,8 @@ func TestAuthenticationExpiryWaitsForFounderAndSupersedesExactlyOnce(t *testing.
 	}
 }
 
-func TestFounderSignInRefreshWorksWhilePausedWithoutResumingOrInference(t *testing.T) {
-	for _, authentication := range []string{"login-required", "credentials-present-unverified", "unknown"} {
+func TestFounderSignInRefreshWorksWhilePausedOrAlreadySignedInWithoutResumingOrInference(t *testing.T) {
+	for _, authentication := range []string{"login-required", "credentials-present-unverified", "authenticated", "unknown"} {
 		t.Run(authentication, func(t *testing.T) {
 			h := newHarness(t)
 			x := &authenticationExecutor{authentication: authentication}
@@ -86,23 +86,27 @@ func TestFounderSignInRefreshWorksWhilePausedWithoutResumingOrInference(t *testi
 			if _, err := api.Call[domain.Agent](context.Background(), h.founder, "POST", api.Path("agents", h.workerAgent.ID, "mode"), pause); err != nil {
 				t.Fatal(err)
 			}
-			control := founderAuthenticationRefresh(t, h, "copilot", "")
+			control := founderAuthenticationRefresh(t, h, "antigravity", "")
 			status, err := engine.Step(context.Background(), false)
 			if authentication == "unknown" {
 				if err == nil || len(status.AuthenticationRequests) != 0 || len(authenticationInbox(t, h.founder)) != 0 {
 					t.Fatal("unknown readiness manufactured a sign-in request", status, err)
 				}
-			} else if err != nil || status.State != "authentication-refreshed" {
-				t.Fatal("paused worker did not process explicit Founder control", status, err)
-			}
-			if authentication == "login-required" {
-				if len(status.AuthenticationRequests) != 1 || status.AuthenticationRequests[0].Provider != "copilot" || status.AuthenticationRequests[0].RefreshID != control.ID {
-					t.Fatal("refresh used the configured rather than requested provider", status)
+			} else {
+				if err != nil || status.State != "authentication-refreshed" {
+					t.Fatal("paused worker did not process explicit Founder control", status, err)
 				}
-			} else if len(status.AuthenticationRequests) != 0 {
-				t.Fatal("healthy/unknown readiness invented missing authentication", status)
+				if len(status.AuthenticationRequests) != 1 || status.AuthenticationRequests[0].Provider != "antigravity" ||
+					status.AuthenticationRequests[0].RefreshID != control.ID || status.AuthenticationRequests[0].ObservedAuthentication != authentication ||
+					status.AuthenticationRequests[0].State != "requested" {
+					t.Fatal("explicit Founder refresh did not emit a fresh sign-in handoff for installed provider", status)
+				}
+				notices := authenticationInbox(t, h.founder)
+				if len(notices) != 1 || notices[0].Help == nil || notices[0].Help.Provider != "antigravity" {
+					t.Fatal("Founder inbox did not receive actionable protected sign-in help", notices)
+				}
 			}
-			if x.invocations != 0 || status.Mode != "manual" || len(x.checks) != 1 || x.checks[0] != "copilot" {
+			if x.invocations != 0 || status.Mode != "manual" || len(x.checks) != 1 || x.checks[0] != "antigravity" {
 				t.Fatal("explicit readiness refresh resumed automation or invoked a model", status, x)
 			}
 			sessions, err := api.Call[[]domain.Session](context.Background(), h.worker, "GET", "/v1/sessions", nil)

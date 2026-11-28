@@ -521,6 +521,49 @@ func (s *Server) routes() {
 	body(s, "POST /v1/messages/{id}/receipt", false, func(r *operationRequest, a domain.Agent, q domain.MessageReceipt) (domain.Message, error) {
 		return s.Store.ReceiveMessage(r.Context(), a.ID, r.PathValue("id"), q)
 	})
+	read(s, "GET /v1/rooms", func(r *operationRequest, a domain.Agent) ([]domain.MessageRoom, error) {
+		q := r.URL.Query()
+		return s.Store.ListRooms(r.Context(), a.ID, q.Get("kind"), q.Get("project"))
+	})
+	body(s, "POST /v1/rooms", false, func(r *operationRequest, a domain.Agent, q domain.RoomCreateRequest) (domain.MessageRoom, error) {
+		return s.Store.CreateRoom(r.Context(), a.ID, q)
+	})
+	read(s, "GET /v1/rooms/{id}", func(r *operationRequest, a domain.Agent) (domain.MessageRoom, error) {
+		return s.Store.Room(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/rooms/{id}/change", false, func(r *operationRequest, a domain.Agent, q domain.RoomChangeRequest) (domain.MessageRoom, error) {
+		return s.Store.ChangeRoom(r.Context(), a.ID, r.PathValue("id"), q)
+	})
+	read(s, "GET /v1/rooms/{id}/messages", func(r *operationRequest, a domain.Agent) (domain.Page[domain.RoomMessage], error) {
+		limit, err := queryLimit(r)
+		if err != nil {
+			return domain.Page[domain.RoomMessage]{}, err
+		}
+		return s.Store.RoomMessages(r.Context(), a.ID, r.PathValue("id"), r.URL.Query().Get("cursor"), limit)
+	})
+	body(s, "POST /v1/rooms/{id}/messages", false, func(r *operationRequest, a domain.Agent, q domain.RoomMessageRequest) (domain.RoomMessage, error) {
+		return s.Store.SendRoomMessage(r.Context(), a.ID, r.PathValue("id"), q)
+	})
+	body(s, "POST /v1/rooms/{id}/read", false, func(r *operationRequest, a domain.Agent, q domain.RoomReadRequest) (domain.RoomReadResult, error) {
+		return s.Store.ReadRoom(r.Context(), a.ID, r.PathValue("id"), q)
+	})
+	read(s, "GET /v1/room-messages/{id}", func(r *operationRequest, a domain.Agent) (domain.RoomMessage, error) {
+		return s.Store.RoomMessage(r.Context(), a.ID, r.PathValue("id"))
+	})
+	body(s, "POST /v1/room-messages/{id}/read", false, func(r *operationRequest, a domain.Agent, q domain.MessageReadRequest) (domain.RoomMessage, error) {
+		return s.Store.ReadRoomMessage(r.Context(), a.ID, r.PathValue("id"), q)
+	})
+	read(s, "GET /v1/room-deliveries", func(r *operationRequest, a domain.Agent) (domain.Page[domain.RoomDelivery], error) {
+		limit, err := queryLimit(r)
+		if err != nil {
+			return domain.Page[domain.RoomDelivery]{}, err
+		}
+		q := r.URL.Query()
+		return s.Store.RoomDeliveries(r.Context(), a.ID, q.Get("cursor"), limit, q.Get("urgent") == "true")
+	})
+	body(s, "POST /v1/room-deliveries/{id}/receipt", false, func(r *operationRequest, a domain.Agent, q domain.RoomDeliveryReceipt) (domain.RoomDelivery, error) {
+		return s.Store.ReceiveRoomDelivery(r.Context(), a.ID, r.PathValue("id"), q)
+	})
 	body(s, "POST /v1/sessions", false, func(r *operationRequest, a domain.Agent, q domain.SessionRequest) (domain.Session, error) {
 		return s.Store.RequestSession(r.Context(), a.ID, q)
 	})

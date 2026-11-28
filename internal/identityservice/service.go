@@ -182,9 +182,23 @@ func (s *Service) maintainOwner(ctx context.Context, profile config.ConnectionPr
 	}
 }
 
-func validChallenge(challenge domain.IdentityChallenge, identity domain.AgentIdentity, now time.Time) bool {
+func matchingChallengeIdentity(challenge domain.IdentityChallenge, identity domain.AgentIdentity) bool {
 	return challenge.AgentID == identity.AgentID && challenge.DeviceID == identity.DeviceID && challenge.InstanceID == identity.InstanceID &&
-		challenge.Generation == identity.Generation && challenge.Nonce != "" && challenge.ExpiresAt > now.Unix()
+		challenge.Generation == identity.Generation && challenge.Nonce != ""
+}
+
+func validChallenge(challenge domain.IdentityChallenge, identity domain.AgentIdentity, now time.Time) bool {
+	return matchingChallengeIdentity(challenge, identity) && challenge.ExpiresAt > now.Unix()
+}
+
+func checkChallenge(challenge domain.IdentityChallenge, identity domain.AgentIdentity, now time.Time, label string) error {
+	if !matchingChallengeIdentity(challenge, identity) {
+		return domain.Fail(domain.Denied, label+" does not match the pinned identity")
+	}
+	if challenge.ExpiresAt <= now.Unix() {
+		return domain.Fail(domain.Unavailable, label+" expired before use; reacquiring a fresh challenge")
+	}
+	return nil
 }
 
 func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile, worker config.Worker, deviceCert tls.Certificate, signer crypto.Signer, keyPEM []byte) (result error) {
@@ -201,8 +215,8 @@ func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile
 	if err != nil {
 		return err
 	}
-	if !validChallenge(challenge, profile.Identity, s.options.Now()) {
-		return domain.Fail(domain.Denied, "owner challenge does not match the pinned identity or has expired")
+	if err := checkChallenge(challenge, profile.Identity, s.options.Now(), "owner challenge"); err != nil {
+		return err
 	}
 	type received struct {
 		certificate domain.OwnerCertificate
@@ -242,8 +256,8 @@ func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile
 	}()
 	awaiting := false
 	send := func(challenge domain.IdentityChallenge) error {
-		if !validChallenge(challenge, profile.Identity, s.options.Now()) {
-			return domain.Fail(domain.Denied, "owner renewal challenge is invalid or expired")
+		if err := checkChallenge(challenge, profile.Identity, s.options.Now(), "owner renewal challenge"); err != nil {
+			return err
 		}
 		request, err := s.options.Cryptography.SignOwner(signer, profile.Identity, challenge.Nonce)
 		if err != nil {
@@ -292,8 +306,11 @@ func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile
 			}
 			certificate := update.certificate
 			if !awaiting || certificate.Generation < 1 || certificate.Generation < generation ||
-				!validChallenge(certificate.Challenge, profile.Identity, s.options.Now()) || certificate.Challenge.Nonce == challenge.Nonce {
+				!matchingChallengeIdentity(certificate.Challenge, profile.Identity) || certificate.Challenge.Nonce == challenge.Nonce {
 				return domain.Fail(domain.Denied, "owner certificate response has invalid generation or next challenge")
+			}
+			if certificate.Challenge.ExpiresAt <= s.options.Now().Unix() {
+				return domain.Fail(domain.Unavailable, "owner certificate next challenge expired before receipt; reacquiring")
 			}
 			pair, err := validateCertificate(certificate.Certificate, keyPEM, profile, "owner", certificate.Generation, s.options.Now())
 			if err != nil {
@@ -327,7 +344,7 @@ func (s *Service) runOwner(ctx context.Context, profile config.ConnectionProfile
 			remaining := pair.Leaf.NotAfter.Sub(s.options.Now())
 			if remaining <= 0 {
 				client.Close()
-				return domain.Fail(domain.Denied, "owner certificate expired before the renewed transport was ready")
+				return domain.Fail(domain.Unavailable, "owner certificate expired before the renewed transport was ready")
 			}
 			lease := newOwnerLease(leaseCtx, client, generation, pair.Leaf.NotAfter, remaining, &closed)
 			s.mu.Lock()

@@ -33,3 +33,11 @@ func entryContextSize(entry domain.Entry) (int, error) {
 	size, err := attachmentContextSize(entry.Attachments)
 	return len(entry.Body) + size, err
 }
+
+func roomMessageContextSize(message domain.RoomMessage) (int, error) {
+	size, err := attachmentContextSize(message.Attachments)
+	if err != nil {
+		return 0, err
+	}
+	return len(message.Body) + size, nil
+}

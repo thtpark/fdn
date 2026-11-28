@@ -66,12 +66,14 @@ func (e *Engine) applyAuthenticationControl(ctx context.Context, c config.Worker
 		return err
 	}
 	prepared := false
+	observedAuth := ""
 	for _, request := range requests {
 		if request.RefreshID == message.ID {
 			if request.Provider != control.Provider || request.ProjectID != control.ProjectID {
 				return domain.Fail(domain.Conflict, "prepared sign-in refresh scope changed")
 			}
 			prepared = true
+			observedAuth = request.ObservedAuthentication
 		}
 	}
 	if !prepared {
@@ -85,12 +87,8 @@ func (e *Engine) applyAuthenticationControl(ctx context.Context, c config.Worker
 			return err
 		}
 		switch health.Authentication {
-		case "authenticated", "credentials-present-unverified":
-			if err := e.resolveAuthentication(ctx, control.Provider); err != nil {
-				return err
-			}
-			return e.receiveAuthenticationControl(ctx, message)
-		case "login-required", "credentials-rejected":
+		case "authenticated", "credentials-present-unverified", "login-required", "credentials-rejected":
+			observedAuth = health.Authentication
 		default:
 			return domain.Fail(domain.Prerequisite, "provider authentication is unknown; no fresh sign-in request was issued")
 		}
@@ -102,7 +100,7 @@ func (e *Engine) applyAuthenticationControl(ctx context.Context, c config.Worker
 	if control.ProjectID != "" {
 		task = &domain.Task{ProjectID: control.ProjectID}
 	}
-	if _, err := e.refreshAuthentication(ctx, c, control.Provider, task, message.ID); err != nil {
+	if _, err := e.refreshAuthenticationWithStatus(ctx, c, control.Provider, task, message.ID, observedAuth); err != nil {
 		return err
 	}
 	return e.receiveAuthenticationControl(ctx, message)

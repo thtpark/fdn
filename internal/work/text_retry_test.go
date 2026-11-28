@@ -3,6 +3,7 @@ package work
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -154,5 +155,46 @@ func TestTextCleanupUncertaintyStillGloballyFencesWithoutAutomaticRetry(t *testi
 	}
 	if x.calls != 1 {
 		t.Fatal("unproved provider cleanup retried inference")
+	}
+}
+
+type onboardingFencedExecutor struct {
+	provider.Executor
+	onboardingCalls int
+	messageCalls    int
+}
+
+func (executor *onboardingFencedExecutor) Invoke(ctx context.Context, invocation provider.Invocation) (provider.Reply, error) {
+	if strings.Contains(invocation.Prompt, "Current phase: onboarding.") {
+		executor.onboardingCalls++
+		return provider.Reply{}, domain.Fail(domain.Internal, "simulated onboarding failure")
+	}
+	executor.messageCalls++
+	return provider.Reply{Outcome: "responded", Summary: "Handled inbox reply despite fenced onboarding"}, nil
+}
+
+func TestFencedOnboardingDoesNotBlockUnrelatedMessages(t *testing.T) {
+	f := sharedAuthorityFixture(t)
+	ctx := context.Background()
+	x := &onboardingFencedExecutor{Executor: f.executor}
+	f.engine.Executor = x
+	if err := f.engine.State.Put(ctx, "initial-review", ""); err != nil {
+		t.Fatal(err)
+	}
+	msg := domain.Message{
+		ID:              "message_while_onboarding_fenced",
+		Revision:        1,
+		SenderID:        "agent_founder",
+		RecipientID:     f.me.ID,
+		Kind:            "direct",
+		State:           "pending",
+		ResponseRequest: true,
+		Body:            "Please confirm you are responsive.",
+	}
+	f.messages[msg.ID] = msg
+
+	status, err := f.engine.Step(ctx, false)
+	if err != nil || status.State != "message" || x.onboardingCalls != 1 || x.messageCalls != 1 || f.messages[msg.ID].State != "handled" {
+		t.Fatal("fenced onboarding blocked unrelated inbox message handling", status, x.onboardingCalls, x.messageCalls, err)
 	}
 }

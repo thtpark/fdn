@@ -35,7 +35,10 @@ requests a decision, not authentication or execution approval.
 Antigravity uses the official standalone `agy` CLI, not the IDE launcher. Native
 install/update verifies the exact versioned GitHub asset/digest; it is not npm
 signature verification or attestation. Readiness uses ACP admission/model/close
-without a prompt. Protected human login uses advertised `agy acp --login`.
+without a prompt (and non-interactive `gemini-api-key` ACP selection when a
+private `GEMINI_API_KEY` is configured). Protected human login prompts for a
+masked `GEMINI_API_KEY` (unlocking Gemini 4 Carbon/Neon/Argon/Hydrogen) or uses
+advertised `agy acp --login`.
 Fixed isolated agent profiles disable text tools, client file/terminal access,
 MCP, hooks/plugins and delegation, while coding permits only the documented
 file/search/command tools. Do not weaken capability checks or copy credentials.
@@ -75,8 +78,10 @@ after an upgrade without its exact supported stopped-process recovery.
    intentional refresh and reuse it after uncertainty. The protected urgent
    control also expires after 15 minutes; its handled receipt means the target
    checked, not that authentication succeeded. The target can check while
-   paused without resuming inference, sends a fresh superseding notice only
-   for explicit login-required/rejected status, and never opens login itself.
+   paused without resuming inference, sends a fresh superseding sign-in handoff
+   notice when the provider reports login-required, credentials-rejected,
+   authenticated or credentials-present-unverified (supporting account or API-key
+   replacement), and never opens login itself.
    Reuse existing episode/message operations for delivery uncertainty instead
    of repeating notices. Provider device-code and session/grant expiry are
    separate. A reply/receipt never proves sign-in; unknown provider status
@@ -180,6 +185,12 @@ after an upgrade without its exact supported stopped-process recovery.
 Provider references: [Codex headless authentication](https://developers.openai.com/codex/auth/#login-on-headless-devices)
 and [Copilot login options](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#copilot-login-options).
 Installed `login --help` remains authoritative for version-specific flags.
+For managed on-device models (`provider:"local"`, currently `qwen3.8:27b`), use
+`agent-cli local-model init` locally or `agent-cli local-model init AGENT_ID`
+as Founder (`--quantized` or `--quantization auto|q4_K_M|q8_0|bf16`, optional
+`--set-preference`); no vendor login is used, memory bounds are checked before
+downloading runtime/weights, and verified weights publish `authenticated`
+`model-options` for preference selection.
 
 Report redacted installed/authentication/model/session states, pending human
 action/expiry, and authorized next step. Never claim sign-in, spending consent

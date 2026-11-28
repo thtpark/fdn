@@ -47,13 +47,15 @@ var AgentCommands = []string{
 	"agent environment", "agent environment-report", "announcement audience", "announcement send",
 	"task list", "task show", "task create", "task change", "task history", "task runs", "task run",
 	"comment add", "comment edit", "worklog add", "discussion list", "discussion show", "mention list", "mention acknowledge", "watch", "observe",
-	"message send", "message show", "message read", "message diagnose", "message inbox", "message list", "message receipt", "message thread", "message thread-page", "message request-report", "session request", "session list", "session show", "session change", "session open",
+	"message send", "message show", "message read", "message diagnose", "message inbox", "message list", "message receipt", "message thread", "message thread-page", "message request-report",
+	"room list", "room show", "room create", "room change", "room messages", "room message", "room send", "room read", "room message-read", "room deliveries", "room receipt",
+	"session request", "session list", "session show", "session change", "session open",
 	"knowledge put", "knowledge list", "knowledge show", "knowledge history", "inventory refresh", "inventory show",
 	"note set", "note show", "note history", "note context",
 	"file upload", "file transfer", "file upload-status", "file download-status", "file begin", "file put-chunk", "file finalize", "file publish", "file grant", "file delete", "file downloaded", "file list", "file show", "file chunk", "file download",
 	"publication create", "publication change", "publication list", "publication show", "publication versions", "publication version",
 	"workspace bind", "workspace list", "workspace enable", "workspace disable", "screen list", "screen launch",
-	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "preferences show", "preferences set",
+	"provider status", "provider install", "provider update", "provider login", "provider link", "provider exec", "local-model init", "local-model status", "preferences show", "preferences set",
 	"work prompt", "work status", "work run", "work recover", "work recovery-inspect", "service plan", "service install", "service status",
 	"upgrade check", "upgrade plan", "upgrade apply", "upgrade status",
 	"upgrade-lease", "message-worker", "software-mailbox",
@@ -217,6 +219,10 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 				usage = "agent model-options AGENT_ID; saved computer/key-generation-bound authentication and model observations, with explicit server receipt freshness; no login or inference"
 			case "agent model-options-report":
 				usage = "agent model-options-report; collect bounded read-only provider status on this computer and publish safe authentication/model facts through its own identity; exact operation replay retains the original observation; no login, inference or mode change"
+			case "local-model init":
+				usage = "local-model init [AGENT_ID] [--agent AGENT_ID] [--model qwen3.8:27b] [--quantized] [--quantization auto|q4_K_M|q8_0|bf16] [--set-preference] [--reason REASON] [--input FILE]; initialize Qwen 3.8 27B locally on this computer or, when Founder specifies AGENT_ID, queue a 60-minute local-model-init AgentOperation so the target downloads verified runtime/weights, checks memory constraints, publishes model-options and optionally sets its preference"
+			case "local-model status":
+				usage = "local-model status [AGENT_ID|OPERATION_ID]; inspect local runtime/memory/initialized models on this computer, an agent's published local model-options and preferences, or a local-model-init AgentOperation"
 			case "comment add", "comment edit", "worklog add":
 				usage = key + " ID --input FILE; body mentions accept @{NAME} (case-insensitive active agent name) or @{AGENT_ID}; names must be unambiguous, recipients are stored as agent IDs, and self/duplicate mentions are excluded; only comments create attention; edits require the creator and current revision"
 			case "mention list":
@@ -238,6 +244,7 @@ func run(ctx context.Context, role string, args []string, in io.Reader, out, dia
 		(tail[0] == "upgrade" && len(tail) > 1 && tail[1] == "apply") ||
 		(tail[0] == "accounts" && len(tail) > 1 && tail[1] == "serve") || (tail[0] == "watch" && !slices.Contains(tail, "--once"))
 	if len(tail) > 1 && ((tail[0] == "provider" && tail[1] == "exec") || (tail[0] == "assistance" && tail[1] == "open") ||
+		(tail[0] == "local-model" && tail[1] == "init" && isLocalOnlyModelCommand(tail[1:])) ||
 		(tail[0] == "share" && (tail[1] == "open" || tail[1] == "stream")) || (tail[0] == "session" && tail[1] == "open")) {
 		longRunning = true
 		flags.Visit(func(option *flag.Flag) {

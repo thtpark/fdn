@@ -161,6 +161,9 @@ func (s *Store) Delegate(ctx context.Context, actor, projectID string, req domai
 		if _, err := tx.ExecContext(ctx, "UPDATE projects SET data = ? WHERE id = ?", data, p.ID); err != nil {
 			return p, err
 		}
+		if err := s.syncProjectRoomFileGrants(ctx, tx, p.ID); err != nil {
+			return p, err
+		}
 		if err := s.history(ctx, tx, p.ID, a.ID, "delegate", p); err != nil {
 			return p, err
 		}

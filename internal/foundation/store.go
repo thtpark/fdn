@@ -86,7 +86,7 @@ type FileStoreOptions struct {
 }
 
 func serverSchemas() []string {
-	return []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, devicesSchema, observationSchema, publicationsSchema, fileStoreSchema, sharingSchema, deliverySchema}
+	return []string{schema, autonomousSchema, identitySecuritySchema, updatesSchema, messageRequestsSchema, notesSchema, devicesSchema, observationSchema, publicationsSchema, fileStoreSchema, sharingSchema, deliverySchema, messengerSchema}
 }
 
 func OpenWithFiles(ctx context.Context, path string, options FileStoreOptions) (*Store, error) {

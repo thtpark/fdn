@@ -50,6 +50,9 @@ ON CONFLICT(id) DO UPDATE SET data=excluded.data, assignee_id=excluded.assignee_
 	if err != nil {
 		return err
 	}
+	if err := s.syncProjectRoomFileGrants(ctx, tx, t.ProjectID); err != nil {
+		return err
+	}
 	if err := s.history(ctx, tx, t.ID, actor, action, t, reasons...); err != nil {
 		return err
 	}
@@ -312,8 +315,12 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 			if !domain.ValidOperation(req.WorkspaceRef) {
 				return t, domain.Fail(domain.Invalid, "workspace reference must be opaque, not a filesystem path")
 			}
+			initialApprovedBind := t.WorkspaceRef == "" && t.Readiness != nil
+			changed := t.WorkspaceRef != req.WorkspaceRef
 			t.WorkspaceRef = req.WorkspaceRef
-			invalidate(&t)
+			if changed && !initialApprovedBind {
+				invalidate(&t)
+			}
 		case "policy":
 			if req.Policy == nil || len(req.Policy.RequiredActors) > 32 {
 				return t, domain.Fail(domain.Invalid, "bounded approval policy is required")
@@ -363,8 +370,8 @@ func (s *Store) ChangeTask(ctx context.Context, actor, id string, req domain.Tas
 			if req.SpecGeneration != t.SpecGeneration {
 				return t, domain.Fail(domain.Conflict, "specification changed")
 			}
-			if t.AssigneeID == "" || t.WorkspaceRef == "" || strings.TrimSpace(t.Description) == "" || strings.TrimSpace(t.AcceptanceCriteria) == "" || t.Waiting != nil || t.ActiveRun != nil {
-				return t, domain.Fail(domain.Prerequisite, "readiness needs instructions, criteria, assignment, workspace, and no unresolved blocker/run")
+			if t.AssigneeID == "" || strings.TrimSpace(t.Description) == "" || strings.TrimSpace(t.AcceptanceCriteria) == "" || t.Waiting != nil || t.ActiveRun != nil {
+				return t, domain.Fail(domain.Prerequisite, "readiness needs instructions, criteria, assignment, and no unresolved blocker/run")
 			}
 			if _, err := activeIdentitySubject(ctx, tx, t.AssigneeID); err != nil {
 				return t, err

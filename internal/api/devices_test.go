@@ -342,3 +342,58 @@ func TestFounderDeviceBinaryOwnersRenewAndRevokeIndependently(t *testing.T) {
 	}
 	t.Log("real TLS/protobuf and signed per-device owner proofs with distinct logical UIDs; native kernel multi-UID/SSH provisioning is not exercised")
 }
+
+func TestOwnerSessionReleaseUsesUnavailableWhileRevocationUsesDenied(t *testing.T) {
+	f := newAuthenticationAPIFixture(t)
+	trust := filepath.Join(t.TempDir(), "trust")
+	bundle, err := pki.Generate(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bundle.Write(trust); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.server.ConfigureIdentity(IdentityOptions{CAFile: filepath.Join(trust, "ca.pem"), CAKeyFile: filepath.Join(trust, "ca-key.pem")}); err != nil {
+		t.Fatal(err)
+	}
+	mac, macKey := binaryFounderDevice(t, f, "Founder Mac Release Test", 4300)
+	owner := openFounderBinaryOwner(t, f, trust, mac, macKey)
+	defer owner.client.Close()
+
+	var entry *controllerOwner
+	f.server.identity.mu.RLock()
+	for ref, candidate := range f.server.identity.owners {
+		if ref.binding == mac.DeviceID && ref.generation == owner.certificate.Generation {
+			entry = candidate
+		}
+	}
+	f.server.identity.mu.RUnlock()
+	if entry == nil {
+		t.Fatal("missing admitted controllerOwner entry")
+	}
+
+	// Normal releaseOwner (routine device renewal / SSH reconnect) must use Unavailable, not Denied.
+	f.server.releaseOwner(entry)
+	if code := domain.AsFault(context.Cause(entry.ctx)).Code; code != domain.Unavailable {
+		t.Fatalf("expected Unavailable on normal owner session release, got %q (%v)", code, context.Cause(entry.ctx))
+	}
+
+	// Explicit retirement / revocation must still use Denied.
+	owner2 := openFounderBinaryOwner(t, f, trust, mac, macKey)
+	defer owner2.client.Close()
+	var entry2 *controllerOwner
+	f.server.identity.mu.RLock()
+	for ref, candidate := range f.server.identity.owners {
+		if ref.binding == mac.DeviceID && ref.generation == owner2.certificate.Generation {
+			entry2 = candidate
+		}
+	}
+	f.server.identity.mu.RUnlock()
+	if entry2 == nil {
+		t.Fatal("missing second admitted controllerOwner entry")
+	}
+	f.server.identity.retire(mac.DeviceID)
+	if code := domain.AsFault(context.Cause(entry2.ctx)).Code; code != domain.Denied {
+		t.Fatalf("expected Denied on explicit owner retirement, got %q (%v)", code, context.Cause(entry2.ctx))
+	}
+}

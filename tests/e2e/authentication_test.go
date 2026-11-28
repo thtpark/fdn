@@ -109,3 +109,45 @@ func TestNativeDaemonRequestsSignInBeforeOnboardingWithoutInference(t *testing.T
 		})
 	}
 }
+
+func TestNativeDaemonRequestsSignInWhenAlreadyAuthenticated(t *testing.T) {
+	l := newLab(t, "copilot")
+	agent := l.startAgent(t)
+	defer agent.stop(t)
+
+	inbox := func() []domain.Message {
+		t.Helper()
+		page, err := api.Call[domain.Page[domain.Message]](context.Background(), l.founder.client, "GET", "/v1/messages?limit=200", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var authNotices []domain.Message
+		for _, item := range page.Items {
+			if item.Kind == "authentication" {
+				authNotices = append(authNotices, item)
+			}
+		}
+		return authNotices
+	}
+
+	refreshArgs := []string{"--config", l.founder.configFile, "--operation-id", "native-reauth-when-signed-in", "agent", "request-sign-in", l.worker.agent.ID, "--input", "-"}
+	input := domain.AuthenticationRefreshRequest{Provider: "copilot", Reason: "Switch Copilot account on already signed-in worker"}
+	control := must[domain.Message](t, "agent-cli", refreshArgs, input)
+
+	waitFor(t, 10*time.Second, func() bool { return len(inbox()) == 1 }, "re-authentication handoff notice in Founder's inbox")
+	notices := inbox()
+	if notices[0].Help == nil || notices[0].Help.Provider != "copilot" ||
+		!strings.Contains(notices[0].Body, "Provider sign-in requested by Founder") ||
+		!strings.Contains(notices[0].Body, "assistance open GRANT --provider copilot") {
+		t.Fatalf("already-authenticated worker did not emit actionable re-authentication notice: %+v", notices[0])
+	}
+
+	type nativeStatus struct {
+		Work work.Status `json:"work"`
+	}
+	status := must[nativeStatus](t, "agent-cli", []string{"--config", l.worker.configFile, "work", "status"}, nil)
+	if len(status.Work.AuthenticationRequests) != 1 || status.Work.AuthenticationRequests[0].RefreshID != control.ID ||
+		status.Work.AuthenticationRequests[0].ObservedAuthentication != "authenticated" {
+		t.Fatalf("work status did not retain Founder re-authentication episode: %+v", status)
+	}
+}

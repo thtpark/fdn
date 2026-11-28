@@ -322,6 +322,9 @@ func (f *pushFixture) RoundTrip(request *http.Request) (*http.Response, error) {
 		}
 		return f.response(message, nil)
 	}
+	if request.Method == http.MethodGet && path == "/v1/room-deliveries" {
+		return f.response(domain.Page[domain.RoomDelivery]{Items: []domain.RoomDelivery{}}, nil)
+	}
 	if request.Method == http.MethodGet && path == "/v1/improvement-policy" {
 		return f.response(domain.ImprovementPolicy{ProjectIDs: []string{}}, nil)
 	}

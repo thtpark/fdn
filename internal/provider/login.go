@@ -13,6 +13,9 @@ func (m *Manager) LoginCommand(ctx context.Context, name string) (string, []stri
 	if err := ctx.Err(); err != nil {
 		return "", nil, err
 	}
+	if name == "local" {
+		return "", nil, domain.Fail(domain.Prerequisite, "local models run on this computer without vendor sign-in; use agent-cli local-model init")
+	}
 	path, err := m.Resolve(name)
 	if err != nil {
 		return "", nil, err

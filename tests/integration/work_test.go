@@ -153,6 +153,39 @@ func TestSharedWorkReviewClaimReportAndNoIdleInference(t *testing.T) {
 	}
 }
 
+func TestApprovedTaskWithoutWorkspaceAutomaticallyPreparesAssigneeWorkspaceAndExecutes(t *testing.T) {
+	h := newHarness(t)
+	x := &executor{}
+	e := newEngine(t, h, x)
+	ctx := context.Background()
+	project, err := api.Call[domain.Project](ctx, h.founder, "POST", "/v1/projects", domain.ProjectRequest{Command: command(), Name: "assignee-owned-workspace"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := api.Call[domain.Task](ctx, h.founder, "POST", "/v1/tasks", domain.TaskRequest{
+		Command: command(), ProjectID: project.ID, Title: "no manual workspace",
+		Description: "Assignee automatically prepares its own project workspace.", AcceptanceCriteria: "Task completes without Founder setting workspace_ref.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task = h.change(t, h.founder, task.ID, "assign", func(r *domain.TaskChange) { r.AgentID = h.workerAgent.ID; r.Provider = "codex" })
+	task = h.change(t, h.founder, task.ID, "status", func(r *domain.TaskChange) { r.Status = domain.Todo })
+	task = h.change(t, h.founder, task.ID, "approve", func(r *domain.TaskChange) { r.SpecGeneration = task.SpecGeneration })
+	if task.WorkspaceRef != "" || task.Readiness == nil {
+		t.Fatalf("expected approved task with empty workspace_ref, got %+v", task)
+	}
+	for range 3 {
+		if _, err := e.Step(ctx, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	current, err := api.Call[domain.Task](ctx, h.worker, "GET", api.Path("tasks", task.ID), nil)
+	if err != nil || current.Status != domain.Completed || current.WorkspaceRef == "" || current.ResultGeneration != 1 {
+		t.Fatalf("expected completed task with assignee-bound workspace, got %+v %v", current, err)
+	}
+}
+
 type lostAck struct {
 	base http.RoundTripper
 	lost atomic.Bool

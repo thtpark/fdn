@@ -443,7 +443,7 @@ unimplemented `agent-cli service stop` command.
 | `agent-cli agent operation` | Exactly `REQUEST_ID` from `data.id`; bodyless GET of the common diagnostic-refresh/session-recovery state and safe result, visible only to its requester Founder or target |
 | `agent-cli agent mode` | `AGENT --input FILE`: mode ai/manual, reason and revision; Founder alone pauses/resumes any target |
 | `agent-cli agent preferences` | `AGENT [--input FILE]`; Founder or self may set optional `provider`/`model` with required `reason`; optional `catalog:{binding_id,generation}` pins currently authenticated computer/model choices; independent revision/exact replay, no mode or running-call changes |
-| `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot/antigravity), required `reason`, optional `project_id`; Founder-only protected refresh, valid for 15 minutes; no login, inference or mode change |
+| `agent-cli agent request-sign-in` | `AGENT --input FILE`: `provider` (codex/copilot/antigravity), required `reason`, optional `project_id`; Founder-only protected sign-in handoff request (including account/API-key change when already signed in), valid for 15 minutes; no login, inference or mode change |
 | `agent-cli agent revoke` | `AGENT`; Founder only, not Founder itself; duplicate-owner auto-ban applies only to non-Founders |
 | `agent-cli agent register` | `--input SIGNED_PUBLIC [--output PUBLIC_PROFILE]`; Founder-only new signed public-key registration |
 | `agent-cli agent add` | `--host IP --user SSH_USER --name NAME [--port 22 --identity-file ABS --via-foundation]`; Founder-only new-worker installation and signed registration in a protected human terminal; direct SSH by default, optional authenticated Foundation-host relay |
@@ -1365,6 +1365,17 @@ codes and secret-bearing sign-in state must not enter an AI context.
 | `agent-cli message receipt` | `MESSAGE --input FILE`: state handled/deferred/stale, or pending only from deferred; does not acknowledge reading |
 | `agent-cli message thread` | `MESSAGE`; bounded sender/recipient-private conversation including target decisions/results |
 | `agent-cli message request-report` | `MESSAGE --input FILE`: exact revision, state and nonempty reason; recipient-only accepted/deferred/declined/executing/completed/failed lifecycle |
+| `agent-cli room list` | `[--kind direct\|group\|project --project PROJECT_ID]`; caller-visible realtime Messenger rooms (1:1, group and dedicated project rooms) with unread and mention counts |
+| `agent-cli room show` | `ROOM_ID`; member-private room metadata and current synced membership |
+| `agent-cli room create` | `--input FILE`: kind (`direct`, `group` or `project`), optional `name`, `project_id`, `member_ids`; idempotent for 1:1 and project rooms |
+| `agent-cli room change` | `ROOM_ID --input FILE`: optional `name` (group rooms) and `add_member_ids` (group/project rooms), granting room attachments to added members |
+| `agent-cli room messages` | `ROOM_ID [--limit N --cursor CURSOR]`; member-private room message page, newest first |
+| `agent-cli room message` | `MESSAGE_ID`; inspect one room message as a current room member |
+| `agent-cli room send` | `ROOM_ID --input FILE`: `body`, optional `origin`, `urgent`, `response_requested`, `reply_to_id`, `attachment_ids` (including inline `foundation-file://` images/videos) |
+| `agent-cli room read` | `ROOM_ID [--input FILE]`: mark unread incoming messages in the room (optionally up to `up_to_message_id`) as read by this member |
+| `agent-cli room message-read` | `MESSAGE_ID`; explicitly record this member's immutable read receipt on one room message |
+| `agent-cli room deliveries` | `[--urgent --limit N --cursor CURSOR]`; recipient's pending room-message response queue |
+| `agent-cli room receipt` | `MESSAGE_ID --input FILE`: settle this recipient's pending room delivery as `handled` or `stale` |
 
 `message send` rejects the authenticated sender as recipient, including requests
 and replies. The server enforces this independently of CLI/app checks. Both apps
@@ -2010,12 +2021,14 @@ Foundation state/configuration. Assignment alone cannot grant tools.
 
 | Command | Arguments / boundary |
 | --- | --- |
-| `agent-cli provider status` | `[--provider codex|copilot|antigravity]`; bounded version/capability/auth probes without inference |
+| `agent-cli provider status` | `[--provider codex\|copilot\|antigravity\|local]`; bounded version/capability/auth probes without inference |
 | `agent-cli provider install` | `--provider NAME --version EXACT`; staged integrity/signature/capability checks under the shared local slot |
 | `agent-cli provider update` | `[--provider NAME]`; explicit latest resolution, retains previous version on staging failure |
-| `agent-cli provider login` | `[--provider NAME]`; actual human TTY only; probes login help and prefers supported device-code/headless flow, otherwise native login; no structured/captured credentials |
+| `agent-cli provider login` | `[--provider NAME] [--gemini-api-key\|--oauth\|--clear-api-key]`; actual human TTY only; probes login help and prefers supported device-code/headless flow (or masked `GEMINI_API_KEY` / OAuth selection for `antigravity`), otherwise native login; local models need no vendor login |
 | `agent-cli provider link` | Repair/install this account's stable codex/copilot/agy launchers and login PATH without downloading, authenticating or running a provider |
 | `agent-cli provider exec` | `--provider NAME -- NATIVE_ARGUMENTS`; resolve the active managed version, preserve native output/exit status; interactive commands require a human terminal and the shared local slot |
+| `agent-cli local-model init` | `[AGENT_ID] [--agent AGENT_ID] [--model qwen3.8:27b] [--quantized] [--quantization auto\|q4_K_M\|q8_0\|bf16] [--set-preference] [--reason REASON] [--input FILE]`; initialize Qwen 3.8 27B locally under `work.lock` or, when Founder names `AGENT_ID`, queue a 60-minute `local-model-init` `AgentOperation` so the target downloads verified runtime/weights, checks GPU VRAM or system RAM constraints, publishes `model-options` and optionally sets `agent preferences` |
+| `agent-cli local-model status` | `[AGENT_ID\|OPERATION_ID]`; inspect local runtime/memory/initialized models on this computer, an agent's published `local` model options and preferences, or a `local-model-init` `AgentOperation` |
 | `agent-cli work prompt` | Shared prompt and version-matched operating guidance; no task claim or inference |
 | `agent-cli work status` | Read-only local state, live `health` phase/deadline/progress/authentication observations and safe timestamped component diagnostics, blockers, pending invocations/reports, session fence and durable authentication request/delivery references |
 | `agent-cli work run` | One bounded manual controller step; same prompt/authority/slot as service |
@@ -2160,7 +2173,9 @@ show MESSAGE` retains their deadline/history and reports expired pending/deferre
 state. A receipt cannot revive an expired notice. Legacy requests/messages derive
 the deadline from their original creation; upgrade/restart does not renew them.
 
-Founder can explicitly ask an agent to check again, even while it remains paused:
+Founder can explicitly ask an agent to issue a fresh protected sign-in handoff,
+including while paused or when the provider is already signed in and Founder
+wants to switch accounts or configure a replacement API key:
 
 ```sh
 agent-cli --operation-id STABLE_NEW_REFRESH agent request-sign-in AGENT --input FILE
@@ -2174,10 +2189,11 @@ Include `project_id` to refresh a project-scoped episode. Server authority, not 
 message body or declared origin, enforces Founder-only issuance. The result is a
 protected urgent `authentication-refresh` message with a 15-minute expiry, not
 proof of delivery or sign-in. Its `handled` receipt means the target processed the
-check. The target probes the selected provider without inference and, only if
-sign-in is explicitly required/rejected, issues a fresh superseding request under
-its own identity. Healthy/credentials-present-unverified status does not produce
-a sign-in notice; unknown/outage status remains an explicit blocker. An offline
+check. The target probes the selected provider without inference and, when the
+provider is installed and reports `login-required`, `credentials-rejected`,
+`authenticated` or `credentials-present-unverified`, issues a fresh superseding
+sign-in handoff notice under its own identity without interrupting running work
+until a session is opened. Unknown/outage status remains an explicit blocker. An offline
 or fenced target may not process the refresh before it expires; Founder can issue
 a new operation when appropriate. Retry the same operation/input after a lost
 acknowledgement; a new intentional refresh needs a new operation ID.
@@ -2212,10 +2228,13 @@ executable hashes are checked again on resolution; native `update`/`install`
 commands cannot bypass Foundation activation. Automatic updates consider
 Antigravity only after explicit installation.
 
-Readiness uses only ACP initialize/session admission/model metadata/close; an
-`Authentication required` response remains login-required and starts no login.
-Human `provider login --provider antigravity` uses the advertised `agy acp --login`
-flow through the existing protected terminal. Text calls select a fixed custom
+Readiness uses only ACP initialize/session admission/model metadata/close (with
+non-interactive `gemini-api-key` selection when a private `GEMINI_API_KEY` is
+configured); an `Authentication required` response remains login-required and
+starts no login. Human `provider login --provider antigravity` offers masked
+`GEMINI_API_KEY` entry (persisted owner-only in provider state and supporting
+`gemini-4-carbon` and effort variants) or the advertised `agy acp --login` flow
+through the existing protected terminal. Text calls select a fixed custom
 agent with no tools and strict deny rules; coding selects only the documented
 file/search/command tools, with unattended permissions. Client file/terminal
 capabilities, MCP, inherited customizations, hooks/plugins and subagent tools are

@@ -19,6 +19,7 @@ type AgentOperation struct {
 	Reason              string                `json:"reason"`
 	SessionID           string                `json:"session_id,omitempty"`
 	ExpectedFence       string                `json:"expected_fence,omitempty"`
+	LocalModel          *LocalModelSpec       `json:"local_model,omitempty"`
 	CreatedAt           int64                 `json:"created_at"`
 	ExpiresAt           int64                 `json:"expires_at"`
 	StartedAt           int64                 `json:"started_at,omitempty"`
@@ -56,6 +57,7 @@ type AgentOperationResult struct {
 	AutomationMayResume bool                      `json:"automation_may_resume"`
 	Observation         *AgentInspection          `json:"observation,omitempty"`
 	NativeRuntime       *NativeRuntimeObservation `json:"native_runtime,omitempty"`
+	LocalModel          *LocalModelObservation    `json:"local_model,omitempty"`
 }
 
 type AgentInspection struct {

@@ -24,24 +24,29 @@ type AuthenticationDelivery struct {
 }
 
 type AuthenticationRequest struct {
-	FormatVersion  int                      `json:"format_version"`
-	Supersedes     string                   `json:"supersedes,omitempty"`
-	ID             string                   `json:"id"`
-	AgentID        string                   `json:"agent_id"`
-	AgentName      string                   `json:"agent_name"`
-	Provider       string                   `json:"provider"`
-	ProjectID      string                   `json:"project_id,omitempty"`
-	TaskID         string                   `json:"task_id,omitempty"`
-	SpecGeneration int64                    `json:"spec_generation,omitempty"`
-	ModeAtRequest  string                   `json:"mode_at_request"`
-	State          string                   `json:"state"`
-	CreatedAt      int64                    `json:"created_at"`
-	ExpiresAt      int64                    `json:"expires_at"`
-	RefreshID      string                   `json:"refresh_id,omitempty"`
-	ActionKey      string                   `json:"action_key,omitempty"`
-	ResolvedAt     int64                    `json:"resolved_at,omitempty"`
-	Deliveries     []AuthenticationDelivery `json:"deliveries"`
-	Error          *domain.Fault            `json:"error,omitempty"`
+	FormatVersion          int                      `json:"format_version"`
+	Supersedes             string                   `json:"supersedes,omitempty"`
+	ID                     string                   `json:"id"`
+	AgentID                string                   `json:"agent_id"`
+	AgentName              string                   `json:"agent_name"`
+	Provider               string                   `json:"provider"`
+	ProjectID              string                   `json:"project_id,omitempty"`
+	TaskID                 string                   `json:"task_id,omitempty"`
+	SpecGeneration         int64                    `json:"spec_generation,omitempty"`
+	ModeAtRequest          string                   `json:"mode_at_request"`
+	ObservedAuthentication string                   `json:"observed_authentication,omitempty"`
+	State                  string                   `json:"state"`
+	CreatedAt              int64                    `json:"created_at"`
+	ExpiresAt              int64                    `json:"expires_at"`
+	RefreshID              string                   `json:"refresh_id,omitempty"`
+	ActionKey              string                   `json:"action_key,omitempty"`
+	ResolvedAt             int64                    `json:"resolved_at,omitempty"`
+	Deliveries             []AuthenticationDelivery `json:"deliveries"`
+	Error                  *domain.Fault            `json:"error,omitempty"`
+}
+
+func (r AuthenticationRequest) reauthentication() bool {
+	return r.RefreshID != "" && (r.ObservedAuthentication == "authenticated" || r.ObservedAuthentication == "credentials-present-unverified")
 }
 
 func (e *Engine) authenticationRequests(ctx context.Context) ([]AuthenticationRequest, error) {
@@ -101,8 +106,14 @@ func (e *Engine) authenticationRecipients(ctx context.Context, request *Authenti
 }
 
 func authenticationMessage(request AuthenticationRequest) string {
-	body := fmt.Sprintf("Provider sign-in required.\nRequest: %s\nTarget computer: %s (%s)\nProvider: %s\nDetected at: %s\nExpires at: %s (15 minutes after detection; delivery does not extend it)\nMode when detected: %s\n",
-		request.ID, request.AgentName, request.AgentID, request.Provider, time.Unix(request.CreatedAt, 0).UTC().Format(time.RFC3339),
+	heading := "Provider sign-in required."
+	lead := "Authentication is blocking this computer before a provider invocation. No model was called to send this request."
+	if request.reauthentication() {
+		heading = "Provider sign-in requested by Founder (currently " + request.ObservedAuthentication + ")."
+		lead = "Founder explicitly requested a protected sign-in handoff so credentials, account, or API key can be replaced or verified on this computer. Existing work is not blocked until a session is opened. No model was called to send this request."
+	}
+	body := fmt.Sprintf("%s\nRequest: %s\nTarget computer: %s (%s)\nProvider: %s\nDetected at: %s\nExpires at: %s (15 minutes after detection; delivery does not extend it)\nMode when detected: %s\n",
+		heading, request.ID, request.AgentName, request.AgentID, request.Provider, time.Unix(request.CreatedAt, 0).UTC().Format(time.RFC3339),
 		time.Unix(request.ExpiresAt, 0).UTC().Format(time.RFC3339), request.ModeAtRequest)
 	if request.ProjectID != "" {
 		body += "Triggering project: " + request.ProjectID + ". Re-read current project authority before assistance; this reference grants no approval.\n"
@@ -115,13 +126,13 @@ func authenticationMessage(request AuthenticationRequest) string {
 		body += "This supersedes earlier request " + request.Supersedes + "; do not use the older notice.\n"
 	}
 	return body + fmt.Sprintf(`
-Authentication is blocking this computer before a provider invocation. No model was called to send this request.
+%s
 The target is an autonomous agent: do not wait for, prompt, or assume a human at that computer. Founder is the human-help coordination point. A delegate may be an AI agent and may coordinate authorized automated steps; it is not presumed human and must escalate human-only credential/consent actions to Founder.
 Founder should use its own enrolled identity:
 1. Inspect the target: agent-cli agent show %s
 2. Only if pausing is explicitly needed, Founder requests it: agent-cli agent mode %s --input FILE, with {"mode":"manual","reason":"Founder explicitly pauses for protected sign-in"}. The target applies it unattended. Delegates/targets cannot change manual mode.
 3. Authorize assistance once: agent-cli assistance grant --input FILE, specifying the requester/target IDs, mode "tmux", purpose "authentication", provider "%s" (or omit provider to cover supported authentication providers), and a reason. Or reuse the existing matching assistance grant.
-4. On the authorized requester's computer, explicitly open a protected human terminal: agent-cli assistance open GRANT --provider %s. Prefer the supported headless/device-code flow: codex login --device-auth or copilot login --device-code. Foundation probes the selected CLI's login --help and adds only its advertised device-flow flag; older CLIs retain native login. The target prepares the session unattended under the persistent grant; no local person or repeated target consent is required. The human opens the displayed verification link and completes sign-in on their own browser.
+4. On the authorized requester's computer, explicitly open a protected human terminal: agent-cli assistance open GRANT --provider %s. Prefer the supported headless/device-code or masked API-key flow: codex login --device-auth, copilot login --device-code, or Antigravity GEMINI_API_KEY / Google OAuth. Foundation probes the selected CLI's login --help and adds only its advertised device-flow flag; older CLIs retain native login. The target prepares the session unattended under the persistent grant; no local person or repeated target consent is required. The human opens the displayed verification link and completes sign-in on their own browser.
 For graphical human help instead of headless sign-in, the target first checks agent-cli screen list and may send agent-cli assistance request --input FILE with mode vnc, purpose authentication (or terminal for other human desktop help), screen_id/application_id, reason and project/task references. Only an actual available screen is eligible. Founder must grant that exact screen/application; prefer screen-only capture and explicitly label/authorize desktop_fallback when only the existing whole desktop can be shared. The human opens the matching grant with --viewer browser over SSH-forwarded loopback, not a public VNC port. A headless target cannot use VNC.
 5. The persistent grant survives connection expiry, disconnects and restarts until revoked. Reopen it without reauthorization. Live connections remain bounded, recheck current authority, and close on revocation; a grant is not a forever-open connection.
 6. Only Founder may request ai resumption through agent mode after any pause, with current spending/work authorization.
@@ -129,14 +140,18 @@ Do not initialize a replacement configuration, transfer Founder identity to the 
 This notice creates no grant/session, changes no mode and starts no inference. Assistance authorization is separate from task approval and spending authority.
 This request expires at the UTC deadline above and will not automatically renew just because time passes. Newly requested work or a newly observed sign-out after readiness can issue another scoped request; unchanged polls/restarts reuse their episode. Founder can also ask this computer to recheck sign-in and issue a fresh request: agent-cli agent request-sign-in %s --input FILE, with {"provider":"%s","reason":"Request a fresh protected sign-in notice"} and optional "project_id" matching this request. Use the target/provider IDs above. This does not open login or start inference. Provider device-code expiry and persistent assistance authorization are separate. Successful authentication observation, a changed required provider/computer identity, or changed recipient authority also invalidates this notice; check current work/provider status before acting.
 Delivery, acknowledgement, a text reply, or silence is not authentication, consent, task approval, or spending permission. Do not send tokens, passwords, cookies, one-time codes, secret-bearing authentication URLs, or credential screenshots/transcripts in messages or model chat. This does not prohibit displaying the sign-in screen/link to its authorized human through the protected terminal/session.
-`, request.AgentID, request.AgentID, request.Provider, request.Provider, request.AgentID, request.Provider)
+`, lead, request.AgentID, request.AgentID, request.Provider, request.Provider, request.AgentID, request.Provider)
 }
 
 func (e *Engine) requestAuthentication(ctx context.Context, c config.Worker, provider string, task *domain.Task) (AuthenticationRequest, error) {
-	return e.refreshAuthentication(ctx, c, provider, task, "")
+	return e.refreshAuthenticationWithStatus(ctx, c, provider, task, "", "")
 }
 
 func (e *Engine) refreshAuthentication(ctx context.Context, c config.Worker, provider string, task *domain.Task, refreshID string) (AuthenticationRequest, error) {
+	return e.refreshAuthenticationWithStatus(ctx, c, provider, task, refreshID, "")
+}
+
+func (e *Engine) refreshAuthenticationWithStatus(ctx context.Context, c config.Worker, provider string, task *domain.Task, refreshID, observedAuth string) (AuthenticationRequest, error) {
 	e.authMu.Lock()
 	defer e.authMu.Unlock()
 	requests, err := e.authenticationRequests(ctx)
@@ -155,11 +170,11 @@ func (e *Engine) refreshAuthentication(ctx context.Context, c config.Worker, pro
 	if index >= 0 {
 		request = requests[index]
 	}
-	if request.ID == "" || (refreshID == "" && request.State == "resolved") || (refreshID != "" && request.RefreshID != refreshID) {
+	if request.ID == "" || (refreshID == "" && (request.State == "resolved" || request.reauthentication())) || (refreshID != "" && request.RefreshID != refreshID) {
 		supersedes := request.ID
 		now := e.Now().UTC().Unix()
 		request = AuthenticationRequest{FormatVersion: authenticationFormat, Supersedes: supersedes, ID: domain.NewID("auth_request"), AgentID: e.Client.Credential.AgentID, Provider: provider,
-			ProjectID: projectID, ModeAtRequest: c.Mode, State: "delivery-pending", CreatedAt: now, ExpiresAt: now + domain.AuthenticationRequestTTL,
+			ProjectID: projectID, ModeAtRequest: c.Mode, ObservedAuthentication: observedAuth, State: "delivery-pending", CreatedAt: now, ExpiresAt: now + domain.AuthenticationRequestTTL,
 			RefreshID: refreshID, ActionKey: actionKey, Deliveries: []AuthenticationDelivery{}}
 		if task != nil {
 			request.TaskID, request.SpecGeneration = task.ID, task.SpecGeneration
@@ -264,7 +279,7 @@ func (e *Engine) resolveAuthentication(ctx context.Context, provider string) err
 	}
 	changed := false
 	for index := range requests {
-		if requests[index].Provider == provider && requests[index].State != "resolved" {
+		if requests[index].Provider == provider && requests[index].State != "resolved" && !requests[index].reauthentication() {
 			requests[index].State, requests[index].Error = "resolved", nil
 			requests[index].ResolvedAt = e.Now().UTC().Unix()
 			changed = true

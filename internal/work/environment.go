@@ -18,8 +18,8 @@ func (e *Engine) inventoryPaths(c config.Worker) (map[string]string, error) {
 }
 
 func (e *Engine) publishEnvironment(ctx context.Context) error {
-	if err := e.publishProviderCatalog(ctx); err != nil {
-		return err
+	if err := e.publishProviderCatalog(ctx); err != nil && e.Log != nil {
+		e.Log.Warn("optional provider catalog publication skipped", "code", domain.AsFault(err).Code)
 	}
 	c, err := e.currentConfig()
 	if err != nil {

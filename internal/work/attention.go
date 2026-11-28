@@ -112,6 +112,73 @@ func (e *Engine) acknowledgeProcessingMessage(ctx context.Context, message domai
 	return nil
 }
 
+func (e *Engine) roomMessages(ctx context.Context, c config.Worker, urgent, manual bool) (bool, error) {
+	cursor := ""
+	for {
+		path := "/v1/room-deliveries?limit=200"
+		if urgent {
+			path += "&urgent=true"
+		}
+		if cursor != "" {
+			path += "&cursor=" + url.QueryEscape(cursor)
+		}
+		page, err := api.Call[domain.Page[domain.RoomDelivery]](ctx, e.Client, "GET", path, nil)
+		if err != nil {
+			return false, err
+		}
+		for _, delivery := range page.Items {
+			if delivery.State != "pending" || !delivery.ResponseRequest {
+				continue
+			}
+			msg := delivery.Message
+			room := delivery.Room
+			d := delivery
+			candidate := Launch{Room: &room, RoomMessage: &msg, RoomDelivery: &d}
+			pending, err := e.conversationActionPending(ctx, candidate)
+			if err != nil {
+				return false, err
+			}
+			if pending {
+				continue
+			}
+			launch, err := e.launch(ctx, "message", nil)
+			if err != nil {
+				return false, err
+			}
+			launch.Room, launch.RoomMessage, launch.RoomDelivery = &room, &msg, &d
+			if err := e.conversationContext(ctx, &launch); err != nil {
+				return false, err
+			}
+			_, err = e.text(ctx, c, launch, manual)
+			var fenced textResponseFenced
+			if errors.As(err, &fenced) {
+				continue
+			}
+			return true, err
+		}
+		cursor = page.NextCursor
+		if cursor == "" {
+			return false, nil
+		}
+	}
+}
+
+func (e *Engine) acknowledgeProcessingRoomMessage(ctx context.Context, message domain.RoomMessage) error {
+	actor := e.Client.Credential.AgentID
+	if message.SenderID == actor {
+		return domain.Fail(domain.Internal, "room message processing requires a non-self recipient")
+	}
+	read, err := commit[domain.RoomMessage](ctx, e, "POST", api.Path("room-messages", message.ID, "read"),
+		domain.MessageReadRequest{Command: domain.Command{OperationID: "room-message." + domain.Hash(message.ID + ":" + actor)[:32] + ".read"}})
+	if err != nil {
+		return errors.Join(domain.Fail(domain.Prerequisite, "room message read acknowledgement must settle before processing; retain the exact proposal"), err)
+	}
+	if read.ID != message.ID || !slices.ContainsFunc(read.ReadBy, func(r domain.RoomReadReceipt) bool { return r.AgentID == actor && r.ReadAt > 0 }) {
+		return domain.Fail(domain.Internal, "room message read acknowledgement did not confirm the exact recipient receipt; evidence retained")
+	}
+	return nil
+}
+
 func (e *Engine) attention(ctx context.Context, c config.Worker, manual bool) (bool, error) {
 	cursor := ""
 	retired := false
@@ -255,6 +322,10 @@ func (e *Engine) research(ctx context.Context, c config.Worker, tasks []domain.T
 			return false, err
 		}
 		_, err = e.text(ctx, c, launch, manual)
+		var fenced textResponseFenced
+		if errors.As(err, &fenced) {
+			continue
+		}
 		return true, err
 	}
 	return false, nil

@@ -116,7 +116,7 @@ func (e *Engine) improvementStep(ctx context.Context, c config.Worker, manual bo
 			return false, err
 		}
 		for _, task := range candidates.Items {
-			if task.AssigneeID == me.ID || task.AssigneeID == "" || task.WorkspaceRef == "" || task.Readiness != nil ||
+			if task.AssigneeID == me.ID || task.AssigneeID == "" || task.Readiness != nil ||
 				task.ActiveRun != nil || task.Waiting != nil || !domain.EligibleApprover(me, project, task, false) {
 				continue
 			}
@@ -147,7 +147,11 @@ func (e *Engine) improvementStep(ctx context.Context, c config.Worker, manual bo
 	}
 	for _, task := range reviews {
 		if improvementProject(policy, task.ProjectID) {
-			return true, e.verify(ctx, c, me, task, manual)
+			err := e.verify(ctx, c, me, task, manual)
+			if err != nil && slices.Contains([]domain.Code{domain.Prerequisite, domain.Conflict, domain.NotFound, domain.Denied}, domain.AsFault(err).Code) {
+				continue
+			}
+			return true, err
 		}
 	}
 	return false, nil

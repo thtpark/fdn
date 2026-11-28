@@ -186,7 +186,7 @@ Test new/existing tools, feature/incident intake, delegate readiness, capacity
 windows/slices, exact Git source/integration, build output shapes, signing,
 adoption/consumer compatibility, server-first rollout, backup/uncertain replay
 and unchanged modes/identities. Typed DTO changes require current native ledger
-generation. Server SQL12 is ordered after immutable SQL11; local SQL1 and
+generation. Server SQL13 is ordered after immutable SQL12; local SQL1 and
 API/native versions remain separate.
 
 Provider/model defaults use the existing agent JSON record and independent

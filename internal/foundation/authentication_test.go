@@ -111,6 +111,7 @@ func TestAuthenticationRefreshValidation(t *testing.T) {
 	}{
 		{"missing provider", "", "", "explicit refresh", f.worker.ID, domain.Invalid},
 		{"unsupported provider", "other", "", "explicit refresh", f.worker.ID, domain.Invalid},
+		{"local provider without vendor login", "local", "", "explicit refresh", f.worker.ID, domain.Invalid},
 		{"case sensitive provider", "Codex", "", "explicit refresh", f.worker.ID, domain.Invalid},
 		{"missing reason", "codex", "", "", f.worker.ID, domain.Invalid},
 		{"blank reason", "codex", "", " \n\t", f.worker.ID, domain.Invalid},
@@ -140,7 +141,7 @@ func TestAuthenticationRefreshValidation(t *testing.T) {
 	if err := f.s.db.QueryRow("SELECT count(*) FROM messages WHERE json_extract(data,'$.kind')='authentication-refresh'").Scan(&count); err != nil || count != 0 {
 		t.Fatal("rejected refresh left a durable control", count, err)
 	}
-	for _, provider := range []string{"codex", "copilot"} {
+	for _, provider := range []string{"codex", "copilot", "antigravity"} {
 		if _, err := f.s.RequestAuthentication(ctx, f.founder.ID, f.founder.ID, domain.AuthenticationRefreshRequest{Command: op(), Provider: provider, Reason: strings.Repeat("r", 8192)}); err != nil {
 			t.Fatal("valid unscoped provider refresh rejected", err)
 		}

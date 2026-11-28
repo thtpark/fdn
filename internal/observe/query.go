@@ -28,7 +28,7 @@ type Query struct {
 	PublicationKind string `json:"publication_kind,omitempty"`
 }
 
-var kinds = strings.Fields("version help status identity work agents agent environment modelOptions announcementAudience projects project tasks task taskHistory runs run discussion entry inbox message messageHistory thread threadPage messageDiagnostics mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens sharing sharingSessions sharingStatus devices diagnostics operation upgrade configuration guides guide doctor events improvementPolicy improvements improvement repositories repository products product build releases release softwareInventory softwareConsumers softwareControl softwareDeployment softwareMaintenance maintenanceUsage")
+var kinds = strings.Fields("version help status identity work agents agent environment modelOptions announcementAudience projects project tasks task taskHistory runs run discussion entry inbox message messageHistory thread threadPage messageDiagnostics rooms room roomMessages roomMessage mentions note noteHistory noteContext files file fileChunk publications publication publicationVersions publicationVersion knowledge knowledgeItem knowledgeHistory workspaces inventory inventoryRefresh preferences provider sessions session grants grant screens sharing sharingSessions sharingStatus devices diagnostics operation upgrade configuration guides guide doctor events improvementPolicy improvements improvement repositories repository products product build releases release softwareInventory softwareConsumers softwareControl softwareDeployment softwareMaintenance maintenanceUsage")
 
 func (q Query) Validate() error {
 	if !slices.Contains(kinds, q.Kind) || q.Limit < 0 || q.Limit > 200 || len(q.Cursor) > 512 || q.Offset < 0 || q.Offset > domain.MaxFileSize {
@@ -90,7 +90,7 @@ func (q Query) Matches(u domain.Update, actor string) bool {
 		return u.SourceID == actor && (u.Topic == "agent" || u.Topic == "agent-mode" || u.Topic == "agent-status")
 	case "agents":
 		return u.Topic == "agent" || u.Topic == "agent-mode" || u.Topic == "agent-status"
-	case "agent", "diagnostics":
+	case "agent", "diagnostics", "environment":
 		return u.SourceID == q.ID
 	case "modelOptions":
 		return u.SourceID == q.ID && u.Topic == "agent-model-options"
@@ -112,6 +112,12 @@ func (q Query) Matches(u domain.Update, actor string) bool {
 		return u.SourceID == q.ID && (u.Topic == "comment" || u.Topic == "worklog")
 	case "inbox", "messageHistory", "thread", "threadPage":
 		return u.Topic == "message"
+	case "rooms":
+		return u.Topic == "room" || u.Topic == "project" || u.Topic == "project-creation" || u.Topic == "task"
+	case "room", "roomMessages":
+		return (u.Topic == "room" && u.SourceID == q.ID) || u.Topic == "project" || u.Topic == "task"
+	case "roomMessage":
+		return u.Topic == "room-message" && u.SourceID == q.ID
 	case "message", "messageDiagnostics", "operation":
 		return u.SourceID == q.ID
 	case "mentions":
@@ -163,6 +169,14 @@ func Filters(queries []Query, actor string) (domain.UpdateFilter, domain.UpdateF
 		case "status", "identity", "work":
 		case "inbox", "messageHistory", "thread", "threadPage":
 			private.Topics = append(private.Topics, "message")
+		case "rooms":
+			private.Topics = append(private.Topics, "room")
+			public.Topics = append(public.Topics, "project", "project-creation", "task")
+		case "room", "roomMessages":
+			private.Topics = append(private.Topics, "room")
+			public.Topics = append(public.Topics, "project", "task")
+		case "roomMessage":
+			private.Sources = append(private.Sources, q.ID)
 		case "message", "messageDiagnostics", "operation":
 			private.Sources = append(private.Sources, q.ID)
 		case "sessions", "session":
@@ -185,7 +199,7 @@ func Filters(queries []Query, actor string) (domain.UpdateFilter, domain.UpdateF
 			}
 		case "agents":
 			public.Topics = append(public.Topics, "agent", "agent-mode", "agent-status")
-		case "agent", "diagnostics", "modelOptions":
+		case "agent", "diagnostics", "modelOptions", "environment":
 			public.Sources = append(public.Sources, q.ID)
 		case "projects":
 			public.Topics = append(public.Topics, "project", "project-creation")

@@ -471,6 +471,55 @@ func (r *updateRouter) route(change updateChange) error {
 				u.Topic, u.Urgent = "agent-operation", true
 			}
 		}
+	case "message_rooms":
+		values, err := changeValues[domain.MessageRoom](change)
+		if err != nil {
+			return err
+		}
+		u.Topic = "room"
+		for _, room := range values {
+			u.ProjectID = room.ProjectID
+			parties.add(room.CreatedBy)
+			parties.add(room.MemberIDs...)
+			parties.add(room.AddedMemberIDs...)
+			if room.Kind == domain.RoomKindProject && room.ProjectID != "" {
+				if err := r.project(room.ProjectID, parties); err != nil {
+					return err
+				}
+				if err := r.projectDependents(room.ProjectID, parties); err != nil {
+					return err
+				}
+			}
+		}
+	case "room_messages":
+		values, err := changeValues[domain.RoomMessage](change)
+		if err != nil {
+			return err
+		}
+		u.Topic = "room-message"
+		roomParties := make(updateParties)
+		var roomID, projectID string
+		for _, msg := range values {
+			roomID, projectID = msg.RoomID, msg.ProjectID
+			u.ProjectID = msg.ProjectID
+			u.Urgent = u.Urgent || msg.Urgent
+			parties.add(msg.SenderID)
+			parties.add(msg.TargetAgentIDs...)
+			parties.add(msg.Mentions...)
+			roomParties.add(msg.SenderID)
+			roomParties.add(msg.TargetAgentIDs...)
+			roomParties.add(msg.Mentions...)
+		}
+		if roomID != "" {
+			room, _, roomErr := loadOrSynthesizeRoom(r.ctx, r.tx, roomID)
+			if roomErr == nil {
+				if _, hErr := hydrateRoom(r.ctx, r.tx, "", &room); hErr == nil {
+					parties.add(room.MemberIDs...)
+					roomParties.add(room.MemberIDs...)
+				}
+			}
+			r.queue(domain.Update{Topic: "room", SourceID: roomID, ProjectID: projectID, Urgent: u.Urgent}, roomParties)
+		}
 	case "sessions":
 		values, err := changeValues[domain.Session](change)
 		if err != nil {

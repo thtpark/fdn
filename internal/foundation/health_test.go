@@ -564,3 +564,47 @@ func TestHealthTaskAlertRecipientsFollowCurrentDelegation(t *testing.T) {
 		t.Fatal("former delegate received a later incident/transition")
 	}
 }
+
+func TestHealthAuxiliaryTelemetryProblemsDoNotBlockOrAlertAndResolvedNoticesAreNonUrgent(t *testing.T) {
+	f := newFixture(t)
+	h := observedHealth(f.now.Unix())
+	h.Problems = []domain.HealthProblem{
+		{Component: "environment", Code: domain.Prerequisite, FirstSeenAt: h.ObservedAt - 120, LastSeenAt: h.ObservedAt},
+		{Component: "provider-update", Code: domain.Unavailable, FirstSeenAt: h.ObservedAt - 120, LastSeenAt: h.ObservedAt},
+	}
+	publishHealth(t, f.s, f.worker.ID, h)
+	sweepHealth(t, f.s)
+	d := diagnoseHealth(t, f.s, f.founder.ID, f.worker.ID)
+	if d.State != "healthy" || d.Reason != "idle-observed" || d.Incident != nil || len(d.Health.Problems) != 2 ||
+		len(healthMessages(t, f.s, f.worker.ID, f.founder.ID)) != 0 {
+		t.Fatal("auxiliary environment/provider-update observations blocked healthy automation or fired alerts", d)
+	}
+
+	// Trigger a real actionable blocker, then verify active alert is urgent while resolved notice is non-urgent.
+	f.now = f.now.Add(time.Second)
+	h.ObservedAt++
+	h.Sequence++
+	h.Phase, h.Blocker, h.BlockedSinceAt = "blocked", "authentication-required", h.ObservedAt
+	publishHealth(t, f.s, f.worker.ID, h)
+	sweepHealth(t, f.s)
+	msgs := healthMessages(t, f.s, f.worker.ID, f.founder.ID)
+	if len(msgs) != 1 || !msgs[0].Urgent {
+		t.Fatal("active actionable incident did not deliver an urgent alert", msgs)
+	}
+
+	f.now = f.now.Add(time.Second)
+	h.ObservedAt++
+	h.Sequence++
+	h.Phase, h.Blocker, h.BlockedSinceAt = "idle", "", 0
+	publishHealth(t, f.s, f.worker.ID, h)
+	sweepHealth(t, f.s)
+	msgs = healthMessages(t, f.s, f.worker.ID, f.founder.ID)
+	if len(msgs) != 2 {
+		t.Fatal("expected active + resolved messages", msgs)
+	}
+	for _, m := range msgs {
+		if strings.Contains(m.Body, "observed recovery or transition") && m.Urgent {
+			t.Fatal("resolved transition notice remained urgent", m)
+		}
+	}
+}
