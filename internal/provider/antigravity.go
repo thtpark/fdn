@@ -145,10 +145,17 @@ func acpAuthenticateAPIKey(reader *bufio.Reader, writer io.Writer, id int) error
 	return err
 }
 
-func acpNewSession(reader *bufio.Reader, writer io.Writer, id int, workspace string) (acpSession, error) {
-	result, err := acpCall(reader, writer, id, "session/new", map[string]any{
+func acpNewSession(reader *bufio.Reader, writer io.Writer, id int, workspace string, disableBuiltInTools bool) (acpSession, error) {
+	params := map[string]any{
 		"cwd": workspace, "mcpServers": []any{},
-	}, nil)
+	}
+	if disableBuiltInTools {
+		params["_meta"] = map[string]bool{
+			"disableBuiltInTools":     true,
+			"disable_built_in_tools":  true,
+		}
+	}
+	result, err := acpCall(reader, writer, id, "session/new", params, nil)
 	if err != nil {
 		return acpSession{}, err
 	}
@@ -338,14 +345,14 @@ var antigravitySharedAuthFiles = []string{
 	"oauth_creds.json",
 }
 
-func (m *Manager) prepareAntigravityGeminiDir(home, root string, coding, writeAgent bool) (relative, apiKey string, syncBack func() error, err error) {
+func (m *Manager) prepareAntigravityGeminiDir(home, root string, coding, writeAgent bool) (geminiDir, apiKey string, syncBack func() error, err error) {
 	syncBack = func() error { return nil }
 	apiKey, err = m.LoadAntigravityAPIKey()
 	if err != nil {
 		return "", "", syncBack, err
 	}
-	gemini := filepath.Join(root, "antigravity-gemini")
-	relative, err = filepath.Rel(home, gemini)
+	gemini := filepath.Clean(filepath.Join(root, "antigravity-gemini"))
+	relative, err := filepath.Rel(home, gemini)
 	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
 		return "", "", syncBack, domain.Fail(domain.Prerequisite, "Antigravity isolated invocation state must remain inside this computer's existing HOME")
 	}
@@ -409,7 +416,7 @@ func (m *Manager) prepareAntigravityGeminiDir(home, root string, coding, writeAg
 			return secure.Write(filepath.Join(sourceCLI, "antigravity-oauth-token"), refreshed)
 		}
 	}
-	return filepath.ToSlash(relative), apiKey, syncBack, nil
+	return gemini, apiKey, syncBack, nil
 }
 
 func isAntigravityAuthRequired(err error) bool {
@@ -474,7 +481,7 @@ func (m *Manager) antigravityReadiness(ctx context.Context, path string) (authen
 			}
 			nextID++
 		}
-		session, err := acpNewSession(reader, output, nextID, directory)
+		session, err := acpNewSession(reader, output, nextID, directory, false)
 		nextID++
 		if err != nil {
 			if isAntigravityAuthRequired(err) {
@@ -504,14 +511,16 @@ func (m *Manager) antigravityReadiness(ctx context.Context, path string) (authen
 }
 
 func antigravityAgentDefinition(coding bool) string {
-	tools, execution := "[]", "off"
+	tools, execution, excludeDefaults := "[]", "off", "excludeDefaultComponents: true\n"
 	if coding {
 		tools = "[view_file, grep_search, run_command, replace_file_content]"
 		execution = "eager"
+		excludeDefaults = ""
 	}
 	return "---\nname: " + antigravityAgent + "\ndescription: Foundation source-bound controller adapter.\n" +
-		"tools: " + tools + "\nmainAgent: true\nsubagent: false\nmodel: inherit\ncommandExecutionPolicy: " + execution +
-		"\nmcpServers: []\nskills: []\nplugins: []\n---\n" +
+		"tools: " + tools + "\n" + excludeDefaults + "inheritMcp: false\ninheritCustomizations: false\n" +
+		"mainAgent: true\nsubagent: false\nmodel: inherit\ncommandExecutionPolicy: " + execution +
+		"\nmcpServers: []\nskills: []\nplugins: []\n---\n\n# Instructions\n\n" +
 		"Follow the supplied Foundation context and return exactly its structured JSON reply. " +
 		"Never delegate to subagents, open credential/consent UI, or expand task, OS or spending authority.\n"
 }
@@ -519,12 +528,15 @@ func antigravityAgentDefinition(coding bool) string {
 func antigravitySettings(coding bool) map[string]any {
 	deny := []string{"mcp(*)"}
 	policy := "always-proceed"
+	settings := map[string]any{"disableSlashCommands": true}
 	if !coding {
 		policy = "strict"
-		deny = []string{"command(*)", "read_file(*)", "write_file(*)", "read_url(*)", "execute_url(*)", "mcp(*)", "unsandboxed(*)"}
+		deny = []string{"command(*)", "read_file(*)", "write_file(*)", "read_url(*)", "execute_url(*)", "mcp(*)"}
+		settings["agentMode"] = ""
 	}
-	return map[string]any{"toolPermission": policy, "disableSlashCommands": true,
-		"permissions": map[string]any{"allow": []string{}, "ask": []string{}, "deny": deny}}
+	settings["toolPermission"] = policy
+	settings["permissions"] = map[string]any{"allow": []string{}, "ask": []string{}, "deny": deny}
+	return settings
 }
 
 func (m *Manager) invokeAntigravity(ctx context.Context, inv Invocation, directory string) (reply Reply, err error) {
@@ -576,7 +588,7 @@ func (m *Manager) invokeAntigravity(ctx context.Context, inv Invocation, directo
 			}
 			nextID++
 		}
-		session, err := acpNewSession(reader, output, nextID, workspace)
+		session, err := acpNewSession(reader, output, nextID, workspace, !inv.Coding)
 		nextID++
 		if err != nil {
 			if isAntigravityAuthRequired(err) {

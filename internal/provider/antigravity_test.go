@@ -20,13 +20,14 @@ import (
 )
 
 type antigravityRunner struct {
-	t             *testing.T
-	authenticated bool
-	toolAttempt   bool
-	permission    bool
-	requests      []string
-	specs         []process.Spec
-	joined        bool
+	t                       *testing.T
+	authenticated           bool
+	toolAttempt             bool
+	permission              bool
+	lastDisableBuiltInTools bool
+	requests                []string
+	specs                   []process.Spec
+	joined                  bool
 }
 
 func (r *antigravityRunner) Run(ctx context.Context, spec process.Spec) error {
@@ -90,12 +91,17 @@ func (r *antigravityRunner) Run(ctx context.Context, spec process.Spec) error {
 			}
 		case "session/new":
 			var parameters struct {
-				CWD string            `json:"cwd"`
-				MCP []json.RawMessage `json:"mcpServers"`
+				CWD  string            `json:"cwd"`
+				MCP  []json.RawMessage `json:"mcpServers"`
+				Meta *struct {
+					DisableCamel bool `json:"disableBuiltInTools"`
+					DisableSnake bool `json:"disable_built_in_tools"`
+				} `json:"_meta"`
 			}
 			if err := json.Unmarshal(request.Params, &parameters); err != nil || parameters.MCP == nil || len(parameters.MCP) != 0 {
 				return errors.New("external MCP capabilities were not explicitly empty")
 			}
+			r.lastDisableBuiltInTools = parameters.Meta != nil && parameters.Meta.DisableCamel && parameters.Meta.DisableSnake
 			if !r.authenticated {
 				if err := writer.Encode(map[string]any{"jsonrpc": "2.0", "id": request.ID,
 					"error": map[string]any{"code": -32000, "message": "Authentication required"}}); err != nil {
@@ -192,16 +198,19 @@ func TestAntigravityCodingAndToolDisabledTextUseExactIsolatedCLIContract(t *test
 			}
 			spec := runner.specs[len(runner.specs)-1]
 			if slices.Contains(spec.Args, "--dangerously-skip-permissions") != coding ||
+				runner.lastDisableBuiltInTools != !coding ||
 				!slices.Contains(spec.Args, "--include-default-customizations=false") || !slices.Contains(spec.Args, antigravityAgent) {
-				t.Fatal("native isolation or nonprompting policy missing", spec.Args)
+				t.Fatal("native isolation or nonprompting policy missing", spec.Args, runner.lastDisableBuiltInTools)
 			}
 			root := filepath.Join(manager.Config.StateDir, "invocations", inv.ID, "antigravity-gemini")
 			data, err := secure.Read(filepath.Join(root, "config", "agents", antigravityAgent, "agent.md"), domain.MaxBody)
 			if err != nil || !bytes.Contains(data, []byte("subagent: false")) || !bytes.Contains(data, []byte("mcpServers: []")) ||
-				(!coding && !bytes.Contains(data, []byte("tools: []"))) {
+				!bytes.Contains(data, []byte("# Instructions")) ||
+				(!coding && (!bytes.Contains(data, []byte("tools: []")) || !bytes.Contains(data, []byte("excludeDefaultComponents: true")))) {
 				t.Fatal("fixed tool/agent capabilities were not written", err)
 			}
 			var settings struct {
+				AgentMode    string `json:"agentMode"`
 				Permission   string `json:"toolPermission"`
 				DisableSlash bool   `json:"disableSlashCommands"`
 				Permissions  struct {
@@ -213,7 +222,7 @@ func TestAntigravityCodingAndToolDisabledTextUseExactIsolatedCLIContract(t *test
 			if err := config.Read(filepath.Join(root, "antigravity-cli", "settings.json"), &settings); err != nil {
 				t.Fatal(err)
 			}
-			if !coding && (settings.Permission != "strict" || len(settings.Permissions.Deny) != 7) {
+			if !coding && (settings.Permission != "strict" || len(settings.Permissions.Deny) != 6 || slices.Contains(settings.Permissions.Deny, "unsandboxed(*)")) {
 				t.Fatal("all text tools were not explicitly denied", settings)
 			}
 		})
@@ -272,13 +281,16 @@ func (r *carbonAntigravityRunner) Run(ctx context.Context, spec process.Spec) er
 			hasAPIKey = true
 		}
 	}
-	geminiRel := ".gemini"
+	geminiArg := ".gemini"
 	for i := 0; i < len(spec.Args)-1; i++ {
 		if spec.Args[i] == "--gemini-dir" {
-			geminiRel = spec.Args[i+1]
+			geminiArg = spec.Args[i+1]
 		}
 	}
-	cliDir := filepath.Join(home, filepath.FromSlash(geminiRel), "antigravity-cli")
+	cliDir := filepath.Join(home, filepath.FromSlash(geminiArg), "antigravity-cli")
+	if filepath.IsAbs(geminiArg) {
+		cliDir = filepath.Join(geminiArg, "antigravity-cli")
+	}
 	oauthPath := filepath.Join(cliDir, "antigravity-oauth-token")
 	if spec.Started != nil {
 		if err := spec.Started(23456); err != nil {
